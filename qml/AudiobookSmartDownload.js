@@ -127,6 +127,19 @@ function namedNarrators(narrators) {
     });
 }
 
+function sameNarrators(left, right) {
+    const a = [...new Set(left.map(normalized))].sort();
+    const b = [...new Set(right.map(normalized))].sort();
+    return a.length === b.length && a.every((name, index) => name === b[index]);
+}
+
+function compatibleRecording(source, recording) {
+    return (!source.language || !recording.language || source.language === language(recording.language))
+        && (!source.abridgement || !recording.abridgement || source.abridgement === abridgement(recording.abridgement))
+        && (!source.narrators.length || !recording.narrators.length
+            || sameNarrators(source.narrators, recording.narrators));
+}
+
 function uploadTitle(title, context) {
     const clean = normalized(title).replace(/\s*\((?:unabridged|abridged|dramatized|audiobook)\)$/, "").trim();
     const work = normalized(context.title);
@@ -178,6 +191,7 @@ function describe(listing, facts, matcher, context, editions, target) {
     const bundle = !!(listing.bundle || facts.bundle || (recovery && recovery.bundle));
     const title = text(listing.title);
     const author = text(facts.author) || text(listing.author);
+    if (context.fallback && context.fallback.triedHashes.includes(infoHash)) return false;
     if (previous && (!recovery || recovery.bundle !== bundle || infoHash === normalized(previous.infoHash)
             || normalized(author) !== normalized(context.author) || facts.audioFileCount === 0)) return false;
     const narrators = credits(facts.narrator || facts.narrators, true);
@@ -194,6 +208,12 @@ function describe(listing, facts, matcher, context, editions, target) {
         && source.title === normalized(context.title) && source.author === normalized(context.author)));
     const targetMatch = !!(target && confident && confident.id === target.id);
     const rank = targetMatch ? (verdict.verdict === "exact" ? 2 : 1) : 0;
+    const fallback = context.fallback;
+    const safeFallback = !!(fallback && targetMatch && uploadTitle(title, context) === normalized(context.title)
+        && compatibleRecording(source, target)
+        && compatibleRecording(source, fallback.original)
+        && (rank === 2 || (source.language && target.language && source.abridgement && target.abridgement
+            && source.narrators.length && target.narrators.length)));
     const different = !bundle && !targetMatch && differentNarrators(source.narrators, target);
     const differentEdition = !bundle && !targetMatch && target
         && (confident || (source.abridgement && target.abridgement && source.abridgement !== target.abridgement)
@@ -239,6 +259,7 @@ function describe(listing, facts, matcher, context, editions, target) {
         recommended: false,
         request: request,
         rank: rank,
+        safeFallback: safeFallback,
         seeders: Number(facts.seeders === undefined ? listing.seeders : facts.seeders) || 0,
         unresolved: !bundle && !targetMatch && !different && !differentEdition
     };
@@ -269,6 +290,12 @@ function resolve(abb, matcher, context, done) {
                 || b.rank - a.rank || Number(b.fileCount === 1) - Number(a.fileCount === 1)
                 || b.seeders - a.seeders;
         });
+        // Conflicting descriptions of the same torrent also require a manual choice.
+        let replacement = null;
+        if (context.fallback && !incomplete && !problem) {
+            const unsafeHashes = new Set(rows.filter(row => !row.safeFallback).map(row => row.request.infoHash));
+            replacement = rows.find(row => row.safeFallback && !unsafeHashes.has(row.request.infoHash));
+        }
         if (context.alternateTo) {
             const hashes = new Set();
             rows = rows.filter(function(row) {
@@ -280,8 +307,8 @@ function resolve(abb, matcher, context, done) {
         }
         const confident = rows.filter(function(row) { return row.rank > 0; });
         if (confident.length) confident[0].recommended = true;
-        const automatic = !context.alternateTo && confident.length === 1 && !incomplete && !problem
-            && !rows.some(function(row) { return row.unresolved; }) ? confident[0] : null;
+        const automatic = replacement || (!context.alternateTo && confident.length === 1 && !incomplete && !problem
+            && !rows.some(function(row) { return row.unresolved; }) ? confident[0] : null);
         done({ rows: rows, automatic: automatic, error: rows.length ? "" : problem });
     }
 

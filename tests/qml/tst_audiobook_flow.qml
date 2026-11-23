@@ -176,11 +176,43 @@ TestCase {
             property var captured: []
             property var failures: []
             property var replacements: []
-            function activeDownloads() { return failures }
-            function replaceStalledDownload(key, attempt, request) { replacements.push([key, attempt, request]); return true }
+            property var activeJob: null
+            property bool simulateJobs: false
+            signal activeCountChanged()
+            function activeDownloads() { return activeJob ? [activeJob].concat(failures) : failures }
+            function replaceStalledDownload(key, attempt, request, token) {
+                replacements.push([key, attempt, request, token])
+                if (simulateJobs) {
+                    activeJob = jobFor(request, token)
+                    failures = []
+                    activeCountChanged()
+                }
+                return true
+            }
             function recordingsForWork(key) { return [] }
-            function statusOf(key) { return { state: "none" } }
-            function downloadRecording(request) { captured.push(request) }
+            function statusOf(key) { return { state: activeJob && activeJob.id === key ? activeJob.state : "none" } }
+            function jobFor(request, token) {
+                return Object.assign({ id: request.recordingKey, state: "resolving", smartIntent: token }, request)
+            }
+            function downloadRecording(request, token) {
+                captured.push(request)
+                if (simulateJobs) {
+                    activeJob = jobFor(request, token)
+                    activeCountChanged()
+                }
+                return true
+            }
+            function fail(attempt, phase) {
+                const failed = Object.assign({}, activeJob, { attempt: attempt, state: "failed", stallPhase: phase })
+                if (!phase) delete failed.smartIntent
+                activeJob = null
+                failures = [failed]
+                activeCountChanged()
+            }
+            function cancel() {
+                activeJob = null
+                activeCountChanged()
+            }
         }
     }
 
@@ -286,6 +318,122 @@ TestCase {
         downloads.failures = []
         compare(flow.currentPage.providerStates.abb.state, "empty")
         compare(flow.currentPage.providerStates.abb.message, "This stalled download is no longer in Downloads.")
+    }
+
+    function smartFixture() {
+        const view = setup()
+        const flow = view.flow
+        flow.extensions = make(sourceExtensionsFixture, { sourceIds: ["colosseum.well.audiobookbay"] })
+        const downloads = make(sourceDownloadsFixture, { simulateJobs: true })
+        flow.downloads = downloads
+        flow.matcher = { matchSource: (source, editions) => source.narrators.includes("Reader One")
+            ? { verdict: "probable", recordingKey: editions[0].recordingKey } : { verdict: "none" } }
+        const provider = { lookups: 0, choices: ["a"] }
+        function resolveChoices(done) {
+            done({ rows: provider.choices.map(choice => ({ slug: choice, title: "First Book", author: "Alex Writer" })) })
+        }
+        flow.abb = {
+            search: (term, page, done) => {
+                ++provider.lookups
+                if (provider.hold) {
+                    provider.reply = () => resolveChoices(done)
+                    return { cancel: () => { provider.cancelled = true } }
+                }
+                resolveChoices(done)
+                return { cancel: () => {} }
+            },
+            detail: (slug, done) => {
+                const hash = slug === "first-alias" ? "a" : slug
+                done({ infoHash: hash.repeat(40), author: "Alex Writer",
+                    narrator: [slug === "d" && provider.different ? "Other Reader" : "Reader One"],
+                    language: "English", abridgement: "unabridged", audioFileCount: 1 })
+                return { cancel: () => {} }
+            }
+        }
+        flow.openWork("first", "edition-first")
+        const detail = flow.currentPage
+        findChild(detail, "audiobookPrimaryAction").triggered()
+        compare(downloads.captured.length, 1)
+        verify(downloads.activeJob.smartIntent)
+        return { flow: flow, downloads: downloads, provider: provider, detail: detail }
+    }
+
+    function test_smart_stall_retry_limit_and_no_navigation() {
+        const { flow, downloads, provider } = smartFixture()
+        flow.clear()
+        provider.choices = ["first-alias", "b"]
+        downloads.fail("1", "file-list")
+        tryVerify(() => downloads.replacements.length === 1)
+        compare(downloads.replacements[0][2].infoHash, "b".repeat(40))
+        verify(!flow.active)
+        flow.openWork("second")
+        const other = flow.currentPage
+        provider.choices = ["first-alias", "c"]
+        downloads.fail("2", "audio-data")
+        tryVerify(() => downloads.replacements.length === 2)
+        compare(downloads.replacements[1][2].infoHash, "c".repeat(40))
+        compare(flow.currentPage, other)
+        provider.choices = ["d"]
+        downloads.fail("3", "file-list")
+        flow.openWork("first", "edition-first")
+        tryVerify(() => flow.currentPage.primary.label === "Choose another release")
+        compare(provider.lookups, 3)
+        compare(downloads.replacements.length, 2)
+        compare(downloads.activeJob, null)
+    }
+
+    function test_smart_stall_explicit_choice() {
+        const { flow, detail, downloads, provider } = smartFixture()
+        provider.choices = ["d"]
+        provider.different = true
+        downloads.fail("1", "audio-data")
+        tryCompare(detail, "smartRecoveryRequired", true)
+        compare(flow.currentPage, detail)
+        compare(detail.primary.label, "Choose another release")
+        compare(downloads.replacements.length, 0)
+        findChild(detail, "audiobookPrimaryAction").triggered()
+        const picker = flow.currentPage
+        compare(picker.backTip, "Back to audiobook details")
+        compare(downloads.replacements.length, 0)
+        verify(findChild(picker, "audiobookSourceOption_abb_0").activate())
+        compare(downloads.replacements.length, 1)
+        verify(!downloads.activeJob.smartIntent)
+        compare(flow.currentPage, detail)
+        downloads.fail("2", "file-list")
+        wait(25)
+        compare(provider.lookups, 3)
+        compare(downloads.replacements.length, 1)
+    }
+
+    function test_smart_stall_stops_data() {
+        return [{ tag: "cancel" }, { tag: "dismiss" }, { tag: "replacement" },
+                { tag: "provider-disabled" }, { tag: "non-stall" }]
+    }
+
+    function test_smart_stall_stops(data) {
+        const { flow, downloads, provider } = smartFixture()
+        provider.choices = ["b"]
+        if (data.tag === "cancel") downloads.cancel()
+        else if (data.tag === "non-stall") downloads.fail("1", "")
+        else {
+            provider.hold = true
+            downloads.fail("1", "file-list")
+            tryVerify(() => !!provider.reply)
+            const lateReply = provider.reply
+            if (data.tag === "dismiss") downloads.failures = []
+            else if (data.tag === "replacement") {
+                verify(flow.openReplacement(downloads.failures[0].id, "1"))
+                flow.back()
+            } else {
+                flow.extensions.sourceIds = []
+                ++flow.extensions.revision
+            }
+            tryVerify(() => provider.cancelled)
+            lateReply()
+        }
+        wait(25)
+        compare(downloads.replacements.length, 0)
+        if (data.tag === "cancel" || data.tag === "non-stall") compare(provider.lookups, 1)
     }
 
     function test_indexers_do_not_enable_audiobook_downloads() {

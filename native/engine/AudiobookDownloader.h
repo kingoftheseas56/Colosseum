@@ -86,9 +86,9 @@ public:
                                        const QString& bookPath = QString());
     // Optional workId identifies the AudioSilo catalogue work. bookId still identifies
     // the local ebook for read-along pairing. Bundles carry neither work identity.
-    Q_INVOKABLE void downloadRecording(const QVariantMap& request);
+    Q_INVOKABLE bool downloadRecording(const QVariantMap& request, const QString& smartIntent = {});
     Q_INVOKABLE bool replaceStalledDownload(const QString& key, const QString& attempt,
-                                            const QVariantMap& request);
+                                            const QVariantMap& request, const QString& smartIntent = {});
     Q_INVOKABLE QString resolveRecordingKey(const QString& workOrRecordingKey) const;
     Q_INVOKABLE QVariantList recordingsForWork(const QString& pairKey) const;
     Q_INVOKABLE bool setDefaultRecording(const QString& pairKey, const QString& recordingKey);
@@ -146,6 +146,7 @@ private:
         QString pairKey, recordingKey, signalKey, infoHash, title, author;
         QString workId, audiosiloRecordingId, format, abridgement, language, sourceKind, sourceRef;
         QStringList narrators;
+        QString smartIntent;
         bool bundle = false;
         quint64 generation = 0;
         bool nativeTorrent = false;
@@ -198,7 +199,8 @@ private:
     // pairing (audiobook pairKey + dirPath) under the remembered bookId, keyed the
     // SAME way Task 13's Audio tab reads it. No-op when no store or no bookId.
     void attachToBook(const QString& recordingKey, const QString& dirPath);
-    bool beginDownload(const QVariantMap& request, bool legacyCaller, const QString& replacedFailure = {});
+    bool beginDownload(const QVariantMap& request, bool legacyCaller, const QString& replacedFailure = {},
+                       const QString& smartIntent = {});
 
     // ── disk + index ──
     QString baseDir() const;                   // <appdata>/audiobooks

@@ -417,6 +417,7 @@ QVariantList AudiobookDownloader::activeDownloads() const
             {QStringLiteral("total"),static_cast<double>(j->totalBytes)}
         };
         if (!j->workId.isEmpty()) row.insert(QStringLiteral("workId"), j->workId);
+        if (!j->smartIntent.isEmpty()) row.insert(QStringLiteral("smartIntent"), j->smartIntent);
         return row;
     };
     if (m_active)
@@ -520,13 +521,13 @@ void AudiobookDownloader::downloadAudiobook(const QString& pairKey, const QStrin
                    {QStringLiteral("sourceKind"),QStringLiteral("abb")}},true);
 }
 
-void AudiobookDownloader::downloadRecording(const QVariantMap& request)
+bool AudiobookDownloader::downloadRecording(const QVariantMap& request, const QString& smartIntent)
 {
-    beginDownload(request,false);
+    return beginDownload(request, false, {}, smartIntent);
 }
 
 bool AudiobookDownloader::replaceStalledDownload(const QString& key, const QString& attempt,
-                                                   const QVariantMap& request)
+                                                   const QVariantMap& request, const QString& smartIntent)
 {
     const QVariantMap failure = m_failures.value(key);
     const QString pairKey = failure.value(QStringLiteral("pairKey")).toString();
@@ -536,6 +537,8 @@ bool AudiobookDownloader::replaceStalledDownload(const QString& key, const QStri
     const QString recordingKey = request.value(QStringLiteral("recordingKey")).toString();
     const bool bundle = request.value(QStringLiteral("bundle")).toBool();
     if (attempt.isEmpty() || attempt != failure.value(QStringLiteral("attempt")).toString()
+        || (!smartIntent.isEmpty() && (smartIntent != failure.value(QStringLiteral("smartIntent")).toString()
+            || bundle || recordingKey != key))
         || pairKey.isEmpty() || request.value(QStringLiteral("pairKey")).toString() != pairKey
         || request.value(QStringLiteral("workId")).toString() != workId
         || (bundle && (recordingKey != QStringLiteral("bundle#src:") + hash
@@ -563,11 +566,11 @@ bool AudiobookDownloader::replaceStalledDownload(const QString& key, const QStri
         replacement.insert(QStringLiteral("bookId"), m_bookIdFor.value(key));
         replacement.insert(QStringLiteral("bookPath"), m_bookPathFor.value(key));
     }
-    return beginDownload(replacement, false, key);
+    return beginDownload(replacement, false, key, smartIntent);
 }
 
 bool AudiobookDownloader::beginDownload(const QVariantMap& request, bool legacyCaller,
-                                        const QString& replacedFailure)
+                                        const QString& replacedFailure, const QString& smartIntent)
 {
     const QString sourceKind = request.value(QStringLiteral("sourceKind")).toString();
     const QString sourceRef = request.value(QStringLiteral("sourceRef")).toString().trimmed();
@@ -653,6 +656,7 @@ bool AudiobookDownloader::beginDownload(const QVariantMap& request, bool legacyC
     job->language = request.value(QStringLiteral("language")).toString();
     job->sourceKind = sourceKind;
     job->sourceRef = sourceRef;
+    job->smartIntent = smartIntent;
     const QVariant rawNames = request.value(QStringLiteral("narrators"));
     if (rawNames.canConvert<QStringList>()) job->narrators = rawNames.toStringList();
     if (!DownloadMediaPaths::enabled())
@@ -999,6 +1003,7 @@ void AudiobookDownloader::failJob(Job* job, const QString& reason, const QString
         if (job->sourceKind == QLatin1String("abb"))
             stall.insert(QStringLiteral("sourceRef"), job->sourceRef);
         stall.insert(QStringLiteral("audiosiloRecordingId"), job->audiosiloRecordingId);
+        if (!job->smartIntent.isEmpty()) stall.insert(QStringLiteral("smartIntent"), job->smartIntent);
     }
     const QString failure = reason; // reason may alias the retired Job
     if (m_active == job) m_active = nullptr;
@@ -1077,6 +1082,11 @@ void AudiobookDownloader::cancelDownload(const QString& key)
     Job* target = nullptr;
     if (m_active && m_active->recordingKey == key) target = m_active;
     for (Job* j : m_queue) if (j->recordingKey == key) target = j;
+    if (!target && !m_failures.value(key).value(QStringLiteral("smartIntent")).toString().isEmpty()) {
+        // The confirmed cancel can arrive while the stalled recording is looking for a replacement.
+        dismissFailure(key);
+        return;
+    }
     if (!target) {
         // A bare work key may only cancel when it identifies one in-flight recording.
         int matches = 0;

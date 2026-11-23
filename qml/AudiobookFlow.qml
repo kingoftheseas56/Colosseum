@@ -39,6 +39,9 @@ FocusScope {
 
     property int downloadsRevision: 0
     property var failedKeys: ({})
+    property var smartDownloads: ({})
+    property int smartDownloadSequence: 0
+    property int smartDownloadRevision: 0
     readonly property var activeDownloads: (downloadsRevision, downloads ? downloads.activeDownloads() : [])
 
     visible: active
@@ -52,13 +55,94 @@ FocusScope {
                                 StackView.Immediate)
     }
 
-    function openReplacement(key, attempt) {
+    function openReplacement(key, attempt, bookDetail) {
         if (!downloads || replacingDownload || !attempt) return false
-        const row = activeDownloads.find(job => job.state === "failed" && job.id === key && job.attempt === attempt)
+        const row = downloads.activeDownloads().find(job => job.state === "failed"
+            && job.id === key && job.attempt === attempt)
         if (!row || !row.pairKey || !row.title || (!row.author && !row.workId)) return false
-        routeStack.pushItem(replacementPage, { stalled: row }, StackView.Immediate)
+        const intent = smartDownloads[key]
+        if (intent && row.smartIntent === intent.token) stopSmartRecovery(intent)
+        routeStack.pushItem(replacementPage, { stalled: row, bookDetail: bookDetail || null }, StackView.Immediate)
         return true
     }
+
+    function startSmartDownload(request, context) {
+        const key = request.recordingKey
+        const token = String(++smartDownloadSequence)
+        if (downloads.downloadRecording(request, token)) {
+            smartDownloads[key] = { token: token, context: context, original: request,
+                                    triedHashes: [request.infoHash], attempt: "",
+                                    needsChoice: false, cancel: null }
+            ++smartDownloadRevision
+            Qt.callLater(reconcileSmartDownloads)
+        }
+    }
+
+    function stopSmartRecovery(intent) {
+        intent.needsChoice = true
+        const cancel = intent.cancel
+        intent.cancel = null
+        if (cancel) cancel()
+        ++smartDownloadRevision
+    }
+
+    function reconcileSmartDownloads() {
+        const keys = Object.keys(smartDownloads)
+        if (!keys.length) return
+        const rows = downloads ? downloads.activeDownloads() : []
+        for (const key of keys) {
+            const intent = smartDownloads[key]
+            const row = rows.find(job => job.id === key && job.smartIntent === intent.token)
+            if (!row) {
+                delete smartDownloads[key]
+                if (intent.cancel) intent.cancel()
+                ++smartDownloadRevision
+            } else if (row.state === "failed" && row.attempt && row.attempt !== intent.attempt
+                       && !intent.needsChoice) {
+                retrySmartDownload(key, intent, row)
+            }
+        }
+    }
+
+    function retrySmartDownload(key, intent, stalled) {
+        intent.attempt = stalled.attempt
+        ++smartDownloadRevision
+        if (!abbEnabled || !abb || !matcher || intent.triedHashes.length >= 3) {
+            stopSmartRecovery(intent)
+            return
+        }
+
+        const context = Object.assign({}, intent.context, {
+            alternateTo: stalled, fallback: { original: intent.original, triedHashes: intent.triedHashes }
+        })
+        let completed = false
+        const cancel = SmartDownload.resolve(abb, matcher, context, function(result) {
+            completed = true
+            intent.cancel = null
+            if (smartDownloads[key] !== intent || intent.needsChoice || !abbEnabled || !downloads) return
+            const stillStalled = downloads.activeDownloads().some(job => job.id === key
+                && job.attempt === stalled.attempt && job.smartIntent === intent.token)
+            if (!stillStalled) return
+            const request = result.automatic && result.automatic.request
+            if (!request || request.recordingKey !== key || intent.triedHashes.includes(request.infoHash)) {
+                stopSmartRecovery(intent)
+                return
+            }
+
+            intent.triedHashes.push(request.infoHash)
+            if (!downloads.replaceStalledDownload(key, stalled.attempt, request, intent.token))
+                stopSmartRecovery(intent)
+        })
+        if (!completed) intent.cancel = cancel
+    }
+
+    onAbbEnabledChanged: {
+        if (!abbEnabled) Object.values(smartDownloads).forEach(intent => stopSmartRecovery(intent))
+    }
+    onDownloadsChanged: Qt.callLater(reconcileSmartDownloads)
+    Component.onDestruction: Object.values(smartDownloads).forEach(intent => {
+        if (intent.cancel) intent.cancel()
+    })
 
     function openListen(recordingKey, item, jump) {
         if (!session || !downloads || !recordingKey || !downloads.isDownloaded(recordingKey)) return false
@@ -130,9 +214,15 @@ FocusScope {
     Connections {
         target: flow.downloads
         ignoreUnknownSignals: true
-        function onActiveCountChanged() { ++flow.downloadsRevision }
+        function onActiveCountChanged() {
+            ++flow.downloadsRevision
+            Qt.callLater(flow.reconcileSmartDownloads)
+        }
         function onDownloadPathsChanged() { ++flow.downloadsRevision }
-        function onFailuresChanged() { ++flow.downloadsRevision }
+        function onFailuresChanged() {
+            ++flow.downloadsRevision
+            Qt.callLater(flow.reconcileSmartDownloads)
+        }
         function onResolving(key) { ++flow.downloadsRevision }
         function onProgress(key, received, total) { ++flow.downloadsRevision }
         function onRemoved(key) { ++flow.downloadsRevision }
@@ -204,6 +294,16 @@ FocusScope {
                 : [])
             selectedDownloadKey: chosenUpload ? chosenUpload.recordingKey : ""
             sourceEnabled: flow.abbEnabled
+            readonly property var stalledSmartDownload: {
+                flow.smartDownloadRevision
+                const key = selectedDownloadKey || shownRecording.key
+                const intent = flow.smartDownloads[key]
+                const row = intent && intent.context.workId === workId && flow.activeDownloads.find(job =>
+                    job.state === "failed" && job.id === key && job.smartIntent === intent.token)
+                return row ? { key: key, attempt: row.attempt, needsChoice: intent.needsChoice } : null
+            }
+            smartRecoveryPending: !!stalledSmartDownload && !stalledSmartDownload.needsChoice
+            smartRecoveryRequired: !!stalledSmartDownload && stalledSmartDownload.needsChoice
             recordings: FlowData.recordingsFor(work, selectedRecording, chosenUpload || download, ownedSources, !flow.downloads)
             downloadState: {
                 flow.downloadsRevision
@@ -241,7 +341,7 @@ FocusScope {
                     : pending ? qsTr("Loading audiobook…") : qsTr("This audiobook is unavailable right now.")
             }
 
-            function submitUpload(request) {
+            function submitUpload(request, smartContext) {
                 if (!request || request.sourceKind !== "abb" || !flow.abbEnabled || !flow.downloads || submitting) return
                 chosenUpload = request
                 const state = flow.downloadStatus(request.recordingKey).state
@@ -253,7 +353,8 @@ FocusScope {
                 lookupError = ""
                 lookupMessage = ""
                 submitting = true
-                flow.downloads.downloadRecording(request)
+                if (smartContext) flow.startSmartDownload(request, smartContext)
+                else flow.downloads.downloadRecording(request)
                 submitting = false
             }
 
@@ -268,6 +369,10 @@ FocusScope {
             function findSources() {
                 if (flow.currentPage !== detail || lookupPending || submitting || primary.kind !== "download"
                         || !primary.enabled || !pairKey) return
+                if (stalledSmartDownload) {
+                    flow.openReplacement(stalledSmartDownload.key, stalledSmartDownload.attempt, detail)
+                    return
+                }
                 if (!flow.downloads || !flow.abb || !flow.matcher) {
                     lookupError = qsTr("AudioBookBay is unavailable right now.")
                     return
@@ -281,15 +386,16 @@ FocusScope {
                 lookupMessage = ""
                 lookupPending = true
                 const generation = ++lookupGeneration
-                const cancel = SmartDownload.resolve(flow.abb, flow.matcher, {
+                const context = {
                     workId: workId, title: built.title, author: built.authors, pairKey: pairKey,
                     targetRecordingId: shownRecording.id, recordings: work.recordings || [], series: work.series || []
-                }, function(result) {
+                }
+                const cancel = SmartDownload.resolve(flow.abb, flow.matcher, context, function(result) {
                     if (generation !== detail.lookupGeneration || flow.currentPage !== detail || !flow.abbEnabled) return
                     detail.cancelLookup = null
                     detail.lookupPending = false
                     if (result.automatic) {
-                        detail.submitUpload(result.automatic.request)
+                        detail.submitUpload(result.automatic.request, context)
                     } else if (result.rows.length) {
                         routeStack.pushItem(sourcesPage, { detail: detail, options: result.rows }, StackView.Immediate)
                     } else if (result.error) {
@@ -376,7 +482,8 @@ FocusScope {
         Audiobook.AudiobookSourcesPage {
             id: replacement
             required property var stalled
-            readonly property bool replacesStalledDownload: true
+            property Item bookDetail: null
+            readonly property bool replacesStalledDownload: !bookDetail
             readonly property bool currentFailure: flow.activeDownloads.some(job => job.state === "failed"
                 && job.id === stalled.id && job.attempt === stalled.attempt)
             readonly property bool canSearch: currentFailure && flow.abbEnabled
@@ -393,7 +500,7 @@ FocusScope {
             workTitle: work.title || stalled.title
             workAuthor: FlowData.authorFor(work) || stalled.author
             artwork: work.coverUrl || work.cover || ""
-            backTip: qsTr("Back to Downloads")
+            backTip: bookDetail ? qsTr("Back to audiobook details") : qsTr("Back to Downloads")
             backdrop: flow.backdrop
             providerStates: ({ abb: !currentFailure
                 ? { state: "empty", message: qsTr("This stalled download is no longer in Downloads."), rows: [] }
@@ -458,9 +565,10 @@ FocusScope {
             onExtensionsRequested: flow.openExtensionsRequested()
             onSourcePicked: row => {
                 if (flow.currentPage !== replacement || !canSearch || !row.request) return
-                if (flow.downloads.replaceStalledDownload(stalled.id, stalled.attempt, row.request))
+                if (flow.downloads.replaceStalledDownload(stalled.id, stalled.attempt, row.request)) {
+                    if (bookDetail && !row.request.bundle) bookDetail.chosenUpload = row.request
                     flow.back()
-                else selectionError = qsTr("This release could not be queued.")
+                } else selectionError = qsTr("This release could not be queued.")
             }
         }
     }

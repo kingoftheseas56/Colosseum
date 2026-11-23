@@ -266,3 +266,30 @@ test('legacy recovery finds the canonical first Hunger Games book and offers onl
   assert.equal(outcome.rows[2].reason, 'Includes this book');
   assert.equal(outcome.rows[3].bundleCount, 3);
 });
+
+test('automatic stall recovery skips all tried hashes and rejects unverifiable editions', () => {
+  const rows = [
+    listing('stalled'), listing('tried-alias'), listing('different-language'),
+    listing('different-cast'), listing('unknown-edition'), listing('special', { title: 'The Long Road - Special Edition' }),
+    listing('same-recording')
+  ];
+  const facts = {
+    'tried-alias': info('a'), 'different-language': info('c', { language: 'German' }),
+    'different-cast': info('d', { narrator: ['Ben Rose & Ezra Poe'] }),
+    'unknown-edition': info('e', { abridgement: '' }),
+    special: info('f'), 'same-recording': info('9')
+  };
+  const original = { infoHash: 'a'.repeat(40), narrators: ['Ben Rose', 'Cleo Vale'],
+    language: 'English', abridgement: 'unabridged' };
+  let outcome;
+  resolver.resolve({
+    search(term, page, done) { done({ rows }); },
+    detail(slug, done) { assert.ok(facts[slug]); done(facts[slug]); }
+  }, { matchSource: () => probable }, {
+    ...context, alternateTo: { infoHash: 'b'.repeat(40), sourceRef: 'stalled' },
+    fallback: { original, triedHashes: [original.infoHash, 'b'.repeat(40)] }
+  }, result => { outcome = result; });
+  assert.equal(outcome.automatic?.request.sourceRef, 'same-recording');
+  assert.ok(outcome.rows.some(row => row.request.sourceRef === 'special'));
+  assert.ok(!outcome.rows.some(row => row.request.sourceRef === 'tried-alias'));
+});

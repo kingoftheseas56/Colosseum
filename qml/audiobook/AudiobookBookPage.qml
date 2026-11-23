@@ -19,6 +19,8 @@ FocusScope {
     property var downloadState: ({})
     property bool sourceEnabled: true
     property bool lookupPending: false
+    property bool smartRecoveryPending: false
+    property bool smartRecoveryRequired: false
     property string lookupError: ""
     property string lookupMessage: ""
     property bool canSave: false
@@ -48,10 +50,14 @@ FocusScope {
     readonly property var primary: {
         if (lookupPending)
             return { kind: "lookup", label: qsTr("Finding downloads…"), enabled: false, progress: -1 }
+        if (smartRecoveryPending)
+            return { kind: "lookup", label: qsTr("Finding another release…"), enabled: false, progress: -1 }
         const action = BookData.primaryAction(built, actionRecording, local, downloadState)
         if (action.kind !== "download" || !action.enabled) return action
         if (!sourceEnabled)
             return { kind: "extensions", label: qsTr("Enable AudioBookBay in Extensions"), enabled: true, progress: -1 }
+        if (smartRecoveryRequired)
+            return { kind: "download", label: qsTr("Choose another release"), enabled: true, progress: -1 }
         if (lookupError)
             return { kind: "download", label: qsTr("Retry"), enabled: true, progress: -1 }
         return action
@@ -274,7 +280,8 @@ FocusScope {
                     topPadding: theme.fontSize(10)
                     visible: text.length > 0
                     text: root.primary.kind === "listen" ? qsTr("Downloaded · Ready to listen")
-                        : root.primary.kind === "progress" || root.lookupPending ? ""
+                        : root.primary.kind === "progress" || root.primary.kind === "lookup" ? ""
+                        : root.smartRecoveryRequired ? qsTr("The download stalled.")
                         : root.lookupError || root.lookupMessage || qsTr("Not downloaded")
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap

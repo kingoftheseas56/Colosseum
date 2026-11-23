@@ -379,6 +379,35 @@ private slots:
   QCOMPARE(row.value("workId").toString(),"work-456");
   QVERIFY(books.downloadedAudiobooks().isEmpty());
  }
+ void cancellingStalledSmartAttemptInvalidatesFallback() {
+  FakeEngine engine;
+  QNetworkAccessManager nam;
+  AudiobookDownloader books(&nam, nullptr);
+  books.setTorrentTransport(new AudiobookTorrentTransport(&engine, {60, 60, 5}));
+  QSignalSpy failed(&books, &AudiobookDownloader::failed);
+  const QString key = "one|author#as:edition";
+  const QString intent = "smart-original";
+  QVariantMap request{{"pairKey", "one|author"}, {"recordingKey", key}, {"infoHash", A},
+                      {"title", "One"}, {"author", "Author"}, {"workId", "one"},
+                      {"sourceKind", "abb"}, {"sourceRef", "original"}};
+  QVERIFY(books.downloadRecording(request, intent));
+  QTRY_COMPARE_WITH_TIMEOUT(failed.size(), 1, 1000);
+  const QVariantMap stalled = books.activeDownloads().first().toMap();
+  QCOMPARE(stalled.value("smartIntent").toString(), intent);
+  const QString attempt = stalled.value("attempt").toString();
+
+  request["infoHash"] = B;
+  request["sourceRef"] = "alternate";
+  QVERIFY(!books.replaceStalledDownload(key, attempt, request, "smart-unrelated"));
+  auto otherEdition = request;
+  otherEdition["recordingKey"] = "one|author#as:other-edition";
+  QVERIFY(!books.replaceStalledDownload(key, attempt, otherEdition, intent));
+  books.cancelDownload(key);
+  QVERIFY(books.activeDownloads().isEmpty());
+  QVERIFY(!books.replaceStalledDownload(key, attempt, request, intent));
+  QCOMPARE(engine.adds, QList<QString>{A});
+ }
+
  void stalledRecordingCanBeReplaced_data() {
   QTest::addColumn<bool>("catalogue");
   QTest::addColumn<bool>("bundle");
