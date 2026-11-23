@@ -176,18 +176,31 @@ WorldPage {
                 || (root.worldData.crateItems || []).length > 0
                 || (root.worldData.v1HomeRows || []).some(row=>(row.items || []).length)
             property bool contentShown: false
+            // Optional enrichment (charts, identities, discographies) has no native
+            // deadline, so once Home has content wait for it only this long.
+            property int optionalWaitMs: 8000
+            property bool optionalWaitExpired: false
+            readonly property bool waitingOnOptional: hasContent && !contentShown && !optionalWaitExpired
+                && Number((root.worldData.homeSourcePool || {}).pendingCount)>0
+                && root.worldData.homeStatus!=="loading" && root.worldData.homeStatus!=="idle"
+            Timer {
+                interval: homeLoading.optionalWaitMs
+                running: homeLoading.waitingOnOptional && homeLoading.visible
+                onTriggered: homeLoading.optionalWaitExpired = true
+            }
             readonly property bool canPresentContent: hasContent && !loadingBar.indeterminate
                 && root.contentVisible && !root.gated && !root.worldData.tastePickerOpen
                 && root.worldData.pickerAnswered === true && root.currentTab === "home" && !root.listKey
             // Latch only after the first-load wait has let content through, not as rows arrive.
             function rememberContent() { if (canPresentContent) contentShown = true; }
             onCanPresentContentChanged: rememberContent()
-            onHasContentChanged: if (!hasContent) contentShown = false
+            onHasContentChanged: if (!hasContent) { contentShown = false; optionalWaitExpired = false; }
             Component.onCompleted: rememberContent()
             Connections {
                 target: root
                 function onWorldDataChanged() {
                     homeLoading.contentShown = false;
+                    homeLoading.optionalWaitExpired = false;
                     homeLoading.rememberContent();
                 }
             }
@@ -210,7 +223,7 @@ WorldPage {
                 id: loadingBar
                 objectName: "vinylHomeLoadingBar"
                 width: parent.width; height: 6
-                indeterminate: root.worldData.homeStatus==="loading" || root.worldData.homeStatus==="idle" || Number((root.worldData.homeSourcePool || {}).pendingCount)>0
+                indeterminate: root.worldData.homeStatus==="loading" || root.worldData.homeStatus==="idle" || (Number((root.worldData.homeSourcePool || {}).pendingCount)>0 && !homeLoading.optionalWaitExpired)
                 visible: indeterminate
                 palette.dark: theme.gold
                 palette.midlight: "#1affffff"

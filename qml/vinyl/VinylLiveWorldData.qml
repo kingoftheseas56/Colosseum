@@ -229,7 +229,10 @@ Item {
     }
     // The picker needs the service in an editing draft; open one whenever the gate is locked.
     function ensureGateDraft() {
-        if(!usesRecommendationService || !tasteGateLocked || activeTab!=="home") return;
+        // tasteGateLocked is forced true until construction completes. The world
+        // Loader is asynchronous, so a queued check can run first; the real gate
+        // check runs from Component.onCompleted.
+        if(!tasteStateReady || !usesRecommendationService || !tasteGateLocked || activeTab!=="home") return;
         if(onboardingState==="draft" || onboardingState==="editing") return;
         artistSearchText="";
         recommendationService.beginTasteEdit();

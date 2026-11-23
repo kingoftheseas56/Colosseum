@@ -109,6 +109,11 @@ TestCase {
         gateData.crateItems=[{id:"ready-album",kind:"albums",title:"Ready album",artist:"Artist",cover:""}];
         gateData.homeSourcePool={pendingCount:3}; gateData.homeStatus="ready";
         verify(loading.visible,"Optional Home rows must finish too");
+        // ...but only for a bounded wait: optional provider work has no native deadline.
+        loading.optionalWaitMs=150;
+        tryCompare(loading,"visible",false,3000,"Slow optional rows cannot hold usable Home closed");
+        verify(findChild(view,"vinylCrate").visible);
+        loading.optionalWaitMs=8000;
         gateData.homeSourcePool={pendingCount:0}; tryCompare(loading,"visible",false);
         verify(findChild(view,"vinylCrate").visible);
         verify(findChild(view,"vinylSpin").visible);

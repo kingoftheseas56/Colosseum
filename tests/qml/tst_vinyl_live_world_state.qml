@@ -277,6 +277,20 @@ TestCase {
         viewData.beginTasteEdit();compare(fakeRecommendationService.onboardingState,"editing");
         verify(viewData.tastePickerOpen);verify(!viewData.tasteGateLocked);
     }
+    function test_constructionGateNeverOpensPickerOverSavedArtists() {
+        // An asynchronous world Loader can run a queued gate check before
+        // Component.onCompleted. Five saved artists must not reopen the picker.
+        viewData.selectTab("home");
+        viewData.tasteStateReady=false;
+        verify(viewData.tasteGateLocked,"construction keeps the gate closed");
+        viewData.ensureGateDraft();
+        compare(fakeRecommendationService.beginTasteEditCalls,0);
+        compare(fakeRecommendationService.onboardingState,"answered");
+        viewData.tasteStateReady=true;
+        viewData.ensureGateDraft();
+        compare(fakeRecommendationService.beginTasteEditCalls,0);
+        verify(viewData.pickerAnswered);verify(!viewData.tastePickerOpen);
+    }
     function test_yourArtistsSeeAllOpensTasteEditorAndPreservesPicks() {
         viewData.selectTab("home");
         fakeRecommendationService.onboardingState="answered";
