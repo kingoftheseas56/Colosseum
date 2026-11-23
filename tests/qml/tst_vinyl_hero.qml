@@ -148,6 +148,41 @@ TestCase {
         compare(hero.slideCount, 4);
         verify(hero.itemId !== oldId);
     }
+    function laidOut() {
+        var view = findChild(hero, "vinylHeroCarousel");
+        for (var i = 1; i < view.count; ++i) {
+            var a = view.itemAt(i - 1), b = view.itemAt(i);
+            if (!a || !b || Math.abs(b.x - a.x - view.width) > 1) return false;
+        }
+        return true;
+    }
+    function test_republishKeepsSlidesLaidOutAndInPlace() {
+        // Live Home republishes the hero while optional rows arrive, and
+        // fullscreen toggles resize it. Neither may stack slides on top of each
+        // other (blank or half-shifted hero) or jump back to the first slide.
+        jump(1);
+        var before = findChild(hero, "vinylHeroSlide");
+        hero.slides = groups();                       // identical content
+        wait(50);
+        compare(hero.slideIndex, 1);
+        verify(findChild(hero, "vinylHeroSlide") === before, "identical republish must not rebuild slides");
+        // Hidden mid-slide (the loading gate / fullscreen flash) and resized.
+        hero.slideIndex = 2; wait(60);
+        hero.visible = false; hero.width = 1500; wait(150);
+        hero.visible = true; wait(600);
+        hero.slideIndex = 1; wait(600);
+        var next = groups();
+        next[1] = Object.assign({}, next[1], {kind:"topArtist"});   // same item, new group kind
+        next[2] = Object.assign({}, next[2], {kind:"topSong"});
+        hero.slides = next;
+        tryVerify(laidOut, 3000, "slides must stay side by side after a republish");
+        compare(hero.slideIndex, 1, "the shown item stays on screen when its group changes");
+        compare(hero.itemId, "topSong-main");
+        settle();
+        hero.width = 1200; wait(100);
+        jump(2);
+        verify(laidOut());
+    }
     function test_omittedGroupStaysOmitted() {
         hero.slides = groups().filter(function(s) { return s.kind !== "topSong"; });
         tryCompare(hero, "slideCount", 3);

@@ -10,7 +10,7 @@ Item {
     property var slides: []
     property alias slideIndex: carousel.index
     readonly property int slideCount: carousel.slides.length
-    readonly property var currentSlide: carouselSlides[slideIndex] || ({})
+    readonly property var currentSlide: carouselData[slideIndex] || ({})
     readonly property string slideKind: String(currentSlide.kind || "")
     readonly property string itemId: String(currentSlide.item && currentSlide.item.id || "")
     readonly property bool hovered: hover.hovered
@@ -70,20 +70,46 @@ Item {
         else if (key === "Save") saveRequested(item);
         else if (key === "NotForMe") hideRequested(item);
     }
+    property string slidesSignature: ""
+    // Full slide content. Delegates read it by index, so a republish with the
+    // same number of slides updates them in place: swapping the SwipeView's
+    // Repeater model can leave slides stacked over each other after a hide or
+    // resize (blank or half-shifted hero).
+    property var carouselData: []
+    function pickIndex(list, id, kind, fallback) {
+        var i;
+        for (i = 0; id && i < list.length; ++i) if (list[i].id === id) return i;
+        for (i = 0; kind && i < list.length; ++i) if (list[i].kind === kind) return i;
+        return Math.max(0, Math.min(fallback, list.length - 1));
+    }
     function syncSlides() {
-        var wanted = replacingSlides ? selectedKind : slideKind;
-        selectedKind = wanted;
-        replacingSlides = true;
-        var revision = ++modelRevision;
-        carouselSlides = slides.map(function(slide) {
+        var incoming = slides.map(function(slide) {
             return Object.assign({id:String(slide.item && slide.item.id || "")}, slide);
         });
-        var next = 0;
-        for (var i = 0; i < carouselSlides.length; ++i)
-            if (carouselSlides[i].kind === wanted) { next = i; break; }
+        // Live Home republishes on every pool rebuild; most carry identical slides.
+        var signature = JSON.stringify(incoming);
+        if (!replacingSlides && signature === slidesSignature) return;
+        slidesSignature = signature;
+        var keepId = replacingSlides ? "" : itemId;
+        var keepKind = replacingSlides ? selectedKind : slideKind;
+        var keepIndex = Math.max(0, slideIndex);
+        if (componentReady && !replacingSlides && incoming.length > 0
+                && incoming.length === carouselSlides.length) {
+            carouselData = incoming;
+            // Keep the same item on screen, else the same group, else the same position.
+            var same = pickIndex(incoming, keepId, keepKind, keepIndex);
+            if (same !== slideIndex) carousel.index = same;
+            selectedKind = slideKind;
+            return;
+        }
+        selectedKind = keepKind;
+        replacingSlides = true;
+        var revision = ++modelRevision;
+        carouselData = incoming;
+        carouselSlides = incoming.map(function(slide) { return {id:slide.id, kind:slide.kind}; });
         Qt.callLater(function() {
             if (!hero || revision !== hero.modelRevision) return;
-            carousel.index = hero.slideCount ? next : -1;
+            carousel.index = hero.slideCount ? hero.pickIndex(incoming, keepId, hero.selectedKind, keepIndex) : -1;
             hero.replacingSlides = false;
             hero.selectedKind = hero.slideKind;
         });
@@ -125,7 +151,8 @@ Item {
             required property var modelData
             required property int index
             readonly property bool current: index === hero.slideIndex
-            readonly property var item: modelData.item || ({})
+            readonly property var slideData: hero.carouselData[index] || modelData
+            readonly property var item: slideData.item || ({})
             readonly property real edgeMargin: 30
             readonly property real mainHeight: hero.narrow ? (hero.width < 480 ? 210 : 180) : height
             readonly property real artSize: hero.narrow ? Math.min(132, width * 0.27) : Math.min(236, height - 64)
@@ -211,7 +238,7 @@ Item {
                 spacing: hero.narrow ? 5 : 0
                 Text {
                     width: parent.width; height: hero.narrow ? 15 : 16
-                    text: face.modelData.kind==="forYou" ? qsTr("For you · picked today") : String(face.modelData.kicker || "")
+                    text: face.slideData.kind==="forYou" ? qsTr("For you · picked today") : String(face.slideData.kicker || "")
                     textFormat: Text.PlainText; color: theme.gold
                     font.family: theme.ui; font.pixelSize: hero.narrow ? 10 : 11; font.weight: 650
                     font.letterSpacing: hero.narrow ? 1 : 2.6
@@ -232,7 +259,7 @@ Item {
                 Text {
                     id: metaLine
                     width: parent.width; height: hero.narrow ? 17 : 18
-                    text: hero.meta(face.modelData)
+                    text: hero.meta(face.slideData)
                     visible: text.length>0
                     textFormat: Text.PlainText; color: theme.inkDim
                     font.family: theme.ui; font.pixelSize: hero.narrow ? 12 : 13; elide: Text.ElideRight
@@ -243,7 +270,7 @@ Item {
                     objectName: face.current ? "vinylHeroStory" : "vinylHeroHiddenStory_" + face.index
                     width: hero.narrow ? parent.width : Math.min(parent.width, 520)
                     visible: text.length > 0
-                    text: hero.story(face.modelData)
+                    text: hero.story(face.slideData)
                     textFormat: Text.PlainText; color: theme.inkDim
                     font.family: theme.ui; font.pixelSize: hero.narrow ? 12 : 13
                     wrapMode: hero.narrow ? Text.NoWrap : Text.WordWrap
@@ -254,7 +281,7 @@ Item {
                 Flow {
                     width: parent.width; spacing: hero.narrow ? 8 : 10
                     Repeater {
-                        model: hero.actions(face.modelData)
+                        model: hero.actions(face.slideData)
                         delegate: KeyboardAction {
                             id: action
                             required property var modelData
@@ -296,16 +323,16 @@ Item {
                 spacing: hero.narrow ? 4 : 2
                 Text {
                     width: parent.width; height: hero.narrow ? 16 : 20
-                    text: face.modelData.kind === "topAlbum" ? qsTr("Also charting")
-                        : face.modelData.kind === "topSong" ? qsTr("Top songs")
-                        : face.modelData.kind === "topArtist" ? qsTr("Top artists") : qsTr("Also for you")
+                    text: face.slideData.kind === "topAlbum" ? qsTr("Also charting")
+                        : face.slideData.kind === "topSong" ? qsTr("Top songs")
+                        : face.slideData.kind === "topArtist" ? qsTr("Top artists") : qsTr("Also for you")
                     textFormat: Text.PlainText; color: hero.narrow ? theme.gold : theme.inkDimmer
                     font.family: theme.ui; font.pixelSize: 10; font.weight: Font.DemiBold
                     font.letterSpacing: hero.narrow ? 0 : 2
                     font.capitalization: hero.narrow ? Font.MixedCase : Font.AllUppercase
                 }
                 Repeater {
-                    model: (face.modelData.sideItems || []).slice(0, 4)
+                    model: (face.slideData.sideItems || []).slice(0, 4)
                     delegate: KeyboardAction {
                         id: sideRow
                         required property var modelData
@@ -313,21 +340,21 @@ Item {
                         readonly property var item: modelData
                         readonly property string kindLabel: hero.kindLabel(item)
                         readonly property real coverSize: hero.narrow ? 28 : Math.min(34, face.sideRowHeight - 8)
-                        readonly property real textX: hero.narrow ? 38 : 6+(face.modelData.kind==="forYou" ? 0 : 33)+coverSize+11
+                        readonly property real textX: hero.narrow ? 38 : 6+(face.slideData.kind==="forYou" ? 0 : 33)+coverSize+11
                         objectName: face.current ? "vinylHeroSideRow_" + index : "vinylHeroHiddenSideRow_" + face.index + "_" + index
                         width: side.width; height: face.sideRowHeight
                         pointerEnabled: true; focusRadius: hero.narrow ? 5 : 9
                         accessibleName: String(item.title || "")
                         onTriggered: hero.openRequested(item)
                         Text {
-                            visible: !hero.narrow && face.modelData.kind!=="forYou"
+                            visible: !hero.narrow && face.slideData.kind!=="forYou"
                             x: 6; width: 22; anchors.verticalCenter: parent.verticalCenter
                             text: sideRow.item.rank ? String(sideRow.item.rank) : ""
                             textFormat: Text.PlainText; color: theme.inkDimmer
                             font.family: theme.display; font.pixelSize: 17
                         }
                         RoundedPosterImage {
-                            x: hero.narrow ? 0 : face.modelData.kind==="forYou" ? 6 : 39; y: hero.narrow ? 1 : (parent.height - height) / 2
+                            x: hero.narrow ? 0 : face.slideData.kind==="forYou" ? 6 : 39; y: hero.narrow ? 1 : (parent.height - height) / 2
                             width: sideRow.coverSize; height: width
                             sources: hero.artwork(sideRow.item) ? [hero.artwork(sideRow.item)] : []
                             radius: Presentation.kind(sideRow.item) === "artists" ? width / 2 : (hero.narrow ? 3 : 6)
@@ -342,9 +369,9 @@ Item {
                         Text {
                             objectName: face.current ? "vinylHeroSideSubtitle_" + sideRow.index : "vinylHeroHiddenSideSubtitle_" + face.index + "_" + sideRow.index
                             x: sideRow.textX; y: hero.narrow ? 16 : parent.height / 2 + 1; width: parent.width - x; height: 14
-                            text: face.modelData.kind === "forYou" ? [sideRow.kindLabel,Presentation.kind(sideRow.item)==="artists"
+                            text: face.slideData.kind === "forYou" ? [sideRow.kindLabel,Presentation.kind(sideRow.item)==="artists"
                                     ? hero.genre(sideRow.item) : Presentation.artist(sideRow.item)].filter(Boolean).join(" · ")
-                                : face.modelData.kind==="topArtist" ? hero.genre(sideRow.item) : Presentation.artist(sideRow.item)
+                                : face.slideData.kind==="topArtist" ? hero.genre(sideRow.item) : Presentation.artist(sideRow.item)
                             textFormat: Text.PlainText; color: hero.narrow ? theme.inkDim : theme.inkDimmer
                             font.family: theme.ui; font.pixelSize: 10; elide: Text.ElideRight
                         }
