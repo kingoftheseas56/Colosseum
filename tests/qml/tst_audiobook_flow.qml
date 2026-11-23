@@ -209,7 +209,8 @@ TestCase {
         const pairKey = "first book|alex writer"
         const key = pairKey + (data.workId ? "#as:edition-first" : "#src:" + original)
         const failure = { state: "failed", id: key, attempt: "7", pairKey: pairKey, workId: data.workId,
-            title: "First Book", author: "Alex Writer", infoHash: original, sourceRef: "stalled",
+            title: data.workId ? "First Book (Legacy Title)" : "First Book",
+            author: data.workId ? "Alix Writer" : "Alex Writer", infoHash: original, sourceRef: "stalled",
             audiosiloRecordingId: data.workId ? "edition-first" : "" }
         const downloads = make(sourceDownloadsFixture, { failures: [failure] })
         flow.downloads = downloads
@@ -243,7 +244,11 @@ TestCase {
                 ? { verdict: "exact", recordingKey: editions[0].recordingKey } : {}
         } }
         flow.abb = {
-            search: (term, page, done) => { done({ rows: stubRows }); return { cancel: () => {} } },
+            search: (term, page, done) => {
+                compare(term, "first book")
+                done({ rows: stubRows })
+                return { cancel: () => {} }
+            },
             detail: (slug, done) => {
                 seen.push(slug)
                 done({ infoHash: torrentBySlug[slug], author: "Alex Writer", narrator: ["Reader One"] })
@@ -253,6 +258,7 @@ TestCase {
         verify(flow.openReplacement(key, "7"))
         const picker = flow.currentPage
         compare(picker.workTitle, "First Book")
+        compare(picker.workAuthor, "Alex Writer")
         compare(picker.backTip, "Back to Downloads")
         compare(picker.providerStates.abb.rows.length, 1)
         verify(!seen.includes("stalled"))

@@ -1,5 +1,6 @@
 .pragma library
 .import "BiblioApi.js" as Biblio
+.import "AudiobookFlowData.js" as FlowData
 
 const maxPages = 2;
 const maxCandidates = 12;
@@ -11,6 +12,46 @@ function text(value) {
 
 function normalized(value) {
     return text(value).toLowerCase().replace(/\s+/g, " ");
+}
+
+function legacyTitle(title) {
+    const numbered = /^(.+?)(?:\s+\(book\s+#?(\d+)\)|\s+book\s+#?(\d+))$/i.exec(text(title));
+    return numbered ? { title: numbered[1].trim(), number: Number(numbered[2] || numbered[3]) }
+        : { title: text(title), number: null };
+}
+
+function seriesPosition(series) {
+    const number = normalized(series.numberText).replace(/^(?:book\s+|#\s*)/, "");
+    return /^\d+(?:\.\d+)?$/.test(number) ? Number(number) : NaN;
+}
+
+function legacyAuthorMatches(saved, catalogue) {
+    if (!saved || !catalogue) return false;
+    const left = normalized(saved).split(" ");
+    const right = normalized(catalogue).split(" ");
+    return left.length === 2 && right.length === 2 && left[1] === right[1]
+        && left[0].length >= 3 && left[0].slice(0, 2) === right[0].slice(0, 2);
+}
+
+function recoveryWork(catalog, stalled) {
+    if (!catalog) return {};
+    if (stalled.workId) return catalog.work(stalled.workId) || {};
+    if (typeof catalog.search !== "function") return {};
+    const legacy = legacyTitle(stalled.title);
+    const exact = [], corrected = [];
+    const matches = catalog.search(legacy.title, maxCandidates) || [];
+    for (const match of matches) {
+        if (!match.id || normalized(match.title) !== normalized(legacy.title)) continue;
+        const work = catalog.work(match.id);
+        if (!work || !work.title) continue;
+        const author = FlowData.authorFor(work);
+        if (legacy.number !== null && !(work.series || []).some(series => seriesPosition(series) === legacy.number))
+            continue;
+        if (author && normalized(author) === normalized(stalled.author)) exact.push(work);
+        else if (legacy.number !== null && legacyAuthorMatches(stalled.author, author)) corrected.push(work);
+    }
+    const candidates = exact.length ? exact : corrected;
+    return candidates.length === 1 ? candidates[0] : {};
 }
 
 function language(value) {
@@ -96,22 +137,52 @@ function uploadTitle(title, context) {
     if (!membership) return clean;
     const name = normalized(membership[1]).replace(/^the\s+/, "");
     const verifiedSeries = Array.prototype.some.call(context.series || [], function(series) {
-        const number = normalized(series.numberText).replace(/^(?:book\s+|#\s*)/, "");
         return name === normalized(series.name).replace(/^the\s+/, "")
-            && /^\d+(?:\.\d+)?$/.test(number) && Number(number) === Number(membership[2]);
+            && seriesPosition(series) === Number(membership[2]);
     });
     return verifiedSeries ? work : clean;
+}
+
+function recoveryRelease(listing, context) {
+    const title = normalized(listing.title).replace(/^[-–—]\s*/, "");
+    const seriesTitle = title.replace(/^the\s+/, "").replace(/^complete\s+/, "");
+    for (const series of context.series || []) {
+        const seriesName = normalized(series.name).replace(/^the\s+/, "");
+        if (!seriesName || !seriesTitle.startsWith(seriesName + " ")) continue;
+        const suffix = seriesTitle.slice(seriesName.length).trim().replace(/^[-–—:]\s*/, "");
+        const range = /^(?:(?:series|box\s*set|trilogy(?:\s*\+\s*prequel)?)\s*[:(]?\s*)?(?:books?|vol(?:ume)?s?)\s*#?\s*(\d{1,2})\s*[-–—]\s*(\d{1,2})\b/.exec(suffix);
+        const trilogy = /^(?:trilogy(?:,\s*chapterized\b|$))/.test(suffix)
+            || suffix === "trilogy - " + seriesName + " trilogy"
+            || suffix === "trilogy - the " + seriesName + " trilogy";
+        const first = range ? Number(range[1]) : 1;
+        const last = range ? Number(range[2]) : trilogy ? 3 : 0;
+        if (last > first) {
+            const position = seriesPosition(series);
+            return Number.isInteger(position) && position >= first && position <= last
+                ? { bundle: true, count: last - first + 1 } : null;
+        }
+    }
+    const singleTitle = title.replace(/\s*(?:[-–—:]\s+special edition|\(special edition\))$/, "");
+    const numbered = legacyTitle(singleTitle);
+    const numberedMatch = numbered.number !== null && numbered.title === normalized(context.title)
+        && (context.series || []).some(series => seriesPosition(series) === numbered.number);
+    return !listing.bundle && (numberedMatch || uploadTitle(singleTitle, context) === normalized(context.title))
+        ? { bundle: false, title: normalized(context.title) } : null;
 }
 
 function describe(listing, facts, matcher, context, editions, target) {
     const infoHash = text(facts && facts.infoHash).toLowerCase();
     if (!/^[a-f0-9]{40}$/.test(infoHash)) return null;
-    const bundle = !!(listing.bundle || facts.bundle);
+    const previous = context.alternateTo;
+    const recovery = previous ? recoveryRelease(listing, context) : null;
+    const bundle = !!(listing.bundle || facts.bundle || (recovery && recovery.bundle));
     const title = text(listing.title);
-    const author = text(facts.author || listing.author);
+    const author = text(facts.author) || text(listing.author);
+    if (previous && (!recovery || recovery.bundle !== bundle || infoHash === normalized(previous.infoHash)
+            || normalized(author) !== normalized(context.author) || facts.audioFileCount === 0)) return false;
     const narrators = credits(facts.narrator || facts.narrators, true);
     const source = Object.assign({}, listing, facts, {
-        title: uploadTitle(title, context), author: normalized(author), infoHash: infoHash,
+        title: recovery && recovery.title || uploadTitle(title, context), author: normalized(author), infoHash: infoHash,
         language: language(facts.language || listing.language),
         abridgement: abridgement(facts.abridgement, facts.dramatized), narrators: namedNarrators(narrators)
     });
@@ -127,9 +198,6 @@ function describe(listing, facts, matcher, context, editions, target) {
     const differentEdition = !bundle && !targetMatch && target
         && (confident || (source.abridgement && target.abridgement && source.abridgement !== target.abridgement)
             || (source.language && target.language && source.language !== target.language));
-    // Recovery is scoped to the failed book and needs a genuinely different release.
-    const previous = context.alternateTo;
-    if (previous && (!sameWork || infoHash === previous.infoHash)) return false;
     const pairKey = sameWork ? context.pairKey : Biblio.pairKey(title, author);
     const format = text(facts.format || listing.format).toUpperCase();
     const request = {
@@ -147,6 +215,12 @@ function describe(listing, facts, matcher, context, editions, target) {
         format: format
     };
     if (!bundle) request.pairKey = pairKey;
+    if (previous && bundle) {
+        // Validate the selected bundle against the stalled row at intake.
+        // Bundle identity is independent once queued.
+        request.pairKey = previous.pairKey;
+        request.workId = previous.workId || "";
+    }
     if (confident) request.audiosiloRecordingId = confident.id;
     if (sameWork && context.workId) request.workId = context.workId;
     return {
@@ -156,10 +230,12 @@ function describe(listing, facts, matcher, context, editions, target) {
         size: text(facts.size || listing.size),
         narrators: narrators,
         bundle: bundle,
-        bundleCount: bundle ? (Number(facts.bundleCount || listing.bundleCount) || countBooks(title)) : 0,
+        bundleCount: bundle ? (recovery ? recovery.count
+            : Number(facts.bundleCount || listing.bundleCount) || countBooks(title)) : 0,
         verdict: targetMatch ? verdict.verdict : "none",
-        reason: bundle || targetMatch ? "" : different ? qsTr("Different narration")
-            : differentEdition ? qsTr("Different edition") : qsTr("Unconfirmed"),
+        reason: bundle ? (previous ? qsTr("Includes this book") : "") : targetMatch ? ""
+            : different ? qsTr("Different narration") : differentEdition ? qsTr("Different edition")
+            : previous ? "" : qsTr("Unconfirmed"),
         recommended: false,
         request: request,
         rank: rank,
@@ -189,7 +265,8 @@ function resolve(abb, matcher, context, done) {
         stopped = true;
         rows = rows.filter(function(row) { return !!row; });
         rows.sort(function(a, b) {
-            return b.rank - a.rank || Number(b.fileCount === 1) - Number(a.fileCount === 1)
+            return (context.alternateTo ? Number(a.bundle) - Number(b.bundle) : 0)
+                || b.rank - a.rank || Number(b.fileCount === 1) - Number(a.fileCount === 1)
                 || b.seeders - a.seeders;
         });
         if (context.alternateTo) {
@@ -240,14 +317,17 @@ function resolve(abb, matcher, context, done) {
     }
 
     function search(page) {
-        const term = abb.searchTerm ? abb.searchTerm(context.title, context.author)
-            : normalized(text(context.title) + " " + text(context.author));
+        const author = context.alternateTo ? "" : context.author;
+        const title = context.lookupTitle || context.title;
+        const term = abb.searchTerm ? abb.searchTerm(title, author)
+            : normalized(text(title) + " " + text(author));
         start(function(callback) { return abb.search(term, page, callback); }, function(result, error) {
             if (error || !result || result.offline) problem = error || "offline";
             const resultRows = (result && result.rows) || [];
-            const listings = abb.relevantRows ? abb.relevantRows(resultRows, context.title, context.author) : resultRows;
+            const listings = abb.relevantRows ? abb.relevantRows(resultRows, title, context.author) : resultRows;
             for (let i = 0; i < listings.length; i++) {
                 const listing = listings[i];
+                if (context.alternateTo && !recoveryRelease(listing, context)) continue;
                 if (!listing.slug) {
                     incomplete = true;
                     continue;

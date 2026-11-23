@@ -534,10 +534,13 @@ bool AudiobookDownloader::replaceStalledDownload(const QString& key, const QStri
     const QString hash = request.value(QStringLiteral("infoHash")).toString().trimmed().toLower();
     const QString release = request.value(QStringLiteral("sourceRef")).toString().trimmed();
     const QString recordingKey = request.value(QStringLiteral("recordingKey")).toString();
+    const bool bundle = request.value(QStringLiteral("bundle")).toBool();
     if (attempt.isEmpty() || attempt != failure.value(QStringLiteral("attempt")).toString()
         || pairKey.isEmpty() || request.value(QStringLiteral("pairKey")).toString() != pairKey
         || request.value(QStringLiteral("workId")).toString() != workId
-        || request.value(QStringLiteral("bundle")).toBool()
+        || (bundle && (recordingKey != QStringLiteral("bundle#src:") + hash
+            || !request.value(QStringLiteral("audiosiloRecordingId")).toString().isEmpty()
+            || request.value(QStringLiteral("title")).toString().trimmed().isEmpty()))
         || request.value(QStringLiteral("sourceKind")).toString() != QLatin1String("abb")
         || !QRegularExpression(QStringLiteral("^[0-9a-f]{40}$")).match(hash).hasMatch()
         || hash == failure.value(QStringLiteral("infoHash")).toString()
@@ -547,11 +550,19 @@ bool AudiobookDownloader::replaceStalledDownload(const QString& key, const QStri
         return false;
 
     QVariantMap replacement = request;
-    replacement.insert(QStringLiteral("title"), failure.value(QStringLiteral("title")));
-    if (!failure.value(QStringLiteral("author")).toString().isEmpty())
-        replacement.insert(QStringLiteral("author"), failure.value(QStringLiteral("author")));
-    replacement.insert(QStringLiteral("bookId"), m_bookIdFor.value(key));
-    replacement.insert(QStringLiteral("bookPath"), m_bookPathFor.value(key));
+    if (bundle) {
+        // The failed work only scopes the choice. Its bundle is a separate library item.
+        replacement.remove(QStringLiteral("pairKey"));
+        replacement.remove(QStringLiteral("workId"));
+        replacement.remove(QStringLiteral("bookId"));
+        replacement.remove(QStringLiteral("bookPath"));
+    } else {
+        replacement.insert(QStringLiteral("title"), failure.value(QStringLiteral("title")));
+        if (!failure.value(QStringLiteral("author")).toString().isEmpty())
+            replacement.insert(QStringLiteral("author"), failure.value(QStringLiteral("author")));
+        replacement.insert(QStringLiteral("bookId"), m_bookIdFor.value(key));
+        replacement.insert(QStringLiteral("bookPath"), m_bookPathFor.value(key));
+    }
     return beginDownload(replacement, false, key);
 }
 

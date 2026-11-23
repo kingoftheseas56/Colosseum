@@ -9,7 +9,9 @@ if (fs.existsSync(script)) {
   const biblio = {};
   const load = (file) => fs.readFileSync(file, 'utf8').replace(/^\.(pragma|import)\b.*$/gm, '');
   vm.runInNewContext(load('qml/BiblioApi.js'), biblio);
-  vm.runInNewContext(load(script), Object.assign(resolver, { Biblio: biblio, qsTr: text => text }));
+  const flowData = { Biblio: biblio };
+  vm.runInNewContext(load('qml/AudiobookFlowData.js'), flowData);
+  vm.runInNewContext(load(script), Object.assign(resolver, { Biblio: biblio, FlowData: flowData, qsTr: text => text }));
 }
 
 const context = {
@@ -202,4 +204,65 @@ test('stale search waits for refresh and search timeout completes once', () => {
   searchDone({ rows: [] });
   assert.equal(outcomes.length, 1);
   assert.equal(outcomes[0].error, 'timeout');
+});
+
+test('legacy recovery finds the canonical first Hunger Games book and offers only its releases and containing bundles', () => {
+  const saved = { title: 'The Hunger Games Book 1', author: 'Susan Collins',
+    pairKey: 'the hunger games book 1|susan collins', infoHash: '298e830f2845874e769af291cb394074460fdcbf' };
+  const work = { id: 'the-hunger-games', title: 'The Hunger Games', authors: [{ name: 'Suzanne Collins' }],
+    series: [{ name: 'Hunger Games', numberText: '1' }] };
+  const catalog = {
+    search(title) {
+      assert.equal(title, 'The Hunger Games');
+      return [work, { id: 'hunger-games', title: 'Hunger Games' }];
+    },
+    work: (id) => id === work.id ? work : { id, title: 'Hunger Games', authors: work.authors }
+  };
+  assert.equal(resolver.recoveryWork(catalog, saved), work);
+  assert.equal(resolver.recoveryWork(catalog, { ...saved, author: 'Sally Collins' }).id, undefined);
+  assert.equal(resolver.recoveryWork(catalog, { ...saved, title: 'The Hunger Games Book 2' }).id, undefined);
+  const source = (slug, title, extra) => ({ slug, title, author: 'Suzanne Collins', ...extra });
+  const listings = [
+    source('four-books', 'The Hunger Games Trilogy + Prequel (Books #0-3)', { bundle: true, seeders: 100 }),
+    source('related-nonfiction', 'The Dark Fantastic: Race and the Imagination from Harry Potter to the Hunger Games',
+      { author: 'Ebony Elizabeth Thomas' }),
+    source('maslany', 'The Hunger Games - Special Edition'),
+    source('original', 'The Hunger Games'),
+    source('single', '-The Hunger Games'),
+    source('single-mirror', 'The Hunger Games'),
+    source('trilogy', 'The Hunger Games Trilogy - The Hunger Games Trilogy'),
+    source('unknown-coverage', 'The Hunger Game Series'),
+    source('wrong-range', 'Hunger Games - Books 2-4'),
+    source('companion', 'Hunger Games Companion Books 1-3'),
+    source('archived-pack', 'The Hunger Games Trilogy')
+  ];
+  const details = {
+    'four-books': info('a', { audioFileCount: 4 }),
+    maslany: info('b', { audioFileCount: 29, narrator: ['Tatiana Maslany'] }),
+    original: info('c', { infoHash: saved.infoHash.toUpperCase() }),
+    single: info('d', { audioFileCount: 9 }),
+    'single-mirror': info('d', { audioFileCount: 9 }),
+    trilogy: info('e', { audioFileCount: 50 }),
+    'archived-pack': info('f', { audioFileCount: 0 })
+  };
+  let outcome;
+  resolver.resolve({
+    search(term, page, done) {
+      assert.equal(term, 'the hunger games');
+      done({ rows: listings, hasMore: false });
+    },
+    detail(slug, done) {
+      assert.ok(details[slug], `unexpected detail lookup for ${slug}`);
+      done(details[slug]);
+    }
+  }, null, { title: work.title, author: 'Suzanne Collins', series: work.series, pairKey: saved.pairKey,
+    alternateTo: saved }, result => { outcome = result; });
+  assert.equal(outcome.automatic, null);
+  assert.equal(outcome.rows.map(row => row.request.sourceRef).join(','), 'maslany,single,four-books,trilogy');
+  assert.equal(outcome.rows[0].request.pairKey, saved.pairKey);
+  assert.equal(outcome.rows[0].request.workId, undefined);
+  assert.equal(outcome.rows[2].request.recordingKey, 'bundle#src:' + 'a'.repeat(40));
+  assert.equal(outcome.rows[2].bundleCount, 4);
+  assert.equal(outcome.rows[2].reason, 'Includes this book');
+  assert.equal(outcome.rows[3].bundleCount, 3);
 });

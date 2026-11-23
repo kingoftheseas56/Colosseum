@@ -381,15 +381,17 @@ FocusScope {
                 && job.id === stalled.id && job.attempt === stalled.attempt)
             readonly property bool canSearch: currentFailure && flow.abbEnabled
             readonly property var work: {
-                if (!flow.catalog || !stalled.workId) return {}
+                if (!flow.catalog) return {}
                 flow.catalog.revision
-                return flow.catalog.work(stalled.workId) || {}
+                return SmartDownload.recoveryWork(flow.catalog, stalled)
             }
+            readonly property string lookupIdentity: JSON.stringify([work.id, workTitle, workAuthor, work.series])
+            property string searchedIdentity: ""
             property var lookup: null
             property int generation: 0
             property var result: ({ state: "searching", rows: [] })
-            workTitle: stalled.title
-            workAuthor: stalled.author || FlowData.authorFor(work)
+            workTitle: work.title || stalled.title
+            workAuthor: FlowData.authorFor(work) || stalled.author
             artwork: work.coverUrl || work.cover || ""
             backTip: qsTr("Back to Downloads")
             backdrop: flow.backdrop
@@ -411,6 +413,7 @@ FocusScope {
 
             function search() {
                 if (!canSearch || lookup) return
+                searchedIdentity = lookupIdentity
                 selectionError = ""
                 if (!flow.abb) {
                     result = { state: "error", rows: [] }
@@ -424,6 +427,7 @@ FocusScope {
                 const requestGeneration = ++generation
                 const cancel = SmartDownload.resolve(flow.abb, flow.matcher, {
                     workId: stalled.workId || "", title: workTitle, author: workAuthor, pairKey: stalled.pairKey,
+                    lookupTitle: work.title || SmartDownload.legacyTitle(stalled.title).title,
                     targetRecordingId: stalled.audiosiloRecordingId, recordings: work.recordings || [],
                     series: work.series || [], alternateTo: stalled
                 }, function(response) {
@@ -443,8 +447,12 @@ FocusScope {
                 if (!canSearch) cancelSourceLookup()
                 else if (StackView.status === StackView.Active) search()
             }
-            onWorkAuthorChanged: if (workAuthor && StackView.status === StackView.Active
-                                     && result.state === "empty") search()
+            onLookupIdentityChanged: Qt.callLater(function() {
+                if (replacement.StackView.status !== StackView.Active || !replacement.canSearch
+                        || replacement.searchedIdentity === replacement.lookupIdentity) return
+                replacement.cancelSourceLookup()
+                replacement.search()
+            })
             onBackRequested: flow.back()
             onRetryRequested: search()
             onExtensionsRequested: flow.openExtensionsRequested()

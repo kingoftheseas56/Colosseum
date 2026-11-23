@@ -381,12 +381,15 @@ private slots:
  }
  void stalledRecordingCanBeReplaced_data() {
   QTest::addColumn<bool>("catalogue");
-  QTest::newRow("file list, title and author") << false;
-  QTest::newRow("audio bytes, catalogue recording") << true;
+  QTest::addColumn<bool>("bundle");
+  QTest::newRow("file list, title and author") << false << false;
+  QTest::newRow("audio bytes, catalogue recording") << true << false;
+  QTest::newRow("bundle kept independent of catalogue recording") << true << true;
  }
 
  void stalledRecordingCanBeReplaced() {
   QFETCH(bool, catalogue);
+  QFETCH(bool, bundle);
   QTemporaryDir root;
   QVERIFY(root.isValid());
   AudioPairingStore pairing(root.path()+"/pairs.ini");
@@ -408,7 +411,8 @@ private slots:
   const QString edition = "recording-123";
   const QString workId = catalogue ? "work-456" : "";
   const QString firstKey = pairKey + (catalogue ? "#as:" + edition : "#src:" + A);
-  const QString nextKey = pairKey + (catalogue ? "#as:" + edition : "#src:" + B);
+  const QString nextKey = bundle ? "bundle#src:" + B
+     : pairKey + (catalogue ? "#as:" + edition : "#src:" + B);
   if (catalogue) {
    books.downloadRecording({{"pairKey", pairKey}, {"recordingKey", firstKey}, {"infoHash", A}, {"title", "One"},
                             {"author", "Author"}, {"workId", workId}, {"sourceKind", "abb"},
@@ -438,8 +442,19 @@ private slots:
   QVERIFY(!ownedFiles.isEmpty());
 
   QVariantMap alternate{{"pairKey", pairKey}, {"workId", workId}, {"recordingKey", nextKey},
-                        {"infoHash", B}, {"title", "One"}, {"author", "Author"},
+                        {"infoHash", B}, {"title", bundle ? "Trilogy" : "One"}, {"author", "Author"},
                         {"sourceKind", "abb"}, {"sourceRef", "alternate"}};
+  if (bundle) {
+   alternate.insert("bundle", true);
+   alternate.insert("bookId", "reader-id");
+   alternate.insert("bookPath", "/fixture/book.epub");
+   auto wrongKey = alternate;
+   wrongKey["recordingKey"] = firstKey;
+   QVERIFY(!books.replaceStalledDownload(firstKey, attempt, wrongKey));
+   auto wrongRecording = alternate;
+   wrongRecording["audiosiloRecordingId"] = edition;
+   QVERIFY(!books.replaceStalledDownload(firstKey, attempt, wrongRecording));
+  }
   QVERIFY(!books.replaceStalledDownload(firstKey, attempt + "0", alternate));
   auto wrongBook = alternate;
   wrongBook["pairKey"] = "two|author";
@@ -463,8 +478,21 @@ private slots:
   QVERIFY(books.activeDownloads().isEmpty());
   QCOMPARE(engine.adds, (QList<QString>{A, C, B}));
   QCOMPARE(books.localFiles(ownedKey), ownedFiles);
-  QCOMPARE(pairing.getPairing("reader-id").value("recordingKey").toString(), nextKey);
-  QCOMPARE(pairing.getPairing("reader-id").value("bookPath").toString(), "/fixture/book.epub");
+  if (bundle) {
+   QVERIFY(pairing.getPairing("reader-id").isEmpty());
+   QVariantMap item;
+   for (const auto& entry : books.downloadedAudiobooks()) {
+    const auto row = entry.toMap();
+    if (row.value("recordingKey").toString() == nextKey) item = row;
+   }
+   QCOMPARE(item.value("title").toString(), "Trilogy");
+   QVERIFY(item.value("bundle").toBool());
+   QVERIFY(item.value("pairKey").toString().isEmpty());
+   QVERIFY(item.value("workId").toString().isEmpty());
+  } else {
+   QCOMPARE(pairing.getPairing("reader-id").value("recordingKey").toString(), nextKey);
+   QCOMPARE(pairing.getPairing("reader-id").value("bookPath").toString(), "/fixture/book.epub");
+  }
  }
 
  void distinctRecordingsAndDeletion_data() {
