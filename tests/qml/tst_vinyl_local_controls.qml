@@ -38,11 +38,29 @@ TestCase {
         verify(album.saveEnabled);
         verify(bar.queueEnabled);
         verify(bar.trackNavigationEnabled);
+
+        host.pageData.snapshotEdition = Object.assign({}, host.pageData.shownEdition, {
+            artists: ["Lead artist", "Guest artist"]
+        });
+        var artistLinks = item("vinylAlbumArtist");
+        var lead = findChild(artistLinks, "vinylArtistLink_0");
+        var guest = findChild(artistLinks, "vinylArtistLink_1");
+        verify(lead && guest);
+        verify(lead.enabled && guest.enabled);
+        compare(lead.accessibleName, "Lead artist");
+        compare(guest.accessibleName, "Guest artist");
+        var requests = 0;
+        artistLinks.artistRequested.connect(function() { requests++; });
+
         album.artistNavigationEnabled = false;
         album.shuffleEnabled = false;
         bar.queueEnabled = false;
         bar.trackNavigationEnabled = false;
-        verify(!item("vinylAlbumArtist").enabled);
+        verify(lead.visible && guest.visible, "Disabled navigation still shows the artist credits");
+        verify(!lead.enabled && !guest.enabled);
+        mouseClick(lead);
+        mouseClick(guest);
+        compare(requests, 0);
         verify(!item("vinylAlbumShuffle").enabled);
         verify(item("vinylAlbumShuffle").opacity < 0.5);
         verify(item("vinylAlbumSave").enabled);

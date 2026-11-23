@@ -44,14 +44,20 @@ KeyboardAction {
         var name = String(item.albumTitle || record.title || "");
         return name === String(item.title || "") ? "" : name;
     }
-    readonly property string captionTitle: String(item.title || "")
+    readonly property string songCredit: !albumText ? artistText
+        : artistText ? qsTr("%1 · from %2").arg(artistText).arg(albumText)
+        : qsTr("From %1").arg(albumText)
+    // Regular song cards already show the title on the jukebox face. Compact
+    // Crate tiles keep a separate title and credit in their two caption lines.
+    readonly property bool songCreditInTitle: includesTitle && !compactCaption
+    readonly property string captionTitle: songCreditInTitle ? songCredit : String(item.title || "")
     readonly property string captionDetail: item.unavailable ? qsTr("Unavailable")
         : compactCaption && item.resumeTrack>0 && item.totalTracks>=item.resumeTrack ? reason
         : (presentationKind === "artists" ? qsTr("Artist radio")
             : presentationKind === "mixes" ? qsTr("Made for you")
             : presentationKind === "radio" ? qsTr("Station")
             : presentationKind === "albums" ? artistText || String(item.subtitle || "")
-            : artistText + (albumText ? qsTr(" · from %1").arg(albumText) : ""))
+            : songCreditInTitle ? "" : songCredit)
     readonly property real captionTop: copy.y
     readonly property url artworkSource: worldData && item ? worldData.artwork(item.cover) : ""
     readonly property var mixArtworkSources: (item.artworkCovers || []).slice(0, 3).map(function(cover) {
@@ -59,6 +65,7 @@ KeyboardAction {
     })
     implicitHeight: art.height + (copy.height > 0 ? (compactCaption ? 7 : 14) + copy.height : 0) + (compactCaption ? 0 : 8)
     accessibleName: item.title + (item.unavailable ? ", unavailable" : "")
+        + (songCreditInTitle && songCredit ? ". " + songCredit : "")
         + (captionDetail ? ". " + captionDetail : "")
     onTriggered: if(worldData) worldData.activate(item)
 

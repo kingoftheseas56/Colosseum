@@ -152,6 +152,7 @@ public:
     int queueMutationCalls = 0;
     int maxConcurrent = 0;
     bool runtimeFixtures = false;
+    bool manualDiscography = false;
     QList<QString> cancelledLanes;
     QList<Request> requests;
     QSet<QString> freshCachedArtistIds;
@@ -175,7 +176,8 @@ public:
         // bounded Home concurrency fixtures.
         if (lane.startsWith(QStringLiteral("home-listening-")) && !runtimeFixtures)
             return -1;
-        if (!runtimeFixtures && QStringList{"chartCandidates","similarArtists","recommendationDiscography"}.contains(operation))
+        if (!runtimeFixtures && (operation=="chartCandidates" || operation=="similarArtists"
+                                 || (operation=="recommendationDiscography" && !manualDiscography)))
             return -1; // Existing ranker fixtures deliberately provide no optional metadata.
         Request call{lane, operation, value, options, ++m_nextId};
         requests.append(call);
@@ -1106,6 +1108,65 @@ private slots:
         for(const auto &call:fixture.source.pendingRequests())fixture.source.complete(call,{},"Optional identity unavailable");
         QTRY_COMPARE(fixture.service.homeStatus(),QString("ready"));QVERIFY(fixture.service.homeError().isEmpty());
         QCOMPARE(sectionById(fixture.service.homeSections(),"from-your-artists").value("status").toString(),QString("ready"));
+    }
+    void failedCanonicalWorkBacksOffAcrossVisitsAndRefresh()
+    {
+        qint64 now=kFixedNowMs;
+        FakeSource source;
+        source.manualDiscography=true;
+        FakePreferences prefs;
+        VinylRecommendationService service(nullptr,[&now]{return now;});
+        service.setSource(&source);
+        service.setPreferences(&prefs);
+        const auto failing=artistSeed(74), verified=artistSeed(75);
+        const auto failedId=failing.value("providerId").toString(), verifiedId=verified.value("providerId").toString();
+        const QString mbid="11111111-1111-4111-8111-111111111111";
+        prefs.setTaste(withFiveDistinctTasteArtists({failing,verified}));
+        auto drain=[&]{
+            for(int pass=0;pass<40;++pass){
+                QCoreApplication::processEvents();
+                const auto pending=source.pendingRequests();
+                if(pending.isEmpty())break;
+                for(const auto &call:pending){
+                    auto data=source.defaultReply(call,now);
+                    if(call.operation=="artistCandidates")source.complete(call,data);
+                    else if(call.operation=="recommendationIdentity"&&call.value==verifiedId){
+                        data["items"]=QVariantList();
+                        data["provenance"]=QVariantMap{{"source","musicbrainz"}};
+                        data["complete"]=true;
+                        data["status"]="verified";
+                        data["mbid"]=mbid;
+                        data["artist"]=QVariantMap{{"id",mbid},{"name","Fixture"}};
+                        data["mapping"]=QVariantMap{{"status","verified"},{"kind","artist"},{"provider","youtube-music"},
+                            {"providerId",verifiedId},{"mbid",mbid},{"method","external-id"},{"fetchedAtMs",now}};
+                        source.complete(call,data);
+                    }else source.complete(call,{},"Optional fixture unavailable");
+                }
+            }
+            QVERIFY(source.pendingRequests().isEmpty());
+        };
+        auto attempts=[&](const QString &op,const QString &value){
+            const auto calls=source.callsFor(op);
+            return std::count_if(calls.cbegin(),calls.cend(),[&](const auto &call){return call.value==value;});
+        };
+        service.beginHomeVisit();
+        drain();
+        QCOMPARE(attempts("recommendationIdentity",failedId),1);
+        QCOMPARE(attempts("recommendationDiscography",mbid),1);
+        const auto coreCalls=source.callsFor("artistCandidates").size();
+        service.leaveHome();
+        service.beginHomeVisit();
+        drain();
+        QCOMPARE(source.callsFor("artistCandidates").size(),coreCalls);
+        service.refreshHome(true);
+        drain();
+        QCOMPARE(attempts("recommendationIdentity",failedId),1);
+        QCOMPARE(attempts("recommendationDiscography",mbid),1);
+        now+=301000;
+        service.refreshHome(true);
+        drain();
+        QCOMPARE(attempts("recommendationIdentity",failedId),2);
+        QCOMPARE(attempts("recommendationDiscography",mbid),2);
     }
     void freshCoreIsReadyWhileOptionalMetadataIsStillPending()
     {

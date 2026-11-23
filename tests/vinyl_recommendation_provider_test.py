@@ -1016,6 +1016,24 @@ class VinylRecommendationProviderTest(unittest.TestCase):
         self.assertEqual(result["retryAfterSeconds"], 123)
         self.assertEqual([call[0] for call in client.calls], ["get_artist"])
 
+    def test_optional_musicbrainz_operations_report_rate_limit_without_retrying(self):
+        for request in (
+            dict(candidate_request(), operation="recommendationIdentity"),
+            {"operation": "recommendationDiscography", "value": MUSICBRAINZ_ARTIST_ID,
+             "seed": {"identity": "canonical", "kind": "artist", "mbid": MUSICBRAINZ_ARTIST_ID},
+             "since": "2025-11-23", "until": "2026-11-23"},
+        ):
+            with self.subTest(operation=request["operation"]):
+                upstream = urllib.error.HTTPError("https://musicbrainz.org", 429, "Too Many Requests",
+                                                  {"Retry-After": "123"}, None)
+                opener = mock.Mock(side_effect=upstream)
+                mb = provider.MusicBrainzClient(urlopen_fn=opener, max_retries=1, timeout=2.5)
+                result = provider.handle(request, client=FakeClient(), mb_client=mb)
+                self.assertEqual(result["status"], "unavailable")
+                self.assertEqual(result["sourceStatus"], "rate_limited")
+                self.assertEqual(result["retryAfterSeconds"], 123)
+                opener.assert_called_once()
+
     def test_population_adapter_returns_unavailable_canonical_recording_evidence(self):
         request = {
             "operation": "populationCandidates",

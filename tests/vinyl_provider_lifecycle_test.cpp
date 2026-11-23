@@ -38,6 +38,43 @@ private slots:
         provider.request("browse","album","album-b");QTRY_COMPARE(replies.size(),5);
         QCOMPARE(data(replies).value("pid"),catalogue.value("pid"));
     }
+    void homeReusesAWorkerAcrossLanesAndOperations(){
+        VinylProvider provider(VINYL_LIFECYCLE_HELPER,nullptr,4096,{},cache());
+        QSignalSpy replies(&provider,&VinylProvider::completed);
+        const QString channelA=QStringLiteral("UC")+QString(22,QChar('A'));
+        const QString channelB=QStringLiteral("UC")+QString(22,QChar('B'));
+        const auto options=[](const QString &channel){
+            return QVariantMap{{"seed",QVariantMap{{"kind","artist"},{"provider","youtube-music"},{"providerId",channel}}}};
+        };
+        QVERIFY(provider.requestPayload("home-seed-0","artistCandidates",channelA,options(channelA))>0);
+        QVERIFY(provider.requestPayload("home-seed-1","artistCandidates",channelB,options(channelB))>0);
+        QTRY_COMPARE(replies.size(),2);
+        const auto first=data(replies,0).value("provenance").toMap();
+        const auto second=data(replies,1).value("provenance").toMap();
+        QVERIFY(error(replies,0).isEmpty());QVERIFY(error(replies,1).isEmpty());
+        QVERIFY(first.value("pid")!=second.value("pid"));
+        QVERIFY(provider.requestPayload("home-identity","recommendationIdentity",channelA,options(channelA))>0);
+        QTRY_COMPARE(replies.size(),3);
+        QVERIFY(error(replies).isEmpty());
+        const auto next=data(replies).value("provenance").toMap();
+        QVERIFY(next.value("pid")==first.value("pid")||next.value("pid")==second.value("pid"));
+        QCOMPARE(next.value("sequence").toInt(),2);
+    }
+    void homeListeningDoesNotTakeTheForegroundAlbumWorker(){
+        VinylProvider provider(VINYL_LIFECYCLE_HELPER,nullptr,4096,{},cache());
+        QSignalSpy replies(&provider,&VinylProvider::completed);
+        QVERIFY(provider.request("browse","album","first")>0);
+        QTRY_COMPARE(replies.size(),1);
+        const auto foregroundPid=data(replies).value("pid");
+        QVERIFY(provider.request("home-listening-0","album","delay")>0);
+        QVERIFY(provider.request("browse","album","second")>0);
+        QTRY_COMPARE(replies.size(),3);
+        for(int i=1;i<3;++i){
+            QVERIFY(error(replies,i).isEmpty());
+            if(replies[i][0].toString()=="browse")QCOMPARE(data(replies,i).value("pid"),foregroundPid);
+            else QVERIFY(data(replies,i).value("pid")!=foregroundPid);
+        }
+    }
     void warmupIsIdempotentReadyAndUncacheable(){
         const auto path=cache();VinylProvider provider(VINYL_LIFECYCLE_HELPER,nullptr,4096,{},path);
         QSignalSpy replies(&provider,&VinylProvider::completed);

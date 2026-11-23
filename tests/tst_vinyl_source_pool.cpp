@@ -83,6 +83,8 @@ private slots:
     {
         QVERIFY(transportRoot.isValid());
         QVERIFY(!qEnvironmentVariable("COLOSSEUM_VINYL_PYTHON").isEmpty());
+        // This file-backed transport fixture intentionally speaks one-shot JSON.
+        qputenv("COLOSSEUM_VINYL_REUSE_HELPERS","0");
     }
     void init()
     {
@@ -523,6 +525,7 @@ private slots:
         QVERIFY(two.requestPayload("home-metadata-0","recommendationDiscography",second,{{"seed",b.value("seed")}}) > 0);
         QVERIFY(one.request("artist-identity","artistIdentity","artist-fixture") > 0);
         QTRY_COMPARE_WITH_TIMEOUT(doneOne.size()+doneTwo.size(),3,7500);
+        QCOMPARE(doneOne.at(0).at(0).toString(),QString("artist-identity"));
         for (const auto *spy : {&doneOne,&doneTwo})
             for (int index=0;index<spy->size();++index) QVERIFY2(failure(*spy,index).isEmpty(),qPrintable(failure(*spy,index)));
         const auto log = events(); QCOMPARE(log.size(),6);

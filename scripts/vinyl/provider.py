@@ -67,7 +67,7 @@ _SERVER_MODE = False
 _SERVER_AUDIO_DL = None
 _SERVER_VIDEO_DL = None
 _SERVER_MUSIC_CLIENT = None
-_SERVER_MUSIC_REGION = None
+_SERVER_MUSIC_KEY = None
 
 
 def _youtube_dl(kind):
@@ -96,15 +96,23 @@ def _youtube_dl(kind):
     return contextlib.nullcontext(_SERVER_VIDEO_DL)
 
 
-def _ytmusic_client(region):
+def _ytmusic_client(region, *, bounded=False):
     from ytmusicapi import YTMusic
-    if not _SERVER_MODE:
-        return YTMusic(**ytmusic_location_options(region))
-    global _SERVER_MUSIC_CLIENT, _SERVER_MUSIC_REGION
-    if _SERVER_MUSIC_CLIENT is None or _SERVER_MUSIC_REGION != region:
-        _SERVER_MUSIC_CLIENT = YTMusic(**ytmusic_location_options(region))
-        _SERVER_MUSIC_REGION = region
-    return _SERVER_MUSIC_CLIENT
+    global _SERVER_MUSIC_CLIENT, _SERVER_MUSIC_KEY
+    key = (region, bounded)
+    if _SERVER_MODE and _SERVER_MUSIC_CLIENT is not None and _SERVER_MUSIC_KEY == key:
+        return _SERVER_MUSIC_CLIENT
+    options = ytmusic_location_options(region)
+    if bounded:
+        import functools
+        import requests
+        session = requests.Session()
+        session.request = functools.partial(session.request, timeout=4)
+        options["requests_session"] = session
+    client = YTMusic(**options)
+    if _SERVER_MODE:
+        _SERVER_MUSIC_CLIENT, _SERVER_MUSIC_KEY = client, key
+    return client
 
 
 class ProviderError(ValueError):
@@ -2768,12 +2776,7 @@ def handle_home(request, client=None, mb_client=None, population_client=None, so
             song_candidate_request(request)
         region = requested_region(request)
         if client is None:
-            import functools
-            import requests
-            from ytmusicapi import YTMusic
-            session = requests.Session()
-            session.request = functools.partial(session.request, timeout=4)
-            client = YTMusic(requests_session=session, **ytmusic_location_options(region))
+            client = _ytmusic_client(region, bounded=True)
         if operation == "artistCandidates":
             return artist_candidates(request, client)
         if operation == "songCandidates":

@@ -27,6 +27,11 @@ def answer(raw):
         sys.exit(7)
     if value == "malformed":
         return {"invalid": True}
+    if operation in ("artistCandidates", "recommendationIdentity"):
+        source = "musicbrainz" if operation == "recommendationIdentity" else "youtube-music"
+        return {"ok": True, "data": {"version": 1, "seed": request["seed"], "items": [],
+                "status": "empty", "complete": True, "fetchedAt": "2026-11-23T00:00:00.000Z",
+                "provenance": {"source": source, "pid": os.getpid(), "sequence": sequence}}}
     return {"ok": True, "data": {"pid": os.getpid(), "sequence": sequence,
                                     "operation": operation, "value": value}}
 

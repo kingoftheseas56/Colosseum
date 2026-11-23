@@ -58,6 +58,7 @@ Item {
 
                 KeyboardAction {
                     id: artistAction
+                    objectName: "vinylArtistLink_" + artistEntry.index
                     width: Math.min(artistMetrics.advanceWidth,
                                     Math.max(0, root.width - (artistEntry.showSeparator ? separator.implicitWidth : 0)))
                     height: artistLabel.implicitHeight

@@ -53,10 +53,7 @@ TestCase {
         host.pageData.setFixture('without-me');
         host.page = 'song';
         tryCompare(host, 'ready', true);
-        item("vinylPlayerBar").videoRequested.connect(function() {
-            host.page = "song";
-            host.pageData.toggleVideo();
-        });
+        // The prototype already handles the HUD's videoRequested signal.
     }
     function cleanup() {
         if (host) {
@@ -402,13 +399,17 @@ TestCase {
         waitForRendering(host.contentItem);
         var before=poster.mapToItem(page,0,0),width=poster.width,height=poster.height;
         var barAt=bar.y,barHeight=bar.height,position=host.pageData.position;
-        mouseClick(item("vinylBarVideo"));verify(host.pageData.videoShown);verify(!host.videoFullscreen);
+        mouseClick(item("vinylBarVideo"));
+        compare(host.pageData.videoShown, true, "One HUD click enters video");
+        compare(host.videoFullscreen, false, "The HUD video toggle does not enter fullscreen");
         page.videoControlsVisible=false;wait(180);
         verify(item("vinylSongBack").visible,"Normal video keeps Back available despite stale idle state");
         verify(item("vinylBarFullscreen").visible,"Normal video keeps the explicit fullscreen control available");
         compare(bar.y,barAt);compare(bar.height,barHeight);
         verify(page.videoSurface.mapToItem(host.contentItem,0,page.videoSurface.height).y<=bar.y-14);
-        mouseClick(item("vinylBarVideo"));verify(!host.pageData.videoShown);compare(host.page,"song");
+        mouseClick(item("vinylBarVideo"));
+        compare(host.pageData.videoShown, false, "One HUD click returns to audio");
+        compare(host.page, "song");
         waitForRendering(host.contentItem);
         compare(poster.mapToItem(page,0,0),before);compare(poster.width,width);compare(poster.height,height);
         verify(host.pageData.lyricsShown);verify(host.pageData.autoNotes);compare(host.pageData.manualNoteLine,1);
@@ -442,6 +443,7 @@ TestCase {
         mouseClick(frame, frame.width / 2, frame.height / 2);
         compare(albumRequestCount, 0, "The album overlay must not receive clicks during video");
         activateSongOption('vinylBarVideo');
+        compare(host.pageData.videoShown, false);
         compare(host.pageData.position, old);
         compare(lyrics.visible, previousLyricsVisible);
         compare(notes.visible, previousNotesVisible);
@@ -487,7 +489,8 @@ TestCase {
         mouseClick(item("vinylBarFullscreen"));
         verify(host.videoFullscreen);
         mouseClick(item("vinylBarVideo"));
-        verify(!host.pageData.videoShown);verify(!host.videoFullscreen);
+        compare(host.pageData.videoShown, false, "Turning off video returns to audio");
+        compare(host.videoFullscreen, false, "Turning off video also exits fullscreen");
         compare(frame.parent,ordinaryParent);
         attached.destroy();
     }

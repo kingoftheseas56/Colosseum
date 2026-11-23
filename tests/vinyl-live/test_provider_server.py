@@ -42,7 +42,7 @@ class WarmProviderTests(unittest.TestCase):
         provider._SERVER_AUDIO_DL=None
         provider._SERVER_VIDEO_DL=None
         provider._SERVER_MUSIC_CLIENT=None
-        provider._SERVER_MUSIC_REGION=None
+        provider._SERVER_MUSIC_KEY=None
         FakeYoutubeDL.constructed=0
         self.dependencies=mock.patch.dict(sys.modules, {"yt_dlp":types.SimpleNamespace(YoutubeDL=FakeYoutubeDL),
                                                        "ytmusicapi":types.SimpleNamespace(YTMusic=None)})
@@ -54,7 +54,7 @@ class WarmProviderTests(unittest.TestCase):
         provider._SERVER_AUDIO_DL=None
         provider._SERVER_VIDEO_DL=None
         provider._SERVER_MUSIC_CLIENT=None
-        provider._SERVER_MUSIC_REGION=None
+        provider._SERVER_MUSIC_KEY=None
 
     def test_exact_streams_reuse_per_format_without_substitution(self):
         with mock.patch("yt_dlp.YoutubeDL", FakeYoutubeDL):
@@ -98,6 +98,39 @@ class WarmProviderTests(unittest.TestCase):
             other=provider._ytmusic_client("US")
             self.assertIsNot(india,other)
             self.assertIs(other,provider._ytmusic_client("US"))
+
+    def test_home_requests_reuse_bounded_client_without_crossing_regions(self):
+        class FakeSession:
+            def request(self, **kwargs):
+                return kwargs
+
+        class FakeMusic:
+            def __init__(self, **kwargs):
+                self.options = kwargs
+
+            def get_artist(self, channel):
+                return {"name": "Fixture", "channelId": channel}
+
+        def request(letter, region):
+            channel = "UC" + letter * 22
+            return {"operation": "artistCandidates", "value": channel, "region": region,
+                    "seed": {"kind": "artist", "provider": "youtube-music", "providerId": channel}}
+
+        with mock.patch("ytmusicapi.YTMusic", side_effect=FakeMusic) as construct, \
+                mock.patch.dict(sys.modules, {"requests": types.SimpleNamespace(Session=FakeSession)}):
+            self.assertEqual(provider.handle(request("A", "IN"))["status"], "empty")
+            self.assertEqual(provider.handle(request("B", "IN"))["status"], "empty")
+            self.assertEqual(construct.call_count, 1)
+            self.assertEqual(construct.call_args.kwargs["requests_session"].request()["timeout"], 4)
+            self.assertEqual(provider.handle(request("B", "US"))["status"], "empty")
+            self.assertEqual(construct.call_args.kwargs["location"], "US")
+            self.assertEqual(construct.call_count, 2)
+            self.assertNotIn("requests_session", provider._ytmusic_client("US").options)
+            self.assertEqual(construct.call_count, 3)
+            provider._SERVER_MODE = False
+            provider.handle(request("A", "IN"))
+            provider.handle(request("B", "IN"))
+            self.assertEqual(construct.call_count, 5)
 
     def test_ndjson_recovers_from_invalid_request_without_live_provider(self):
         p=subprocess.Popen([sys.executable,"-I",str(PROVIDER),"--serve"],

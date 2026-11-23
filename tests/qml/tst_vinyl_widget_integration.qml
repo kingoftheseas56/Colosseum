@@ -97,7 +97,10 @@ TestCase {
                 else compare(caption.height, referenceHeight);
                 if (kind === "songs") {
                     compare(card.captionTitle, "Fixture singer · from Fixture album");
+                    compare(card.captionDetail, "");
+                    compare(labelCount(caption, "Fixture singer · from Fixture album"), 1);
                     compare(labelCount(card, "Fixture title"), 1, "Song title stays inside its face");
+                    verify(card.accessibleName.includes("Fixture singer · from Fixture album"));
                 } else if (kind === "artists") {
                     compare(card.captionTitle, "Fixture title");
                     compare(card.captionDetail, "Artist radio");
@@ -198,6 +201,8 @@ TestCase {
         verify(card !== null);
         compare(card.artistText, "Artist name");
         compare(card.secondaryText, "Unavailable\nFrom your listening");
+        compare(card.captionTitle, "Artist name");
+        compare(card.captionDetail, "Unavailable");
         verify(card.includesTitle);
         verify(card.implicitHeight > 256, "Paper plus recommendation/availability must contribute to shelf height");
         compare(String(card.artworkSource), "file:///resolved/cover.jpg");

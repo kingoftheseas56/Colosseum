@@ -80,8 +80,12 @@ Item {
     readonly property var searchPage: searchLayer.item
     readonly property real footerLeft: Math.max(theme.margin, shellDockRight > 0 ? shellDockRight + 12 : 0)
     property real contentBottomInset: 0
+    // Hold the status line's space only while it has something to say; an empty
+    // reserve showed as a black band between the page and the player bar.
+    readonly property bool statusRowShown: statusText.text.length > 0 || cancelImport.visible
+        || retry.visible || catalogueRetry.visible || radioRetry.visible
     readonly property real contentBottom: bar.visible
-        ? bar.y - (videoDisplayed || (page === "song" && !statusText.text.length) ? 14 : 54)
+        ? bar.y - (videoDisplayed || !statusRowShown ? 14 : 54)
         : height - Math.max(62, shellDockBottomExtent)
     readonly property bool worldVisible: canEnterVinyl
         ? ["home","songs","albums","artists","discover","library"].indexOf(page)>=0 : worldData.tastePickerOpen===true

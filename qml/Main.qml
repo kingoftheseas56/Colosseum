@@ -5072,6 +5072,14 @@ Window {
                         initialProperties.resumePresentationPending = Qt.binding(function() {
                             return win.hasPendingVinylResume()
                         })
+                        // Give the player bar the taskbar's footprint from construction, so it
+                        // never lays out under the taskbar pill while the world is still loading.
+                        initialProperties.shellDockRight = Qt.binding(function() {
+                            return taskbar.visible ? taskbar.leftEdge + taskbar.closedWidth : 0
+                        })
+                        initialProperties.shellDockBottomExtent = Qt.binding(function() {
+                            return taskbar.visible ? taskbar.bottomGap + taskbar.closedSize : 0
+                        })
                     }
                     setSource(win.worldSourceFor(mode), initialProperties)
                     active = true

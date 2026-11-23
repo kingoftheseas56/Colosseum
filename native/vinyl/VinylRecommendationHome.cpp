@@ -199,6 +199,19 @@ struct VinylRecommendationService::HomeState {
     QSet<QString> failed,optionalUnavailable;
     QString seedHash,status="idle",error,visitId;
     std::function<qint64()> clock;
+    // Independent of the current refresh, seed display fields and date window.
+    QHash<QString,qint64> canonicalRetryAt;
+    static QString canonicalWorkKey(const QString &op,const QString &value){
+        return op=="recommendationIdentity"||op=="recommendationDiscography"?op+":"+value:QString();
+    }
+    bool canonicalDeferred(const QString &op,const QString &value) const {
+        const auto key=canonicalWorkKey(op,value);
+        return !key.isEmpty()&&canonicalRetryAt.value(key)>clock();
+    }
+    void deferCanonicalFailure(const Job &job,int retryAfterSeconds=0){
+        const auto key=canonicalWorkKey(job.operation,job.value);
+        if(!key.isEmpty())canonicalRetryAt[key]=clock()+1000LL*qBound(300,retryAfterSeconds,3600);
+    }
     QTimer *deadline=nullptr;
     QTimer *publishTimer=nullptr;
     QTimer *inputsTimer=nullptr;
@@ -414,7 +427,7 @@ void VinylRecommendationService::initializeHome(std::function<qint64()> clock){
 }
 VinylRecommendationService::~VinylRecommendationService(){cancelSongCandidates(false);cancelHome(false);}
 void VinylRecommendationService::setSource(QObject *value){
-    if(m_source==value)return;const bool visited=m_home->visited;cancelSearch();cancelHome(true);
+    if(m_source==value)return;const bool visited=m_home->visited;cancelSearch();m_home->canonicalRetryAt.clear();cancelHome(true);
     if(m_source)disconnect(m_source,nullptr,this,nullptr);m_source=value;
     if(value)connect(value,SIGNAL(completed(QString,int,QVariant,QString)),this,SLOT(accept(QString,int,QVariant,QString)),Qt::QueuedConnection);
     m_home->visited=visited;homeSeedsChanged();emit stateChanged();
@@ -456,7 +469,7 @@ void VinylRecommendationService::cancelHome(bool clear){
     const auto lanes=m_home->active.keys();m_home->active.clear();m_home->waiting.clear();for(const auto &lane:lanes)cancelLane(m_source,lane);
     if(clear){m_home->evidence.clear();m_home->identities.clear();m_home->population.clear();m_home->charts.clear();m_home->similarity.clear();m_home->discography.clear();m_home->neighbors.clear();m_home->parents.clear();m_home->metadataAttempted.clear();m_home->pool.clear();m_home->failed.clear();m_home->optionalUnavailable.clear();m_home->sections.clear();m_home->snapshot.clear();m_home->seeds.clear();m_home->seedHash.clear();m_home->excludedArtistProviderIds.clear();m_home->status="idle";m_home->error.clear();m_home->visited=false;m_home->refreshed=false;m_home->cursor=0;m_home->nextCursor=0;++m_home->revision;emit homeChanged();}
 }
-void VinylRecommendationService::clearHomeProfile(){m_home->collections.clear();m_home->history.clear();m_home->visitId.clear();cancelHome(true);}
+void VinylRecommendationService::clearHomeProfile(){m_home->collections.clear();m_home->history.clear();m_home->visitId.clear();m_home->canonicalRetryAt.clear();cancelHome(true);}
 void VinylRecommendationService::homeSeedsChanged(bool refresh){
     QVariantList input=m_saved;
     for(const auto &entry:m_home->collections.value("artists").toList()){
@@ -500,6 +513,10 @@ void VinylRecommendationService::refreshHome(bool force){
     if(!m_home->visited&&!force){markHomeDirty();return;}
     if(!force&&(!m_home->active.isEmpty()||!m_home->waiting.isEmpty())){rebuildHome();return;}
     cancelHome(false);m_home->failed.clear();m_home->optionalUnavailable.clear();m_home->error.clear();m_home->evaluatedAt=m_home->clock();
+    for(auto it=m_home->canonicalRetryAt.begin();it!=m_home->canonicalRetryAt.end();){
+        if(it.value()<=m_home->evaluatedAt)it=m_home->canonicalRetryAt.erase(it);
+        else ++it;
+    }
     m_home->metadataAttempted.clear();m_home->forceMetadata=force;m_home->neighborsPrepared=false;
     if(force){const auto retained=m_home->retainedSongEvidence();cancelSongCandidates(true);m_home->previousSongEvidence=retained;}
     if(force&&m_home->refreshed)m_home->cursor=m_home->nextCursor;
@@ -531,6 +548,8 @@ void VinylRecommendationService::queueHomeEnrichment(){
     auto enqueue=[&](const QString &op,const QString &value,const QString &key,const QVariantMap &seed,QVariantMap options=QVariantMap()) {
         options["seed"]=seed;
         const auto token=digest(QVariantList{op,value,options});
+        const bool deferred=m_home->canonicalDeferred(op,value);
+        if(deferred)m_home->optionalUnavailable.insert(op+":"+key);
         if(m_home->metadataAttempted.contains(token))return;
         m_home->metadataAttempted.insert(token);
         QVariantMap checked;
@@ -544,6 +563,7 @@ void VinylRecommendationService::queueHomeEnrichment(){
             else if(op=="artistCandidates")m_home->evidence[key]=data;
         };
         if(valid)retain(checked);
+        if(deferred)return;
         const auto fetched=QDateTime::fromString(checked.value("fetchedAt").toString(),Qt::ISODateWithMs);
         const auto age=fetched.isValid()?fetched.msecsTo(QDateTime::fromMSecsSinceEpoch(m_home->evaluatedAt,Qt::UTC)):-1;
         const bool completeIdentity=op!="recommendationIdentity"||checked.value("status")!="verified"
@@ -616,9 +636,23 @@ void VinylRecommendationService::pumpHome(bool publishNow){
             if(!m_home->active.contains(lane)){at=i;break;}
         }
         if(at<0)break;const auto job=m_home->waiting.takeAt(at);
+        if(m_home->canonicalDeferred(job.operation,job.value)){
+            m_home->optionalUnavailable.insert(job.operation+":"+job.key);
+            continue;
+        }
         auto options=job.options;options["seed"]=job.seed;options["refresh"]=job.force;
         const int id=requestHome(m_source,lane,job.operation,job.value,options);
-        if(id<0){if(HomeState::core(job))m_home->failed.insert(job.key);else m_home->optionalUnavailable.insert(job.operation+":"+job.key);continue;}
+        if(id<0){
+            if(HomeState::core(job))m_home->failed.insert(job.key);
+            else{
+                m_home->optionalUnavailable.insert(job.operation+":"+job.key);
+                if(!HomeState::canonicalWorkKey(job.operation,job.value).isEmpty()){
+                    m_home->deferCanonicalFailure(job);
+                    queueHomeEnrichment();
+                }
+            }
+            continue;
+        }
         m_home->active.insert(lane,{id,job});
     }
     if(!m_home->corePending())m_home->deadline->stop();
@@ -639,8 +673,11 @@ bool VinylRecommendationService::acceptHome(const QString &lane,int id,const QVa
     const auto job=m_home->active.take(lane).job;QVariantMap data;QString failure=error;
     auto options=job.options;options["seed"]=job.seed;
     if(failure.isEmpty()&&!VinylProvider::normalizeHome(job.operation,job.value,options,plainHome(raw),&data))failure="The recommendation response is invalid.";
-    if(data.value("status")=="unavailable")failure=data.value("error","The catalogue is unavailable.").toString();
-    if(!failure.isEmpty()){
+    const bool failed=!failure.isEmpty()||data.value("status")=="unavailable";
+    // A stale fallback still supplies usable evidence, but its refresh failed.
+    if(failed||!data.value("_cacheError").toString().isEmpty())
+        m_home->deferCanonicalFailure(job,data.value("retryAfterSeconds").toInt());
+    if(failed){
         if(HomeState::core(job)){m_home->failed.insert(job.key);m_home->error="Some catalogue enrichment is unavailable.";}
         else m_home->optionalUnavailable.insert(job.operation+":"+job.key);
     }
@@ -765,7 +802,11 @@ bool VinylRecommendationService::acceptSongCandidates(const QString &lane,int id
     if(!error.isEmpty()||!VinylProvider::normalizeHome("songCandidates",job.video,{{"seed",job.seed},{"recording",job.recording}},plainHome(raw),&data)
         ||data.value("status")=="unavailable")m_home->songFailed.insert(job.key);
     else {m_home->songEvidence[job.key]=data;m_home->songFailed.remove(job.key);}
-    pumpHome();return true;
+    // Publish the settled song batch even when canonical back-off leaves no
+    // other replies to trigger a rebuild. Keep intermediate replies batched.
+    const bool songBatchFinished=m_home->songActive.isEmpty()&&m_home->songWaiting.isEmpty();
+    pumpHome(songBatchFinished);
+    return true;
 }
 
 void VinylRecommendationService::rebuildHome(bool immediate){

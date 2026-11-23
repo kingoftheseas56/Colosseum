@@ -22,6 +22,7 @@
 #include <QDebug>
 #include <QMutex>
 #include <QMutexLocker>
+#include <array>
 #include <chrono>
 #include <functional>
 #include <memory>
@@ -248,14 +249,14 @@ public:
         const auto path=m_cacheRoot+"/"+key+".json";
         WarmSlot *warm=nullptr;
         if(warming||operation=="resolve"||operation=="resolveVideo")warm=&m_mediaWarm;
-        else if(!home&&!lane.startsWith("home-")&&QStringList{"search","catalogueSearch","artist","artistReleases","artistVideos","artistArtwork"}.contains(operation))
+        else if(home)warm=homeWorker();
+        else if(lane.startsWith("home-listening-"))warm=&m_homeListeningWarm;
+        else if(QStringList{"search","catalogueSearch","artist","artistReleases","artistVideos","artistArtwork"}.contains(operation))
             warm=&m_browseWarm;
         else if(QStringList{"browseCategories","browseCatalogue","resolveCatalogueItem","cataloguePage","album","relatedVideo"}.contains(operation))
             warm=&m_catalogueWarm;
-        // Only one worker per group can be reused. Overlapping ordinary
-        // search/play requests still launch directly; Home's existing cap is
-        // independent and unchanged.
-        // External/fake transport helpers keep the original one-shot contract.
+        // Home cannot occupy a foreground warm worker. Overlap beyond the
+        // warm pool and external helpers retain the one-shot contract.
         const bool server=warm&&!warm->busy&&reuseHelpers();
         QProcess *process=nullptr;
         if(server){
@@ -282,7 +283,7 @@ public:
             qInfo().noquote()<<"[vinyl-provider]"<<QJsonDocument(QJsonObject{{"phase",phase},{"operation",operation},
                 {"lane",lane},{"requestId",id},{"reused",reused}}).toJson(QJsonDocument::Compact);
         };
-        auto finish=[guard=QPointer<VinylProvider>(this),this,process,lane,id,home,cacheable,path,key,operation,value,payload,elapsed,warm,server,deadline,reused,warming](QVariant data,QString error,bool cleanReply=false){
+        auto finish=[guard=QPointer<VinylProvider>(this),this,process,lane,id,home,cacheable,path,key,operation,value,payload,elapsed,warm,server,deadline,reused,warming,traceEnabled](QVariant data,QString error,bool cleanReply=false){
             if(!guard||m_active.value(lane)!=process)return;
             const bool ran=m_running.contains(process);
             releaseMusicBrainz(process);
@@ -300,10 +301,12 @@ public:
             }else{
                 retireProcess(process);
             }
+            bool invalidEnvelope=false;
             if(home&&error.isEmpty()){
                 QVariantMap normalized;
-                if(!normalizeHome(operation,value,payload,data,&normalized)){data={};error="The recommendation response is invalid.";}
-                else data=normalized;
+                if(!normalizeHome(operation,value,payload,data,&normalized)){
+                    data={};error="The recommendation response is invalid.";invalidEnvelope=true;
+                }else data=normalized;
             }
             const auto map=data.toMap();
             if(home&&ran&&map.value("sourceStatus")=="rate_limited"){
@@ -340,9 +343,16 @@ public:
             const auto result=data.toMap();
             const auto count=data.metaType().id()==QMetaType::QVariantList?data.toList().size()
                 :result.value("items",result.value("tracks",result.value("albums"))).toList().size();
-            qInfo().noquote()<<"[vinyl-provider]"<<QJsonDocument(QJsonObject{{"operation",operation},{"lane",lane},
+            QJsonObject replyTrace{{"operation",operation},{"lane",lane},
                 {"requestId",id},{"cacheHit",result.value("_cached").toBool()},{"stale",result.value("_stale").toBool()},
-                {"workerReused",reused},{"elapsedMs",elapsed->elapsed()},{"count",count},{"ok",error.isEmpty()&&result.value("status")!="unavailable"}}).toJson(QJsonDocument::Compact);
+                {"workerReused",reused},{"elapsedMs",elapsed->elapsed()},{"count",count},{"ok",error.isEmpty()&&result.value("status")!="unavailable"}};
+            if(traceEnabled&&home){
+                // Report the failure class before stale-cache fallback, never the upstream message or seed.
+                replyTrace["dispatched"]=ran;
+                replyTrace["invalidEnvelope"]=invalidEnvelope;
+                replyTrace["rateLimited"]=map.value("sourceStatus")=="rate_limited";
+            }
+            qInfo().noquote()<<"[vinyl-provider]"<<QJsonDocument(replyTrace).toJson(QJsonDocument::Compact);
             emit completed(lane,id,data,error);
             if(guard)QTimer::singleShot(0,this,[this]{startWaiting();});
         };
@@ -429,13 +439,19 @@ public:
                 if(guard&&m_active.value(lane)==process){process->write(requestBytes);process->closeWriteChannel();}
             }
         };
-        if(home||musicBrainz){m_waiting.enqueue({QPointer<QProcess>(process),launch,musicBrainz});QTimer::singleShot(0,this,[this]{startWaiting();});}
-        else QTimer::singleShot(0,process,launch);
+        if(home||musicBrainz){
+            QueuedWork job{QPointer<QProcess>(process),launch,musicBrainz};
+            // Foreground artist identity shares the MusicBrainz gate, but gets
+            // the next eligible slot ahead of queued Home enrichment.
+            if(home)m_waiting.enqueue(std::move(job));
+            else m_waiting.prepend(std::move(job));
+            QTimer::singleShot(0,this,[this]{startWaiting();});
+        }else QTimer::singleShot(0,process,launch);
         return id;
     }
     Q_INVOKABLE void cancel(const QString &lane){
         auto *process=m_active.take(lane);if(!process)return;m_running.remove(process);releaseMusicBrainz(process);
-        for(auto *slot:{&m_mediaWarm,&m_catalogueWarm,&m_browseWarm}){
+        for(auto *slot:warmSlots()){
             if(slot->process==process){
                 slot->process=nullptr;
                 slot->busy=false;
@@ -448,7 +464,7 @@ public:
     Q_INVOKABLE void cancelAll(){
         m_suppressReplacement=true;
         m_waiting.clear();m_waitingWake->stop();for(const auto &lane:m_active.keys())cancel(lane);
-        for(auto *slot:{&m_mediaWarm,&m_catalogueWarm,&m_browseWarm}){
+        for(auto *slot:warmSlots()){
             auto *process=slot->process.data();
             slot->process=nullptr;slot->busy=false;++slot->idleGeneration;
             if(process)retireProcess(process);
@@ -479,6 +495,16 @@ private:
         bool busy=false;
         quint64 idleGeneration=0;
     };
+    std::array<WarmSlot*,6> warmSlots(){
+        return {&m_mediaWarm,&m_catalogueWarm,&m_browseWarm,&m_homeListeningWarm,&m_homeWarm[0],&m_homeWarm[1]};
+    }
+    WarmSlot *homeWorker(){
+        for(auto &slot:m_homeWarm)
+            if(!slot.busy&&slot.process&&slot.process->state()==QProcess::Running)return &slot;
+        for(auto &slot:m_homeWarm)
+            if(!slot.busy)return &slot;
+        return nullptr;
+    }
     void idleWorker(WarmSlot *slot,QProcess *process,bool replaceOnExit=true){
         const auto generation=slot->idleGeneration;
         connect(process,qOverload<int,QProcess::ExitStatus>(&QProcess::finished),this,
@@ -497,7 +523,8 @@ private:
         });
     }
     void replaceWorker(WarmSlot *slot){
-        if(m_suppressReplacement||!reuseHelpers())return;
+        // Restart Home on demand, not after a cancelled/failed background job.
+        if(m_suppressReplacement||!reuseHelpers()||slot==&m_homeWarm[0]||slot==&m_homeWarm[1]||slot==&m_homeListeningWarm)return;
         const auto generation=slot->idleGeneration;
         QTimer::singleShot(0,this,[this,slot,generation]{
             if(slot->idleGeneration!=generation||slot->process||m_suppressReplacement||!reuseHelpers())return;
@@ -577,15 +604,20 @@ private:
     }
     void startWaiting(){
         QPointer<VinylProvider> guard(this);int retry=0;
-        const int attempts=m_waiting.size();
-        for(int index=0;index<attempts&&m_running.size()<2&&!m_waiting.isEmpty();++index){
-            auto job=m_waiting.dequeue();
-            if(!job.process||!m_active.values().contains(job.process.data()))continue;
-            int delay=0;
-            if(job.musicBrainz&&!claimMusicBrainz(job.process.data(),&delay)){
-                m_waiting.enqueue(std::move(job));retry=retry?qMin(retry,delay):delay;continue;
+        for(qsizetype index=0;index<m_waiting.size()&&m_running.size()<2;){
+            const auto &job=m_waiting.at(index);
+            if(!job.process||!m_active.values().contains(job.process.data())){
+                m_waiting.removeAt(index);
+                continue;
             }
-            job.launch();if(!guard)return;
+            // Leave gated jobs in order. In particular, a pending foreground
+            // lookup keeps its place even while unrelated Home work can run.
+            if(job.musicBrainz&&(retry||!claimMusicBrainz(job.process.data(),&retry))){
+                ++index;
+                continue;
+            }
+            auto ready=m_waiting.takeAt(index);
+            ready.launch();if(!guard)return;
         }
         if(retry&&!m_waiting.isEmpty()&&(!m_waitingWake->isActive()||m_waitingWake->remainingTime()>retry))m_waitingWake->start(qMax(1,retry));
     }
@@ -593,7 +625,8 @@ private:
     qint64 m_cacheBudget;std::function<qint64()> m_clock;QString m_cacheRoot;
     QSet<QProcess*> m_running;QQueue<QueuedWork> m_waiting;QHash<QString,qint64> m_deferred;
     QTimer *m_waitingWake=nullptr;
-    WarmSlot m_mediaWarm,m_catalogueWarm,m_browseWarm;
+    WarmSlot m_mediaWarm,m_catalogueWarm,m_browseWarm,m_homeListeningWarm;
+    std::array<WarmSlot,2> m_homeWarm;
     bool m_suppressReplacement=false;
     const int m_mediaIdleMs,m_catalogueIdleMs;
 };
