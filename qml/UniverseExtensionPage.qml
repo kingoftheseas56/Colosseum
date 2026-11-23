@@ -27,6 +27,7 @@ Item {
     // wiring the route — it would throw on a non-existent property.
     property string extensionId: ""
     property string universeName: ""
+    property real contentBottomInset: 0
 
     signal backRequested()
     signal minimizeRequested()
@@ -101,9 +102,10 @@ Item {
 
     Flickable {
         id: page
+        objectName: "universeExtensionScroll"
         anchors.fill: parent
         contentWidth: width
-        contentHeight: col.implicitHeight
+        contentHeight: col.implicitHeight + root.contentBottomInset
         boundsBehavior: Flickable.StopAtBounds
         clip: true
         ScrollBar.vertical: HouseScrollBar { flick: page }
