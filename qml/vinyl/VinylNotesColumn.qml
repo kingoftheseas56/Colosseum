@@ -207,6 +207,29 @@ Item {
                 font.pixelSize: 11
                 font.letterSpacing: 1.5
             }
+            KeyboardAction {
+                id: manualFallback
+                objectName: "vinylAnnotationManualFallback"
+                // The cue is annotated, but nothing qualified for automatic display.
+                visible: root.autoMode && !root.hasAutomaticNote
+                    && !!root.pageData.notes[root.shownLineIndex]?.length
+                    && typeof root.pageData.showNotes === "function"
+                width: parent.width
+                height: Math.max(44, fallbackLabel.implicitHeight + 12)
+                accessibleName: fallbackLabel.text
+                onTriggered: root.openFullAnnotation()
+                Text {
+                    id: fallbackLabel
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width
+                    text: qsTr("Read full annotation")
+                    color: manualFallback.interactionActive ? theme.gold : theme.inkDim
+                    font.family: theme.ui
+                    font.pixelSize: 14
+                    font.underline: true
+                    wrapMode: Text.WordWrap
+                }
+            }
             Repeater {
                 model: root.shownNotes
                 delegate: Column {

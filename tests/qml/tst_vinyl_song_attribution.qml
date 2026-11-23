@@ -43,6 +43,20 @@ TestCase {
             property string geniusSongId: "42"
             function noteWindow(index) { return 120000; }
             function artwork(value) { return ""; }
+            function toggleNotes() {
+                autoNotes = manualNoteLine >= 0 || !autoNotes;
+                manualNoteLine = -1;
+                activeNoteLine = autoNotes && notes[currentLineIndex] ? currentLineIndex : -1;
+            }
+            function seekToLine(index) {
+                position = lyrics[index].time;
+                currentLineIndex = index;
+                activeNoteLine = autoNotes && notes[index] ? index : -1;
+            }
+            function showNotes(index) {
+                manualNoteLine = index;
+                activeNoteLine = index;
+            }
         }
     }
     Component { id: pageFactory; Vinyl.VinylSongPage {} }
@@ -93,6 +107,42 @@ TestCase {
         compare(rail().contributors.length, 1);
         compare(rail().contributors[0].name, "Visible author");
         compare(rail().annotationSourceUrl, "https://genius.com/101");
+    }
+    function test_underlinedLyricsOfferFullReadingWhenAutoCannotShowAnExcerpt() {
+        data.timedLyrics = true;
+        data.lyricsStatus = "line_synced";
+        data.lyrics = [{text: "An original opening", time: 0}, {text: "An original ending", time: 2}];
+        var ending = note("102", [{name: "Ending author"}], 1);
+        ending.text = "The full annotation for the ending.";
+        data.notes = {0: [note("101", [{name: "Opening author"}])], 1: [ending]};
+        data.manualNoteLine = -1;
+        data.currentLineIndex = 0;
+        data.position = 0;
+        data.activeNoteLine = -1;
+        mouseClick(findChild(page, "vinylBarNotes"));
+        verify(data.autoNotes);
+        var column = findChild(page, "vinylNotesColumn");
+        verify(column.visible && column.width > 0 && column.height > 0);
+        compare(column.noteCount, 0, "Unqualified notes must not be presented as automatic excerpts");
+        var open = findChild(page, "vinylAnnotationManualFallback");
+        verify(open && open.visible && open.enabled, "An annotated cue must not leave the right pane blank");
+
+        var line = findChild(page, "vinylLyricLine_1");
+        verify(line.hasAnnotation);
+        mouseClick(line);
+        compare(data.position, 2);
+        compare(data.manualNoteLine, -1, "A lyric seek must keep Auto following");
+        verify(open.visible && open.enabled);
+        compare(column.shownLineIndex, 1);
+        waitForRendering(open);
+        mouseClick(open);
+        tryCompare(data, "manualNoteLine", 1);
+        compare(column.shownLineIndex, 1);
+        compare(column.noteCount, 1);
+        var body = findChild(column, "vinylAnnotationBody_0");
+        verify(body && body.visible);
+        compare(body.text, ending.text);
+        verify(!open.visible);
     }
     function test_unqualifiedSongMatchDoesNotProduceSourceLink() {
         data.activeNoteLine = -1;
