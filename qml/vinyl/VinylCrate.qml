@@ -21,6 +21,7 @@ Item {
     implicitHeight: header.height + (tiles.height > 0 ? 12 + tiles.height : 0)
     signal activateRequested(var item)
     signal openRequested(var item)
+    signal radioRequested(var item)
     signal pinRequested(var item, bool pinned)
     onPageCountChanged: clampPage()
     onPageChanged: clampPage()
@@ -87,7 +88,10 @@ Item {
                     id: actions
                     property var session: root.worldData && root.worldData.session ? root.worldData.session : null
                     function artwork(value) { return root.artwork(value); }
-                    function activate(item) { root.activateRequested(tile.modelData); }
+                    function activate(item) {
+                        if (tile.kind === "artists") root.openRequested(tile.modelData);
+                        else root.activateRequested(tile.modelData);
+                    }
                 }
                 VinylItemCard {
                     id: card
@@ -95,6 +99,7 @@ Item {
                     objectName: tile.objectName+"_card"
                     width: parent.width; height: implicitHeight
                     worldData: actions; item: root.presentation(tile.modelData)
+                    artistRadioAction: function() { root.radioRequested(tile.modelData); }
                     compactCaption: root.compact
                     backdrop: root.backdrop; pageFlick:root.pageFlick
                     opacity: tile.available ? 1 : 0.38
@@ -109,14 +114,6 @@ Item {
                     revealed: tileHover.hovered || card.activeFocus || activeFocus || (tile.pinned && !tile.available)
                     accessibleName: (tile.pinned ? qsTr("Unpin %1") : qsTr("Pin %1")).arg(tile.modelData.title)
                     onTriggered: root.pinRequested(tile.modelData,!tile.pinned)
-                }
-                VinylFeedbackBadge {
-                    objectName: "vinylCrateTileOpen_"+tile.itemIndex
-                    x:(parent.width-width)/2; y:(root.tileSize-height)/2; z:2
-                    visible: tile.kind==="artists"; enabled:visible && tile.available
-                    revealed: tileHover.hovered || card.activeFocus || activeFocus
-                    symbol:"show"; accessibleName:qsTr("Open %1").arg(tile.modelData.title)
-                    onTriggered:root.openRequested(tile.modelData)
                 }
             }
         }

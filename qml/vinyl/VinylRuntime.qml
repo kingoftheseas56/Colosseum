@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Dialogs
 import Colosseum.Vinyl 1.0
 import ".."
+import "VinylCardPresentation.js" as Presentation
 
 // One Vinyl session, detail router and player, shared by the house and legacy views.
 Item {
@@ -581,9 +582,9 @@ Item {
             homeMix.savedPlaylistId="";recommendations.openHomeMix(String(item.mixId || "personal"));
             page="mix";homeMix.contentY=0;root.parkFocus();return;
         }
-        if(item.kind==="radio") {
+        if(Presentation.kind(item)==="radio") {
             homeListeningError="";
-            recommendations.startHomeRadio(item.seedArtist || {});return;
+            recommendations.startHomeRadio(item.seedArtist || item);return;
         }
         if(item.kind==="resume") {
             if(item.unavailable){session.browseError="This song is no longer available.";return;}
@@ -645,6 +646,7 @@ Item {
     function activateHomeItem(item,action) {
         if(!item || !homeActivationAllowed || item.available===false || item.unavailable===true)return;
         if(["open","play","save","radio"].indexOf(action)<0)return;
+        if(action==="play" && Presentation.kind(item)==="artists")action="open";
         if(item.libraryItem && action==="open") {
             if(item.libraryAction==="openPlaylist")root.openHomeDestination("library","playlists",item.libraryItem.id);
             else if(item.libraryAction==="openDownloadedSong")showBrowseSong(item.libraryItem.album,item.libraryItem.index);
@@ -660,7 +662,7 @@ Item {
         if(action==="play" && item.row && item.album){
             session.playSongs([{album:item.album,track:item.row.track,index:item.index,editionId:item.editionId}],false);return;
         }
-        if(action==="radio" || kind==="artists" || kind==="radio") {
+        if(action==="radio" || Presentation.kind(item)==="radio") {
             if(kind==="songs"){performHomeRecordAction(item.record || {},item,"radio");return;}
             var seed=item.seedArtist || item;
             if(seed.provider==="local"){

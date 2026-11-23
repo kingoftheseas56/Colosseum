@@ -118,6 +118,8 @@ Item {
                     objectName: "vinylCard_" + (root.cold ? "cold-" : "") + root.row.key + "_" + index
                     worldData: root.worldData
                     item: root.row.items[index]
+                    artistRadioAction: root.home && typeof root.worldData.radioHomeItem === "function"
+                        ? function(item) { root.worldData.radioHomeItem(item); } : null
                     recommendationRow: root.home ? root.row : null
                     pageFlick: root.pageFlick
                     exposureRail: rail

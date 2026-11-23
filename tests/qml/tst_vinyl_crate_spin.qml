@@ -16,6 +16,7 @@ TestCase {
     Component { id:spinFactory; Vinyl.VinylSpin {} }
     SignalSpy { id:activated; target:test.crate || test.spin; signalName:"activateRequested" }
     SignalSpy { id:opened; target:test.crate || test.spin; signalName:"openRequested" }
+    SignalSpy { id:radio; target:test.crate || test.spin; signalName:"radioRequested" }
     SignalSpy { id:pinned; target:test.crate; signalName:"pinRequested" }
     SignalSpy { id:feedback; target:test.spin; signalName:"feedbackRequested" }
     function item(kind,index) {
@@ -31,14 +32,14 @@ TestCase {
     }
     function makeCrate(items) {
         crate=crateFactory.createObject(page.contentItem,{x:20,y:20,width:1172,compact:true,items:items,backdrop:wallpaper,pageFlick:page});
-        verify(crate!==null); verify(waitForRendering(crate)); activated.clear(); opened.clear(); pinned.clear();
+        verify(crate!==null); verify(waitForRendering(crate)); activated.clear(); opened.clear(); radio.clear(); pinned.clear();
     }
     function makeSpin() {
         var songs=[],albums=[],artists=[];
         for(var i=0;i<13;++i) songs.push(item("songs",i));
         for(i=0;i<9;++i) { albums.push(item("albums",i)); artists.push(item("artists",i)); }
         spin=spinFactory.createObject(page.contentItem,{x:20,y:200,width:1172,songs:songs,albums:albums,artists:artists,backdrop:wallpaper,pageFlick:page});
-        verify(spin!==null); verify(waitForRendering(spin)); activated.clear(); opened.clear(); feedback.clear();
+        verify(spin!==null); verify(waitForRendering(spin)); activated.clear(); opened.clear(); radio.clear(); feedback.clear();
     }
     function cleanup() {
         if(crate){crate.destroy();wait(0);crate=null;}
@@ -87,12 +88,16 @@ TestCase {
         verify(unpin.enabled,"Unavailable pinned tiles must allow unpin"); click(unpin); compare(pinned.count,2); compare(pinned.signalArguments[1][1],false);
         compare(missing.pinned,true); compare(JSON.stringify(rows),before); compare(activated.count,0);
     }
-    function test_crateArtistOpenIsSeparateFromRadioActivation() {
+    function test_crateArtistOpensAndCentreStartsRadio() {
         makeCrate(mixed(16));
-        var tile=findChild(crate,"vinylCrateTile_1"); click(tile,20,100);
-        compare(activated.count,1); compare(activated.signalArguments[0][0].kind,"artists"); compare(opened.count,0);
-        var open=findChild(crate,"vinylCrateTileOpen_1"); mouseMove(tile,65,65); tryCompare(open,"revealed",true); click(open);
-        compare(opened.count,1); compare(opened.signalArguments[0][0].id,activated.signalArguments[0][0].id); compare(activated.count,1);
+        var card=findChild(crate,"vinylCrateTile_1_card");
+        click(card,20,100);
+        compare(opened.count,1); compare(opened.signalArguments[0][0].id,"artists-1");
+        compare(activated.count,0); compare(radio.count,0);
+        var badge=findChild(card,"vinylCrateTile_1_card_artistRadio");
+        tryCompare(badge,"revealed",true); click(badge);
+        compare(radio.count,1); compare(radio.signalArguments[0][0].id,"artists-1");
+        compare(opened.count,1); compare(activated.count,0);
     }
     function test_cratePagingAndNoTasteCard() {
         makeCrate(mixed(17)); compare(crate.pageCount,2); click(findChild(crate,"vinylCrateNext"));
@@ -113,18 +118,18 @@ TestCase {
         click(findChild(spin,"vinylSpinNext")); tryCompare(spin,"page",1); verify(findChild(spin,"vinylSpinSong_12")!==null);
         compare(findChild(spin,"vinylSpinSong_0"),null);
     }
-    function test_spinSwitchKeepsFactsWithoutRecommendationCopyAndPreservesOuterScroll() {
+    function test_spinSwitchKeepsCaptionsAndPreservesOuterScroll() {
         makeSpin(); page.contentY=120; var before=page.contentY;
         for(var view of ["albums","artists","songs"]){
             click(findChild(spin,"vinylSpinSwitch_"+view)); tryCompare(spin,"view",view);
             compare(findChild(spin,"vinylSpinSwitch").view,view); compare(page.contentY,before);
             if(view!=="songs") {
                 var card=findChild(spin,"vinylSpinTile_0"); verify(card!==null); compare(card.presentationKind,view);
-                compare(findChild(card,"vinylSpinTile_0_captionReason"),null);
-                compare(card.captionDetail,view==="albums" ? "Fixture artist" : "Artist radio");
-                verify(card.accessibleName.indexOf("Close to")<0);
+                var detail=view==="albums" ? "Fixture artist" : "Close to your city pop";
+                compare(card.captionDetail,detail);
+                verify(card.accessibleName.includes(detail));
                 card.exposureRail=page;
-                compare(card.captionDetail,view==="albums" ? "Fixture artist" : "Artist radio");
+                compare(card.captionDetail,detail);
                 compare(spin.pageSize,8); compare(spin.pageCount,2);
             }
         }
@@ -137,19 +142,25 @@ TestCase {
         compare(feedback.count,2); compare(feedback.signalArguments[0][1],"like"); compare(feedback.signalArguments[1][1],"hide");
         compare(feedback.signalArguments[0][0].id,"songs-0"); compare(JSON.stringify(spin.songs),before);
     }
-    function test_spinAlbumArtistPagingAndSeparateOpenAction() {
+    function test_spinAlbumArtistPagingAndSeparateCentreAction_data() {
+        return [{tag:"albums", view:"albums"}, {tag:"artists", view:"artists"}];
+    }
+    function test_spinAlbumArtistPagingAndSeparateCentreAction(data) {
         makeSpin();
-        for(var view of ["albums","artists"]){
-            click(findChild(spin,"vinylSpinSwitch_"+view)); tryCompare(spin,"view",view);
-            click(findChild(spin,"vinylSpinNext")); tryCompare(spin,"page",1);
-            verify(findChild(spin,"vinylSpinTile_8")!==null); compare(findChild(spin,"vinylSpinTile_0"),null);
-            click(findChild(spin,"vinylSpinPrevious")); tryCompare(spin,"page",0);
-            var card=findChild(spin,"vinylSpinTile_0"), prior=activated.count;
-            click(card,20,100); compare(activated.count,prior+1); compare(activated.signalArguments[prior][0].kind,view);
-            var open=findChild(spin,"vinylSpinOpen_0"), priorOpen=opened.count;
-            mouseMove(card,65,65); tryCompare(open,"revealed",true); click(open);
-            compare(opened.count,priorOpen+1); compare(opened.signalArguments[priorOpen][0].kind,view); compare(activated.count,prior+1);
-        }
+        click(findChild(spin,"vinylSpinSwitch_"+data.view)); tryCompare(spin,"view",data.view);
+        click(findChild(spin,"vinylSpinNext")); tryCompare(spin,"page",1);
+        verify(findChild(spin,"vinylSpinTile_8")!==null); compare(findChild(spin,"vinylSpinTile_0"),null);
+        click(findChild(spin,"vinylSpinPrevious")); tryCompare(spin,"page",0);
+        var card=findChild(spin,"vinylSpinTile_0"), isArtist=data.view==="artists";
+        var primary=isArtist ? opened : activated, secondary=isArtist ? radio : opened;
+        click(card,20,100);
+        compare(primary.count,1); compare(primary.signalArguments[0][0].id,data.view+"-0");
+        compare(secondary.count,0);
+        var badge=findChild(spin,isArtist ? "vinylSpinTile_0_artistRadio" : "vinylSpinOpen_0");
+        tryCompare(badge,"revealed",true); click(badge);
+        compare(secondary.count,1); compare(secondary.signalArguments[0][0].id,data.view+"-0");
+        compare(primary.count,1);
+        compare((isArtist ? activated : radio).count,0);
     }
     function test_noNestedVerticalScrollerOrInventedSpinPicks() {
         makeCrate(mixed(16)); makeSpin();

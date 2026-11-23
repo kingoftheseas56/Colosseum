@@ -103,7 +103,7 @@ TestCase {
                     verify(card.accessibleName.includes("Fixture singer · from Fixture album"));
                 } else if (kind === "artists") {
                     compare(card.captionTitle, "Fixture title");
-                    compare(card.captionDetail, "Artist radio");
+                    compare(card.captionDetail, "Artist");
                     compare(labelCount(card, "Fixture title"), 1, "Artist name belongs to its host caption");
                 }
             });
@@ -221,6 +221,9 @@ TestCase {
         card.item = {id:"artist",kind:"artists",title:"Artist",subtitle:"12 songs"};
         compare(card.presentationKind, "artists");
         compare(card.secondaryText, "12 songs");
+        compare(card.captionDetail, "Artist");
+        card.item = Object.assign({}, card.item, {reason:"Like Mariya Takeuchi"});
+        compare(card.captionDetail, "Like Mariya Takeuchi");
         verify(!card.includesTitle, "Artist names are outside the record face");
         card.item = {id:"resume",kind:"resume",title:"Track",artist:"Real artist",subtitle:"Real artist"};
         compare(card.presentationKind, "songs");

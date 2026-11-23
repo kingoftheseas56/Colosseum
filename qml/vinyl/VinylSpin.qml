@@ -23,6 +23,7 @@ Item {
     implicitHeight:header.height+(grid.height>0 ? 20+grid.height : 0)
     signal activateRequested(var item)
     signal openRequested(var item)
+    signal radioRequested(var item)
     signal feedbackRequested(var item,string action)
     onViewChanged: { if(["songs","albums","artists"].indexOf(view)<0) view="songs"; page=0; }
     onPageCountChanged:clampPage()
@@ -120,9 +121,24 @@ Item {
                     Item {
                         implicitHeight:card.implicitHeight
                         HoverHandler { id:tileHover }
-                        QtObject { id:actions; property var session:root.worldData && root.worldData.session ? root.worldData.session : null; function artwork(value){return root.artwork(value)} function activate(item){root.activateRequested(entry.modelData)} }
-                        VinylItemCard { id:card; objectName:"vinylSpinTile_"+entry.itemIndex; width:parent.width; height:implicitHeight; item:entry.modelData; worldData:actions; backdrop:root.backdrop; pageFlick:root.pageFlick }
-                        VinylFeedbackBadge { objectName:"vinylSpinOpen_"+entry.itemIndex; x:(parent.width-width)/2; y:(root.tileSize-height)/2; visible:card.enabled; revealed:tileHover.hovered || card.activeFocus || activeFocus; symbol:"show"; accessibleName:qsTr("Open %1").arg(entry.modelData.title); onTriggered:root.openRequested(entry.modelData) }
+                        QtObject {
+                            id: actions
+                            property var session: root.worldData && root.worldData.session ? root.worldData.session : null
+                            function artwork(value) { return root.artwork(value); }
+                            function activate(item) {
+                                if (card.presentationKind === "artists") root.openRequested(item);
+                                else root.activateRequested(item);
+                            }
+                        }
+                        VinylItemCard {
+                            id: card
+                            objectName: "vinylSpinTile_" + entry.itemIndex
+                            width: parent.width; height: implicitHeight
+                            item: entry.modelData; worldData: actions
+                            backdrop: root.backdrop; pageFlick: root.pageFlick
+                            artistRadioAction: function(item) { root.radioRequested(item); }
+                        }
+                        VinylFeedbackBadge { objectName:"vinylSpinOpen_"+entry.itemIndex; x:(parent.width-width)/2; y:(root.tileSize-height)/2; visible:card.enabled && card.presentationKind!=="artists"; revealed:tileHover.hovered || card.activeFocus || activeFocus; symbol:"show"; accessibleName:qsTr("Open %1").arg(entry.modelData.title); onTriggered:root.openRequested(entry.modelData) }
                         VinylFeedbackBadge { objectName:"vinylSpinLike_"+entry.itemIndex; x:7; y:7; visible:card.enabled; revealed:tileHover.hovered || card.activeFocus || activeFocus; symbol:"check"; accessibleName:qsTr("More like %1").arg(entry.modelData.title); onTriggered:root.feedbackRequested(entry.modelData,"like") }
                         VinylFeedbackBadge { objectName:"vinylSpinHide_"+entry.itemIndex; x:parent.width-width-7; y:7; visible:card.enabled; revealed:tileHover.hovered || card.activeFocus || activeFocus; symbol:"hide"; accessibleName:qsTr("Hide %1").arg(entry.modelData.title); onTriggered:root.feedbackRequested(entry.modelData,"hide") }
                     }

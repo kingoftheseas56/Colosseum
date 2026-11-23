@@ -53,7 +53,7 @@ What you keep going back to: songs, albums, artists, mixes and stations in one g
 - **Balanced mix:** listening counts at album and artist level as well as song level (an album played through counts as the album, not 12 songs). Songs can't crowd out albums and artists.
 - **Pin anything** to keep it in The Crate; pinned tiles show a gold dot.
 - **Album tiles resume** the album at the track you stopped on. The caption says so in gold ("Resume · track 4 of 12").
-- **Artist tiles start that artist's radio** on click. A small control in the middle of the record, shown on hover, opens the artist page.
+- **Artist tiles across Home open the artist page** on click or Enter/Space. A small play control in the middle of the record, shown on hover or focus and labelled “Artist radio”, starts that artist's radio. Artist stations still start radio on click. (Changed 2026-11-23 by Hemanth.)
 - **Mix and station tiles** play the mix or station.
 
 ## 5. The Spin
@@ -72,7 +72,7 @@ The five widgets approved 31 Oct (`qml/vinyl/Vinyl{Song,Album,Artist,Mix,Radio}W
 |---|---|---|
 | Song | Jukebox card: chrome bars top and bottom, metal rails on the sides, the cover filling it, the glass title strip (Fraunces title + ARTIST in caps) over the cover's bottom | Artist · from <album> |
 | Album | Jewel case as built (1.1:1, ridged hinge spine on the left, cover on the right behind the lid) | Title + artist, or the resume line |
-| Artist | Just the grooved record filling the square, the photo as its 67% centre label; **no glass frame**, so the name moves to the caption | Name + "Artist radio" |
+| Artist | Just the grooved record filling the square, the photo as its 67% centre label; **no glass frame**, so the name moves to the caption | Artist name + the item's reason, or “Artist” if there is no reason (changed 2026-11-23 by Hemanth) |
 | Mix | A hand-written J-card (mix name in ink, "SIDE A · MADE FOR YOU", tracklist lines) standing behind its cassette | Mix name + "Made for you" |
 | Station | Square radio set: handle, picture window on top, speaker, dial and knob below | Station name + "Station" |
 

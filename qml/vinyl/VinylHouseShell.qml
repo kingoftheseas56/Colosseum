@@ -313,6 +313,7 @@ WorldPage {
             worldData: root.worldData; backdrop: root.backdrop; pageFlick: root.pageFlickable
             onActivateRequested: item => root.worldData.playHomeItem(item)
             onOpenRequested: item => root.worldData.openHomeItem(item)
+            onRadioRequested: item => root.worldData.radioHomeItem(item)
             onPinRequested: (item,pinned) => root.worldData.pinCrateItem(item,pinned)
         }
         Item { width: 1; height: 30; visible: spin.visible }
@@ -327,6 +328,7 @@ WorldPage {
             worldData: root.worldData; backdrop: root.backdrop; pageFlick: root.pageFlickable
             onActivateRequested: item => root.worldData.playHomeItem(item)
             onOpenRequested: item => root.worldData.openHomeItem(item)
+            onRadioRequested: item => root.worldData.radioHomeItem(item)
             onFeedbackRequested: (item,action) => root.worldData.feedbackHomeItem(item,action)
         }
         Item { width: 1; height: 30; visible: flowBar.visible && body.visible && body.height > 0 }
@@ -434,6 +436,7 @@ WorldPage {
                 visible: root.listKey.length > 0
                 listKey: root.listKey
                 home: root.listHome
+                homeArtistActions: root.listHome && root.currentTab === "home"
                 worldData: root.worldData
                 backdrop: root.backdrop
                 pageFlick: root.pageFlickable

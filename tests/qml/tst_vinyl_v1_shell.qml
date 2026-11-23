@@ -60,6 +60,8 @@ TestCase {
             property string homeStatus:"ready"
             property string homeError:""
             property var homeListSnapshot:null
+            property var actions: []
+            function recordAction(action, item) { actions = actions.concat([{action:action, item:item}]); }
             signal listRequested(string key,bool home)
             signal artistSearchFocusRequested()
             function selectTab(tab){activeTab=tab;}
@@ -67,13 +69,13 @@ TestCase {
             function artistOptions(query){return [];}
             function filterOptions(key){return [];}
             function setKind(kind){lens=Object.assign({},lens,{kind:kind});}
-            function row(key,home){return {key:key,title:key,items:[]};}
+            function row(key,home){return v1HomeRows.find(row=>home && row.key===key) || {key:key,title:key,items:[]};}
             function listItems(key){return [];}
-            function activate(item){}
-            function playHomeItem(item){}
-            function openHomeItem(item){}
+            function activate(item){recordAction("activate",item);}
+            function playHomeItem(item){recordAction("play",item);}
+            function openHomeItem(item){recordAction("open",item);}
             function saveHomeItem(item){}
-            function radioHomeItem(item){}
+            function radioHomeItem(item){recordAction("radio",item);}
             function hideHomeItem(item){}
             function pinCrateItem(item,pinned){}
             function feedbackHomeItem(item,action){}
@@ -88,7 +90,9 @@ TestCase {
         }
     }
     function card(kind,index){
-        return {id:kind+"-"+index,kind:kind,title:"Fixture "+index,artist:"Fixture artist",
+        var id=kind+"-"+index;
+        return {id:id,kind:kind,title:"Fixture "+index,artist:"Fixture artist",
+            destination:kind==="artists" ? {kind:"artist", id:id} : undefined,
             subtitle:"Owner metadata",reason:"Close to your city pop",
             cover:Qt.resolvedUrl("../../qml/vinyl/assets/record-ring.svg")};
     }
@@ -114,6 +118,7 @@ TestCase {
         view.pageFlickable.contentY=0;
     }
     function init(){
+        gateData.actions=[];
         view.resetRouteState("home");
         var spin=findChild(view,"vinylSpin");spin.view="songs";spin.page=0;
         view.pageFlickable.contentY=0;
@@ -255,6 +260,102 @@ TestCase {
             // Flickable can round a half-pixel when it fixes up after an extent change.
             tryVerify(function() { return Math.abs(flick.contentY-target)<=1; },2000,
                       "Expected contentY near "+target+"; publication must not add a shelf to the wheel movement");
+        } finally {
+            gateData.v1HomeRows=rows;
+        }
+    }
+    function scrollToCard(card) {
+        verify(card && card.visible && card.enabled);
+        var flick=view.pageFlickable;
+        // Let pending layout and route parking settle before placing the card.
+        verify(waitForRendering(view));
+        tryVerify(function() {
+            var top=card.mapToItem(flick.contentItem,0,0).y;
+            return top+card.height<=flick.contentHeight+0.5;
+        });
+        view.parkPage(card.mapToItem(flick.contentItem,0,0).y-140);
+        verify(waitForRendering(view));
+        tryVerify(function() { return fits(card); }, 5000,
+            "Card must fit the scroll viewport: "+card.objectName);
+    }
+    function test_homeArtistTileOpensArtistDestinationAndCentreStartsRadio_data() {
+        return [
+            {tag:"crate", cardId:"vinylCrateTile_1_card", primary:"open"},
+            {tag:"spin", cardId:"vinylSpinTile_0", primary:"open"},
+            {tag:"because-you-played", cardId:"vinylCard_v1:because-you-played_0", primary:"activate"},
+            {tag:"rediscover", cardId:"vinylCard_v1:rediscover_0", primary:"activate"},
+            {tag:"artists-like-yours", cardId:"vinylCard_v1:artists-like-yours_0", primary:"activate"},
+            {tag:"see-all", cardId:"vinylListCard_0", primary:"activate"}
+        ];
+    }
+    function test_homeArtistTileOpensArtistDestinationAndCentreStartsRadio(data) {
+        var rows=gateData.v1HomeRows;
+        var rowKey=data.tag==="see-all" ? "artists-like-yours" : data.tag;
+        try {
+            if(data.tag==="spin") findChild(view,"vinylSpin").view="artists";
+            if(data.primary==="activate") {
+                gateData.v1HomeRows=rows.concat([{key:"v1:"+rowKey, homeKey:rowKey,
+                    title:"Artist fixture row", items:cards("artists",8)}]);
+                if(data.tag==="see-all") view.showList("v1:"+rowKey,true);
+            }
+            var tile=findChild(view,data.cardId);
+            scrollToCard(tile);
+            var radio=findChild(tile,data.cardId+"_artistRadio");
+            verify(radio && radio.enabled);
+            compare(radio.accessibleName,"Artist radio");
+            compare(radio.tooltipText,"Artist radio");
+            compare(radio.symbol,"play");
+            tryCompare(radio,"opacity",0);
+
+            mouseClick(tile,20,80);
+            compare(gateData.actions.length,1,"Clicking the tile must not request radio");
+            compare(gateData.actions[0].action,data.primary);
+            compare(gateData.actions[0].item.id,tile.item.id);
+            compare(gateData.actions[0].item.destination.kind,"artist");
+            compare(gateData.actions[0].item.destination.id,tile.item.id);
+
+            mouseMove(tile,20,80);
+            tryCompare(radio,"opacity",1);
+            mouseClick(radio);
+            compare(gateData.actions.length,2,"Clicking the centre must not also open the tile");
+            compare(gateData.actions[1].action,"radio");
+            compare(gateData.actions[1].item.id,tile.item.id);
+
+            mouseMove(test,width-2,height-2);
+            tile.forceActiveFocus(Qt.TabFocusReason);
+            tryCompare(radio,"opacity",1);
+            for(var key of [Qt.Key_Return,Qt.Key_Space]) keyClick(key);
+            compare(gateData.actions.length,4);
+            for(var i=2;i<4;++i) {
+                compare(gateData.actions[i].action,data.primary);
+                compare(gateData.actions[i].item.destination.kind,"artist");
+            }
+            keyClick(Qt.Key_Tab);
+            tryCompare(radio,"activeFocus",true);
+            keyClick(Qt.Key_Return);
+            compare(gateData.actions.length,5);
+            compare(gateData.actions[4].action,"radio");
+        } finally {
+            view.resetRouteState("home");
+            gateData.v1HomeRows=rows;
+        }
+    }
+    function test_homeArtistStationKeepsStationActivation() {
+        var rows=gateData.v1HomeRows;
+        var station={id:"station",kind:"radio",title:"Fixture station",cover:"",seedArtist:{id:"artist"},
+            destination:{kind:"artist",id:"artist"}};
+        try {
+            gateData.v1HomeRows=rows.map(row=>row.homeKey==="mixes-radio"
+                ? Object.assign({},row,{items:[station]}) : row);
+            var tile=findChild(view,"vinylCard_v1:mixes-radio_0");
+            scrollToCard(tile);
+            compare(tile.captionDetail,"Station");
+            verify(!findChild(tile,tile.objectName+"_artistRadio").visible);
+            mouseClick(tile,20,80);
+            compare(gateData.actions.length,1);
+            compare(gateData.actions[0].action,"activate");
+            compare(gateData.actions[0].item.kind,"radio");
+            compare(gateData.actions[0].item.seedArtist.id,"artist");
         } finally {
             gateData.v1HomeRows=rows;
         }

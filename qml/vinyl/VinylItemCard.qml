@@ -16,6 +16,7 @@ KeyboardAction {
     property int exposureRevision: 0
     property string feedbackError: ""
     property bool compactCaption: false
+    property var artistRadioAction: null
     readonly property bool pinAvailable: worldData && typeof worldData.pinCrateItem==="function"
         && typeof worldData.isCratePinned==="function" && !!item.id
         && ["songs","saved-song","albums","artists","mixes","radio"].indexOf(presentationKind)>=0
@@ -32,7 +33,8 @@ KeyboardAction {
     readonly property bool feedbackRevealed: quickFeedbackAvailable && (hovered || activeFocus
         || likeBadge.hovered || likeBadge.activeFocus || hideBadge.hovered || hideBadge.activeFocus)
 
-    enabled: root.item.unavailable !== true
+    enabled: root.item.available !== false && root.item.unavailable !== true
+    spaceActivates: presentationKind === "artists" && artistRadioAction !== null
     readonly property string reason: item.reason || ""
     readonly property string presentationKind: Presentation.kind(item)
     readonly property string artistText: Presentation.artist(item)
@@ -51,10 +53,10 @@ KeyboardAction {
     // Crate tiles keep a separate title and credit in their two caption lines.
     readonly property bool songCreditInTitle: includesTitle && !compactCaption
     readonly property string captionTitle: songCreditInTitle ? songCredit : String(item.title || "")
-    readonly property string captionDetail: item.unavailable ? qsTr("Unavailable")
+    readonly property string captionDetail: presentationKind === "artists" ? reason || qsTr("Artist")
+        : item.unavailable ? qsTr("Unavailable")
         : compactCaption && item.resumeTrack>0 && item.totalTracks>=item.resumeTrack ? reason
-        : (presentationKind === "artists" ? qsTr("Artist radio")
-            : presentationKind === "mixes" ? qsTr("Made for you")
+        : (presentationKind === "mixes" ? qsTr("Made for you")
             : presentationKind === "radio" ? qsTr("Station")
             : presentationKind === "albums" ? artistText || String(item.subtitle || "")
             : songCreditInTitle ? "" : songCredit)
@@ -184,6 +186,20 @@ KeyboardAction {
             font.family: theme.ui; font.pixelSize: 12
             wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight
         }
+    }
+
+    VinylFeedbackBadge {
+        id: artistRadio
+        objectName: root.objectName + "_artistRadio"
+        anchors.centerIn: art
+        z: 2
+        visible: root.presentationKind === "artists" && root.artistRadioAction !== null
+        enabled: visible && root.enabled
+        revealed: root.hovered || root.activeFocus || hovered || activeFocus
+        symbol: "play"
+        accessibleName: qsTr("Artist radio")
+        spaceActivates: true
+        onTriggered: root.artistRadioAction(root.item)
     }
 
     VinylFeedbackBadge {
