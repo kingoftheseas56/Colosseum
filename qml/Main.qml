@@ -6214,7 +6214,7 @@ Window {
         objectName: "audiobookFlow"
         anchors.fill: parent
         anchors.bottomMargin: win.browseBottomInset
-        z: replacingDownload ? 57 : 53
+        z: replacingDownload ? 57 : 54 // Above ebook detail (53), below Downloads (56) during browsing.
         backdrop: wall
         androidHost: win.androidHost
         dockClearance: win.androidHost ? 0 : taskbar.contentBottomInset
