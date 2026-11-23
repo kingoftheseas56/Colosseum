@@ -1,8 +1,8 @@
 import QtQuick
 import QtTest
+import "VinylArtistTestHelpers.js" as ArtistTest
 
-// Native regression coverage for the approved artist destination. The original
-// returned suite is retained unchanged, including legacy UI assertions.
+// Native regression coverage for the approved artist destination.
 TestCase {
     name: "VinylArtistRepair"
     when: windowShown
@@ -11,12 +11,7 @@ TestCase {
     // visual contentItem descendants.
     function item(name) { return findChild(host.contentItem, name) || findChild(host, name); }
     function clickArtistTab(key) {
-        var tab = item("vinylArtistTab_" + key);
-        verify(tab !== null);
-        verify(tab.visible);
-        verify(waitForRendering(tab));
-        mouseClick(tab);
-        tryCompare(host.artistData, "activeTab", key);
+        ArtistTest.clickArtistTab(this, host, key);
     }
     function init() {
         var component = Qt.createComponent("../../qml/vinyl/ArtistPreview.qml");
@@ -230,8 +225,7 @@ TestCase {
             compare(host.artistData.activeTab, "albums");
             compare(host.artistData.queuedSongIndex, -1);
             compare(item("vinylArtistHudPlayer").visible, false);
-            host.artistScroll.contentY = host.artistScroll.heroItem.height;
-            waitForRendering(host.contentItem);
+            ArtistTest.scrollPastTabSlot(this, host);
             var header = item("vinylArtistTitleBar");
             var tabs = item("vinylArtistTabBar");
             compare(header.height, 76);

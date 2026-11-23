@@ -186,8 +186,14 @@ WorldPage {
         function onListRequested(key, home) { root.showList(key, home); }
         function onCanEnterVinylChanged() { root.enforceHomeGate(); }
         function onTastePickerOpenChanged() {
-            if (root.currentTab === "home" && root.worldData.tastePickerOpen)
-                Qt.callLater(function(){root.parkPage(Math.max(0,root.contentTop-root.dockedInset));root.focusArtistSearch();});
+            if (root.currentTab !== "home" || !root.worldData.tastePickerOpen) return;
+            Qt.callLater(function() {
+                if (root.currentTab !== "home" || !root.worldData.tastePickerOpen) return;
+                // Onboarding has no tabs. The hidden bar retains its old y, which
+                // can park the page below the picker header and its Save button.
+                root.parkPage(root.gated ? 0 : Math.max(0, root.contentTop - root.dockedInset));
+                root.focusArtistSearch();
+            });
         }
         function onArtistSearchFocusRequested() { Qt.callLater(root.focusArtistSearch); }
     }

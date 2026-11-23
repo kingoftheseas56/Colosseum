@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtTest
+import "VinylArtistTestHelpers.js" as ArtistTest
 
 TestCase {
     name: "VinylArtistScrollbars"
@@ -26,12 +27,7 @@ TestCase {
     }
 
     function clickArtistTab(key) {
-        var tab = findChild(host.contentItem, "vinylArtistTab_" + key);
-        verify(tab !== null);
-        verify(tab.visible);
-        verify(waitForRendering(tab));
-        mouseClick(tab);
-        tryCompare(host.artistData, "activeTab", key);
+        ArtistTest.clickArtistTab(this, host, key);
     }
 
     function assertNoVisibleScrollbars(node) {

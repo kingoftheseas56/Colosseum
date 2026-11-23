@@ -160,7 +160,10 @@ TestCase {
         for (var w of [1280,640]) {
             page.width=w; wait(30);
             verify(page.albumTileWidth > 0); verify(page.bodyWidth <= page.width);
-            page.switchTab("singles",true); tryCompare(findChild(page,"vinylArtistTab_singles"),"activeFocus",true);
+            page.switchTab("singles",true);
+            compare(data.activeTab,"singles");
+            tryCompare(findChild(page,"vinylArtistSharedTabs"),"activeFocus",true);
+            tryCompare(findChild(page,"vinylArtistTab_singles"),"keyboardFocused",true);
         }
         session.library=[album("replacement")]; compare(data.songOrder[0].album.id,"replacement");
     }

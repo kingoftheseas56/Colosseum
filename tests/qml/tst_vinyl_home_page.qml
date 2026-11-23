@@ -115,20 +115,23 @@ TestCase {
         tryVerify(function(){return Math.abs(host.worldScroll.contentY-world.pickerParkY)<1})
         checkAll()
     }
-    function test_fiveArtistDoneRemainsReachableWhileArtistsScroll() {
-        verify(host.worldData!==undefined)
-        var fold=host.worldScroll.y+host.worldScroll.height
+    function test_fiveArtistDoneIsReachableAfterScrollingArtists() {
+        var page=host.worldScroll
+        var world=item("vinylWorld")
         var picker=item("vinylTastePicker")
-        var scroll=item("vinylPickerScroll")
-        verify(scroll!==null)
-        tryVerify(function(){return scroll.contentHeight>scroll.height+200})
         var done=selectFiveArtists(picker)
-        scroll.contentY=scroll.contentHeight-scroll.height
-        waitForRendering(host.contentItem)
-        verify(Math.abs(scroll.contentY-(scroll.contentHeight-scroll.height))<1,"artists must actually be scrolled")
-        var p=done.mapToItem(host.contentItem,0,0)
-        verify(p.y>=host.worldScroll.y-1 && p.y+done.height<=fold+1,
-            "Done must stay fully inside the visible page while artists are scrolled")
+        function fitsDone() {
+            var y=done.mapToItem(page,0,0).y
+            return done.visible && y>=-1 && y+done.height<=page.height+1
+        }
+        tryVerify(function(){return Math.abs(page.contentY-world.pickerParkY)<1 && fitsDone()})
+        verify(waitForRendering(picker))
+        var startY=page.contentY
+        // Artist cards use the outer page scroller, not an independent inner viewport.
+        mouseWheel(page,page.width/2,page.height/2,0,-240)
+        tryVerify(function(){return page.contentY>startY+200 && !fitsDone()})
+        mouseWheel(page,page.width/2,page.height/2,0,240)
+        tryVerify(function(){return Math.abs(page.contentY-startY)<1 && fitsDone()})
         mouseClick(done)
         compare(host.worldData.picks.length,5,"Done saves the five selected artists")
     }

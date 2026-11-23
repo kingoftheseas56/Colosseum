@@ -109,7 +109,8 @@ TestCase {
         tryCompare(picker, "open", true);
         host.artistScroll.switchTab("videos", true);
         compare(picker.open, false);
-        tryCompare(item("vinylArtistTab_videos"), "activeFocus", true);
+        tryCompare(item("vinylArtistSharedTabs"), "activeFocus", true);
+        tryCompare(item("vinylArtistTab_videos"), "keyboardFocused", true);
         compare(host.artistData.activeTab, "videos");
     }
 }

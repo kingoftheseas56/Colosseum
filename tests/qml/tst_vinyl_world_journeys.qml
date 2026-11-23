@@ -4,6 +4,37 @@ TestCase {
     name: "VinylWorldJourneys"
     when: windowShown
     property var host
+    QtObject {
+        id: discoverSource
+        property int serial: 0
+        property var lastRequest: null
+        signal completed(string lane, int id, var data, string error)
+        function request(lane, operation, kind, options) {
+            lastRequest = {id: ++serial, lane: lane, operation: operation, kind: kind, options: options}
+            return serial
+        }
+        function cancel(lane) {}
+    }
+    function replyToChart(list, entries, listOptions) {
+        tryVerify(function() {
+            return discoverSource.lastRequest && discoverSource.lastRequest.options.list === list
+        }, 5000, "Expected Discover request for " + list)
+        var request = discoverSource.lastRequest
+        compare(request.operation, "browseCatalogue")
+        compare(request.kind, "albums")
+        compare(request.options.catalogueSource, "jiosaavn")
+        discoverSource.completed(request.lane, request.id, {
+            version: 1, kind: request.kind, source: "jiosaavn", list: list,
+            items: entries, listOptions: listOptions || [], complete: true
+        }, "")
+    }
+    function openDiscoverFilter() {
+        click("vinylDiscoverFilterPickerPill")
+        var list = findChild(host, "vinylDiscoverFilterPickerList")
+        verify(list !== null)
+        tryCompare(list, "activeFocus", true)
+        return list
+    }
     function item(name) { return findChild(host.contentItem,name) }
     function click(name) {
         var target=item(name); verify(target!==null,name)
@@ -15,7 +46,9 @@ TestCase {
             }
         }
         waitForRendering(host.contentItem)
+        var worldY = host.worldScroll.contentY
         mouseClick(target); waitForRendering(host.contentItem)
+        return worldY
     }
     function shot(name) {
         if(typeof VinylCaptureDirectory!=="undefined" && VinylCaptureDirectory.length) {
@@ -32,25 +65,58 @@ TestCase {
     }
     function cleanup(){if(host){host.close();host.destroy()}}
     function test_discoverJourney() {
+        // The snapshot host has local album routes but no live catalogue transport.
+        // Exercise the real Discover browser with deterministic provider replies.
+        discoverSource.lastRequest = null
+        var discover = item("vinylDiscoverPage")
+        verify(discover !== null)
+        discover.worldData = {
+            session: {source: discoverSource, profileActive: true},
+            activate: function(card) { host.worldData.activate(card) }
+        }
         click("vinylTab_discover")
-        var world=item("vinylWorld")
-        tryCompare(world,"currentTab","discover")
-        host.worldScroll.contentY=world.contentTop
-        waitForRendering(host.contentItem)
-        click("vinylFilter_language")
-        click("vinylFilterValue_language_Telugu")
-        tryCompare(item("vinylLens"),"title","Telugu")
-        shot("discover-lens")
-        click("vinylShelfSeeAll_popular")
-        tryCompare(item("vinylListPage"),"title","Popular")
+        var world = item("vinylWorld")
+        var browser = item("vinylDiscoverBrowser")
+        tryCompare(world, "currentTab", "discover")
+        tryCompare(browser, "currentSource", "Worldwide")
+        host.worldScroll.contentY = world.contentTop
+        click("vinylDiscoverType_albums")
+        tryCompare(browser, "currentType", "albums")
+        browser.selectSource("Indian")
+        compare(browser.currentCatalog.attribution, "JioSaavn")
+        replyToChart("tamil:default", [])
+
+        var filter = openDiscoverFilter()
+        keyClick(Qt.Key_Home) // All
+        keyClick(Qt.Key_Down) // Tamil (skips the Language heading)
+        keyClick(Qt.Key_Down) // Telugu
+        compare(filter.currentItem.modelData.text, "Telugu")
+        keyClick(Qt.Key_Return)
+        replyToChart("telugu:default", [], [{key: "telugu-decade", label: "Telugu decade"}])
+        compare(browser.filters.Language, "telugu")
+        shot("discover-language")
+
+        filter = openDiscoverFilter()
+        keyClick(Qt.Key_End)
+        compare(filter.currentItem.modelData.text, "Telugu decade")
+        keyClick(Qt.Key_Return)
+        var chosen = host.worldData.catalogue.albums.find(function(album) {
+            return album.language === "Telugu" && album.tracks.length > 1
+        })
+        verify(chosen !== undefined)
+        replyToChart("telugu:telugu-decade", [{
+            id: "journey-album", albumId: chosen.id, kind: "albums", catalogueCard: true,
+            title: chosen.title, cover: host.worldData.artwork(chosen.cover), source: "jiosaavn"
+        }])
+        tryCompare(discover, "loading", false)
+        compare(discover.items.length, 1)
+        compare(browser.filters.Language, "telugu")
+        compare(browser.filters.List, "telugu-decade")
         shot("discover-list")
-        click("vinylListBack")
-        tryCompare(world,"listKey","")
-        var chosen=host.worldData.listItems("popular")[0]
-        var origin=host.worldScroll.contentY
-        click("vinylCard_popular_0")
-        tryCompare(host,"page","album")
-        tryCompare(host.pageData,"shownAlbumId",chosen.albumId)
+        tryVerify(function() { return item("discoverCard_journey-album") !== null })
+        var origin = click("discoverCard_journey-album")
+        tryCompare(host, "page", "album")
+        tryCompare(host.pageData, "shownAlbumId", chosen.id)
         var album=item("vinylAlbumPage")
         // Track rows belong to the album's own scroll surface.
         var track=item("vinylTrackRow_1")
@@ -62,6 +128,11 @@ TestCase {
         click("vinylAlbumBack")
         tryCompare(host,"page","world")
         compare(world.currentTab,"discover")
+        compare(browser.currentType, "albums")
+        compare(browser.currentCatalog.attribution, "JioSaavn")
+        compare(browser.filters.Language, "telugu")
+        compare(browser.filters.List, "telugu-decade")
+        verify(item("discoverCard_journey-album") !== null)
         tryVerify(function(){return Math.abs(host.worldScroll.contentY-origin)<4})
         shot("discover-return")
     }

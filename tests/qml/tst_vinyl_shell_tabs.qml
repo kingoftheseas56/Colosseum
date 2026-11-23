@@ -16,7 +16,8 @@ TestCase {
         id: gateDataFactory
         QtObject {
             property var session: null
-            property var carouselSlides: []
+            property var heroSlides: [{kind: "topAlbum", item: {id: "fixture-album",
+                kind: "albums", title: "Fixture album", artist: "Fixture artist", cover: ""}, sideItems: []}]
             property var homeRows: []
             property var coldShelves: []
             property var shelves: []
@@ -28,7 +29,8 @@ TestCase {
             property int minimumArtistCount: 5
             property bool usesRecommendationService: false
             property var recommendationService: null
-            property bool canEnterVinyl: true
+            property bool canEnterVinyl: !tasteGateLocked
+            property bool tasteGateLocked: false
             property bool tastePickerOpen: false
             property bool pickerAnswered: true
             property string onboardingState: "answered"
@@ -51,9 +53,10 @@ TestCase {
             property string searchError: ""
             property string homeStatus: "ready"
             property string homeError: ""
+            property var offeredArtists: []
             signal listRequested(string key, bool home)
             signal artistSearchFocusRequested()
-            function artistOptions(query) { return []; }
+            function artistOptions(query) { return offeredArtists; }
             function selectTab(tab) { activeTab=tab; }
             function beginTasteEdit() {
                 beginTasteEditCalls++;
@@ -76,14 +79,26 @@ TestCase {
             function activate(item) {}
             function resume() {}
             function openHomeDestination(key) {}
-            function togglePickerArtist(artist) {}
+            function togglePickerArtist(artist) {
+                if (pickerDraft.includes(artist.key))
+                    pickerDraft = pickerDraft.filter(key => key !== artist.key);
+                else
+                    pickerDraft = pickerDraft.concat([artist.key]);
+            }
             function cancelTasteEdit() {
                 pickerDraft=savedPicks.slice();
                 onboardingState="answered";
                 tastePickerOpen=false;
             }
             function skipPicker() {}
-            function answerPicker() {}
+            function answerPicker() {
+                if (pickerDraft.length < minimumArtistCount) return;
+                savedPicks = pickerDraft.slice();
+                onboardingState = "answered";
+                pickerAnswered = true;
+                tasteGateLocked = false;
+                tastePickerOpen = false;
+            }
             function retryArtistSearch() {}
             function loadMoreArtistSearch() {}
             function setKind(kind) { lens=Object.assign({},lens,{kind:kind}); }
@@ -115,7 +130,8 @@ TestCase {
         verify(gateData !== null);
         view = shellFactory.createObject(test, {worldData:gateData});
         verify(view !== null);
-        verify(waitForRendering(view.flowTabs));
+        tryCompare(view.flowTabs, "visible", true);
+        verify(waitForRendering(view));
     }
     function cleanup() {
         if (view) { view.destroy(); wait(0); view = null; }
@@ -180,21 +196,67 @@ TestCase {
         view.hostReady = false;
         verify(!view.ready);
     }
-    function test_gateAndStricterRuntimeFenceKeepHomeReachable() {
-        gateData.canEnterVinyl = false;
+    function lockTasteGate() {
+        gateData.tasteGateLocked = true;
+        gateData.pickerAnswered = false;
+        gateData.onboardingState = "draft";
         gateData.tastePickerOpen = true;
         tryCompare(view, "navigationEnabled", false);
-        clickTab("Library", "Home");
+    }
+    function test_gateAndStricterRuntimeFenceKeepHomeReachable() {
+        clickTab("Library", "Library");
+        lockTasteGate();
+        tryCompare(view, "activeTab", "Home");
+        compare(view.flowTabs.visible, false);
+        compare(view.dockedTabBar.visible, false);
+        compare(view.tabBarSource, null);
         verify(findChild(view, "vinylTastePicker").visible);
         view.setTab("discover");
         compare(view.activeTab, "Home");
-        gateData.canEnterVinyl = true;
+        gateData.tasteGateLocked = false;
+        gateData.pickerAnswered = true;
+        gateData.onboardingState = "answered";
         gateData.tastePickerOpen = false;
         clickTab("Library", "Library");
         view.navigationEnabled = false;
         tryCompare(view, "activeTab", "Home");
+        clickTab("Library", "Home");
         view.setTab("discover");
         compare(view.activeTab, "Home");
+    }
+    function test_gatedPickerCanSaveAfterScrollingArtists() {
+        gateData.offeredArtists = Array.from({length: 70}, (_, i) => ({key: "artist-" + i, title: "Artist " + i}));
+        lockTasteGate();
+        var flick = view.pageFlickable;
+        var picker = findChild(view, "vinylTastePicker");
+        var done = findChild(picker, "vinylPickerDone");
+        function fitsDone() {
+            var y = done.mapToItem(flick, 0, 0).y;
+            return done.visible && y >= 0 && y + done.height <= flick.height;
+        }
+        verify(waitForRendering(picker));
+        compare(flick.contentY, 0, "The gated picker must start at the top of its page");
+        verify(fitsDone(), "Save must fit in the initial picker viewport");
+        verify(!done.enabled);
+        for (var i = 0; i < 5; ++i) {
+            var card = findChild(picker, "vinylPickerArtist_" + i);
+            verify(card !== null);
+            var y = card.mapToItem(flick, 0, 0).y;
+            verify(y >= 0 && y + card.height <= flick.height,
+                   "Artist card must be fully in the viewport: y=" + y + " height=" + card.height);
+            mouseClick(card);
+            compare(gateData.pickerDraft.length, i + 1);
+        }
+        verify(done.enabled);
+        mouseWheel(flick, flick.width / 2, flick.height / 2, 0, -480);
+        tryVerify(function() { return flick.contentY > 200 && !fitsDone(); });
+        mouseWheel(flick, flick.width / 2, flick.height / 2, 0, 480);
+        tryCompare(flick, "contentY", 0);
+        verify(fitsDone());
+        mouseClick(done);
+        compare(gateData.savedPicks, ["artist-0", "artist-1", "artist-2", "artist-3", "artist-4"]);
+        tryCompare(view, "navigationEnabled", true);
+        compare(picker.visible, false);
     }
     function test_discoverListDetourAndBack() {
         clickTab("Discover", "Discover");

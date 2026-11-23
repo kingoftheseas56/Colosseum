@@ -1,5 +1,6 @@
 import QtQuick
 import QtTest
+import "VinylArtistTestHelpers.js" as ArtistTest
 import "../../qml/vinyl/VinylArtistCatalogue.js" as Catalogue
 
 TestCase {
@@ -23,12 +24,7 @@ TestCase {
             || findChild(host.contentItem, name) || findChild(host, name);
     }
     function clickArtistTab(key) {
-        var tab = item("vinylArtistTab_" + key);
-        verify(tab !== null);
-        verify(tab.visible);
-        verify(waitForRendering(tab));
-        mouseClick(tab);
-        tryCompare(host.artistData, "activeTab", key);
+        ArtistTest.clickArtistTab(this, host, key);
     }
     function init() {
         var component = Qt.createComponent("../../qml/vinyl/ArtistPreview.qml");
@@ -133,8 +129,12 @@ TestCase {
         host.openSong();
         compare(host.songReturnPage, "artist");
         compare(host.page, "song");
-        item("vinylSongArtistLink").activate();
+        var credits = item("vinylSongArtist");
+        verify(credits !== null && credits.displayedNames.length > 0);
+        verify(waitForRendering(credits));
+        mouseClick(credits, 5, 5); // First linked artist credit, not the container's centre.
         compare(host.page, "artist");
+        compare(host.artistData.name, "Ilaiyaraaja"); // The linked credit uses a catalogue alias.
         host.artistBack();
         compare(host.page, "song");
         // Song uses the shared BackAction: exercise its real pointer input,
@@ -149,7 +149,7 @@ TestCase {
         compare(host.pageData.position, position);
         host.openSong();
         compare(host.page, "song");
-        item("vinylSongBack").forceActiveFocus();
+        item("vinylSongBack").focusControl();
         keyClick(Qt.Key_Return);
         compare(host.page, "artist");
         compare(host.pageData.playingEditionId, playing);
@@ -164,12 +164,9 @@ TestCase {
         item("vinylArtistChoice_1").activate();
         compare(host.artistData.record.name, "Joni Mitchell");
     }
-    function test_sortFilterAndSaveKeyboard() {
+    function test_releaseOrderCreditFilterAndSaveKeyboard() {
         var first = host.artistData.releases[0].album.year;
-        var sort = item("vinylArtistSort");
-        sort.forceActiveFocus();
-        keyClick(Qt.Key_Return);
-        compare(host.artistData.newestFirst, false);
+        host.artistData.newestFirst = false; // Sort is now projection state, not a page control.
         verify(host.artistData.releases[0].album.year < first);
         var save = item("vinylArtistSave");
         save.forceActiveFocus();
@@ -404,7 +401,7 @@ TestCase {
     function test_headerAndTabsStayPinned() {
         host.artistData.open("Eminem");
         var page = host.artistScroll;
-        page.contentY = 640;
+        ArtistTest.scrollPastTabSlot(this, host);
         var title = item("vinylArtistTitleBar");
         var tabs = item("vinylArtistTabBar");
         compare(title.y, page.contentY);
@@ -478,7 +475,7 @@ TestCase {
         verify(item("vinylArtistDiscographyCard_0") !== null);
         verify(item("vinylArtistDiscographyCard_26") !== null);
         // Sticky header and tab bar behavior when scrolled
-        host.artistScroll.contentY = 640;
+        ArtistTest.scrollPastTabSlot(this, host);
         compare(item("vinylArtistTitleBar").solid, true);
         compare(item("vinylArtistTabBar").y, host.artistScroll.contentY + item("vinylArtistTitleBar").height);
         host.artistScroll.contentY = 0;
@@ -486,6 +483,7 @@ TestCase {
 
     function test_sharedReleasePickerKeyboardAndFocusRestoration() {
         host.artistData.open("Eminem");
+        ArtistTest.scrollPastTabSlot(this, host);
         var trigger = item("vinylArtistReleasePickerAction");
         var menu = item("vinylArtistReleasePickerPopup");
         var menuFocus = item("vinylArtistReleasePickerList");
@@ -624,22 +622,21 @@ TestCase {
 
     function test_videosLiveTabsAndArtistScopedSearch() {
         host.artistData.open("Eminem");
-        var tabAlbums = item("vinylArtistTab_albums");
-        var tabSingles = item("vinylArtistTab_singles");
-        var tabVideos = item("vinylArtistTab_videos");
-        var tabLive = item("vinylArtistTab_live");
-        tabAlbums.forceActiveFocus();
+        ArtistTest.scrollPastTabSlot(this, host);
+        var tabBar = item("vinylArtistSharedTabs");
+        tabBar.forceActiveFocus();
+        tryCompare(tabBar, "activeFocus", true);
         keyClick(Qt.Key_Right);
         compare(host.artistData.activeTab, "singles");
-        tryCompare(tabSingles, "activeFocus", true);
+        tryCompare(item("vinylArtistTab_singles"), "keyboardFocused", true);
         keyClick(Qt.Key_End);
         compare(host.artistData.activeTab, "live");
-        tryCompare(tabLive, "activeFocus", true);
+        tryCompare(item("vinylArtistTab_live"), "keyboardFocused", true);
         verify(item("vinylArtistLiveCard_0") !== null);
         verify(item("vinylArtistLiveCard_2") !== null);
         keyClick(Qt.Key_Left);
         compare(host.artistData.activeTab, "videos");
-        tryCompare(tabVideos, "activeFocus", true);
+        tryCompare(item("vinylArtistTab_videos"), "keyboardFocused", true);
         verify(item("vinylArtistVideoCard_0") !== null);
         verify(item("vinylArtistVideoCard_5") !== null);
 
