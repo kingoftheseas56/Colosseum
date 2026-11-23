@@ -146,20 +146,27 @@ TestCase {
         compare(tiles[0].y,tiles[7].y);compare(tiles[8].y,tiles[15].y);verify(tiles[8].y>tiles[0].y);
         verify(tiles[8].y>tiles[0].y,"Second Crate row sits below the first");
     }
-    function test_02_persistentComponentsRemainAboveAllThreeDestinations(){
+    function test_02_heroThenTabsThenTabContent(){
         var hero=findChild(view,"vinylHero"),crate=findChild(view,"vinylCrate"),spin=findChild(view,"vinylSpin");
+        var flow=view.flowTabs,target=view.pageFlickable.contentItem;
         for(var tab of ["home","discover","library"]){
             view.setTab(tab);tryCompare(view,"currentTab",tab);
+            verify(waitForRendering(view));
             var destination=findChild(view,{home:"vinylHome",discover:"vinylDiscoverPage",library:"vinylLibrary"}[tab]);
-            verify(destination.visible);compare(findChild(view,"vinylHero"),hero);compare(findChild(view,"vinylCrate"),crate);compare(findChild(view,"vinylSpin"),spin);
-            verify(hero.visible && crate.visible && spin.visible);
-            var target=view.pageFlickable.contentItem;
-            console.info("V1_SHELL_ORDER "+JSON.stringify({tab:tab,
-                flow:bounds(view.flowTabs,target),body:bounds(destination.parent,target),destination:bounds(destination,target)}));
-            verify(bounds(hero,target).bottom<=bounds(crate,target).y);
-            verify(bounds(crate,target).bottom<=bounds(spin,target).y);
-            verify(bounds(spin,target).bottom<=bounds(view.flowTabs,target).y);
-            verify(bounds(view.flowTabs,target).bottom<=bounds(destination,target).y);
+            verify(destination && destination.visible);
+            compare(findChild(view,"vinylHero"),hero);compare(findChild(view,"vinylCrate"),crate);compare(findChild(view,"vinylSpin"),spin);
+            verify(hero.visible && flow.visible);
+            var flowBounds=bounds(flow,target),destinationBounds=bounds(destination,target);
+            verify(bounds(hero,target).bottom<=flowBounds.y);
+            compare(crate.visible,tab==="home");compare(spin.visible,tab==="home");
+            if(tab==="home"){
+                var crateBounds=bounds(crate,target),spinBounds=bounds(spin,target);
+                verify(crateBounds.y-flowBounds.bottom>=12,"The Crate header needs at least 12 px below the bar");
+                verify(crateBounds.bottom<=spinBounds.y);
+                verify(spinBounds.bottom<=bounds(destination.parent,target).y);
+            }else{
+                verify(flowBounds.bottom<=destinationBounds.y);
+            }
         }
     }
     function test_03_spinPointerSwitchPreservesOuterScroll(){

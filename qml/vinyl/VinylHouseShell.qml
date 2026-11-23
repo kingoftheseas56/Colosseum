@@ -29,7 +29,8 @@ WorldPage {
     property Item listReturnFocus: null
     property var tabOffsets: ({})
     property var tabRoutes: ({})
-    readonly property real contentTop: surface.y + body.y
+    // Tab content starts right under the in-page bar (Crate and Spin are Home content).
+    readonly property real contentTop: surface.y + flowBar.y + flowBar.height
     readonly property real dockedInset: parkDockSpace
     readonly property Item flowTabs: flowBar
     readonly property var tabModel: [
@@ -62,7 +63,7 @@ WorldPage {
     function updateHomeLayout() {
         if (!trackHomeLayout) return;
         var previous = homeLayout;
-        var sections = [hero, crate, spin, flowBar, homeTitle];
+        var sections = [hero, flowBar, crate, spin, homeTitle];
         for (var i = 0; i < homeShelves.count; ++i)
             sections.push(homeShelves.itemAt(i));
         homeLayout = sections.filter(item => item && item.visible && item.height > 0).map(function(item) {
@@ -203,7 +204,8 @@ WorldPage {
         id: surface
         visible: root.contentVisible
         width: parent.width
-        spacing: 30
+        readonly property bool compactIntro: root.shortDesktop && !hero.narrow
+        // Use explicit gaps so only the spaces around the Home tab bar get tighter.
         onPositioningComplete: root.updateHomeLayout()
         Column {
             id: homeLoading
@@ -271,7 +273,7 @@ WorldPage {
             id: hero
             objectName: "vinylHero"
             width: parent.width
-            height: narrow ? implicitHeight : 300
+            height: surface.compactIntro ? 260 : implicitHeight
             visible: slideCount>0 && !root.gated && !homeLoading.visible
             slides: root.worldData.heroSlides || []
             onPlayRequested: item => root.worldData.playHomeItem(item)
@@ -280,31 +282,7 @@ WorldPage {
             onRadioRequested: item => root.worldData.radioHomeItem(item)
             onHideRequested: item => root.worldData.hideHomeItem(item)
         }
-        VinylCrate {
-            id: crate
-            objectName: "vinylCrate"
-            visible: !root.gated && !homeLoading.visible
-            width: parent.width; height: implicitHeight
-            compact: true
-            items: root.worldData.crateItems || []
-            worldData: root.worldData; backdrop: root.backdrop; pageFlick: root.pageFlickable
-            onActivateRequested: item => root.worldData.playHomeItem(item)
-            onOpenRequested: item => root.worldData.openHomeItem(item)
-            onPinRequested: (item,pinned) => root.worldData.pinCrateItem(item,pinned)
-        }
-        VinylSpin {
-            id: spin
-            objectName: "vinylSpin"
-            visible: !root.gated && !homeLoading.visible
-            width: parent.width; height: implicitHeight
-            songs: root.worldData.spinSongs || []
-            albums: root.worldData.spinAlbums || []
-            artists: root.worldData.spinArtists || []
-            worldData: root.worldData; backdrop: root.backdrop; pageFlick: root.pageFlickable
-            onActivateRequested: item => root.worldData.playHomeItem(item)
-            onOpenRequested: item => root.worldData.openHomeItem(item)
-            onFeedbackRequested: (item,action) => root.worldData.feedbackHomeItem(item,action)
-        }
+        Item { width: 1; height: surface.compactIntro ? 4 : 30; visible: hero.visible && flowBar.visible }
         WorldTabBar {
             id: flowBar
             objectName: "vinylFlowTabs"
@@ -318,6 +296,34 @@ WorldPage {
             currentTab: root.currentTab
             onTabRequested: tab => root.setTab(tab)
         }
+        Item { width: 1; height: surface.compactIntro ? 12 : 30; visible: crate.visible }
+        VinylCrate {
+            id: crate
+            objectName: "vinylCrate"
+            visible: !root.gated && !homeLoading.visible && root.currentTab === "home" && !root.listKey
+            width: parent.width; height: implicitHeight
+            compact: true
+            items: root.worldData.crateItems || []
+            worldData: root.worldData; backdrop: root.backdrop; pageFlick: root.pageFlickable
+            onActivateRequested: item => root.worldData.playHomeItem(item)
+            onOpenRequested: item => root.worldData.openHomeItem(item)
+            onPinRequested: (item,pinned) => root.worldData.pinCrateItem(item,pinned)
+        }
+        Item { width: 1; height: 30; visible: spin.visible }
+        VinylSpin {
+            id: spin
+            objectName: "vinylSpin"
+            visible: !root.gated && !homeLoading.visible && root.currentTab === "home" && !root.listKey
+            width: parent.width; height: implicitHeight
+            songs: root.worldData.spinSongs || []
+            albums: root.worldData.spinAlbums || []
+            artists: root.worldData.spinArtists || []
+            worldData: root.worldData; backdrop: root.backdrop; pageFlick: root.pageFlickable
+            onActivateRequested: item => root.worldData.playHomeItem(item)
+            onOpenRequested: item => root.worldData.openHomeItem(item)
+            onFeedbackRequested: (item,action) => root.worldData.feedbackHomeItem(item,action)
+        }
+        Item { width: 1; height: 30; visible: flowBar.visible && body.visible && body.height > 0 }
         Item {
             id: body
             visible: !homeLoading.visible
