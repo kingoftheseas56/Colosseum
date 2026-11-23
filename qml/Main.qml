@@ -2572,6 +2572,7 @@ Window {
 
     readonly property bool androidUniverseDetailReady:
         win.androidHost && universeLayer.active && universeLayer.status === Loader.Ready
+        && universeLayer.item !== null
 
     readonly property alias wideWorldNavigationLeftInset: phoneShell.wideWorldNavigationLeftInset
 
@@ -6387,7 +6388,7 @@ Window {
         objectName: "universeLayer"
         anchors.fill: parent
         // Standard detail pages reserve dock clearance at the end of their scroll content.
-        anchors.bottomMargin: status === Loader.Ready && item.contentBottomInset !== undefined
+        anchors.bottomMargin: status === Loader.Ready && item && item.contentBottomInset !== undefined
                               ? 0 : win.browseBottomInset
         z: 52
         active: false
