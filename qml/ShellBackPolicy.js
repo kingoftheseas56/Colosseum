@@ -50,6 +50,7 @@ function actionFor(state) {
     if (on(s.profileActive)) return "profile"
 
     // Detail/browse layers follow their existing z-order and document order.
+    if (on(s.audiobookActive)) return "audiobook"
     if (on(s.bookActive)) return "book"
     if (on(s.theatreSeriesActive)) return "theatreSeries"
     if (on(s.westernActive)) return "western"

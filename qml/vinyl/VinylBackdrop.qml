@@ -8,14 +8,18 @@ Item {
     property bool wordsShown: false
     property bool tallFixture: false
     property url source
+    property bool wallpaperFallbackEnabled: true
+    property bool recoverMissingArtwork: false
     property var contentStore: typeof Content !== "undefined" ? Content : null
+    readonly property string bundledFallbackSource: Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg")
     readonly property string fallbackSource: {
+        if (!root.wallpaperFallbackEnabled) return ""
         if (root.contentStore) {
             const remote = (root.contentStore.generation,
                             root.contentStore.assetUrl("assets/wallpaper/cold-ripple.jpg"))
             if (remote) return remote
         }
-        return Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg")
+        return root.bundledFallbackSource
     }
     property bool artistSkinActive: false
     property url artistLayerASource: ""
@@ -43,19 +47,41 @@ Item {
         id: standardBackdrop
         anchors.fill: parent
         visible: !root.artistSkinActive
+        readonly property bool useFallback: root.recoverMissingArtwork && root.wallpaperFallbackEnabled
+            && (!root.source.toString() || art.status === Image.Error)
+        readonly property bool softwareRendering: (root.recoverMissingArtwork || !root.wallpaperFallbackEnabled)
+            && root.GraphicsInfo.api === GraphicsInfo.Software
+        readonly property Image shownArt: !useFallback ? art
+            : fallbackArt.status === Image.Ready || root.fallbackSource === root.bundledFallbackSource
+              ? fallbackArt : bundledArt
         Image {
             id: art
             anchors.fill: parent
             anchors.margins: -60
-            source: root.source || root.fallbackSource
+            source: root.recoverMissingArtwork ? root.source : root.source || root.fallbackSource
             fillMode: Image.PreserveAspectCrop
-            visible: false
+            visible: standardBackdrop.softwareRendering && standardBackdrop.shownArt === art
+        }
+        Image {
+            id: fallbackArt
+            anchors.fill: art
+            source: standardBackdrop.useFallback ? root.fallbackSource : ""
+            fillMode: Image.PreserveAspectCrop
+            visible: standardBackdrop.softwareRendering && standardBackdrop.shownArt === fallbackArt
+        }
+        Image {
+            id: bundledArt
+            anchors.fill: art
+            source: standardBackdrop.shownArt === bundledArt ? root.bundledFallbackSource : ""
+            fillMode: Image.PreserveAspectCrop
+            visible: standardBackdrop.softwareRendering && standardBackdrop.shownArt === bundledArt
         }
         MultiEffect {
             // Size after the source: MultiEffect caches its source rectangle on resize.
             width: art.width + 2 * art.anchors.margins
             height: art.height + 2 * art.anchors.margins
-            source: art
+            source: standardBackdrop.shownArt
+            visible: !standardBackdrop.softwareRendering
             blurEnabled: true
             blur: 1
             blurMax: root.tallFixture ? 24 : 64

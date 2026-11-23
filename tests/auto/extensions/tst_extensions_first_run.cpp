@@ -226,6 +226,41 @@ private slots:
         QStandardPaths::setTestModeEnabled(true);
     }
     void init() { wipeIndex(); }
+
+    void retired_audiobook_source_is_removed_without_reseeding()
+    {
+        const auto row = [](const QString &id, const QString &url, bool enabled) {
+            return QJsonObject{{"id", id}, {"transportUrl", url}, {"enabled", enabled},
+                               {"installedAt", 123}, {"manifest", QJsonObject{{"id", id}}}};
+        };
+        const auto abb = row("colosseum.well.audiobookbay", "colosseum://well/audiobookbay", true);
+        const auto retired = row("colosseum.well.librivox", "colosseum://well/librivox", true);
+        const auto tankorent = row("colosseum.well.indexers", "https://example.test/custom/manifest.json", false);
+        const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/extensions";
+        QVERIFY(QDir().mkpath(dir));
+        QFile file(dir + "/installed.json");
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QVERIFY(file.write(QJsonDocument(QJsonObject{{"defaultsVersion", 21},
+            {"extensions", QJsonArray{abb, retired, tankorent}}}).toJson()) > 0);
+        file.close();
+
+        ExtensionsStore store(nullptr);
+        const QVariantList expected{abb.toVariantMap(), tankorent.toVariantMap()};
+        QCOMPARE(store.installed(), expected);
+        QSignalSpy previewFailure(&store, &ExtensionsStore::previewFailed);
+        QSignalSpy installFailure(&store, &ExtensionsStore::installFailed);
+        store.preview("colosseum://well/librivox");
+        store.install("colosseum://well/librivox");
+        QCOMPARE(previewFailure.size(), 1);
+        QCOMPARE(installFailure.size(), 1);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        const auto saved = QJsonDocument::fromJson(file.readAll()).object();
+        QCOMPARE(saved.value("extensions").toArray(), QJsonArray({abb, tankorent}));
+        QCOMPARE(saved.value("defaultsVersion").toInt(), 21);
+        file.close();
+        ExtensionsStore restarted(nullptr);
+        QCOMPARE(restarted.installed(), expected);
+    }
     void cleanup() { wipeIndex(); }
 
     void tankorent_requires_explicit_installation()

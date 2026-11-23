@@ -368,6 +368,8 @@ set(COLOSSEUM_THEATRE_ACCOUNT_SOURCES
 set(COLOSSEUM_AUDIOBOOK_DOWNLOAD_SOURCES
     engine/AudiobookDownloader.cpp
     engine/AudiobookDownloader.h
+    engine/AudiobookRecordingMatch.cpp
+    engine/AudiobookRecordingMatch.h
     engine/AudiobookTorrentTransport.cpp
     engine/AudiobookTorrentTransport.h
     engine/AudiobookTorrentEngineAdapter.h)
@@ -691,6 +693,8 @@ qt_add_executable(colosseum
     engine/MediaTitleNormalization.h
     engine/ImdbCatalog.cpp
     engine/ImdbCatalog.h
+    engine/AudiobookCatalog.cpp
+    engine/AudiobookCatalog.h
     engine/SourceContentStore.cpp
     engine/SourceContentStore.h
     engine/CatalogRemote.cpp
@@ -779,6 +783,8 @@ qt_add_executable(colosseum
     torrent/BookTorrentDownloader.h
     torrent/BookTorrents.cpp
     torrent/BookTorrents.h
+    torrent/AudiobookTorrents.cpp
+    torrent/AudiobookTorrents.h
     torrent/ComicTorrentRanker.cpp
     torrent/ComicTorrentRanker.h
     torrent/ComicEditionIdentity.cpp
@@ -1908,6 +1914,24 @@ add_executable(book_torrent_ranker_harness
 )
 target_include_directories(book_torrent_ranker_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(book_torrent_ranker_harness PRIVATE Qt6::Core)
+
+# audiobook_torrents_harness -- AudiobookTorrents contract (audio-only rows, ranking,
+# stale-handle guard, all-indexers-off) over a mock-indexer search service; no network.
+add_executable(audiobook_torrents_harness
+    ../tests/audiobook_torrents_harness.cpp
+    torrent/AudiobookTorrents.cpp
+    torrent/AudiobookTorrents.h
+    torrent/BookTorrentRanker.cpp
+    torrent/BookTorrentRanker.h
+    torrent/TankorentSearchService.cpp
+    torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
+    torrent/TorrentIndexer.cpp
+    torrent/TorrentIndexer.h
+)
+target_include_directories(audiobook_torrents_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(audiobook_torrents_harness PRIVATE Qt6::Core Qt6::Network)
 
 add_executable(book_torrent_filepicker_harness
     ../tests/book_torrent_filepicker_harness.cpp
@@ -3319,6 +3343,16 @@ add_executable(catalog_remote_harness
 target_include_directories(catalog_remote_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(catalog_remote_harness PRIVATE Qt6::Core Qt6::Network Qt6::Sql Qt6::Concurrent)
 add_test(NAME colosseum.catalog_remote_harness COMMAND catalog_remote_harness)
+
+# Offline CC0 audiobook catalogue acceptance: no installed app or profile.
+add_executable(audiobook_catalogue_harness
+    ../tests/audiobook_catalogue_harness.cpp
+    engine/AudiobookCatalog.cpp engine/AudiobookCatalog.h
+    engine/CatalogRemote.cpp engine/CatalogRemote.h)
+target_include_directories(audiobook_catalogue_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(audiobook_catalogue_harness PRIVATE Qt6::Core Qt6::Network Qt6::Sql Qt6::Concurrent)
+add_test(NAME colosseum.audiobook_catalogue_harness COMMAND audiobook_catalogue_harness
+    "${CMAKE_CURRENT_SOURCE_DIR}/../server/content-api/tests/fixtures/audiobooks-cc0-fixture.sqlite")
 
 add_executable(static_catalogue_resolver_harness
     ../tests/static_catalogue_resolver_harness.cpp

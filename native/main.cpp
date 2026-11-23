@@ -84,6 +84,7 @@
 #include "devtools/LanistaServer.h"
 #include "engine/BookDownloader.h"
 #include "engine/AudiobookDownloader.h"
+#include "engine/AudiobookRecordingMatch.h"
 #if defined(Q_OS_ANDROID) || defined(Q_OS_WIN)
 #include "engine/AudiobookTorrentTransport.h"
 #endif
@@ -94,6 +95,7 @@
 #include "engine/MalCatalog.h"
 #include "engine/TankobanCatalog.h"
 #include "engine/ImdbCatalog.h"
+#include "engine/AudiobookCatalog.h"
 #include "engine/BiblioCatalog.h"
 #include "engine/ColosseumTitleIdentityRegistry.h"
 #include "engine/RatingsReviewsProviderReadProjection.h"
@@ -177,6 +179,7 @@
 #include "vinyl/VinylTorrentProvider.h"
 #include "torrent/BookTorrentDownloader.h"
 #include "torrent/BookTorrents.h"
+#include "torrent/AudiobookTorrents.h"
 #include "torrent/engine/TorrentEngine.h"
 // NOT Player-2 stuff: the stall probe is the app's own QGuiApplication subclass, used
 // unconditionally in main(). It sat inside the COLOSSEUM_PLAYER2 block below for weeks and
@@ -1348,12 +1351,10 @@ int main(int argc, char *argv[]) {
     if (!vinylV1OfflineBoot)
         QTimer::singleShot(3000, stream, [stream]() { stream->warmUp(); });
 
-    // Audiobook download backbone exposed to QML as `Audiobooks`. BookDownloader
-    // lineage, but multi-file and Stremio-fed: a book's paired audiobook torrent
-    // (from AudioBookBay) downloads its audio files to <appdata>/audiobooks, keyed
-    // by pairKey so the book page flips to "Listen". Needs the Stream engine above.
     auto *audiobooks = new AudiobookDownloader(dlNam, stream, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("Audiobooks"), audiobooks);
+    auto *audiobookMatcher = new AudiobookRecordingMatcher(&backendServices);
+    engine.rootContext()->setContextProperty(QStringLiteral("AudiobookRecordingMatcher"), audiobookMatcher);
 
 #if defined(COLOSSEUM_HAVE_DLNA)
     // ── DLNA MediaServer (Arc 71): project the Vault + audiobooks into an immutable
@@ -1548,11 +1549,16 @@ int main(int argc, char *argv[]) {
     auto* imdbCatalog = new ImdbCatalog(contentApiConfigured ? QString() : imdbRes.path, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("ImdbCatalog"), imdbCatalog);
     vaultLibrary->setImdbCatalog(imdbCatalog);
+    // Audiobooks are served per query; no whole-catalogue download into the profile.
+    // A local SQLite is explicitly opt-in for development and offline qualification.
+    auto* audiobookCatalog = new AudiobookCatalog(qEnvironmentVariable("COLOSSEUM_AUDIOBOOK_CATALOG_PATH"), &backendServices);
+    engine.rootContext()->setContextProperty(QStringLiteral("AudiobookCatalog"), audiobookCatalog);
 
     if (contentApiConfigured) {
         comicsCatalog->configureRemote(catalogNam, contentEndpoint, catalogVaultDir + QStringLiteral("/comics_api_v1.json"));
         malCatalog->configureRemote(catalogNam, contentEndpoint, catalogVaultDir + QStringLiteral("/mal_api_v1.json"));
         imdbCatalog->configureRemote(catalogNam, contentEndpoint, catalogVaultDir + QStringLiteral("/imdb_api_v1.json"));
+        audiobookCatalog->configureRemote(catalogNam, contentEndpoint, catalogVaultDir + QStringLiteral("/audiobooks_api_v1.json"));
     }
     auto* sourceContent = new SourceContentStore(&backendServices);
     sourceContent->configure(catalogNam, contentEndpoint, catalogVaultDir + QStringLiteral("/content_api_v1.json"),
@@ -1697,6 +1703,10 @@ int main(int argc, char *argv[]) {
 
     auto *bookTorrents = new BookTorrents(searchNam, torrentEngine, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("BookTorrents"), bookTorrents);
+
+    // Tankorent searches for audiobook releases. Audiobooks owns their downloads.
+    auto *audiobookTorrents = new AudiobookTorrents(searchNam, &backendServices);
+    engine.rootContext()->setContextProperty(QStringLiteral("AudiobookTorrents"), audiobookTorrents);
 
     // Tankoban "volume mode" façade exposed to QML as `TankobanVolumes` (Task 8).
     // ONE object composes the whole volume lifecycle: Nyaa search over the pinned
@@ -1856,6 +1866,9 @@ int main(int argc, char *argv[]) {
     });
     audiobooks->setSourceEnabledCheck([sourceEnabled] {
         return sourceEnabled(QStringLiteral("colosseum.well.audiobookbay"));
+    });
+    audiobooks->setTankorentEnabledCheck([sourceEnabled] {
+        return sourceEnabled(QStringLiteral("colosseum.well.indexers"));
     });
 #ifdef COLOSSEUM_NUVIO_PLUGINS
     const QString nuvioDirectory = instanceAppData + QStringLiteral("/extensions/nuvio");

@@ -19,6 +19,8 @@ GridView {
     property string visualProfile: "classic"
     // Extra space for an opted-in secondary metadata line.
     property real metadataExtraHeight: 0
+    property bool squareArtwork: false
+    property bool fitArtwork: false
     readonly property bool _gallery: wall.visualProfile === "gallery"
     readonly property var _gm: Metrics.gallery
     signal requestMore()
@@ -37,10 +39,11 @@ GridView {
     readonly property int columnCount: Math.max(3, Math.floor(width / (wall._gallery
         ? (wall._gm.posterWidth + wall._gm.cardGap) : 146)))
     cellWidth: Math.floor(width / columnCount)
-    cellHeight: wall._gallery
+    cellHeight: wall.metadataExtraHeight + (wall.squareArtwork ? cellWidth + 16 + (wall._gallery ? wall._gm.titleMinHeight : 32)
+        : wall._gallery
         // poster (card width × ratio) + title top gap + two-line reserve + the delegate's 14px inset + margin
-        ? (Math.floor((cellWidth - 14) * wall._gm.posterRatio) + 10 + wall._gm.titleMinHeight + 14 + 6 + wall.metadataExtraHeight)
-        : (Math.floor(cellWidth * 1.62) + 34 + wall.metadataExtraHeight)
+        ? (Math.floor((cellWidth - 14) * wall._gm.posterRatio) + 10 + wall._gm.titleMinHeight + 14 + 6)
+        : (Math.floor(cellWidth * 1.62) + 34))
     cacheBuffer: cellHeight * 2
     // in-grid skeletons reserve EXACT cell space: fill the viewport on the first page, one
     // trailing row while paging.
@@ -86,8 +89,10 @@ GridView {
         width: wall.cellWidth - 14
         height: wall.cellHeight - 14
         visualProfile: wall.visualProfile
-        // gallery hover surfaces the rating's origin, matching the Theatre rails.
-        hoverSourceText: wall._gallery ? "IMDb" : ""
+        squareArtwork: wall.squareArtwork
+        fitArtwork: wall.fitArtwork
+        hoverSourceText: !wall._gallery ? ""
+            : item && typeof item.ratingSource === "string" ? item.ratingSource : "IMDb"
         skeleton: index >= wall.items.length
         item: (index >= 0 && index < wall.items.length) ? wall.items[index] : null
         keyboardFocused: wall.keyboardMode && index === wall.currentIndex && index < wall.items.length

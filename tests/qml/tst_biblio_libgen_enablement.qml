@@ -17,6 +17,7 @@ TestCase {
     property var originalAudio
     property var originalHash
     property var hashCallbacks: []
+    SignalSpy { id: bridgeRoutes; signalName: "audiobookBridgeRequested" }
     Component { id: pageComponent; App.BiblioBook { width: 960; height: 640 } }
     QtObject {
         id: extensions
@@ -83,16 +84,11 @@ TestCase {
         }
         function togglePlay() { paused = !paused }
     }
-    QtObject {
-        id: stream
-        property int prefetches: 0
-        function prefetch(hash, index) { prefetches++ }
-    }
     SignalSpy { id: extensionRoutes; signalName: "openExtensionsRequested" }
-    function page(owner) {
-        const item = createTemporaryObject(pageComponent, suite, {
+    function page(owner, host) {
+        const item = createTemporaryObject(pageComponent, host || suite, {
             extensionsRef: owner, booksRef: books, bookTorrentsRef: torrents,
-            audiobooksRef: audiobooks, audioSessionRef: audioSession, streamRef: stream,
+            audiobooksRef: audiobooks, audioSessionRef: audioSession,
             collectionRef: null, progressRef: null
         })
         verify(item !== null)
@@ -131,7 +127,7 @@ TestCase {
         searches = 0; callbacks = []; audioCallbacks = []; audioSearches = 0; hashCallbacks = []
         books.downloads = 0; books.deletions = 0; books.state = "none"
         torrents.searches = 0; torrents.downloads = 0; torrents.state = "none"
-        audiobooks.downloads = 0; audiobooks.downloadedKey = ""; stream.prefetches = 0
+        audiobooks.downloads = 0; audiobooks.downloadedKey = ""
         audioSession.activePairKey = ""; audioSession.ready = false; audioSession.paused = true
     }
     function test_audiobook_local_works_with_source_disabled_and_without_ebook() {
@@ -158,7 +154,7 @@ TestCase {
         audiobooks.downloadedKey = ""
         audiobooks.removed(item.pairKey)
         compare(item.audioLocal, false)
-        compare(audioSearches, 1)
+        compare(audioSearches, 0)
     }
     function test_audiobook_lookup_failure_retries_then_shows_true_empty() {
         extensions.setRows([{ id: "colosseum.well.audiobookbay", enabled: true }])
@@ -166,6 +162,9 @@ TestCase {
         item.parent = promptHost.contentItem
         const status = findChild(item, "biblioAudiobookStatus")
         const action = findChild(item, "biblioAudiobookStatusAction")
+        compare(audioSearches, 0)
+        compare(action.text, "Find releases")
+        action.clicked()
         compare(status.text, "Searching AudioBookBay…")
         audioCallbacks[0](null, "timeout")
         compare(status.text, "AudioBookBay unavailable")
@@ -180,6 +179,7 @@ TestCase {
     function test_audiobook_download_completion_retires_pending_lookup() {
         extensions.setRows([{ id: "colosseum.well.audiobookbay", enabled: true }])
         const item = page(extensions)
+        item.startAudiobookLookup()
         audiobooks.downloadedKey = item.pairKey
         audiobooks.finished(item.pairKey, "/fixture/audio")
         audioCallbacks[0](null, "timeout")
@@ -212,13 +212,16 @@ TestCase {
     function test_audiobookbay_removal_discards_search_and_hash_callbacks() {
         extensions.setRows([{ id: "colosseum.well.audiobookbay", enabled: true }])
         const item = page(extensions)
+        item.startAudiobookLookup()
         compare(audioSearches, 1)
         audioCallbacks[0]({ rows: [{ slug: "fixture" }] })
         compare(item.abRows.length, 1)
+        compare(hashCallbacks.length, 0, "release detail must wait for a selection")
+        item.activateAudiobookRow(item.abRows[0])
         compare(hashCallbacks.length, 1)
         extensions.setRows([])
         hashCallbacks[0]({ infoHash: "late" })
-        compare(item.abInfoHash, "")
+        compare(audiobooks.downloads, 0)
         compare(item.abRows.length, 0)
         extensions.setRows([{ id: "colosseum.well.audiobookbay", enabled: true }])
         compare(audioSearches, 2)
@@ -228,23 +231,78 @@ TestCase {
         compare(hashCallbacks.length, 1)
     }
     function test_audiobookbay_disable_during_hash_lookup_allows_later_retry() {
-        const row = {slug: "fixture"}
-        extensions.setRows([{id: "colosseum.well.audiobookbay", enabled: true}])
+        const row = { slug: "fixture" }
+        extensions.setRows([{ id: "colosseum.well.audiobookbay", enabled: true }])
         const item = page(extensions)
-        audioCallbacks[0]({rows: [row]})
+        item.startAudiobookLookup()
+        audioCallbacks[0]({ rows: [row] })
+        item.activateAudiobookRow(row)
+        compare(hashCallbacks.length, 1)
+        extensions.setRows([])
+        hashCallbacks[0]({ infoHash: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" })
+        compare(audiobooks.downloads, 0)
+        extensions.setRows([{ id: "colosseum.well.audiobookbay", enabled: true }])
+        audioCallbacks[1]({ rows: [row] })
         item.activateAudiobookRow(row)
         compare(hashCallbacks.length, 2)
-        extensions.setRows([])
-        hashCallbacks[0]({infoHash: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"})
-        hashCallbacks[1]({infoHash: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"})
-        compare(audiobooks.downloads, 0)
-        compare(stream.prefetches, 0)
-        extensions.setRows([{id: "colosseum.well.audiobookbay", enabled: true}])
-        audioCallbacks[1]({rows: [row]})
-        item.activateAudiobookRow(row)
-        compare(hashCallbacks.length, 4)
-        hashCallbacks[3]({infoHash: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"})
+        hashCallbacks[1]({ infoHash: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" })
         compare(audiobooks.downloads, 1)
+    }
+    function test_audiobook_bridge_line_can_be_activated_by_keyboard() {
+        const item = page(extensions, promptHost.contentItem)
+        const action = findChild(item, "biblioAudiobookBridge")
+        verify(action !== null)
+        verify(!action.visible)
+
+        bridgeRoutes.target = item
+        bridgeRoutes.clear()
+        item.audiobookBridge = { available: true, workId: "catalogue-work", recordingId: "catalogue-recording",
+                                narrators: "Narrator One and Narrator Two" }
+        compare(action.accessibleName, "Also an audiobook · narrated by Narrator One and Narrator Two")
+        verify(action.visible)
+        compare(action.focusPolicy, Qt.TabFocus)
+        promptHost.requestActivate()
+        tryVerify(function() { return promptHost.active })
+        action.forceActiveFocus(Qt.TabFocusReason)
+        tryVerify(function() { return action.activeFocus })
+        keyClick(Qt.Key_Return)
+        compare(bridgeRoutes.count, 1)
+        compare(bridgeRoutes.signalArguments[0][0].workId, "catalogue-work")
+        compare(bridgeRoutes.signalArguments[0][0].recordingId, "catalogue-recording")
+    }
+    function test_downloaded_and_legacy_audiobooks_offer_listen() {
+        const item = page(extensions, promptHost.contentItem)
+        const action = findChild(item, "biblioAudiobookBridge")
+        verify(action !== null)
+        bridgeRoutes.target = item
+        bridgeRoutes.clear()
+
+        item.audiobookBridge = { workId: "catalogue-work", recordingKey: "downloaded-recording" }
+        compare(action.accessibleName, "Listen")
+        verify(action.visible)
+        verify(waitForRendering(action))
+        mouseClick(action, action.width / 2, action.height / 2)
+        compare(bridgeRoutes.count, 1)
+        compare(bridgeRoutes.signalArguments[0][0].recordingKey, "downloaded-recording")
+
+        item.audiobookBridge = { recordingKey: "legacy-title-author-key" }
+        compare(action.accessibleName, "Listen")
+        verify(action.visible)
+        verify(waitForRendering(action))
+        mouseClick(action, action.width / 2, action.height / 2)
+        compare(bridgeRoutes.count, 2)
+        compare(bridgeRoutes.signalArguments[1][0].recordingKey, "legacy-title-author-key")
+    }
+    function test_catalogue_recording_without_a_narrator_still_has_a_detail_link() {
+        const item = page(extensions, promptHost.contentItem)
+        const action = findChild(item, "biblioAudiobookBridge")
+        verify(action !== null)
+        item.audiobookBridge = { workId: "catalogue-work", needsChoice: true,
+                                recordings: [{ recordingKey: "first" }, { recordingKey: "second" }] }
+        verify(action.visible)
+        compare(action.accessibleName, "Also an audiobook")
+        item.audiobookBridge = { workId: "catalogue-work", narrators: [{ name: "Kate Reading" }, "Michael Kramer"] }
+        compare(action.accessibleName, "Also an audiobook · narrated by Kate Reading, Michael Kramer")
     }
     function test_tankorent_missing_or_disabled_does_not_search() {
         const item = page(extensions)
@@ -325,6 +383,8 @@ TestCase {
         enable(true)
         const item = page(extensions)
         compare(searches, 1)
+        compare(audioSearches, 0)
+        item.startAudiobookLookup()
         compare(audioSearches, 1)
         compare(torrents.searches, 1)
         compare(item.edLoading, true)
@@ -403,15 +463,15 @@ TestCase {
         compare(item.pendingReadTransport, "lookup")
         enable(false)
         verify(!item.pendingReadActive)
-        compare(item.abLoading, true)
-        compare(audioSearches, 1)
+        compare(item.abLoading, false)
+        compare(audioSearches, 0)
         compare(torrents.searches, 1)
     }
     function test_disabled_cold_open_finds_local_copy_before_other_callbacks() {
         enable(false)
         books.state = "done"
         const item = page(extensions)
-        compare(item.abLoading, true)
+        compare(item.abLoading, false)
         compare(item.torLoading, true)
         compare(item.localPath, "/fixture/book.epub")
         item.readBook()

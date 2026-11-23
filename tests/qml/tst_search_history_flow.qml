@@ -59,6 +59,30 @@ TestCase {
     Component { id: genericSearch; Colosseum.SearchSurface {} }
     Component { id: biblioSearch; Colosseum.BiblioSearch {} }
 
+    Component {
+        id: audiobookCatalog
+        QtObject {
+            property bool local: true
+            property int revision: 0
+            property string completedQuery: ""
+            property var queries: []
+            signal requestFailed(string method, string reason)
+
+            function ready() { return local }
+            function search(query, limit) {
+                queries = queries.concat([query])
+                if (!local && query !== completedQuery) return []
+                return [{ id: "dune-english", title: query }, { id: "dune-italian", title: query }]
+            }
+            function work(id) {
+                return { authors: [{ name: "Frank Herbert" }], recordings: [] }
+            }
+            function remoteQueryState(method, args) {
+                return { pending: args[0] !== completedQuery }
+            }
+        }
+    }
+
     function createGeneric(dispatcher) {
         return genericSearch.createObject(testWindow.contentItem, {
             historyStore: history,
@@ -155,7 +179,7 @@ TestCase {
         })
         wait(0)
         waitForRendering(surface)
-        var removeTarget = findItem(surface, "biblioRecentRemove")
+        var removeTarget = findItem(surface, "searchRecentRemove")
         verify(removeTarget !== null)
         mouseClick(removeTarget, removeTarget.width / 2, removeTarget.height / 2)
         compare(history.list("biblio"), [])
@@ -172,7 +196,7 @@ TestCase {
         })
         wait(0)
         waitForRendering(surface)
-        var bodyTarget = findItem(surface, "biblioRecentBody")
+        var bodyTarget = findItem(surface, "searchRecentBody")
         verify(bodyTarget !== null)
         mouseClick(bodyTarget, bodyTarget.width / 2, bodyTarget.height / 2)
         compare(dispatches, 1)
@@ -287,6 +311,189 @@ TestCase {
         compare(biblio.showingProviderError, true)
         compare(biblio.showingNoResults, false)
         biblio.destroy()
+    }
+
+    function test_biblio_empty_audiobook_group_stays_visible_with_book_matches() {
+        var surface = createTemporaryObject(biblioSearch, testWindow.contentItem, {
+            historyStore: history, audioFirst: true,
+            width: testWindow.width, height: testWindow.height,
+            searchDispatcher: function(query, done) {
+                done([{ id: 1, title: "Book One" }, { id: 2, title: "Book Two" }])
+            },
+            audioSearchDispatcher: function(query, done) { done([]) }
+        })
+        verify(surface !== null)
+        surface.fillAndSearch("Dune")
+        var status = findItem(surface, "searchGroupStatus_audiobooks")
+        verify(status !== null && status.visible)
+        compare(status.text, "No audiobook matches")
+        compare(surface.groupedResults().map(function(group) { return group.key }),
+                ["books", "audiobooks"])
+        compare(surface.bookResultCount, 2)
+    }
+
+    function test_biblio_books_section_precedes_audiobooks_data() {
+        return [{ tag: "books", audioFirst: false }, { tag: "audiobooks", audioFirst: true }]
+    }
+
+    function test_biblio_books_section_precedes_audiobooks(data) {
+        var surface = createTemporaryObject(biblioSearch, testWindow.contentItem, {
+            historyStore: history, audioFirst: data.audioFirst,
+            width: testWindow.width, height: testWindow.height,
+            searchDispatcher: function(query, done) {
+                done([{ id: 1, title: "Book One" }, { id: 2, title: "Book Two" }])
+            },
+            audioSearchDispatcher: function(query, done) {
+                done([{ workId: "a1", title: "Audio One" }, { workId: "a2", title: "Audio Two" }])
+            }
+        })
+        verify(surface !== null)
+        surface.fillAndSearch("Dune")
+        verify(findItem(surface, "searchSurfaceResults") !== null)
+        compare(surface.topResult.title, data.audioFirst ? "Audio One" : "Book One")
+        var sections = surface.groupedResults().map(function(group) { return group.key })
+        compare(sections, ["books", "audiobooks"])
+    }
+
+    function test_biblio_enter_opens_current_match_and_restores_search_state() {
+        testWindow.requestActivate()
+        var bookQueries = []
+        var audioQueries = []
+        var surface = createTemporaryObject(biblioSearch, testWindow.contentItem, {
+            historyStore: history, width: testWindow.width, height: testWindow.height,
+            searchDispatcher: function(query, done) {
+                bookQueries.push(query)
+                done([{ id: 99, title: "Dune", author: "Frank Herbert" }])
+            },
+            audioSearchDispatcher: function(query, done) {
+                audioQueries.push(query)
+                done([{ workId: "dune", title: "Dune" }])
+            }
+        })
+        var opened = null
+        surface.bookRequested.connect(function(book) { opened = book; surface.enabled = false })
+        surface.audiobookRequested.connect(function(workId) { opened = workId; surface.enabled = false })
+        var query = findItem(surface, "biblioSearchInput")
+        surface.fillAndSearch("Dune")
+        query.forceActiveFocus()
+        tryCompare(query, "activeFocus", true)
+        keyClick(Qt.Key_Return)
+        compare(opened.id, 99)
+        compare(opened.author, "Frank Herbert")
+        compare(surface.enabled, false)
+
+        surface.enabled = true
+        compare(surface.query, "Dune")
+        compare(surface.bookResultCount, 1)
+        compare(surface.audioResultCount, 1)
+        tryCompare(query, "activeFocus", true)
+        surface.audioFirst = true
+        keyClick(Qt.Key_Return)
+        compare(opened, "dune")
+        compare(bookQueries, ["Dune"])
+        compare(audioQueries, ["Dune"])
+    }
+
+    function test_biblio_cancels_stale_lanes_and_uses_preferred_top_match() {
+        var requests = []
+        function dispatch(lane) {
+            return function(query, done) {
+                var request = { lane: lane, query: query, done: done, cancelled: false }
+                requests.push(request)
+                return function() { request.cancelled = true }
+            }
+        }
+        var surface = createTemporaryObject(biblioSearch, testWindow.contentItem, {
+            historyStore: history, audioFirst: true, width: testWindow.width, height: testWindow.height,
+            searchDispatcher: dispatch("book"), audioSearchDispatcher: dispatch("audio")
+        })
+        surface.fillAndSearch("Du")
+        surface.fillAndSearch("Dune")
+        compare(requests.length, 4)
+        verify(requests[0].cancelled)
+        verify(requests[1].cancelled)
+        requests[0].done([{ id: 1, title: "Old book" }])
+        requests[1].done([{ workId: "old", title: "Old audio" }])
+        compare(surface.resultCount, 0)
+        requests[2].done([{ id: 2, title: "Current book" }])
+        compare(surface.topResult, null)
+        compare(surface.groupedResults().find(function(group) { return group.key === "books" }).items[0].title,
+                "Current book")
+        requests[3].done([{ workId: "current", title: "Current audio" }])
+        compare(surface.topResult.title, "Current audio")
+        compare(surface.resultCount, 2)
+    }
+
+    function test_biblio_catalogue_result_opens_selected_audiobook_data() {
+        return [
+            { tag: "desktop click", width: 1280, phone: false, keyboard: false },
+            { tag: "desktop Enter", width: 1280, phone: false, keyboard: true },
+            { tag: "phone tap", width: 420, phone: true, keyboard: false }
+        ]
+    }
+
+    function test_biblio_catalogue_result_opens_selected_audiobook(data) {
+        testWindow.requestActivate()
+        var catalog = createTemporaryObject(audiobookCatalog, testWindow)
+        var surface = createTemporaryObject(biblioSearch, testWindow.contentItem, {
+            historyStore: history, audiobookCatalog: catalog,
+            searchDispatcher: function(query, callback) { callback([]) },
+            androidHost: data.phone, width: data.width, height: testWindow.height
+        })
+        verify(surface !== null)
+        var bookOpened = false
+        var workOpened = ""
+        surface.bookRequested.connect(function() { bookOpened = true })
+        surface.audiobookRequested.connect(function(workId) { workOpened = workId })
+        surface.fillAndSearch("Dune")
+        compare(catalog.queries, ["Dune"])
+        compare(surface.audioResultCount, 2)
+        compare(surface.audioResults[0].author, "Frank Herbert")
+        surface.expandedGroups = [qsTr("Audiobooks")]
+        var grid = findItem(surface, "searchGroup_audiobooks")
+        verify(grid !== null)
+        if (data.keyboard) {
+            tryCompare(testWindow, "active", true)
+            grid.currentIndex = 0
+            grid.forceActiveFocus()
+            tryCompare(grid, "activeFocus", true)
+            keyClick(Qt.Key_Return)
+        } else {
+            var row = findItem(grid, "searchResult_dune-italian")
+            verify(row !== null)
+            surface.keepSearchDelegateVisible(row)
+            waitForRendering(surface)
+            if (data.phone) {
+                var touch = touchEvent(row)
+                touch.press(0, row, row.width / 2, row.height / 2).commit()
+                touch.release(0, row, row.width / 2, row.height / 2).commit()
+            } else {
+                mouseClick(row, row.width / 2, row.height / 2)
+            }
+        }
+        compare(workOpened, "dune-italian")
+        compare(bookOpened, false)
+    }
+
+    function test_biblio_catalogue_waits_for_the_current_remote_query() {
+        var catalog = createTemporaryObject(audiobookCatalog, testWindow, { local: false })
+        var surface = createTemporaryObject(biblioSearch, testWindow.contentItem, {
+            historyStore: history, audiobookCatalog: catalog,
+            searchDispatcher: function(query, callback) { callback([]) },
+            width: testWindow.width, height: testWindow.height
+        })
+        verify(surface !== null)
+        surface.fillAndSearch("Dun")
+        surface.fillAndSearch("Dune")
+        compare(surface.audioSearching, true)
+        compare(surface.showingNoResults, false)
+        catalog.completedQuery = "Dun"
+        ++catalog.revision
+        compare(surface.audioResultCount, 0)
+        catalog.completedQuery = "Dune"
+        ++catalog.revision
+        compare(surface.audioSearching, false)
+        compare(surface.audioResults[0].title, "Dune")
     }
 
     function test_null_history_owner_is_safe_and_recovers() {

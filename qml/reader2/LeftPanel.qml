@@ -42,7 +42,18 @@ ReaderOverlay {
     // ---- Audio pane (Task 13 — read-along), all bound from ReaderShell ----
     // Bridge-free like the rest of the panel: it renders these values and reports the
     // user's intent via signals; ReaderShell owns the pairing lookup + the AudiobookSession.
+    property var audioSession: null
+    property real audioVolume: 1
+    property bool audioMuted: false
+    readonly property real chapterDuration: audioSession ? Math.max(0, audioSession.chapterDuration) : 0
+    readonly property real chapterFraction: chapterDuration > 0 ? Math.max(0, Math.min(1, audioSession.chapterPosition / chapterDuration)) : 0
     property bool audioAttached: false           // a pairing exists for shell.bookId
+    property bool audiobookDiscoverable: false
+    property bool audioFollowAllowed: true
+    property bool audioDetached: false
+    property var audioRecordings: []
+    property string audioRecordingKey: ""
+    property bool pickingAudioRecording: false
     property string audioTitle: ""               // the audiobook's title
     property url audioCover: ""                   // cover art if any (else a placeholder glyph)
     property string audioMetaLine: ""            // "21 h 04 m · 135 chapters" (or "135 chapters")
@@ -130,6 +141,15 @@ ReaderOverlay {
     signal audioSpeedCycled()
     signal audioSeekRequested(real fraction)     // (compat; the pill owns transport now)
     signal audioChapterPicked(int index)         // playlist row tap → play that chapter/file
+    signal audioVolumeRequested(real fraction)
+    signal audioMuteToggled()
+    signal audioScrubPreviewed(real fraction)
+    signal audioScrubCommitted(real fraction)
+    signal findAudiobookRequested()
+    signal openAudiobookPlayerRequested()
+    signal detachAudioRecordingRequested()
+    signal audioRecordingPicked(string key)
+    onAudioRecordingKeyChanged: pickingAudioRecording = false
     // read-along (Task 6): ReaderShell persists the mode/enlargement + pushes them to the paper.
     signal readAlongModePicked(string mode)      // "sentence" | "word" | "sentenceWord"
     signal readAlongScaleChanged(real scale)     // word enlargement 1.0..2.0
@@ -592,22 +612,44 @@ ReaderOverlay {
                 anchors.fill: parent
                 visible: panel.activeTab === "audio"
 
-                // ---- unattached state ----
-                Text {
+                Column {
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.top: parent.top
                     anchors.leftMargin: 22
                     anchors.rightMargin: 22
-                    anchors.topMargin: 30
+                    anchors.topMargin: 18
+                    spacing: 12
                     visible: !panel.audioAttached
-                    text: "Download the audiobook from this book's page to read along."
-                    wrapMode: Text.WordWrap
-                    horizontalAlignment: Text.AlignHCenter
-                    color: Theme.inkGhost
-                    font.family: Theme.ui
-                    font.pixelSize: 13
-                    lineHeight: 1.4
+                    AudioAction {
+                        objectName: "readerFindAudiobook"
+                        width: parent.width
+                        visible: panel.audiobookDiscoverable && panel.audioRecordings.length === 0
+                        label: qsTr("Find the audiobook")
+                        onPicked: panel.findAudiobookRequested()
+                    }
+                    AudioAction {
+                        objectName: "readerAttachAudio"
+                        width: parent.width
+                        visible: panel.audioDetached && panel.audioRecordings.length > 0 && !panel.pickingAudioRecording
+                        label: qsTr("Attach another")
+                        onPicked: panel.pickingAudioRecording = true
+                    }
+                    Loader {
+                        width: parent.width
+                        active: !panel.audioAttached && panel.audioRecordings.length > 0
+                                && (!panel.audioDetached || panel.pickingAudioRecording)
+                        sourceComponent: narrationChoices
+                    }
+                    Text {
+                        width: parent.width
+                        visible: !panel.audiobookDiscoverable && panel.audioRecordings.length === 0
+                        text: qsTr("No audiobook available")
+                        color: Theme.inkGhost
+                        font.family: Theme.ui
+                        font.pixelSize: 13
+                        horizontalAlignment: Text.AlignHCenter
+                    }
                 }
 
                 // ---- attached state (scrollable — the playlist can outgrow the pane) ----
@@ -711,10 +753,39 @@ ReaderOverlay {
                         }
                     }
 
+                    AudioAction {
+                        objectName: "readerOpenAudiobookPlayer"
+                        width: parent.width
+                        label: qsTr("Open player")
+                        onPicked: panel.openAudiobookPlayerRequested()
+                    }
+                    Row {
+                        visible: panel.audioRecordings.length > 0
+                        width: parent.width
+                        spacing: 8
+                        AudioAction {
+                            objectName: "readerDetachAudio"
+                            width: (parent.width - parent.spacing) / 2
+                            label: qsTr("Detach this audiobook")
+                            onPicked: panel.detachAudioRecordingRequested()
+                        }
+                        AudioAction {
+                            width: (parent.width - parent.spacing) / 2
+                            label: qsTr("Attach another")
+                            enabled: panel.audioRecordings.length > 1
+                            onPicked: panel.pickingAudioRecording = !panel.pickingAudioRecording
+                        }
+                    }
+                    Loader {
+                        width: parent.width
+                        active: panel.audioAttached && panel.pickingAudioRecording
+                        sourceComponent: narrationChoices
+                    }
+
                     // --- "Follow my reading" row (mock .followrow) ---
                     Rectangle {
                         width: parent.width
-                        height: 60
+                        height: panel.audioFollowAllowed ? 60 : 76
                         radius: 11
                         color: Theme.cardBg
                         border.color: Theme.barBorder
@@ -736,8 +807,10 @@ ReaderOverlay {
                             }
                             Text {
                                 width: parent.width
-                                text: "Audio keeps pace with your page turns"
-                                elide: Text.ElideRight
+                                objectName: "readerFollowExplanation"
+                                text: panel.audioFollowAllowed ? qsTr("Audio keeps pace with your page turns")
+                                    : qsTr("This recording's chapters don't line up with the book.")
+                                wrapMode: Text.WordWrap
                                 font.family: Theme.ui
                                 font.pixelSize: 11
                                 color: Theme.inkGhost
@@ -752,6 +825,7 @@ ReaderOverlay {
                             anchors.rightMargin: 14
                             anchors.verticalCenter: parent.verticalCenter
                             color: panel.followOn ? Theme.gold : Theme.switchTrackOff
+                            opacity: panel.audioFollowAllowed ? 1 : 0.45
                             Behavior on color { ColorAnimation { duration: 140 } }
                             Rectangle {
                                 width: 16; height: 16; radius: 8
@@ -761,10 +835,120 @@ ReaderOverlay {
                                 Behavior on x { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
                             }
                             ReaderKeyboardArea {
+                                objectName: "readerFollowToggle"
                                 anchors.fill: parent
                                 anchors.margins: -6
+                                enabled: panel.audioFollowAllowed
+                                keyboardLabel: qsTr("Follow my reading")
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: panel.followToggled(!panel.followOn)
+                            }
+                        }
+                    }
+
+                    // Chapter-relative preview/commit rail. The shell owns seeks/history;
+                    // cancelling (including chapter changes) never emits a commit.
+                    Column {
+                        width: parent.width
+                        spacing: 6
+                        Text {
+                            text: L.fmtClock_(audioRail.scrubbing ? audioRail.previewFraction * panel.chapterDuration
+                                                                : (panel.audioSession ? panel.audioSession.chapterPosition : 0))
+                                  + " / " + L.fmtClock_(panel.chapterDuration)
+                            color: Theme.inkDim; font.family: Theme.ui; font.pixelSize: 12
+                        }
+                        ReaderKeyboardArea {
+                            id: audioRail
+                            objectName: "audioChapterRail"
+                            width: parent.width; height: 28
+                            enabled: panel.chapterDuration > 0
+                            cursorShape: Qt.PointingHandCursor
+                            keyboardLabel: "Audiobook position"
+                            keyboardRole: Accessible.Slider
+                            property bool scrubbing: false
+                            property real previewFraction: 0
+                            readonly property int chapter: panel.audioSession ? panel.audioSession.chapterIndex : -1
+                            onChapterChanged: cancelScrub()
+                            onEnabledChanged: if (!enabled) cancelScrub()
+                            onVisibleChanged: if (!visible) cancelScrub()
+                            function cancelScrub() { scrubbing = false }
+                            function fraction(x) { return Math.max(0, Math.min(1, x / Math.max(1, width))) }
+                            function preview(x) {
+                                if (!scrubbing) return
+                                previewFraction = fraction(x)
+                                panel.audioScrubPreviewed(previewFraction)
+                            }
+                            function commit(f) {
+                                panel.audioScrubPreviewed(f)
+                                panel.audioScrubCommitted(f)
+                            }
+                            keyboardDecrease: function() { commit(Math.max(0, panel.chapterFraction - 5 / panel.chapterDuration)) }
+                            keyboardIncrease: function() { commit(Math.min(1, panel.chapterFraction + 5 / panel.chapterDuration)) }
+                            keyboardHome: function() { commit(0) }
+                            keyboardEnd: function() { commit(1) }
+                            onPressed: (mouse) => { scrubbing = true; preview(mouse.x) }
+                            onPositionChanged: (mouse) => preview(mouse.x)
+                            onReleased: (mouse) => {
+                                if (!scrubbing) return
+                                preview(mouse.x)
+                                var f = previewFraction
+                                cancelScrub()
+                                panel.audioScrubCommitted(f)
+                            }
+                            onCanceled: cancelScrub()
+                            Keys.onEscapePressed: (event) => { if (scrubbing) { cancelScrub(); event.accepted = true } else event.accepted = false }
+                            Rectangle { anchors.verticalCenter: parent.verticalCenter; width: parent.width; height: 3; radius: 1.5; color: Theme.track }
+                            Rectangle { anchors.verticalCenter: parent.verticalCenter; width: parent.width * (audioRail.scrubbing ? audioRail.previewFraction : panel.chapterFraction); height: 3; radius: 1.5; color: Theme.gold }
+                            Rectangle { anchors.verticalCenter: parent.verticalCenter; x: parent.width * (audioRail.scrubbing ? audioRail.previewFraction : panel.chapterFraction) - 5; width: 10; height: 10; radius: 5; color: Theme.gold }
+                        }
+                        Row {
+                            spacing: 10
+                            ReaderKeyboardArea {
+                                objectName: "audioPanelPrevChapter"
+                                width: 40; height: 40; cursorShape: Qt.PointingHandCursor
+                                enabled: panel.audioCurrentIndex > 0
+                                keyboardLabel: "Previous chapter"
+                                onClicked: panel.audioChapterPicked(panel.audioCurrentIndex - 1)
+                                AudioGlyph { anchors.centerIn: parent; width: 24; height: 24; kind: "prevChapter"; ink: Theme.ink }
+                            }
+                            ReaderKeyboardArea {
+                                objectName: "audioPanelNextChapter"
+                                width: 40; height: 40; cursorShape: Qt.PointingHandCursor
+                                enabled: panel.audioCurrentIndex >= 0 && panel.audioCurrentIndex < panel.audioPlaylist.length - 1
+                                keyboardLabel: "Next chapter"
+                                onClicked: panel.audioChapterPicked(panel.audioCurrentIndex + 1)
+                                AudioGlyph { anchors.centerIn: parent; width: 24; height: 24; kind: "nextChapter"; ink: Theme.ink }
+                            }
+                            ReaderKeyboardArea {
+                                objectName: "audioPanelSpeed"
+                                width: 70; height: 40; cursorShape: Qt.PointingHandCursor
+                                keyboardLabel: "Playback speed " + panel.audioSpeedLabel
+                                onClicked: panel.audioSpeedCycled()
+                                Text { objectName: "audioPanelSpeedLabel"; anchors.centerIn: parent; text: panel.audioSpeedLabel; color: Theme.ink; font.family: Theme.ui; font.pixelSize: 13 }
+                            }
+                        }
+                        Row {
+                            spacing: 12
+                            ReaderKeyboardArea {
+                                objectName: "audioPanelMute"
+                                width: 40; height: 36; cursorShape: Qt.PointingHandCursor
+                                keyboardLabel: panel.audioMuted ? "Unmute audiobook" : "Mute audiobook"
+                                onClicked: panel.audioMuteToggled()
+                                AudioGlyph { anchors.centerIn: parent; width: 24; height: 24; kind: panel.audioMuted ? "mute" : "volume"; ink: Theme.ink }
+                            }
+                            ReaderKeyboardArea {
+                                objectName: "audioPanelVolume"
+                                width: 170; height: 36; cursorShape: Qt.PointingHandCursor
+                                keyboardLabel: "Audiobook volume"; keyboardRole: Accessible.Slider
+                                keyboardDecrease: function() { panel.audioVolumeRequested(Math.max(0, panel.audioVolume - .05)) }
+                                keyboardIncrease: function() { panel.audioVolumeRequested(Math.min(1, panel.audioVolume + .05)) }
+                                keyboardHome: function() { panel.audioVolumeRequested(0) }
+                                keyboardEnd: function() { panel.audioVolumeRequested(1) }
+                                function apply(x) { panel.audioVolumeRequested(Math.max(0, Math.min(1, x / width))) }
+                                onPressed: (mouse) => apply(mouse.x)
+                                onPositionChanged: (mouse) => { if (pressed) apply(mouse.x) }
+                                Rectangle { anchors.verticalCenter: parent.verticalCenter; width: parent.width; height: 3; radius: 1.5; color: Theme.track }
+                                Rectangle { anchors.verticalCenter: parent.verticalCenter; width: parent.width * (panel.audioMuted ? 0 : panel.audioVolume); height: 3; radius: 1.5; color: Theme.gold }
                             }
                         }
                     }
@@ -1135,9 +1319,7 @@ ReaderOverlay {
                                     id: plNum
                                     anchors.right: parent.right; anchors.rightMargin: 8
                                     anchors.verticalCenter: parent.verticalCenter
-                                    // the playing row shows a state glyph; others their track number
-                                    text: plRow.current ? (panel.audioPlaying ? "playing" : "paused")
-                                                        : (plRow.index + 1)
+                                    text: plRow.current ? (panel.audioPlaying ? "playing" : "paused") : ""
                                     font.family: Theme.ui
                                     font.pixelSize: 11
                                     color: plRow.current ? Theme.gold : Theme.inkGhost
@@ -1148,6 +1330,7 @@ ReaderOverlay {
                                     keyboardTabStop: false
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
+                                    objectName: "audioPlaylistChapter_" + plRow.index
                                     onClicked: { playlistRegion.keyboardIndex = plRow.index; panel.audioChapterPicked(plRow.index) }
                                 }
                             }
@@ -1252,6 +1435,67 @@ ReaderOverlay {
             hoverEnabled: true
             cursorShape: raStep.enabledStep ? Qt.PointingHandCursor : Qt.ArrowCursor
             onClicked: if (raStep.enabledStep) raStep.stepped()
+        }
+    }
+
+    Component {
+        id: narrationChoices
+        Column {
+            objectName: "readerNarrationChoices"
+            spacing: 7
+            Text {
+                text: panel.audioAttached || panel.audioDetached ? qsTr("Attach another") : qsTr("Which narration?")
+                color: Theme.inkTitle
+                font.family: Theme.ui
+                font.pixelSize: 15
+                font.weight: Font.DemiBold
+            }
+            Repeater {
+                model: panel.audioRecordings
+                AudioAction {
+                    required property var modelData
+                    required property int index
+                    objectName: "readerAudioRecording_" + index
+                    width: parent.width
+                    enabled: modelData.recordingKey !== panel.audioRecordingKey
+                    readonly property string credits: (modelData.narrators || []).join(" & ")
+                    label: (modelData.partNumber ? qsTr("Part %1").arg(modelData.partNumber) : qsTr("Recording %1").arg(index + 1))
+                           + (credits ? " · " + credits : "")
+                           + (modelData.format ? " · " + modelData.format : "")
+                    onPicked: panel.audioRecordingPicked(modelData.recordingKey)
+                }
+            }
+        }
+    }
+
+    component AudioAction: Rectangle {
+        id: audioAction
+        property string label: ""
+        signal picked()
+        implicitHeight: Math.max(36, actionText.implicitHeight + 14)
+        radius: 8
+        color: hit.containsMouse ? Theme.rowHover : Theme.cardBg
+        border.color: Theme.barBorder
+        opacity: enabled ? 1 : 0.45
+        Text {
+            id: actionText
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.margins: 10
+            anchors.verticalCenter: parent.verticalCenter
+            text: audioAction.label
+            color: Theme.inkTitle
+            font.family: Theme.ui
+            font.pixelSize: 12
+            wrapMode: Text.WordWrap
+        }
+        ReaderKeyboardArea {
+            id: hit
+            anchors.fill: parent
+            hoverEnabled: true
+            keyboardLabel: audioAction.label
+            cursorShape: Qt.PointingHandCursor
+            onClicked: audioAction.picked()
         }
     }
 

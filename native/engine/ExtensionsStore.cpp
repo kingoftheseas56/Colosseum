@@ -32,6 +32,8 @@ constexpr int kSlimVersion = 2;
 constexpr int kMaxExtraOptions = 1000;
 constexpr int kMaxProfileTheatreRows = 64;
 constexpr int kMaxProfileTransportUrlLength = 2048;
+constexpr auto kRetiredLibriVoxId = "colosseum.well.librivox";
+constexpr auto kRetiredLibriVoxUrl = "colosseum://well/librivox";
 
 QVariantMap optionalNativeSourceManifest(const QString &url)
 {
@@ -116,10 +118,17 @@ ExtensionsStore::ExtensionsStore(QNetworkAccessManager* nam, QObject* parent)
     : QObject(parent), m_nam(nam)
 {
     loadIndex();
+    const auto retired = m_items.removeIf([](const QVariantMap &row) {
+        return row.value(QStringLiteral("id")).toString() == QLatin1String(kRetiredLibriVoxId)
+            || row.value(QStringLiteral("transportUrl")).toString()
+                   .compare(QLatin1String(kRetiredLibriVoxUrl), Qt::CaseInsensitive) == 0;
+    });
     if (m_items.isEmpty())
         seed();
     else if (m_defaultsVersion < kHouseDefaultsVersion)
         migrateDefaults();
+    else if (retired)
+        saveIndex();
 
     m_globalItems = m_items;
     // A migrated index must never re-publish its old Theatre rows while the
@@ -1279,6 +1288,10 @@ void ExtensionsStore::fetchManifest(const QString& transportUrl, bool thenInstal
             fail(QStringLiteral("The manifest is missing its id or name."));
             return;
         }
+        if (slim.value(QStringLiteral("id")).toString() == QLatin1String(kRetiredLibriVoxId)) {
+            fail(tr("This extension is no longer available."));
+            return;
+        }
         // Follows the global Explicit Content preference (ContentPreferences.showExplicit,
         // bound in Main.qml) rather than refusing outright: with the setting on, the user
         // installs whatever they point at. The message names the switch so the refusal is
@@ -1299,6 +1312,10 @@ void ExtensionsStore::fetchManifest(const QString& transportUrl, bool thenInstal
 void ExtensionsStore::preview(const QString& rawUrl)
 {
     const QString url = normalizeUrl(rawUrl);
+    if (url.compare(QLatin1String(kRetiredLibriVoxUrl), Qt::CaseInsensitive) == 0) {
+        emit previewFailed(url, tr("This extension is no longer available."));
+        return;
+    }
     if (url.isEmpty()) {
         emit previewFailed(rawUrl, QStringLiteral("Paste an extension address first."));
         return;
@@ -1314,6 +1331,10 @@ void ExtensionsStore::preview(const QString& rawUrl)
 void ExtensionsStore::install(const QString& rawUrl)
 {
     const QString url = normalizeUrl(rawUrl);
+    if (url.compare(QLatin1String(kRetiredLibriVoxUrl), Qt::CaseInsensitive) == 0) {
+        emit installFailed(url, tr("This extension is no longer available."));
+        return;
+    }
     if (url.isEmpty()) {
         emit installFailed(rawUrl, QStringLiteral("Paste an extension address first."));
         return;

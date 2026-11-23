@@ -59,6 +59,8 @@ eq(action({ vaultActive: true }), 'vault', 'Vault owns Escape when open');
 eq(action({ vaultActive: true, downloadsActive: true }), 'vault', 'Vault wins a broken same-z overlap');
 eq(action({ downloadsActive: true, bookActive: true }), 'downloads', 'taskbar full-page beats detail page');
 eq(action({ bookActive: true, theatreSeriesActive: true }), 'book', 'book detail is highest z53 sibling');
+eq(action({ audiobookActive: true, worldOpen: true }), 'audiobook', 'audiobook Back returns within Biblio');
+eq(action({ audiobookActive: true, downloadsActive: true }), 'downloads', 'taskbar page beats audiobook detail');
 eq(action({ theatreSeriesActive: true, westernActive: true }), 'theatreSeries', 'Theatre detail beats earlier z53 western page');
 eq(action({ westernActive: true, seriesActive: true }), 'western', 'western page beats earlier z53 manga page');
 eq(action({ theatreSeriesActive: true, onePieceArcActive: true, universeActive: true }), 'theatreSeries', 'media detail beats One Piece arc page');
@@ -149,7 +151,8 @@ function dockRouteFixture() {
         'openDockPick', 'handleEscape', 'openSeries', 'closeSeries', 'openComicSeries',
         '_openComicSeriesReady', 'closeComicSeries', 'openTheatreSeries', 'closeTheatreSeries',
         'openBook', 'closeBook', 'openRosterUniverse', 'openArchivedUniverse', 'openTribute', 'openUniverse', 'closeUniverse',
-        'requestUniverseEscape', 'routeDownloadedAudiobook', 'openBookSession', 'closeBookReaderSession',
+        'requestUniverseEscape', 'routeDownloadedAudiobook', 'resolvedDownloadPath', 'openBookSession',
+        'closeBookReaderSession',
         'requestBookReaderEscape', 'closeSession', 'cancelCatalogueRoute', 'returnDockComicDetail',
         'backFromMangaReader', 'closeComicReader', 'snapshotDockPickDetail', 'prepareDockPickDetail',
         'attachDockPickDetail', 'takeDockPickDetail', 'restoreDockPickDetail', 'canReturnToDockPick',

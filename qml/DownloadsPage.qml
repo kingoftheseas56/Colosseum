@@ -34,6 +34,7 @@ Item {
     signal redownloadRequested(var item)     // file absent here → fetch the same logical item
     signal openWorldRequested(string world)  // empty-lane CTA → host opens that world
     signal playArrivingRequested(var job)    // live theatre job → host streams the same url
+    signal listenAudiobookRequested(var item)
     signal openAudiobookRequested(var item)
 
     Theme { id: theme }
@@ -290,12 +291,8 @@ Item {
     // countdown on its "Now arriving" row, cleared on the next progress/finish/fail.
     property var coolMap: ({})              // chapterId -> resume-at epoch ms (absent = not cooling)
 
-    // ---- audiobooks (A2 lane) ----
-    // The audiobook engine (`Audiobooks`) keys by pairKey ("title|author") and enumerates only
-    // COMPLETED sets (downloadedAudiobooks). Active jobs are mirrored HERE from its progress
-    // signals — a download streams in chunks, so an already-running job repaints within a beat
-    // of this page opening. (This closes the 2026-07-18 gap: audiobook downloads ran invisible.)
-    property var abActive: ({})        // pairKey -> { state: "resolving"|"downloading"|"failed", pct }
+    // The downloader owns recording identities and snapshots for both active and completed jobs.
+    property var abActive: ({})
     property var abDone: []            // downloadedAudiobooks() snapshot: {id,title,author,bytes,addedAt,missing,fileCount}
     function abRefresh() {
         abDone = audiobooksApi ? audiobooksApi.downloadedAudiobooks() : [];
@@ -324,11 +321,13 @@ Item {
     Connections {
         target: root.audiobooksApi
         ignoreUnknownSignals: true
-        function onResolving(key)          { var m = Object.assign({}, root.abActive); var old = m[key] || ({}); m[key] = { state: "resolving", title: old.title || "", author: old.author || "", error: "", received: 0, total: 0, pct: 0 }; root.abActive = m }
-        function onProgress(key, rcv, tot) { var m = Object.assign({}, root.abActive); var old = m[key] || ({}); m[key] = { state: "downloading", title: old.title || "", author: old.author || "", error: "", received: rcv, total: tot, pct: tot > 0 ? rcv / tot : 0 }; root.abActive = m }
-        function onFinished(key, path)     { var m = root.abActive; delete m[key]; root.abActive = m; root.abRefresh() }
-        function onFailed(key, why)        { var m = Object.assign({}, root.abActive); var old = m[key] || ({}); m[key] = { state: "failed", title: old.title || "", author: old.author || "", error: why || "download failed", received: old.received || 0, total: old.total || 0, pct: old.pct || 0 }; root.abActive = m }
-        function onFailuresChanged()       { root.abRefresh() }
+        function onActiveCountChanged() { root.abRefresh() }
+        function onResolving(key) { root.abRefresh() }
+        function onProgress(key, received, total) { root.abRefresh() }
+        function onFinished(key, path) { root.abRefresh() }
+        function onRemoved(key) { root.abRefresh() }
+        function onFailed(key, reason) { root.abRefresh() }
+        function onFailuresChanged() { root.abRefresh() }
     }
     property double nowTick: Date.now()     // bumped 1/s while anything cools, drives the countdown
     readonly property bool anyCooling: {
@@ -1834,10 +1833,6 @@ Item {
                                             if (b) parts.push(b);
                                             var w = root.fmtWhen(abDoneRow.modelData.addedAt || 0);
                                             if (w) parts.push(w);
-                                            if (abDoneRow.modelData.bookPath)
-                                                parts.push("ready to listen");
-                                            else
-                                                parts.push("the paired book is not available locally");
                                             return parts.join(" · ");
                                         }
                                         color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
@@ -1849,6 +1844,20 @@ Item {
                                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                                     spacing: 20
                                     Text {
+                                        visible: !abDoneRow.modelData.missing && !!abDoneRow.modelData.recordingKey
+                                        text: qsTr("Listen")
+                                        color: abListenInput.interactionActive ? "#ffd968" : theme.gold
+                                        font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                                        KeyboardAction {
+                                            id: abListenInput
+                                            objectName: "downloadsListenAction_" + abDoneRow.modelData.id
+                                            anchors.fill: parent
+                                            accessibleName: qsTr("Listen")
+                                            showFocusFrame: false
+                                            onTriggered: root.listenAudiobookRequested(abDoneRow.modelData)
+                                        }
+                                    }
+                                    Text {
                                         visible: !abDoneRow.modelData.missing
                                                  && String(abDoneRow.modelData.bookPath || "").length > 0
                                         text: "Open book"
@@ -1856,6 +1865,7 @@ Item {
                                         font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
                                         KeyboardAction {
                                             id: abOpenInput
+                                            objectName: "downloadsOpenAudiobookBookAction_" + abDoneRow.modelData.id
                                             anchors.fill: parent
                                             accessibleName: "Open book"
                                             showFocusFrame: false

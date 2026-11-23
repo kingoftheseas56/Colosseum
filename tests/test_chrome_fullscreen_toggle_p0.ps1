@@ -22,7 +22,7 @@ $pages = @(
     "TheatreSeries", "DownloadsPage", "GalaxyUniversePage",
     "SagaUniversePage",
     "BiblioBook",   # ExtensionsPage retired 2026-09-28; the Store bar is Back-only by design
-    "ContinueSeeAllPage", "SearchSurface", "BiblioSearch"
+    "ContinueSeeAllPage", "SearchSurface"
 )
 
 foreach ($p in $pages) {
@@ -33,13 +33,14 @@ foreach ($p in $pages) {
 
 # The three former gap pages must now draw the standard cluster (they had NO
 # window buttons at all — declared signals, dead air).
-foreach ($p in @("ContinueSeeAllPage", "SearchSurface", "BiblioSearch")) {
+foreach ($p in @("ContinueSeeAllPage", "SearchSurface")) {
     $qml = Get-Content (Join-Path $root "qml/$p.qml") -Raw
     Assert-Contains $qml 'minimize.svg' "$p must draw the minimize button."
     Assert-Contains $qml 'power.svg' "$p must draw the power button."
     Assert-Contains $qml '.minimizeRequested()' "$p must emit minimizeRequested from its button."
     Assert-Contains $qml '.closeRequested()' "$p must emit closeRequested from its button."
 }
+Assert-Contains (Get-Content (Join-Path $root "qml/BiblioSearch.qml") -Raw) 'SearchSurface {' "Biblio search must inherit the shared window chrome."
 
 # WallpaperSearch is a full-bleed overlay that covers the shell top bar, so it carries its
 # own cluster: minimize + fullscreen-toggle + power (power = quitRequested, since its "x"

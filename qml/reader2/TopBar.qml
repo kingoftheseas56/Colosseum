@@ -21,6 +21,7 @@ ReaderOverlay {
     property string chapterLabel: ""
     property bool shown: false           // reveal drives this; controls interactivity
     property bool shellWindowed: false
+    property bool audiobookAvailable: false
 
     // ---- signals up to ReaderChrome / ReaderShell ----
     signal backRequested()
@@ -28,6 +29,7 @@ ReaderOverlay {
     signal contentsRequested()
     signal appearanceRequested()
     signal bookmarkRequested()
+    signal audiobookRequested()
     signal minimizeRequested()   // window-verb parity with the player/comic readers (2026-07-18)
     signal fullscreenRequested()
     signal closeRequested()
@@ -36,6 +38,7 @@ ReaderOverlay {
     function focusSearch() { searchBtn.focusKeyboard() }
     function focusContents() { contentsBtn.focusKeyboard() }
     function focusAppearance() { appearanceBtn.focusKeyboard() }
+    function focusAudiobook() { audioBtn.focusKeyboard() }
 
     enabled: shown                        // when asleep, clicks fall through to the turn/tap zones
 
@@ -67,6 +70,7 @@ ReaderOverlay {
         property alias source: img.source
         property int box: 19
         property string label: "Action"
+        property real idleOpacity: 0.62
         signal clicked()
         implicitWidth: root.compact ? Math.max(44, box + 10) : box + 10
         implicitHeight: root.compact ? Math.max(44, box + 10) : box + 10
@@ -80,7 +84,7 @@ ReaderOverlay {
             sourceSize.height: ib.box * 2
             fillMode: Image.PreserveAspectFit
             smooth: true
-            opacity: ma.containsMouse ? 1.0 : 0.62      // ink → inkDim
+            opacity: ma.containsMouse && ib.enabled ? 1.0 : ib.idleOpacity
             Behavior on opacity { NumberAnimation { duration: 120 } }
         }
         ReaderKeyboardArea {
@@ -187,6 +191,17 @@ ReaderOverlay {
             label: "Search"; source: Qt.resolvedUrl("../../assets/icons/reader2/search.svg"); onClicked: root.searchRequested() }
         IconButton { id: contentsBtn; anchors.verticalCenter: parent.verticalCenter
             label: "Contents"; source: Qt.resolvedUrl("../../assets/icons/reader2/contents.svg"); onClicked: root.contentsRequested() }
+        IconButton {
+            id: audioBtn
+            objectName: "readerAudioButton"
+            anchors.verticalCenter: parent.verticalCenter
+            readonly property bool available: root.audiobookAvailable
+            enabled: available
+            idleOpacity: available ? 1 : 0.24
+            label: qsTr("Audio")
+            source: Qt.resolvedUrl("../../assets/icons/reader2/headphones.svg")
+            onClicked: root.audiobookRequested()
+        }
         IconButton { id: appearanceBtn; anchors.verticalCenter: parent.verticalCenter
             label: "Appearance"; source: Qt.resolvedUrl("../../assets/icons/reader2/appearance.svg"); onClicked: root.appearanceRequested() }
         IconButton { anchors.verticalCenter: parent.verticalCenter

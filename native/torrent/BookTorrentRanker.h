@@ -22,6 +22,14 @@ public:
     // title signals for the one source that returns no category. Audiobooks and
     // video releases are dropped so an audiobook never masquerades as an epub.
     static bool    isReadableBook(const TorrentResult& r);
+    // The mirror of isReadableBook for audiobooks: audio by the source's category or by
+    // strong title tokens (audiobook/unabridged/mp3/m4b/...). A video title never counts.
+    static bool    isAudiobook(const TorrentResult& r);
+    // "m4b"/"mp3"/"m4a"/"aax"/"flac"/"ogg" when the title says so, else empty.
+    static QString guessAudioFormat(const QString& title);
+    // Multi-book pack ("Series 1-4", "Books 1-3", "Collection", "Box Set"); a single
+    // book split in parts ("Part 1 of 2") is NOT a bundle.
+    static bool    looksLikeBundle(const QString& title);
     // exposed for tests
     static QString stripArticles(QString s);
     static int     matchTier(const QString& title, const QString& author, const QString& candidate);

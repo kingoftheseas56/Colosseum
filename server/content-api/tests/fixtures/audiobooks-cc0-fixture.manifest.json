@@ -1,0 +1,346 @@
+{
+  "cc0_sources": [
+    "people",
+    "recording_asins",
+    "recording_isbns",
+    "recording_narrators",
+    "recordings",
+    "series",
+    "series_works",
+    "work_authors",
+    "work_genres",
+    "works"
+  ],
+  "dramatized_signals": {
+    "link:graphicaudio": 0,
+    "narrator:full-cast": 1,
+    "publisher:graphicaudio": 1
+  },
+  "fixture": true,
+  "format": "colosseum-audiobooks-cc0-v2",
+  "narrator_picks": [
+    {
+      "english_recordings": 2,
+      "id": "scott-brick",
+      "name": "Scott Brick"
+    },
+    {
+      "english_recordings": 2,
+      "id": "simon-vance",
+      "name": "Simon Vance"
+    },
+    {
+      "english_recordings": 1,
+      "id": "robin-miles",
+      "name": "Robin Miles"
+    }
+  ],
+  "narrator_selection": {
+    "by": "Hemanth",
+    "date": "2026-11-17",
+    "type": "editorial"
+  },
+  "rights": [
+    "CC0-1.0"
+  ],
+  "schema_version": 2,
+  "shelf_count_as_of": "2026-11-16",
+  "shelf_counts": {
+    "dramatized": 1,
+    "narrator:robin-miles": 1,
+    "narrator:scott-brick": 2,
+    "narrator:simon-vance": 2,
+    "new-releases": 26
+  },
+  "source_sha256": "57c75df6db30b7f4d1e1018ce3e055886898c6177e5d323d260b3f7ed3ced2ad",
+  "source_snapshot_id": "data-v2026.11.16-82ea38c-30a9e1e",
+  "sqlite_bytes": 192512,
+  "sqlite_sha256": "0208a7871c6c348e37729ddf55618b08de72721fd5e78c76579cf48fe3b81213",
+  "tables": {
+    "genres_summary": {
+      "columns": {
+        "covers_json": [
+          "recordings.cover_url",
+          "recordings.release_date",
+          "work_genres.genre"
+        ],
+        "genre": [
+          "work_genres.genre"
+        ],
+        "recording_count": [
+          "work_genres.work_id",
+          "recordings.id"
+        ]
+      },
+      "licenses": [
+        "CC0-1.0"
+      ],
+      "rows": 10
+    },
+    "narrator_shelves": {
+      "columns": {
+        "english_recordings": [
+          "recording_narrators.recording_id",
+          "recordings.language",
+          "recordings.librivox_id"
+        ],
+        "name": [
+          "people.name"
+        ],
+        "person_id": [
+          "recording_narrators.person_id"
+        ],
+        "rank": [
+          "recording_narrators.person_id",
+          "recordings.language",
+          "recordings.librivox_id"
+        ]
+      },
+      "licenses": [
+        "CC0-1.0"
+      ],
+      "rows": 3
+    },
+    "people": {
+      "columns": {
+        "id": [
+          "people.id"
+        ],
+        "name": [
+          "people.name"
+        ]
+      },
+      "licenses": [
+        "CC0-1.0"
+      ],
+      "rows": 60
+    },
+    "recording_asins": {
+      "columns": {
+        "asin": [
+          "recording_asins.asin"
+        ],
+        "recording_id": [
+          "recording_asins.recording_id"
+        ],
+        "region": [
+          "recording_asins.region"
+        ],
+        "work_id": [
+          "recording_asins.work_id"
+        ]
+      },
+      "licenses": [
+        "CC0-1.0"
+      ],
+      "rows": 68
+    },
+    "recording_isbns": {
+      "columns": {
+        "isbn": [
+          "recording_isbns.isbn"
+        ],
+        "recording_id": [
+          "recording_isbns.recording_id"
+        ],
+        "work_id": [
+          "recording_isbns.work_id"
+        ]
+      },
+      "licenses": [
+        "CC0-1.0"
+      ],
+      "rows": 6
+    },
+    "recording_narrators": {
+      "columns": {
+        "ord": [
+          "recording_narrators.ord"
+        ],
+        "person_id": [
+          "recording_narrators.person_id"
+        ],
+        "recording_id": [
+          "recording_narrators.recording_id"
+        ],
+        "work_id": [
+          "recording_narrators.work_id"
+        ]
+      },
+      "licenses": [
+        "CC0-1.0"
+      ],
+      "rows": 45
+    },
+    "recordings": {
+      "columns": {
+        "abridgement": [
+          "recordings.abridged"
+        ],
+        "added_at": [
+          "recordings.added_at"
+        ],
+        "asin": [
+          "recording_asins.asin"
+        ],
+        "cover_url": [
+          "recordings.cover_url"
+        ],
+        "dramatized": [
+          "recordings.publisher",
+          "recordings.link_graphicaudio",
+          "recording_narrators.person_id",
+          "people.name"
+        ],
+        "dramatized_signals": [
+          "recordings.publisher",
+          "recordings.link_graphicaudio",
+          "recording_narrators.person_id",
+          "people.name"
+        ],
+        "id": [
+          "recordings.id"
+        ],
+        "isbn": [
+          "recording_isbns.isbn"
+        ],
+        "language": [
+          "recordings.language"
+        ],
+        "librivox_id": [
+          "recordings.librivox_id"
+        ],
+        "publisher": [
+          "recordings.publisher"
+        ],
+        "release_date": [
+          "recordings.release_date"
+        ],
+        "release_year": [
+          "recordings.release_date"
+        ],
+        "runtime_min": [
+          "recordings.runtime_min"
+        ],
+        "work_id": [
+          "recordings.work_id"
+        ]
+      },
+      "licenses": [
+        "CC0-1.0"
+      ],
+      "rows": 33
+    },
+    "search_fts": {
+      "columns": {
+        "id": [
+          "works.id",
+          "people.id"
+        ],
+        "kind": [
+          "works.id",
+          "people.id"
+        ],
+        "people": [
+          "people.name"
+        ],
+        "title": [
+          "works.title",
+          "people.name"
+        ]
+      },
+      "licenses": [
+        "CC0-1.0"
+      ],
+      "rows": 90
+    },
+    "series": {
+      "columns": {
+        "id": [
+          "series.id"
+        ],
+        "name": [
+          "series.name"
+        ]
+      },
+      "licenses": [
+        "CC0-1.0"
+      ],
+      "rows": 12
+    },
+    "work_authors": {
+      "columns": {
+        "ord": [
+          "work_authors.ord"
+        ],
+        "person_id": [
+          "work_authors.person_id"
+        ],
+        "work_id": [
+          "work_authors.work_id"
+        ]
+      },
+      "licenses": [
+        "CC0-1.0"
+      ],
+      "rows": 34
+    },
+    "work_genres": {
+      "columns": {
+        "genre": [
+          "work_genres.genre"
+        ],
+        "work_id": [
+          "work_genres.work_id"
+        ]
+      },
+      "licenses": [
+        "CC0-1.0"
+      ],
+      "rows": 67
+    },
+    "work_series": {
+      "columns": {
+        "number_text": [
+          "series_works.position"
+        ],
+        "position_sort": [
+          "series_works.position"
+        ],
+        "series_id": [
+          "series_works.series_id"
+        ],
+        "work_id": [
+          "series_works.work_id"
+        ]
+      },
+      "licenses": [
+        "CC0-1.0"
+      ],
+      "rows": 13
+    },
+    "works": {
+      "columns": {
+        "first_year": [
+          "works.first_published"
+        ],
+        "id": [
+          "works.id"
+        ],
+        "original_language": [
+          "works.language"
+        ],
+        "sort_title": [
+          "works.title"
+        ],
+        "title": [
+          "works.title"
+        ]
+      },
+      "licenses": [
+        "CC0-1.0"
+      ],
+      "rows": 30
+    }
+  }
+}

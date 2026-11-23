@@ -102,11 +102,12 @@ Item {
         var tabBar = harness.findByObjectName(world, "biblioTabBar")
         ok(tabBar !== null, "the tab bar is mounted (objectName biblioTabBar)")
         if (tabBar) {
-            ok(tabBar.tabModel.length === 3, "the tab bar shows exactly three tabs, got " + tabBar.tabModel.length)
+            ok(tabBar.tabModel.length === 4, "the tab bar shows exactly four tabs, got " + tabBar.tabModel.length)
             ok(tabBar.tabModel[0] && tabBar.tabModel[0].key === "discover"
                && tabBar.tabModel[1] && tabBar.tabModel[1].key === "explore"
-               && tabBar.tabModel[2] && tabBar.tabModel[2].key === "library",
-               "tab order is Discover, Explore, Library, got " + JSON.stringify(tabBar.tabModel))
+               && tabBar.tabModel[2] && tabBar.tabModel[2].key === "audiobooks"
+               && tabBar.tabModel[3] && tabBar.tabModel[3].key === "library",
+               "tab order is Discover, Explore, Audiobooks, Library, got " + JSON.stringify(tabBar.tabModel))
         }
 
         // ═══════════════════════ the shared widgets ═══════════════════════

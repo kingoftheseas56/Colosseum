@@ -15,6 +15,7 @@
 
 
 add_subdirectory(home_servers)
+add_subdirectory(audiobook_torrent_transport)
 
 if(WIN32)
     add_subdirectory(feria_host_probe)
@@ -54,12 +55,28 @@ add_test(NAME colosseum.feria_availability_test COMMAND feria_availability_test)
 
 find_program(COLOSSEUM_FERIA_TEST_NODE NAMES node)
 if(COLOSSEUM_FERIA_TEST_NODE)
+    add_test(NAME colosseum.audiobook_recording_session
+        COMMAND "${COLOSSEUM_FERIA_TEST_NODE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/audiobook_torrent_transport/session_recording_test.mjs")
+    add_test(NAME colosseum.audiobook_player_session
+        COMMAND "${COLOSSEUM_FERIA_TEST_NODE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/audiobook_torrent_transport/session_player_test.mjs")
     foreach(test_name feria_playback feria_resume feria_resume_repairs feria_connectors feria_youtube_music)
         add_test(NAME colosseum.${test_name}_test
             COMMAND "${COLOSSEUM_FERIA_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/${test_name}_test.mjs")
     endforeach()
     add_test(NAME colosseum.feria_app_mode_test
         COMMAND "${COLOSSEUM_FERIA_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/feria_app_mode_test.mjs")
+    # ABB uses QML library JavaScript exercised through deterministic Node fixtures.
+    # Run from the source root so the existing fixture-relative paths stay valid.
+    foreach(abb_test abb_parse abb_adapter)
+        add_test(NAME colosseum.${abb_test}_test
+            COMMAND "${COLOSSEUM_FERIA_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/${abb_test}_test.mjs")
+        set_tests_properties(colosseum.${abb_test}_test PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
+            LABELS "unit;audiobooks;abb"
+            TIMEOUT 30)
+    endforeach()
 endif()
 
 # One place to grow the pilot set. Each entry: target name + labels.
@@ -113,6 +130,7 @@ colosseum_register_harness(reader2_autoattach_harness    unit;reader2)
 colosseum_register_harness(tankoyomi_script_provider_transport_harness unit;tankoyomi;network)
 colosseum_register_harness(tankoyomi_worker_transport_harness unit;tankoyomi;network)
 colosseum_register_harness(tankorent_worker_transport_harness unit;torrent;network)
+colosseum_register_harness(audiobook_torrents_harness unit;torrent)
 colosseum_register_harness(manga_nyaa_worker_harness unit;torrent;network)
 colosseum_register_harness(tankoyomi_page_security_harness unit;tankoyomi;network)
 colosseum_register_harness(tankoyomi_provider_attempt_timeout_harness unit;tankoyomi;network)
@@ -1949,6 +1967,10 @@ set_tests_properties(colosseum.qml.vault_offline_restore PROPERTIES
     TIMEOUT 120)
 colosseum_add_tracker_sync_center_sources(colosseum_qml_tests)
 target_sources(colosseum_qml_tests PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}/engine/AudiobookCatalog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/AudiobookCatalog.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.h"
     "${COLOSSEUM_NATIVE_DIR}/stream/SmartPlayBridge.cpp"
     "${COLOSSEUM_NATIVE_DIR}/stream/SmartPlayBridge.h")
 target_link_libraries(colosseum_qml_tests PRIVATE colosseum_stream_picker)
@@ -1956,7 +1978,7 @@ target_compile_definitions(colosseum_qml_tests PRIVATE SMART_PLAY_PLAYER_SOURCE=
 target_include_directories(colosseum_qml_tests PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(colosseum_qml_tests
-    PRIVATE Qt6::Core Qt6::QuickTest Qt6::Qml Qt6::Quick Qt6::Gui)
+    PRIVATE Qt6::Core Qt6::QuickTest Qt6::Qml Qt6::Quick Qt6::Gui Qt6::Sql Qt6::Concurrent)
 set_target_properties(colosseum_qml_tests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET colosseum_qml_tests POST_BUILD
@@ -1972,6 +1994,8 @@ add_custom_command(TARGET colosseum_qml_tests POST_BUILD
             "$<TARGET_FILE:Qt6::Quick>"
             "$<TARGET_FILE:Qt6::QuickTest>"
             "$<TARGET_FILE:Qt6::Test>"
+            "$<TARGET_FILE:Qt6::Sql>"
+            "$<TARGET_FILE:Qt6::Concurrent>"
             "${CMAKE_CURRENT_BINARY_DIR}/..")
 if(WIN32)
 add_custom_command(TARGET colosseum_qml_tests POST_BUILD
@@ -1994,6 +2018,13 @@ set_tests_properties(colosseum.qml.manga_live_reading PROPERTIES
     LABELS "unit;qml;manga;comicreader"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QPA_PLATFORM=offscreen;QT_QUICK_CONTROLS_STYLE=Basic"
     TIMEOUT 120)
+
+add_test(NAME colosseum.qml.audiobook_flow
+    COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_audiobook_flow.qml")
+set_tests_properties(colosseum.qml.audiobook_flow PROPERTIES
+    LABELS "unit;qml;audiobook"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_QUICK_CONTROLS_STYLE=Basic;QT_PLUGIN_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../plugins;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
+    TIMEOUT 300)
 
 foreach(arc74_suite IN ITEMS continue_tile continue_surfaces restore_integrity strip_restore)
     if(arc74_suite STREQUAL "restore_integrity")
@@ -2069,6 +2100,54 @@ foreach(vinyl_suite IN ITEMS
             TIMEOUT 120)
     endif()
 endforeach()
+
+# Audiobook player Task 2: both bar sizes against the shared session contract.
+add_test(NAME colosseum.qml.audiobook_control_bar
+    COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_audiobook_control_bar.qml")
+set_tests_properties(colosseum.qml.audiobook_control_bar PROPERTIES
+    LABELS "unit;qml;audiobook;regression"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 120)
+
+# Audiobook player Task 3: reader compact host and Audio-tab chapter controls.
+add_test(NAME colosseum.qml.reader_audiobook_bar
+    COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_reader_audiobook_bar.qml")
+set_tests_properties(colosseum.qml.reader_audiobook_bar PROPERTIES
+    LABELS "unit;qml;audiobook;reader;regression"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 120)
+
+# Audiobooks 1.4.0 slice E: the audio-only listening page, against a stub session.
+add_test(NAME colosseum.qml.audiobook_listen_page
+    COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_audiobook_listen_page.qml")
+set_tests_properties(colosseum.qml.audiobook_listen_page PROPERTIES
+    LABELS "unit;qml;audiobook;regression"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 120)
+
+# Audiobooks 1.4.0: the Biblio Audiobooks tab (Discover rows, Your Library), against fakes.
+add_test(NAME colosseum.qml.biblio_audiobooks_tab
+    COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_biblio_audiobooks_tab.qml")
+set_tests_properties(colosseum.qml.biblio_audiobooks_tab PROPERTIES
+    LABELS "unit;qml;audiobook;biblio;regression"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 120)
+
+# Audiobook tile attribution: both shared gallery wrappers, against audiobook/movie cards.
+add_test(NAME colosseum.qml.catalogue_poster_attribution
+    COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_catalogue_poster_attribution.qml")
+set_tests_properties(colosseum.qml.catalogue_poster_attribution PROPERTIES
+    LABELS "unit;qml;audiobook;catalogue;regression"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 120)
+
+# Audiobooks 1.4.0 slice F: the audiobook book page (recordings as editions), against fixtures.
+add_test(NAME colosseum.qml.audiobook_book_page
+    COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_audiobook_book_page.qml")
+set_tests_properties(colosseum.qml.audiobook_book_page PROPERTIES
+    LABELS "unit;qml;audiobook;regression"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 120)
 
 # These discovery regressions cover components shared across worlds.
 set_tests_properties(colosseum.qml.discover_picker colosseum.qml.discover_sidebar PROPERTIES

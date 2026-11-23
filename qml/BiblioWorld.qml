@@ -40,6 +40,10 @@ WorldPage {
 
     property var featuredRows: Catalog.biblioFeatured
     signal collectionOpenRequested(var entry)
+    // Audiobooks tab doors (the host wires the audiobook page, genre and see-all pages).
+    signal audiobookRequested(var item)
+    signal audiobookGenreRequested(string genre)
+    signal audiobookShelfRequested(string key)
 
     // ── Featured carousel hydration: native Popular once BiblioCatalog is ready, the static
     //    Catalog.biblioFeatured fallback until then. loadBiblio() is NOT called here anymore —
@@ -123,7 +127,7 @@ WorldPage {
         title: "Continue Reading"
         // Do not hydrate the Progress-backed row while this retained world is hidden. The live
         // binding re-evaluates on activation and keeps the existing Continue signal wiring.
-        items: biblio.lifecycleActive
+        items: biblio.lifecycleActive && typeof Progress !== "undefined"
                ? (Progress.revision, CatalogueRecents.recent(Progress, "book", 12)) : []
         onResumeRequested: (item) => biblio.continueResumeRequested(item)
         onDetailRequested: (item) => biblio.continueDetailRequested(item)
@@ -149,6 +153,7 @@ WorldPage {
         currentTab: biblio.activeTab
         tabModel: [ { key: "discover", label: "Discover" },
                     { key: "explore", label: "Explore" },
+                    { key: "audiobooks", label: "Audiobooks" },
                     { key: "library", label: "Library" } ]
         onTabRequested: (tab) => biblio.activeTab = tab
     }
@@ -206,14 +211,20 @@ WorldPage {
         }
     }
 
-    // ── Library: the Theatre-parity retained saved-shelf page (Slice 2). One Collection entry
-    //    → one card; conservative Progress match enables Resume, else the card opens Details.
-    //    Retained (not Loader-swapped) so its search/filter/sort/scroll state survives tab
-    //    switches, exactly like Discover/Explore. Routing reuses the existing Main.qml doors:
-    //      resumeRequested  → continueResumeRequested  (Main.resumeContinue, biblio branch)
-    //      detailRequested  → collectionOpenRequested   (Main.openCollectionEntry, requires e.world)
-    //      removeRequested  → INLINE Collection.remove("biblio", id) (membership only — mirrors
-    //                         Theatre/Tankoban's inline remove; never Progress, never files). ──
+    // ── Audiobooks: retained discovery shelves and genres. ──
+    BiblioAudiobooksTab {
+        id: audiobooksTab
+        objectName: "biblioAudiobooksTab"
+        visible: biblio.activeTab === "audiobooks"
+        width: parent.width
+        height: visible ? implicitHeight : 0
+        active: biblio.lifecycleActive && visible
+        onAudiobookRequested: (item) => biblio.audiobookRequested(item)
+        onAudiobookGenreRequested: (genre) => biblio.audiobookGenreRequested(genre)
+        onAudiobookShelfRequested: (key) => biblio.audiobookShelfRequested(key)
+    }
+
+    // Retain the Library so its search, filters and scroll survive tab switches.
     BiblioLibraryPage {
         id: libraryPage
         objectName: "biblioLibraryPage"
@@ -224,6 +235,7 @@ WorldPage {
         height: visible ? libraryPage.flowHeight : 0
         onResumeRequested: (record) => biblio.continueResumeRequested(record)
         onDetailRequested: (entry) => biblio.collectionOpenRequested(entry)
+        onAudiobookRequested: (item) => biblio.audiobookRequested(item)
         onRemoveRequested: (entry) => {
             if (typeof Collection !== "undefined") Collection.remove("biblio", String(entry.id))
         }
@@ -235,4 +247,5 @@ WorldPage {
     readonly property Item _discoverPageForTest: discoverPage
     readonly property Item _explorePageForTest: explorePage
     readonly property Item _libraryPageForTest: libraryPage
+    readonly property Item _audiobooksTabForTest: audiobooksTab
 }

@@ -12,6 +12,7 @@ Item {
 
     // ── inputs ──
     property var sources: []                 // ordered candidate URLs from PosterSourcePolicy
+    property string placeholderTitle: ""
     property real radius: 12
     property int revealDuration: 280
     property bool hovered: false             // drives the cheap depth plates + inset edge accent
@@ -126,6 +127,14 @@ Item {
                                                          : Qt.point(1, _texAspect / _itemAspect)
         property point uvOffset: Qt.point((1 - uvScale.x) / 2, (1 - uvScale.y) / 2)
         fragmentShader: "shaders/roundedposter.frag.qsb"
+    }
+
+    Loader {
+        anchors.fill: parent
+        active: root.placeholderTitle.length > 0 && opacity > 0
+        visible: opacity > 0
+        opacity: 1 - art.opacity
+        sourceComponent: BiblioCoverPlaceholder { title: root.placeholderTitle; radius: root.radius }
     }
 
     // ── inset edge, painted ABOVE the masked art: 1px white 8% at rest, 2px soft gold on hover ──

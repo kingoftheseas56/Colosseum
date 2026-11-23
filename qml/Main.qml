@@ -31,6 +31,7 @@ import "Torrentio.js" as Torrentio
 import "EpisodeBrowser.js" as EpisodeBrowser
 import "DirectSourcePolicy.js" as DirectSourcePolicy
 import "BiblioApi.js" as BiblioApi
+import "AudiobookBridgeData.js" as AudiobookBridge
 import "CollectionBackfill.js" as CollectionBackfill
 import "WarmingQueue.js" as Warming
 import "ShellBackPolicy.js" as ShellBackPolicy
@@ -764,7 +765,8 @@ Window {
         if (typeof Audiobooks !== "undefined") {
             var abs = Audiobooks.downloadedAudiobooks() || []
             for (var m = 0; m < abs.length; m++)
-                addBook(CollectionBackfill.entryForBook(abs[m], abs[m].id))
+                if (!abs[m].bundle)
+                    addBook(CollectionBackfill.entryForBook(abs[m], abs[m].pairKey || abs[m].id))
         }
         Collection.add("_meta", { "id": "backfill_v3", "type": "flag", "title": "", "cover": "" })
     }
@@ -1054,6 +1056,7 @@ Window {
         comicSeriesLayer.active = false
         theatreSeriesLayer.active = false
         bookLayer.active = false
+        audiobookFlow.clear()
         bookReturnSnapshot = null
         searchLayer.active = false
         worldSearchLayer.active = false
@@ -1245,6 +1248,7 @@ Window {
     Connections {
         target: typeof NamedCollectionsProfileScope !== "undefined" ? NamedCollectionsProfileScope : null
         function onStoresAboutToChange() {
+            win.audiobookReaderArrival = null
             win.namedCollectionsProfileGeneration++
             win.clearDockPickReturns()
             win.cancelNamedCollectionsOpen()
@@ -1304,6 +1308,7 @@ Window {
             downloadsActive: downloadsLayer.active,
             profileActive: phoneShell.profileActive,
             bookActive: bookLayer.active,
+            audiobookActive: audiobookFlow.active,
             theatreSeriesActive: theatreSeriesLayer.active,
             westernActive: westernLayer.active,
             seriesActive: seriesLayer.active,
@@ -1448,6 +1453,7 @@ Window {
         case "downloads": win.closeDownloadsPage(); return
         case "profile": phoneShell.closeProfilePage(); return
         case "book": win.closeBook(); return
+        case "audiobook": audiobookFlow.back(); return
         case "theatreSeries":
             // Native Back (PF-03) closes the title's visible transient first (episode
             // context, Sources context/extension menu/sheet, episode jump, season menu);
@@ -2551,6 +2557,7 @@ Window {
         collectionsPanel.showing
         || theatreSeriesLayer.active
         || bookLayer.active
+        || audiobookFlow.active
         || seriesLayer.active
         || westernLayer.active
         || comicSeriesLayer.active
@@ -3251,6 +3258,18 @@ Window {
                 && bookReaderLayer.status !== Loader.Error)
             win.dockPickAudiobookReturn = { sessionId: sessionId, intent: pickerIntent }
     }
+    function routeDownloadListen(item) {
+        const key = item && item.recordingKey
+        const downloads = audiobookFlow.downloads
+        if (key && !item.missing && downloads && downloads.resolveRecordingKey(key) === key
+                && audiobookFlow.openListen(key, item)) {
+            if (worldStack.current !== "Biblio") win.openWorld("Biblio")
+            win.closeDownloadsPage()
+        } else if (downloadsLayer.item) {
+            downloadsLayer.item.abRefresh()
+            downloadsLayer.item.mutationMessage = qsTr("This downloaded recording could not be opened.")
+        }
+    }
 
     function beginSmartPickPlayer(title, backdrop, subType, subId, playbackContext) {
         setGuiStallContext("open", "Player")
@@ -3668,8 +3687,7 @@ Window {
         setGuiStallContext("navigate", currentSurface || "Home")
     }
 
-    // ---- search: a layer over the world. Biblio has its own rich surface; Tankoban + Theatre use the
-    //      generic SearchSurface fed by their own source (AniList / Cinemeta). ----
+    // ---- search: each world supplies its own catalogue to the shared search surface. ----
     function openSearch() {
         if (win.guardNamedCollectionsNavigation(function() { win.openSearch() })) return
  win.cancelCatalogueRoute();
@@ -3677,7 +3695,11 @@ Window {
         setGuiStallContext("open", "Search")
         var w = worldStack.current
         if (w === "Vinyl" && win.vinylWorld) { win.vinylWorld.enterDiscoverSearch(true, false); return }
-        if (w === "Biblio") { searchLayer.active = true; return }
+        if (w === "Biblio") {
+            searchLayer.audioFirst = !!audiobookFlow.world && audiobookFlow.world.activeTab === "audiobooks"
+            searchLayer.active = true
+            return
+        }
         if (w === "Tankoban") {
             worldSearchLayer.searchMode = "Tankoban"
             worldSearchLayer.placeholder = "Search manga…"
@@ -3980,6 +4002,48 @@ Window {
             "appType": "biblio", "contentKind": "book", "title": b.title || "Book",
             "target": { "path": path, "book": b, "id": path }
         })
+    }
+
+    property var audiobookReaderArrival: null
+    property int ebookDownloadRevision: 0
+
+    function takeAudiobookArrival(path) {
+        if (!audiobookReaderArrival || audiobookReaderArrival.path !== path) return ""
+        const key = audiobookReaderArrival.recordingKey
+        audiobookReaderArrival = null
+        return key
+    }
+
+    function openReadAlong(ebook, recordingKey) {
+        if (!ebook || !ebook.path || !recordingKey) return
+        const path = win.resolvedDownloadPath(ebook.path)
+        if (!path) return
+        const current = audiobookFlow.currentPage
+        const meta = Object.assign({}, ebook, { audiobookWorkId: current && current.route
+                ? current.route.workId || ebook.audiobookWorkId : ebook.audiobookWorkId })
+        audiobookReaderArrival = { path: path, recordingKey: recordingKey }
+        openBookSession(path, meta)
+        if (audiobookReaderArrival && bookReaderLayer.item && bookReaderLayer.bookPath === path) {
+            bookReaderLayer.bookMeta = meta
+            bookReaderLayer.item.bookMeta = meta
+            bookReaderLayer.item.openBook(path, takeAudiobookArrival(path))
+        }
+    }
+
+    function openAudiobookBridge(bridge, recordingKey, jump, fromReader) {
+        if (!bridge || (!bridge.workId && !recordingKey)) return
+        const origin = fromReader ? Sessions.activeId : ""
+        if (worldStack.current !== "Biblio") openWorld("Biblio")
+        const alreadyOpen = audiobookFlow.active
+        if (recordingKey) {
+            if (!audiobookFlow.openListen(recordingKey, {
+                    workId: bridge.workId, recordingId: bridge.recordingId, pairKey: bridge.pairKey
+                }, jump)) return
+        } else audiobookFlow.openWork(bridge.workId, bridge.recordingId)
+        if (fromReader) {
+            if (!alreadyOpen) audiobookFlow.returnSessionId = origin
+            minimizeBookReader()
+        }
     }
 
     // ── Vault launch pillar (execution plan Slice 8): hand the app a local file ──
@@ -4431,7 +4495,7 @@ Window {
             // THREW when the layer was already live — Continue resume into an open reader died).
             if (bookReaderLayer.active && bookReaderLayer.item) {
                 bookReaderLayer.item.bookMeta = bookReaderLayer.bookMeta
-                bookReaderLayer.item.openBook(t.path)
+                bookReaderLayer.item.openBook(t.path, win.takeAudiobookArrival(t.path))
                 if (bookReaderLayer.bookMeta.openAudio) {
                     var audioPanelGeneration = win.vinylShellGeneration
                     var audioPanelSessionId = rec.id
@@ -5249,7 +5313,10 @@ Window {
         anchors.fill: parent
         anchors.leftMargin: win.wideWorldNavigationLeftInset
         property string current: ""                      // "" = home; else the visible mode
-        onCurrentChanged: win.clearDockPickReturns()
+        onCurrentChanged: {
+            win.clearDockPickReturns()
+            if (current !== "Biblio") audiobookFlow.clear()
+        }
         Repeater {
             id: worldRepeater
             model: openModes
@@ -5400,6 +5467,7 @@ Window {
                     if (biblioGenreSignal) biblioGenreSignal.connect(win.openBiblioGenre)
                     var biblioGenreIndexSignal = item["biblio" + "GenreIndexRequested"]
                     if (biblioGenreIndexSignal) biblioGenreIndexSignal.connect(win.openBiblioGenreIndex)
+                    if (mode === "Biblio") audiobookFlow.world = item
                     if (item.continueResumeRequested) item.continueResumeRequested.connect(win.resumeContinue)
                     if (item.continueDetailRequested) item.continueDetailRequested.connect(win.detailContinue)
                     // the Universes world: its list is the installed roster plus the archived templates
@@ -6084,6 +6152,7 @@ Window {
         id: bookLayer
         parent: dockScene
         objectName: "biblioBookRouteState"
+        enabled: !audiobookFlow.active
         anchors.fill: parent
         anchors.bottomMargin: win.browseBottomInset
         z: 53
@@ -6097,10 +6166,19 @@ Window {
         property var book: ({})
         source: "BiblioBook.qml"
         onLoaded: {
-            item.openExtensionsRequested.connect(function() { win.openExtensionsPage("biblio") })
             item.backdrop = wall
             item.audioSessionRef = audioSession
-            item.book = bookLayer.book
+            item.openExtensionsRequested.connect(function() { win.openExtensionsPage("biblio") })
+            item.audiobookBridge = Qt.binding(function() {
+                audiobookFlow.downloadsRevision
+                const catalogue = audiobookFlow.catalog
+                if (catalogue) catalogue.revision
+                return AudiobookBridge.describe(catalogue, audiobookFlow.downloads, bookLayer.book)
+            })
+            item.audiobookBridgeRequested.connect(function(bridge) {
+                win.openAudiobookBridge(bridge, bridge.recordingKey, null, false)
+            })
+            item.book = Qt.binding(function() { return bookLayer.book })
             item.backRequested.connect(win.closeBook)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
@@ -6109,10 +6187,49 @@ Window {
         }
     }
 
+    Connections {
+        target: typeof Books !== "undefined" ? Books : null
+        function onFinished(key, path) { ++win.ebookDownloadRevision }
+        function onRemoved(key) { ++win.ebookDownloadRevision }
+    }
+
+    Connections {
+        target: typeof BookTorrents !== "undefined" ? BookTorrents : null
+        function onFinished(key, path) { ++win.ebookDownloadRevision }
+        function onRemoved(key) { ++win.ebookDownloadRevision }
+    }
+
+    AudiobookFlow {
+        id: audiobookFlow
+        parent: dockScene
+        objectName: "audiobookFlow"
+        anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
+        z: 53
+        backdrop: wall
+        androidHost: win.androidHost
+        dockClearance: win.androidHost ? 0 : taskbar.contentBottomInset
+        dockExpanded: taskbar.open
+        session: audioSession
+        ebookLibrary: {
+            win.ebookDownloadRevision
+            let rows = typeof Books !== "undefined" ? Array.prototype.slice.call(Books.downloadedBooks()) : []
+            if (typeof BookTorrents !== "undefined" && BookTorrents.downloadedBooks)
+                rows = rows.concat(Array.prototype.slice.call(BookTorrents.downloadedBooks()))
+            if (bookLayer.item && bookLayer.item.localPath)
+                rows.push(Object.assign({}, bookLayer.book, { path: bookLayer.item.localPath }))
+            return rows
+        }
+        onOpenExtensionsRequested: win.openExtensionsPage("biblio")
+        onReadAlongRequested: (ebook, key) => win.openReadAlong(ebook, key)
+        onReturnToReaderRequested: (id) => { if (Sessions.get(id).id) Sessions.switchTo(id) }
+        onMinimizeRequested: win.minimizeShell()
+        onFullscreenRequested: win.toggleFullscreenShell()
+        onQuitRequested: win.requestApplicationQuit()
+    }
+
     // ---- the ONE audiobook engine (read-along), hoisted at the window root (never in a
-    // Loader) so playback survives the reader opening/closing. The READER is the only
-    // audiobook surface (standalone player retired 2026-07-18): its HUD transport pill
-    // and Audio tab both drive this session. ----
+    // Loader). The Biblio listening page and the reader's transport share this session. ----
     AudiobookSession {
         id: audioSession
         objectName: "vinylHandoffAudiobook"
@@ -6144,7 +6261,12 @@ Window {
         z: 58
         active: false
         visible: active
-        onActiveChanged: if (!active) win.dockPickAudiobookReturn = null
+        onActiveChanged: {
+            if (!active) {
+                win.dockPickAudiobookReturn = null
+                audiobookFlow.refreshPlayerRoute()
+            }
+        }
         onStatusChanged: if (status === Loader.Error) win.dockPickAudiobookReturn = null
         property string bookPath: ""
         property var bookMeta: ({})
@@ -6157,7 +6279,7 @@ Window {
         onLoaded: {
             item.audioSession = audioSession   // the ONE shared audiobook engine → read-along Audio tab
             item.bookMeta = bookReaderLayer.bookMeta   // catalog identity → the pairing self-heal
-            item.openBook(bookReaderLayer.bookPath)
+            item.openBook(bookReaderLayer.bookPath, win.takeAudiobookArrival(bookReaderLayer.bookPath))
             if (bookReaderLayer.bookMeta.openAudio)
                 Qt.callLater(function() {
                     if (bookReaderLayer.item) bookReaderLayer.item.openAudioPanel()
@@ -6165,6 +6287,12 @@ Window {
             item.closed.connect(win.closeBookReaderSession)
             item.minimized.connect(win.minimizeBookReader)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
+            item.findAudiobookRequested.connect(function(bridge) {
+                win.openAudiobookBridge(bridge, "", null, true)
+            })
+            item.openAudiobookPlayerRequested.connect(function(key, bridge, jump) {
+                win.openAudiobookBridge(bridge, key, jump, true)
+            })
         }
     }
 
@@ -6221,7 +6349,7 @@ Window {
         }
     }
 
-    // ---- search layer: Biblio's search surface over the world (below the book detail) ----
+    // ---- Biblio search remains mounted beneath either detail so Back returns to the results. ----
     Loader {
         id: searchLayer
         parent: dockScene
@@ -6229,12 +6357,17 @@ Window {
         z: 51
         active: false
         visible: active
+        enabled: !audiobookFlow.active && !bookLayer.active
+        property bool audioFirst: false
         source: "BiblioSearch.qml"
         onLoaded: {
             item.backdrop = wall
+            item.androidHost = win.androidHost
+            item.audioFirst = searchLayer.audioFirst
+            item.audiobookCatalog = audiobookFlow.catalog
             item.backRequested.connect(win.closeSearch)
-            item.homeRequested.connect(function() { win.closeSearch(); win.closeWorld() })
             item.bookRequested.connect(win.openBook)
+            item.audiobookRequested.connect(function(workId) { audiobookFlow.openWork(workId) })
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { win.requestApplicationQuit() })
@@ -6304,6 +6437,7 @@ Window {
             })
             item.openWorldRequested.connect(win.routeDownloadWorld)
             item.playArrivingRequested.connect(win.routeArrivingPlay)
+            item.listenAudiobookRequested.connect(win.routeDownloadListen)
             item.openAudiobookRequested.connect(win.routeDownloadedAudiobook)
         }
     }
