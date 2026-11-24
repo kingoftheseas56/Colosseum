@@ -102,6 +102,10 @@ list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^player2host/")
 # Desktop browser/player and local-library worlds are not APK runtime code.
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^feria/")
 list(FILTER COLOSSEUM_ANDROID_QML_FILES EXCLUDE REGEX "^vinyl/")
+# Audiobooks use these components even when the Vinyl world is absent.
+list(APPEND COLOSSEUM_ANDROID_QML_FILES
+    vinyl/VinylBackdrop.qml
+    vinyl/VinylControlIcon.qml)
 # The Vault world ships whole (desktop code, real folder paths via All files access).
 # VaultPage.qml is the retired pre-library page: nothing instantiates it (VaultLibraryPage
 # is the Vault), so it stays out of the APK.
