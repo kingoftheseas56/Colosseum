@@ -75,6 +75,7 @@ function makePlayback(positionSec, manuallyPaused) {
         currentPlaybackUrl: "http://127.0.0.1:11450/stream/old",
         starting: false,
         errored: false,
+        homePlaybackActive: false,
         playbackEnded: false,
         audioHandoffPaused: false,
         playbackRequested() {},
@@ -131,6 +132,16 @@ function startReturn(positionSec, manuallyPaused) {
     const oldPaused = s.mpv.pause;
     restore(s.root, s.mpv, watchdog, s.stream, active, quiet);
     return { ...s, oldPosition, oldPaused };
+}
+
+{
+    const s = startReturn(120, false);
+    s.root.homePlaybackActive = true;
+    s.calls.length = 0;
+    onReady(s.root, s.mpv, s.stream, watchdog, "http://127.0.0.1:11450/stream/new",
+            s.root.streamRouteHash, 3);
+    check(!s.root.streamRouteRestoreLoadPending && !s.calls.some(call => call.startsWith("load:")),
+          "a late torrent route does not replace active home-server playback");
 }
 
 // Both a playing session and a deliberately paused session return paused. The

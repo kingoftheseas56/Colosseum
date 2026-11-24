@@ -879,6 +879,15 @@ Item {
         return null
     }
 
+    readonly property bool subtitleDelayAvailable: {
+        if (!root.supportsPlayerCapability("subtitleDelay"))
+            return false
+        if (!PlatformRuntime.android)
+            return true
+        const row = root.selectedSubtitleRow()
+        return !!row && (row.external || row.codec === "application/x-media3-cues")
+    }
+
     // Chip value derivations (native chrome spec 2026-07-08): a 2–3 letter language read
     // of the ACTIVE track, shown in gold on the panel chip so the current audio/subs are
     // legible without opening the menu. Built on the existing selected-row helpers.
@@ -1014,7 +1023,7 @@ Item {
     }
 
     function adjustSubtitleDelay(delta) {
-        if (!root.supportsPlayerCapability("subtitleDelay"))
+        if (!root.subtitleDelayAvailable)
             return
         mpv.subDelay = root.round2(mpv.subDelay + delta)
         if (root.streamRouteRestoreSubtitle)
@@ -1023,7 +1032,7 @@ Item {
     }
 
     function resetSubtitleDelay() {
-        if (!root.supportsPlayerCapability("subtitleDelay"))
+        if (!root.subtitleDelayAvailable)
             return
         mpv.subDelay = 0
         if (root.streamRouteRestoreSubtitle)
@@ -4016,12 +4025,10 @@ Item {
         case "speedDown": mpv.speed = root.clamp(root.round2(mpv.speed - 0.25), 0.25, 3); return
         case "speedUp": mpv.speed = root.clamp(root.round2(mpv.speed + 0.25), 0.25, 3); return
         case "subtitleDelayDown":
-            if (root.supportsPlayerCapability("subtitleDelay"))
-                mpv.subDelay = root.round2(mpv.subDelay - (event.modifiers & Qt.ShiftModifier ? 0.05 : 0.1))
+            root.adjustSubtitleDelay(event.modifiers & Qt.ShiftModifier ? -0.05 : -0.1)
             return
         case "subtitleDelayUp":
-            if (root.supportsPlayerCapability("subtitleDelay"))
-                mpv.subDelay = root.round2(mpv.subDelay + (event.modifiers & Qt.ShiftModifier ? 0.05 : 0.1))
+            root.adjustSubtitleDelay(event.modifiers & Qt.ShiftModifier ? 0.05 : 0.1)
             return
         case "cycleSubtitle": root.cycleSubtitle(); return
         case "abLoopA": root.setAbLoopA(); return
@@ -6897,6 +6904,7 @@ Item {
                         emptyText: root.subsLoading ? "Finding subtitles…" : "No subtitles found for this title."
                         offRow: true
                         syncValue: mpv.subDelay
+                        syncAvailable: root.subtitleDelayAvailable
                         active: mpv.subtitleTrack !== ""
                         onTrackPicked: function(trackId) { root.pickSubtitleTrack(trackId) }
                         onOffPicked: root.turnSubtitlesOff()

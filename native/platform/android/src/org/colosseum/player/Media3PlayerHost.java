@@ -31,14 +31,17 @@ import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.datasource.TransferListener;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.Renderer;
 import androidx.media3.exoplayer.mediacodec.MediaCodecAdapter;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.exoplayer.source.MediaSource;
+import androidx.media3.exoplayer.text.TextOutput;
 
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -58,6 +61,7 @@ public final class Media3PlayerHost {
     private final long nativeHandle;
     private final Handler mainHandler;
     private ExoPlayer player; // Created and accessed only on the main looper.
+    private EmbeddedSubtitleRenderer embeddedSubtitles;
     private final Player.Listener listener;
 
     // Main-looper state only.
@@ -108,6 +112,16 @@ public final class Media3PlayerHost {
                             return delegate.createAdapter(configuration);
                         };
                     }
+
+                    @Override
+                    protected void buildTextRenderers(Context context, TextOutput output,
+                            Looper outputLooper, int extensionRendererMode,
+                            ArrayList<Renderer> renderers) {
+                        embeddedSubtitles = new EmbeddedSubtitleRenderer(output, outputLooper);
+                        renderers.add(embeddedSubtitles);
+                        super.buildTextRenderers(context, output, outputLooper,
+                                extensionRendererMode, renderers);
+                    }
                 }
                     .setEnableDecoderFallback(true);
             ExoPlayer created = new ExoPlayer.Builder(appContext)
@@ -153,7 +167,7 @@ public final class Media3PlayerHost {
                 new DefaultMediaSourceFactory(dataSourceFactory);
             MediaItem mediaItem = MediaItem.fromUri(url);
             MediaSource mediaSource = mediaSourceFactory.createMediaSource(mediaItem);
-            player.setMediaSource(mediaSource);
+            player.setMediaSource(new SubtitlePrerollMediaSource(mediaSource, embeddedSubtitles));
             player.prepare();
             startTelemetry();
         });
@@ -251,6 +265,16 @@ public final class Media3PlayerHost {
         runOnMain(() -> {
             if (!released)
                 player.setPlaybackSpeed(clamped);
+        });
+    }
+
+    public void setSubtitleDelay(double seconds) {
+        runOnMain(() -> {
+            if (!released)
+                player.createMessage(embeddedSubtitles)
+                        .setType(EmbeddedSubtitleRenderer.MSG_SET_DELAY)
+                        .setPayload(Math.round(seconds * C.MICROS_PER_SECOND))
+                        .send();
         });
     }
 

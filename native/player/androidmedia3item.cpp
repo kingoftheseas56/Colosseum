@@ -345,8 +345,10 @@ void AndroidMedia3Item::setAudioDelay(double value)
 
 void AndroidMedia3Item::setSubDelay(double value)
 {
-    if (m_subDelay == value) return;
+    if (!std::isfinite(value) || m_subDelay == value) return;
     m_subDelay = value;
+    if (m_host.isValid())
+        m_host.callMethod<void>("setSubtitleDelay", "(D)V", jdouble(value));
     emit subDelayChanged();
     updateSidecarCues();
 }

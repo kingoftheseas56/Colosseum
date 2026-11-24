@@ -105,8 +105,8 @@ QVariantMap AndroidMedia3State::capabilities() const
     caps.insert(QStringLiteral("frameCapture"), false);
     caps.insert(QStringLiteral("gifCapture"), false);
     caps.insert(QStringLiteral("audioDelay"), false);
-    // shifts loaded subtitle files (sidecar cues are timed in C++); Media3's own
-    // embedded-track cues still arrive on Media3's clock and do not move.
+    // The Android player gates this per track. Sidecars are timed in C++ and
+    // Media3's parsed embedded cues are timed by the Android subtitle renderer.
     caps.insert(QStringLiteral("subtitleDelay"), true);
     caps.insert(QStringLiteral("videoTransform"), false);
     caps.insert(QStringLiteral("loudnessNormalization"), false);
