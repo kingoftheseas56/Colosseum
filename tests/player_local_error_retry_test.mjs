@@ -52,7 +52,7 @@ test('explicit Play overrides a paused failed source',()=>{
 });
 test('local error message does not assert that an audio failure means a missing file',()=>{
  const match=source.match(/    function handlePlaybackFailure\(([^)]*)\) \{([\s\S]*?)\n    \}/);
- const root={mediaLocalPath:'/tmp/valid.mp4',recordProgress(){},wakeChrome(){}};
+ const root={mediaLocalPath:'/tmp/valid.mp4',currentPlaybackUrl:'/tmp/valid.mp4',recordProgress(){},wakeChrome(){}};
  vm.runInNewContext('(function('+match[1]+'){'+match[2]+'\n})',{root,streamWatchdog:{stop(){}}})('audio');
  assert.doesNotMatch(root.statusMsg,/moved or deleted/);assert.match(root.statusMsg,/audio output/);
 });

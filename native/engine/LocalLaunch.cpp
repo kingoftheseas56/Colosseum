@@ -1,6 +1,7 @@
 #include "LocalLaunch.h"
 
 #include "CbzArchive.h"
+#include "DownloadMediaPaths.h"
 #include "VaultIdentity.h"
 #include "VaultKit.h"
 #include "player/MediaAdmissionProbe.h"
@@ -19,11 +20,13 @@ namespace {
 QString sourceFileName(const QString& path)
 {
 #ifdef Q_OS_ANDROID
+    // A single document picked through Android's system picker arrives as an opaque
+    // content:// address with no extension; ask the provider for its display name.
     if (path.startsWith(QLatin1String("content://"))) {
         const auto context = QNativeInterface::QAndroidApplication::context();
         const auto source = QJniObject::fromString(path);
         const auto name = QJniObject::callStaticObjectMethod(
-            "org/colosseum/vault/DocumentMetadata", "displayName",
+            "org/colosseum/platform/DocumentName", "displayName",
             "(Landroid/content/Context;Ljava/lang/String;)Ljava/lang/String;",
             context.object<jobject>(), source.object<jstring>());
         return name.isValid() ? name.toString() : QString();
@@ -182,7 +185,10 @@ LocalLaunch::Route LocalLaunch::route(const QString& path)
 namespace {
 QString toLocalPath(const QString& s)
 {
-    return s.startsWith(QLatin1String("file:")) ? QUrl(s).toLocalFile() : s;
+    const QString path = s.startsWith(QLatin1String("file:")) ? QUrl(s).toLocalFile() : s;
+    if (QDir::isAbsolutePath(path) && !QFileInfo::exists(path))
+        return DownloadMediaPaths::resolved(path);
+    return path;
 }
 
 // The taskbar tile / reader title show a cleaned name, not a raw filename

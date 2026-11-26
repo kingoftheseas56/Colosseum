@@ -10,6 +10,38 @@
 > wins — fix this file in the same commit. Maintained by whoever changes a test, a runner,
 > or a registration.
 
+## Home servers (2026-11-13)
+
+`tests/home_servers` registers nine native QtTest executables with the
+`home_server_` CTest prefix, labels `unit;homeserver;network`, and a 180-second
+timeout. They cover clients, secret-backed connections, profile lifecycle,
+atomic catalogs, native playback handoff, progress protocol, canonical progress
+policy, the real ProgressStore adapter, and read-only Vault projections. Network
+cases replay representative sanitized Jellyfin, Emby and Plex samples over
+loopback HTTP; these are not live captures or provider-account tests. Native
+state uses temporary directories and fake secret backends, while the progress
+bridge uses a real temporary INI-backed ProgressStore.
+
+Server visibility hints stay in that installation's local owner view and are
+removed from portable account snapshots. A synced Continue entry is reconciled
+against the active profile's actual connections; queued imports cannot affect a
+replacement profile. Real ProgressStore signals test that this does not feed
+back into an import loop.
+
+Windows MSVC/Qt 6.11.1 built all nine targets and passed all nine CTests.
+Negative cases include redirect/deadline/401 handling, incomplete refresh,
+profile replacement and backend destruction, wrong media versions and episodes,
+stale progress, rewatch/played-state preservation, canonical fallback identity,
+unidentified titles, and disconnected projections. Focused offscreen QML covers
+Sync Center, Sources and Vault; Node checks execute shipped player/routing
+functions. Host-side Android staging compiled 66 selected QML entries with no
+failures and excludes the desktop Vault shelf. Full app builds, live provider
+checks and actual Android decoding remain separate qualification evidence.
+
+The Android workflow runs `scripts/android/check_home_server_identity.sh` only
+after its normal startup/alive smoke succeeds. That separate proof checks the
+actual no-backup UUID across a fresh app process and writes a sanitized receipt.
+
 ## Tankorent Worker transport (2026-10-23)
 
 `colosseum.tankorent_worker_transport_harness` is registered with labels

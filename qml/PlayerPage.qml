@@ -40,6 +40,9 @@ Item {
     readonly property bool playbackPaused: mpv.pause
     property bool audioHandoffPaused: false
     signal playbackRequested()
+    signal manualSourceRequested()
+    // Search begins before any media session or stream candidate exists.
+    property bool smartPickLoading: false
     readonly property real playbackPosition: mpv.position
     readonly property real playbackDuration: mpv.duration
     readonly property bool playerActive:     root.visible   // player item is the shown surface
@@ -324,6 +327,15 @@ Item {
 
     property var streamCandidates: []
     property int currentStreamIndex: -1
+    property var homeServerSourceService: typeof HomeServers !== "undefined" ? HomeServers : null
+    property var homePlaybackService: null
+    property bool homePlaybackActive: false
+    property string homePlaybackKey: ""
+    property var homePlaybackProfileGeneration: -1
+    property bool homePlaybackTranscoded: false
+    property bool homePlaybackReportedStart: false
+    property bool homePlaybackReportedTerminal: false
+    property bool homeTranscodeTried: false
     // Slice 2: one credential-free Player 1 → Watch Party source seam. The native
     // inspector mirrors playStreamAt's real route decision; unsupported direct URLs
     // stay unsupported until a provider owner supplies verified debrid semantics.
@@ -1031,6 +1043,8 @@ Item {
         return "Auto: " + (langs.length ? langs[0].toUpperCase() : "ENG") + " subtitles"
     }
     function loadingStatusText() {
+        if (root.smartPickLoading)
+            return qsTr("Finding the best stream")
         if (root.errored)
             return root.statusMsg
         if (!root.starting)
@@ -1179,6 +1193,7 @@ Item {
 
     function directStreamUrl(candidate) {
         var c = candidate || ({})
+        if (c.homeServer || String(c.infoHash || "").indexOf("home-server:") === 0) return ""
         if (c.url && String(c.url).length)
             return String(c.url)
         var routed = String(c.infoHash || "")
@@ -1192,12 +1207,15 @@ Item {
     function reloadActiveDirectSource() {
         if (!root.currentPlaybackUrl.length)
             return false
+        if (root.currentPlaybackUrl.indexOf("home-server:") === 0)
+            return root.loadHomeServerCandidate(root.currentStreamCandidate(), root.homePlaybackTranscoded || root.homeTranscodeTried)
         root.playbackEnded = false
         mpv.loadSource(root.currentPlaybackUrl, root.activeDirectHeaders)
         return true
     }
 
     function loadDirectStreamUrl(url, headers) {
+        if (String(url || "").indexOf("home-server:") === 0) return false
         var directUrl = DirectSourcePolicy.admitProviderUrl(url)
         if (!directUrl.length)
             return false
@@ -1211,6 +1229,119 @@ Item {
         return true
     }
 
+    function failHomeServerPlayback(message) {
+        if (root.homePlaybackKey) root.reportHomeServerPlayback("stop")
+        root.homePlaybackActive = false
+        streamWatchdog.stop()
+        root.errored = true
+        root.starting = false
+        root.fileReady = false
+        root.statusMsg = message || qsTr("Could not play this home server source.")
+        root.wakeChrome()
+    }
+
+    function invalidateHomeServerRoute() {
+        if (root.homePlaybackKey) root.reportHomeServerPlayback("stop")
+        root.homePlaybackActive = false
+        var owner = root.homePlaybackService
+        root.homePlaybackService = null
+        root.homePlaybackKey = ""
+        if (owner) owner.cancelPlayback(mpv)
+    }
+
+    function reportHomeServerPlayback(event) {
+        var owner = root.homePlaybackService
+        var key = root.homePlaybackKey
+        if (!owner || owner !== root.homeServerSourceService || !key
+                || root.homePlaybackProfileGeneration !== owner.profileGeneration
+                || root.homePlaybackReportedTerminal)
+            return
+        if (event !== "stop" && !root.homePlaybackContextCurrent(key)) return
+        if (event === "start") {
+            if (!root.fileReady || root.homePlaybackReportedStart) return
+            root.homePlaybackReportedStart = true
+        } else if (!root.homePlaybackReportedStart) {
+            return
+        }
+        if (event === "stop" || event === "ended") root.homePlaybackReportedTerminal = true
+        var positionMs = Math.round(Math.max(0, Number(mpv.position)) * 1000)
+        var durationMs = Math.round(Math.max(0, Number(mpv.duration)) * 1000)
+        owner.reportPlayback(mpv, key,
+            isFinite(positionMs) ? positionMs : 0,
+            isFinite(durationMs) ? durationMs : 0,
+            !!mpv.pause, event)
+    }
+
+    function loadHomeServerCandidate(candidate, forceTranscode) {
+        var c = candidate || ({})
+        var key = String(c.infoHash || root.currentPlaybackUrl || "")
+        if (key.indexOf("home-server:") !== 0) return false
+        if (root.homePlaybackKey) root.invalidateHomeServerRoute()
+        root.streamRouteUrl = ""
+        root.streamDemandActive = false
+        root.streamDemandEpoch++
+        if (Qt.platform.os === "android" && typeof Stream !== "undefined" && Stream.stopDemand)
+            Stream.stopDemand()
+        root.clearActiveDirectHeaders()
+        root.mediaResumeHash = key
+        root.currentPlaybackUrl = key
+        root.playbackEnded = false
+        root.mediaTransport = qsTr("Home server")
+        root.updateMediaSubtitle()
+        root.homePlaybackKey = key
+        root.homePlaybackService = root.homeServerSourceService
+        root.homePlaybackProfileGeneration = root.homeServerSourceService ? root.homeServerSourceService.profileGeneration : -1
+        root.homePlaybackActive = true
+        root.homePlaybackReportedStart = false
+        root.homePlaybackReportedTerminal = false
+        root.starting = true
+        root.fileReady = false
+        if (!root.homeServerSourceService || !root.homeServerSourceService.loadPlayback(
+                    mpv, key, Math.max(0, root.pendingSeekSec) * 1000, !!forceTranscode)) {
+            root.failHomeServerPlayback(qsTr("This home server source is no longer available."))
+            return false
+        }
+        return true
+    }
+
+    function homePlaybackContextCurrent(sourceKey) {
+        return root.homePlaybackActive && sourceKey === root.homePlaybackKey
+                && sourceKey === root.currentPlaybackUrl
+                && sourceKey === String(root.currentStreamCandidate().infoHash || "")
+                && root.homeServerSourceService
+                && root.homePlaybackProfileGeneration === root.homeServerSourceService.profileGeneration
+    }
+
+    function homeServerPlaybackResolved(sourceKey, transcoded) {
+        if (!root.homePlaybackContextCurrent(sourceKey)) return
+        root.homePlaybackTranscoded = !!transcoded
+        root.resetRecoveryWatch()
+        streamWatchdog.restart()
+    }
+
+    function homeServerPlaybackFailed(sourceKey, message) {
+        if (!root.homePlaybackContextCurrent(sourceKey)) return
+        root.failHomeServerPlayback(message)
+    }
+
+    onHomeServerSourceServiceChanged: if (root.homePlaybackKey) {
+        root.invalidateHomeServerRoute()
+        root.homePlaybackProfileGeneration = -1
+        root.failHomeServerPlayback(qsTr("The home server connection changed. Choose a source again."))
+    }
+
+    function homeServerIdentityMetadata(identity) {
+        var out = ({})
+        var source = identity || ({})
+        var fields = ["type", "imdbId", "tmdbId", "tvdbId", "season", "episode"]
+        for (var i = 0; i < fields.length; ++i) {
+            var value = source[fields[i]]
+            if (typeof value === "string" || (typeof value === "number" && isFinite(value)))
+                out[fields[i]] = value
+        }
+        return out
+    }
+
     function normalizeStreamCandidates(infoHash, fileIdx, title, candidates) {
         var out = []
         var rows = candidates || []
@@ -1219,9 +1350,10 @@ Item {
             var routed = String(c.infoHash || "")
             if (!routed.length)
                 continue
-            var isDirect = String(c.streamKind || "") === "Direct"
+            var isHomeServer = !!c.homeServer || routed.indexOf("home-server:") === 0
+            var isDirect = !isHomeServer && (String(c.streamKind || "") === "Direct"
                         || routed.indexOf("url:") === 0
-                        || (c.url && String(c.url).length)
+                        || (c.url && String(c.url).length))
             var admittedUrl = ""
             if (isDirect) {
                 admittedUrl = DirectSourcePolicy.admitProviderUrl(root.directStreamUrl(c))
@@ -1239,13 +1371,21 @@ Item {
                 // Watch Party may inspect this provenance locally; transportUrl never enters the row.
                 "addonId": c.addonId || "",
                 "addonName": c.addonName || "",
-                "streamKind": isDirect ? "Direct" : (c.streamKind || ""),
-                "url": isDirect ? admittedUrl : (c.url || ""),
+                "homeServer": isHomeServer,
+                "canonicalId": c.canonicalId || "",
+                "connectionId": c.connectionId || "",
+                "itemId": c.itemId || "",
+                "versionId": c.versionId || "",
+                "streamKind": isHomeServer ? "Home server" : isDirect ? "Direct" : (c.streamKind || ""),
+                "url": isHomeServer ? "" : isDirect ? admittedUrl : (c.url || ""),
                 "headers": isDirect ? DirectSourcePolicy.copyHeaders(c.headers) : ({})
             })
+            if (isHomeServer)
+                out[out.length - 1].homeIdentity = root.homeServerIdentityMetadata(c.homeIdentity)
         }
         if (!out.length && infoHash && String(infoHash).length) {
             var fallbackHash = String(infoHash)
+            var fallbackHomeServer = fallbackHash.indexOf("home-server:") === 0
             var fallbackDirect = fallbackHash.indexOf("url:") === 0
             var fallbackUrl = fallbackDirect
                             ? DirectSourcePolicy.admitProviderUrl(fallbackHash.substring(4)) : ""
@@ -1256,10 +1396,11 @@ Item {
                     "title": title || "Stream",
                     "quality": "",
                     "seeders": -1,
-                    "sourceName": "Torrentio",
+                    "sourceName": fallbackHomeServer ? qsTr("Home server") : "Torrentio",
                     "addonId": "",
                     "addonName": "",
-                    "streamKind": fallbackDirect ? "Direct" : "Torrent",
+                    "homeServer": fallbackHomeServer,
+                    "streamKind": fallbackHomeServer ? "Home server" : fallbackDirect ? "Direct" : "Torrent",
                     "url": fallbackUrl,
                     "headers": ({})
                 })
@@ -1269,10 +1410,13 @@ Item {
     }
 
     function findStreamIndex(infoHash, fileIdx) {
-        var hash = String(infoHash || "").toLowerCase()
+        var rawHash = String(infoHash || "")
+        var homeSource = rawHash.indexOf("home-server:") === 0
+        var hash = homeSource ? rawHash : rawHash.toLowerCase()
         for (var i = 0; i < root.streamCandidates.length; i++) {
             var c = root.streamCandidates[i] || ({})
-            if (String(c.infoHash || "").toLowerCase() === hash && Number(c.fileIdx || 0) === Number(fileIdx || 0))
+            var candidateHash = String(c.infoHash || "")
+            if ((homeSource ? candidateHash : candidateHash.toLowerCase()) === hash && Number(c.fileIdx || 0) === Number(fileIdx || 0))
                 return i
         }
         return root.streamCandidates.length ? 0 : -1
@@ -1282,7 +1426,8 @@ Item {
         var c = (typeof candidateOrHash === "object" && candidateOrHash !== null) ? candidateOrHash : null
         var hash = c ? c.infoHash : candidateOrHash
         var fileIdx = c ? c.fileIdx : maybeFileIdx
-        return String(hash || "").toLowerCase() + ":" + Number(fileIdx || 0)
+        var routed = String(hash || "")
+        return (routed.indexOf("home-server:") === 0 ? routed : routed.toLowerCase()) + ":" + Number(fileIdx || 0)
     }
 
     function currentStreamCandidate() {
@@ -1536,6 +1681,12 @@ Item {
             return
         }
         var c = root.streamCandidates[index] || ({})
+        if (!c.homeServer && String(c.infoHash || "").indexOf("home-server:") !== 0
+                && root.currentPlaybackUrl.indexOf("home-server:") === 0)
+            root.currentPlaybackUrl = ""
+        root.homePlaybackActive = false
+        root.homeTranscodeTried = false
+        root.homePlaybackTranscoded = false
         // A fresh stream start is not a retired-route reopen.
         var pendingSubtitle = root.streamRouteRestoreSubtitle
         root.clearStreamRouteRestore()
@@ -1552,6 +1703,7 @@ Item {
                 root.streamRouteRestoreSubtitle = pendingSubtitle
             root.prepareRecoveryResume()
         }
+        if (root.homePlaybackKey) root.invalidateHomeServerRoute()
         root.errored = false
         root.starting = true
         root.fileReady = false
@@ -1567,6 +1719,10 @@ Item {
         // torrent engine — mpv plays the url natively. They arrive either as an
         // explicit url field or under the "url:" infoHash routing prefix (the
         // resume path carries only the hash). Extensions spec Phase 2, slice G.
+        if (c.homeServer || String(c.infoHash || "").indexOf("home-server:") === 0) {
+            root.loadHomeServerCandidate(c, false)
+            return
+        }
         var directUrl = root.directStreamUrl(c)
         if (directUrl.length) {
             // Leaving a torrent for a direct source ends the torrent's playing demand, as
@@ -1600,7 +1756,29 @@ Item {
         Stream.play(c.infoHash, c.fileIdx || 0)
     }
 
+    // This is a presentation-only startup: do not create a session or call Stream.play
+    // until SourcesSheet finishes choosing. The same PlayerLoadingScreen stays active.
+    function beginSmartPick(title, posterUrl, subType, subId, playbackContext) {
+        root.stop()
+        var ctx = playbackContext || ({})
+        var imdbId = String(ctx.imdbId || subId || "").match(/tt\d+/)
+        root.mediaTitle = title || ""
+        root.mediaLogo = ctx.logo || (imdbId ? "https://live.metahub.space/logo/medium/" + imdbId[0] + "/img" : "")
+        root.mediaLoadingArt = ctx.episodeStill || ctx.loaderBackdrop || posterUrl || ""
+        root.mediaLoadingLine = ctx.episodeLine || ""
+        root.resumeChoiceOpen = false
+        root.errored = false
+        root.fileReady = false
+        root.streamStatsSeen = false
+        root.statusMsg = "Finding the best stream"
+        root.smartPickLoading = true
+        root.starting = true
+    }
+
     function playTorrent(infoHash, fileIdx, title, posterUrl, subType, subId, streamCandidates, playbackContext) {
+        root.smartPickLoading = false
+        root.homePlaybackActive = false
+        if (root.homePlaybackKey) root.invalidateHomeServerRoute()
         root.streamDemandActive = false
         root.streamDemandEpoch++
         root.streamRouteUrl = ""
@@ -1630,6 +1808,12 @@ Item {
         var m = String(posterUrl || "").match(/\/(tt\d+)\//)
         root.mediaId = (subType === "series" && subId) ? subId
                      : ((m && m[1]) ? m[1] : (infoHash + ":" + fileIdx))
+        var selectedHomeSource = (streamCandidates || []).find(function(candidate) {
+            return candidate && candidate.homeServer && candidate.infoHash === infoHash
+                    && Number(candidate.fileIdx || 0) === Number(fileIdx || 0)
+        })
+        if (selectedHomeSource && selectedHomeSource.canonicalId)
+            root.mediaId = String(selectedHomeSource.canonicalId)
         // Cross-stream resume (spec 2026-07-08): the store keys progress by IDENTITY
         // (tt / tt:season:episode), so a position saved while watching one torrent is
         // valid for every other torrent of the same episode. Seed it here; onFileLoaded's
@@ -1665,6 +1849,8 @@ Item {
         // deriving here is what makes the Stremio logo appear everywhere, not only from the series page.
         var _ttMatch = String(posterUrl || "").match(/\/(tt\d+)\//)
         var _ttId = _ttMatch ? _ttMatch[1] : ""
+        var _contextImdb = String((playbackContext || ({})).imdbId || "").match(/tt\d+/)
+        if (!_ttId && _contextImdb) _ttId = _contextImdb[0]
         root.mediaLogo        = (playbackContext || ({})).logo
             || (_ttId ? "https://live.metahub.space/logo/medium/" + _ttId + "/img" : "")
         root.mediaLoadingArt  = (playbackContext || ({})).episodeStill || (playbackContext || ({})).loaderBackdrop || posterUrl || ""
@@ -1722,6 +1908,10 @@ Item {
         root.resetRecoveryWatch()
         streamWatchdog.restart()
         root.wakeChrome()
+        if (c.homeServer || String(c.infoHash || "").indexOf("home-server:") === 0) {
+            root.loadHomeServerCandidate(c, root.homePlaybackTranscoded || root.homeTranscodeTried)
+            return
+        }
         var directUrl = root.directStreamUrl(c)
         if (directUrl.length) {
             root.loadDirectStreamUrl(directUrl, c.headers)
@@ -1991,6 +2181,11 @@ Item {
         root.statusMsg = "Reconnecting stream..."
         streamWatchdog.restart()
         var c = root.currentStreamCandidate()
+        if (c.homeServer || root.currentPlaybackUrl.indexOf("home-server:") === 0) {
+            root.pendingSeekSec = pos
+            root.loadHomeServerCandidate(c, root.homePlaybackTranscoded || root.homeTranscodeTried)
+            return
+        }
         var directUrl = root.directStreamUrl(c)
         if (directUrl.length || (!root.streamCandidates.length && !root.mediaResumeHash.length))
             root.reloadActiveDirectSource()
@@ -2003,6 +2198,23 @@ Item {
     function handlePlaybackFailure(reason) {
         streamWatchdog.stop()
         root.recordProgress()
+        if (root.currentPlaybackUrl.indexOf("home-server:") === 0) {
+            if (!root.homePlaybackActive) return
+            root.prepareRecoveryResume()
+            if (!root.homeTranscodeTried && !root.homePlaybackTranscoded) {
+                root.homeTranscodeTried = true
+                root.errored = false
+                root.starting = true
+                root.fileReady = false
+                root.statusMsg = qsTr("Trying a compatible home server stream...")
+                root.resetRecoveryWatch()
+                streamWatchdog.restart()
+                root.loadHomeServerCandidate(root.currentStreamCandidate(), true)
+            } else {
+                root.failHomeServerPlayback(qsTr("Playback failed. Try another source."))
+            }
+            return
+        }
         if (root.mediaLocalPath.length) {
             // A local file has no retry ladder or alternate candidates — fail honestly.
             root.errored = true
@@ -2346,7 +2558,7 @@ Item {
         mpv.refreshAudioOutput()
     }
 
-    function downloadTooltip() {
+    function downloadActionLabel() {
         if (typeof Download === "undefined")
             return "Download"
         var s = Download.status || ({ "kind": "idle" })
@@ -2495,6 +2707,12 @@ Item {
     // notify-per-seek would re-introduce a smaller cascade); their position is picked up by the
     // next 5s tick or the next lifecycle write.
     function recordProgress(silent) {
+        if (root.homePlaybackKey) root.reportHomeServerPlayback("progress")
+        if ((String(root.currentPlaybackUrl || "").indexOf("home-server:") === 0
+                || String(root.mediaResumeHash || "").indexOf("home-server:") === 0)
+                && (!root.homeServerSourceService
+                    || root.homePlaybackProfileGeneration !== root.homeServerSourceService.profileGeneration))
+            return
         if (root.mediaId === "" || mpv.duration <= 0 || mpv.position <= 0)
             return
         // Anti-clutter floor (matches Tankoban 2's MIN_POSITION_SEC = 10): an accidental
@@ -2532,6 +2750,13 @@ Item {
                         "subType": root.subStreamType,
                         "subId": root.subStreamId,
                         "position": mpv.position }
+        }
+        if (String(root.mediaResumeHash || "").indexOf("home-server:") === 0) {
+            var candidate = root.currentStreamCandidate()
+            if (candidate.homeServer && candidate.infoHash === root.mediaResumeHash && candidate.homeIdentity) {
+                var homeIdentity = root.homeServerIdentityMetadata(candidate.homeIdentity)
+                if (Object.keys(homeIdentity).length) entry["_homeServerIdentity"] = homeIdentity
+            }
         }
         if (root.activityCompletionEventId.length)
             entry["_trackerActivityEventId"] = root.activityCompletionEventId
@@ -2784,6 +3009,8 @@ Item {
 
 
     function playUrl(url, title) {
+        root.homePlaybackActive = false
+        if (root.homePlaybackKey) root.invalidateHomeServerRoute()
         root.explicitResumePosition = false
         if (Qt.platform.os === "android" && typeof Stream !== "undefined" && Stream.stopDemand)
             Stream.stopDemand()
@@ -2879,6 +3106,8 @@ Item {
     }
 
     function playLocalFile(target) {
+        root.homePlaybackActive = false
+        if (root.homePlaybackKey) root.invalidateHomeServerRoute()
         root.explicitResumePosition = false
         if (Qt.platform.os === "android" && typeof Stream !== "undefined" && Stream.stopDemand)
             Stream.stopDemand()
@@ -2956,6 +3185,8 @@ Item {
     // grade like playLocalFile: subtitles + progress key off the video id, so the
     // landed copy resumes where this live watch leaves off.
     function playRemoteUrl(target) {
+        root.homePlaybackActive = false
+        if (root.homePlaybackKey) root.invalidateHomeServerRoute()
         root.explicitResumePosition = false
         if (Qt.platform.os === "android" && typeof Stream !== "undefined" && Stream.stopDemand)
             Stream.stopDemand()
@@ -3123,6 +3354,8 @@ Item {
     }
 
     function stop() {
+        root.smartPickLoading = false
+        root.homePlaybackActive = false
         root.streamDemandActive = false
         root.streamDemandEpoch++
         root.resetRecoveryResume()
@@ -3130,6 +3363,7 @@ Item {
         root.hydrateGen += 1   // player closing: cancel any in-flight context hydration
         root.sendTraktPlayback(false)
         root.recordProgress()   // capture where we left off BEFORE mpv clears position
+        if (root.homePlaybackKey) root.invalidateHomeServerRoute()
         root.activityEndSession()   // Activity (§9 Lane A): close/lifecycle exit ends the session
         root.closeMenus()
         root.clearActiveDirectHeaders()
@@ -3611,7 +3845,8 @@ Item {
     function replayEndedPlayback() {
         // Media3 keeps the ended item and re-arms it on explicit Play. Its
         // loopback URL may already be retired; desktop mpv needs a new load.
-        if (typeof Qt !== "undefined" && Qt.platform.os === "android")
+        if (typeof Qt !== "undefined" && Qt.platform.os === "android"
+                && root.currentPlaybackUrl.indexOf("home-server:") !== 0)
             return false
         // Room-controlled play remains on its existing authoritative command path.
         if (typeof WatchPartySync !== "undefined" && WatchPartySync.active)
@@ -3622,6 +3857,8 @@ Item {
         root.cancelUpNext()
         root.autoPausedInactive = false
         root.pendingSeekSec = 0
+        root.homeTranscodeTried = false
+        root.homePlaybackTranscoded = false
         root.wakeReconnectPendingSeek = -1
         root.resumeChoiceOpen = false
         root.resumeChoiceSec = -1
@@ -3691,6 +3928,7 @@ Item {
     // application Shortcut: temporary controls close first, otherwise Back minimizes
     // through the existing session-aware player seam.
     function requestEscape() {
+        if (root.smartPickLoading) { root.backRequested(); return }
         if (root.touchLocked) { root.touchLocked = false; root.wakeChrome(); return }
         if (root.shortcutsOpen) { root.shortcutsOpen = false; return }
         if (root.anyMenuOpen) root.closeMenus()
@@ -3902,6 +4140,7 @@ Item {
             mpv.setAudioNormalization(root.loudnessMode)
     }
     Component.onDestruction: {
+        if (root.homePlaybackKey) root.invalidateHomeServerRoute()
         if (PlatformRuntime.android) {
             PlatformRuntime.setPlayerLandscape(false)
             PlatformRuntime.restorePlaybackBrightness()
@@ -4272,6 +4511,7 @@ Item {
             // session is begun later, in finishStartingIfPlaybackAdvanced, once playback
             // actually advances) — this only resets the baseline for a reload of the SAME item.
             root.activityDiscontinuity()
+            if (root.homePlaybackKey) root.reportHomeServerPlayback("start")
         }
         onPlaybackError: function(code, message) {
             root.activityDiscontinuity()   // Activity (§9 Lane A): "error" reset bullet
@@ -4303,6 +4543,7 @@ Item {
                     mpv.pause = true
                     return
                 }
+                if (root.homePlaybackKey) root.reportHomeServerPlayback("ended")
                 root.activityNaturalEof()   // Activity (§9 Lane A): real end of the item
                 root.sendTraktPlayback(false)
                 root.recordProgress()
@@ -4315,6 +4556,7 @@ Item {
         }
         onPauseChanged: {
             if (root.audioHandoffPaused && !mpv.pause) { mpv.pause = true; return }
+            if (root.homePlaybackKey) root.reportHomeServerPlayback("progress")
             if (mpv.pause) root.sendTraktPlayback(false)
             else if (!root.starting && root.fileReady && mpv.position > 0.25)
                 root.sendTraktPlayback(true)
@@ -4443,7 +4685,9 @@ Item {
         backdropUrl: root.mediaLoadingArt
         statusText: root.loadingStatusText()
         errorText: root.loadingStatusText()
+        allowManual: root.smartPickLoading
         hudFamily: theme.hud
+        onManualRequested: if (root.smartPickLoading) root.manualSourceRequested()
         onCancelRequested: {
             root.closeMenus()
             root.backRequested()
@@ -4459,8 +4703,21 @@ Item {
     }
 
     Connections {
+        target: root.homeServerSourceService
+        function onPlaybackResolved(sourceKey, transcoded) { root.homeServerPlaybackResolved(sourceKey, transcoded) }
+        function onPlaybackFailed(sourceKey, message) { root.homeServerPlaybackFailed(sourceKey, message) }
+        function onProfileChanged() {
+            if (root.homePlaybackKey) {
+                root.invalidateHomeServerRoute()
+                root.failHomeServerPlayback(qsTr("The home server connection changed. Choose a source again."))
+            }
+        }
+    }
+
+    Connections {
         target: Stream
         function onStreamReady(url, infoHash, fileIdx) {
+            if (root.currentPlaybackUrl.indexOf("home-server:") === 0 || root.homePlaybackActive) return
             if (Qt.platform.os === "android" && (!root.streamDemandActive
                     || String(infoHash || "") !== root.streamRouteHash
                     || Number(fileIdx || 0) !== root.streamRouteFileIdx)) return
@@ -4491,6 +4748,7 @@ Item {
                 mpv.pause = true
         }
         function onStreamStats(infoHash, fileIdx, stats) {
+            if (root.homePlaybackActive) return
             if (!root.starting)
                 return
             root.streamStatsSeen = true
@@ -4499,6 +4757,7 @@ Item {
             root.streamStatsDownloaded = Number(stats.downloaded || 0)
         }
         function onStreamError(message) {
+            if (root.currentPlaybackUrl.indexOf("home-server:") === 0 || root.homePlaybackActive) return
             root.statusMsg = message
             if (typeof Stream !== "undefined" && Stream.engineUnavailable) {
                 // Missing packaged runtime is an installation/deployment failure,
@@ -4802,7 +5061,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     size: 38
                     icon: "back"
-                    tooltip: "Back"
+                    actionLabel: "Back"
                     onClicked: {
                         root.closeMenus()
                         root.backRequested()
@@ -4867,7 +5126,7 @@ Item {
                 RoundButton {
                     size: 38
                     icon: "minimizeToBar"
-                    tooltip: "Minimize — paused in the taskbar, resumes with no reload"
+                    actionLabel: "Minimize — paused in the taskbar, resumes with no reload"
                     onClicked: {
                         root.closeMenus()
                         root.minimizeRequested()
@@ -4876,7 +5135,7 @@ Item {
                 RoundButton {
                     size: 38
                     icon: "cancel"
-                    tooltip: "Close"
+                    actionLabel: "Close"
                     onClicked: {
                         var playing = root.fileReady && !mpv.pause
                         root.closeMenus()
@@ -5295,7 +5554,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     size: 46
                     icon: "back"
-                    tooltip: "Close guide"
+                    actionLabel: "Close guide"
                     onClicked: {
                         root.liveGuideOpen = false
                         root.wakeChrome()
@@ -5599,7 +5858,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     size: 26
                     icon: "cancel"
-                    tooltip: "Clear A-B loop"
+                    actionLabel: "Clear A-B loop"
                     onClicked: root.clearAbLoop()
                 }
             }
@@ -6462,7 +6721,7 @@ Item {
                         visible: root.errored || root.starting
                         size: 48
                         icon: "retry"
-                        tooltip: "Retry stream"
+                        actionLabel: "Retry stream"
                         onClicked: root.retryCurrentStream()
                     }
 
@@ -6471,7 +6730,7 @@ Item {
                         visible: root.streamCandidates.length > 1 && !root.barSnug
                         size: 48
                         icon: "stream"
-                        tooltip: "Pick another stream"
+                        actionLabel: "Pick another stream"
                         onClicked: root.pickAnotherStream()
                     }
 
@@ -6484,7 +6743,7 @@ Item {
                         label: (typeof Download !== "undefined" && Download.status.kind === "downloading")
                                ? Math.round((Download.status.ratio || 0) * 100)
                                : ""
-                        tooltip: root.downloadTooltip()
+                        actionLabel: root.downloadActionLabel()
                         onClicked: root.handleDownloadAction()
                     }
 
@@ -6509,14 +6768,14 @@ Item {
                         visible: root.hasAdjacentEpisode("prev")
                         size: tight ? 38 : 40
                         icon: "prevEpisode"
-                        tooltip: "Previous episode"
+                        actionLabel: "Previous episode"
                         onClicked: root.goToAdjacentEpisode("prev")
                     }
                     RoundButton {
                         size: tight ? 38 : 40
                         icon: "seekBack"
                         label: root.seekBackSeconds
-                        tooltip: "Back " + root.seekBackSeconds + "s"
+                        actionLabel: "Back " + root.seekBackSeconds + "s"
                         onClicked: root.requestUserSeekStep(-root.seekBackSeconds)
                     }
                     RoundButton {
@@ -6524,21 +6783,21 @@ Item {
                         size: tight ? 46 : 48
                         icon: mpv.pause ? "play" : "pause"
                         hero: true
-                        tooltip: mpv.pause ? "Play" : "Pause"
+                        actionLabel: mpv.pause ? "Play" : "Pause"
                         onClicked: root.togglePlayPause()
                     }
                     RoundButton {
                         size: tight ? 38 : 40
                         icon: "seekForward"
                         label: root.seekForwardSeconds
-                        tooltip: "Forward " + root.seekForwardSeconds + "s"
+                        actionLabel: "Forward " + root.seekForwardSeconds + "s"
                         onClicked: root.requestUserSeekStep(root.seekForwardSeconds)
                     }
                     RoundButton {
                         visible: root.hasAdjacentEpisode("next")
                         size: tight ? 38 : 40
                         icon: "nextEpisode"
-                        tooltip: "Next episode"
+                        actionLabel: "Next episode"
                         onClicked: root.goToAdjacentEpisode("next")
                     }
                 }
@@ -6559,7 +6818,7 @@ Item {
                         size: 40
                         icon: "episodes"
                         active: root.browserOpen
-                        tooltip: "Episodes & sources (E)"
+                        actionLabel: "Episodes & sources (E)"
                         onClicked: {
                             var wasOpen = root.browserOpen
                             root.closeMenus()
@@ -6665,7 +6924,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         size: 40
                         icon: root.shellWindowed ? "fullscreen" : "fullscreenExit"
-                        tooltip: root.shellWindowed ? "Enter fullscreen (F11)" : "Exit fullscreen (F11)"
+                        actionLabel: root.shellWindowed ? "Enter fullscreen (F11)" : "Exit fullscreen (F11)"
                         onClicked: root.fullscreenRequested()
                     }
 
@@ -6765,7 +7024,7 @@ Item {
         property int size: 48
         property string icon: ""
         property string label: ""
-        property string tooltip: ""
+        property string actionLabel: ""
         property bool hero: false
         property bool active: false
         signal clicked()
@@ -6790,7 +7049,7 @@ Item {
             visible: rb.icon !== "seekBack" && rb.icon !== "seekForward"
             kind: rb.icon
             ink: rb.hero ? "#101014" : (rb.active ? theme.gold : theme.ink)
-            accessibleName: rb.tooltip
+            accessibleName: rb.actionLabel
         }
         PlayerSeekIcon {
             anchors.fill: parent
@@ -6811,9 +7070,7 @@ Item {
         KeyboardAction {
             anchors.fill: parent
             pointerEnabled: false
-            accessibleName: rb.tooltip.length ? rb.tooltip : rb.icon
-            tooltipText: rb.icon === "minimizeToBar" ? qsTr("Minimize") : (rb.tooltip.length ? rb.tooltip : rb.icon)
-            tooltipHovered: press.containsMouse
+            accessibleName: rb.actionLabel.length ? rb.actionLabel : rb.icon
             focusRadius: rb.width / 2
             onTriggered: {
                 root.wakeChrome()
@@ -6833,7 +7090,7 @@ Item {
             size: 48
             icon: mpv.mute || mpv.volume <= 0 ? "mute" : "volume"
             active: mpv.mute
-            tooltip: mpv.mute ? qsTr("Unmute") : qsTr("Mute")
+            actionLabel: mpv.mute ? qsTr("Unmute") : qsTr("Mute")
             onClicked: mpv.mute = !mpv.mute
         }
         Item {
@@ -6940,7 +7197,7 @@ Item {
             size: 48
             icon: menu.icon
             active: menu.panelOpen || menu.active
-            tooltip: menu.title
+            actionLabel: menu.title
             onClicked: {
                 var wasOpen = menu.panelOpen
                 root.closeMenus()
@@ -7143,7 +7400,7 @@ Item {
             size: 40
             icon: "speed"
             active: sm.panelOpen || sm.nonDefault
-            tooltip: "Speed & sleep"
+            actionLabel: "Speed & sleep"
             onClicked: {
                 var wasOpen = sm.panelOpen
                 root.closeMenus()
@@ -7553,7 +7810,7 @@ Item {
             size: 48
             icon: "fit"
             active: fm.panelOpen || root.fillModeIndex !== 0
-            tooltip: "Aspect ratio"
+            actionLabel: "Aspect ratio"
             onClicked: {
                 var wasOpen = fm.panelOpen
                 root.closeMenus()

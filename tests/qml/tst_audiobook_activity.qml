@@ -28,6 +28,15 @@ TestCase {
         compare(idf.titleKey, "biblio:dune|frank herbert")
     }
 
+    function test_two_recordings_of_same_work_do_not_share_activity_identity() {
+        var work = "dune|frank herbert"
+        var a = ActivityLaneHelpers.audiobookIdentityFor(work + "#src:" + "a".repeat(40))
+        var b = ActivityLaneHelpers.audiobookIdentityFor(work + "#src:" + "b".repeat(40))
+        verify(a.itemKey !== b.itemKey)
+        compare(ActivityLaneHelpers.decideTransition(ActivityLaneHelpers.keyFor(a), b), "begin")
+        compare(ActivityLaneHelpers.decideTransition(ActivityLaneHelpers.keyFor(a), a), "noop")
+    }
+
     function test_empty_pairkey_fails_closed_to_null() {
         verify(ActivityLaneHelpers.audiobookIdentityFor("") === null)
         verify(ActivityLaneHelpers.audiobookIdentityFor(undefined) === null)

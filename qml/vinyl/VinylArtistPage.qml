@@ -811,7 +811,6 @@ Flickable {
             focusOnPointer: false
             id: searchButton
             objectName: "vinylArtistSearchButton"
-            tooltipText: qsTr("Search catalogue")
             anchors.right: parent.right
             anchors.rightMargin: root.gutter
             anchors.verticalCenter: parent.verticalCenter
@@ -924,7 +923,6 @@ Flickable {
                 focusOnPointer: false
                 id: moreButton
                 objectName: "vinylArtistMoreButton"
-                tooltipText: accessibleName
                 width: 40
                 height: 40
                 focusRadius: 20
@@ -1154,7 +1152,6 @@ Flickable {
             KeyboardAction {
                 focusOnPointer: false
                 objectName: "vinylArtistHudPrev"
-                tooltipText: accessibleName
                 width: 38; height: 38; focusRadius: 19; spaceActivates: true
                 accessibleName: "Previous track"
                 onTriggered: root.artistData.stepDemoSong(-1)
@@ -1167,7 +1164,6 @@ Flickable {
             KeyboardAction {
                 focusOnPointer: false
                 objectName: "vinylArtistHudPlay"
-                tooltipText: accessibleName
                 width: 42; height: 42; focusRadius: 21; focusPrimary: true; spaceActivates: true
                 accessibleName: root.artistData.demoPlaying ? "Pause visual demo" : "Play visual demo"
                 onTriggered: root.artistData.toggleDemoPlayback()
@@ -1186,7 +1182,6 @@ Flickable {
             KeyboardAction {
                 focusOnPointer: false
                 objectName: "vinylArtistHudNext"
-                tooltipText: accessibleName
                 width: 38; height: 38; focusRadius: 19; spaceActivates: true
                 accessibleName: "Next track"
                 onTriggered: root.artistData.stepDemoSong(1)

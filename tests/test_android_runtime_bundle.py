@@ -67,8 +67,13 @@ class AndroidRuntimeBundleTest(unittest.TestCase):
             with self.subTest(component=name):
                 self.assertEqual((ROOT / "qml" / name).read_bytes(), (self.runtime / "qml" / name).read_bytes())
                 self.assertFalse((self.runtime / "qml/+android" / name).exists())
-        for name in ("VaultDoor.qml", "VaultHomeWidget.qml"):
+        for name in ("VaultDoor.qml", "VaultHomeWidget.qml", "VaultLibraryButton.qml",
+                     "VaultLibraryPage.qml", "VaultAccessCard.qml", "VaultFolderChooser.qml",
+                     "comicreader/VaultComicReader.qml"):
             self.assertEqual((ROOT / "qml" / name).read_bytes(), (self.runtime / "qml" / name).read_bytes())
+        # The retired pre-library pages stay out of the APK; nothing instantiates them.
+        self.assertFalse((self.runtime / "qml/+android/VaultPage.qml").exists())
+        self.assertFalse((self.runtime / "qml/VaultPage.qml").exists())
         self.assertTrue((self.runtime / "qml/+android/LocalIdentityDialog.qml").is_file())
         self.assertTrue((self.runtime / "qml/reader2/AndroidPaper.qml").is_file())
 
@@ -83,14 +88,19 @@ class AndroidRuntimeBundleTest(unittest.TestCase):
         self.assertIn("RUNTIME_MANIFEST_MISMATCH qml/Unexpected.qml",
                       runtime_manifest_failures(extra))
 
-    def test_java_staging_keeps_neutral_admission_and_excludes_vault(self):
+    def test_java_staging_ships_vault_probe_not_folder_picker_helper(self):
         package = self.runtime.parent.parent
-        self.assertFalse((package / "src/org/colosseum/vault").exists())
+        self.assertTrue((package / "src/org/colosseum/vault/VaultMediaProbe.java").is_file())
+        self.assertFalse((package / "src/org/colosseum/vault/DocumentMetadata.java").exists())
+        self.assertTrue((package / "src/org/colosseum/platform/AllFilesAccess.java").is_file())
+        self.assertTrue((package / "src/org/colosseum/platform/StorageVolumes.java").is_file())
         self.assertTrue((package / "src/org/colosseum/media/MediaAdmissionProbe.java").is_file())
         for path in package.rglob("*.java"):
             with self.subTest(source=str(path.relative_to(package))):
-                self.assertNotIn("org.colosseum.vault", path.read_text())
-        self.assertNotIn("org.colosseum.vault", (package / "AndroidManifest.xml").read_text())
+                self.assertNotIn("DocumentMetadata", path.read_text())
+        manifest = (package / "AndroidManifest.xml").read_text()
+        self.assertIn("android.permission.MANAGE_EXTERNAL_STORAGE", manifest)
+        self.assertIn('android:requestLegacyExternalStorage="true"', manifest)
 
     def test_restage_is_deterministic(self):
         again = stage_runtime(Path(self.directory.name))
@@ -127,10 +137,11 @@ class AndroidRuntimeBundleTest(unittest.TestCase):
 
 
 class AndroidRuntimePolicyTest(unittest.TestCase):
-    def test_dex_vault_class_and_reference_are_rejected(self):
+    def test_dex_folder_picker_helper_is_rejected_but_vault_probe_ships(self):
         for name in ("classes.dex", "classes2.dex", "Other.class"):
             with self.subTest(name=name):
-                self.assertTrue(android_java_policy_failures({name: b"Lorg/colosseum/vault/VaultMediaProbe;"}))
+                self.assertTrue(android_java_policy_failures({name: b"Lorg/colosseum/vault/DocumentMetadata;"}))
+                self.assertEqual([], android_java_policy_failures({name: b"Lorg/colosseum/vault/VaultMediaProbe;"}))
         self.assertEqual([], android_java_policy_failures({
             "classes.dex": b"Lorg/colosseum/media/MediaAdmissionProbe;"}))
 
@@ -140,11 +151,12 @@ class AndroidRuntimePolicyTest(unittest.TestCase):
         files[QML_PREFIX + "World.qml"] = b'import "vinyl" as Vinyl\nItem {}'
         self.assertIn("FORBIDDEN_DESKTOP_IMPORT World.qml", qml_policy_failures(files))
 
-    def test_pure_vault_whitelist_does_not_enable_vault_world(self):
-        for name in ("VaultDoor.qml", "VaultHomeWidget.qml"):
-            self.assertEqual([], qml_policy_failures({QML_PREFIX + name: b"import QtQuick\nItem {}"}))
-        for name in ("VaultPage.qml", "VaultDanger.qml", "+android/VaultDoor.qml"):
-            self.assertTrue(qml_policy_failures({QML_PREFIX + name: b"import QtQuick\nItem {}"}))
+    def test_vault_world_ships_but_retired_pages_do_not(self):
+        for name in ("VaultDoor.qml", "VaultLibraryPage.qml", "VaultAccessCard.qml",
+                     "VaultFolderChooser.qml", "comicreader/VaultComicReader.qml"):
+            self.assertEqual([], qml_policy_failures({QML_PREFIX + name: b"import QtQuick" + bytes([10]) + b"Item {}"}))
+        for name in ("+android/VaultPage.qml", "VaultPage.qml"):
+            self.assertTrue(qml_policy_failures({QML_PREFIX + name: b"import QtQuick" + bytes([10]) + b"Item {}"}))
 
     def test_missing_quoted_javascript_import_is_rejected(self):
         files = {QML_PREFIX + "World.qml": b'import "Missing.js" as Api\nItem {}'}

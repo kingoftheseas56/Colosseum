@@ -22,6 +22,10 @@ import QtQuick.Controls
 
 Item {
     id: rail
+    AdaptiveLayout {
+        id: touchMetrics
+        androidHost: Qt.platform.os === "android" || !!(rail.Window.window && rail.Window.window.androidHost === true)
+    }
 
     required property DiscoverBrowser host
     property Item backdrop: null
@@ -209,7 +213,6 @@ Item {
                         id: srcAction
                         anchors.fill: parent
                         accessibleName: "Source " + src.modelData.name + (src.current ? ", selected" : "")
-                        tooltipText: rail._labelsShown ? "" : String(src.modelData.name || "")
                         focusRadius: 12
                         focusOnPointer: false   // the gold bar marks the choice; no ring on a click
                         onTriggered: rail.host.selectSource(src.modelData.name)
@@ -251,8 +254,11 @@ Item {
         KeyboardAction {
             id: toggleAction
             anchors.fill: parent
+            anchors.leftMargin: -touchMetrics.targetInset(parent.width)
+            anchors.rightMargin: -touchMetrics.targetInset(parent.width)
+            anchors.topMargin: -touchMetrics.targetInset(parent.height)
+            anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
             accessibleName: rail.collapsed ? "Expand sidebar" : "Retract sidebar"
-            tooltipText: accessibleName
             focusRadius: 14
             focusOnPointer: false
             onTriggered: rail.collapsed = !rail.collapsed

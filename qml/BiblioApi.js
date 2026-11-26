@@ -105,6 +105,7 @@ function mapBook(entry, index) {
     return {
         caption: name,
         title: name,
+        author: author,
         blurb: author ? ("By " + author + ".") : "On the Apple Books chart.",
         cover: cover,
         art: cover,
@@ -319,6 +320,31 @@ function searchAudiobooks(query, done) {
     });
 }
 
+// Home audiobook chart: independent of the ebook chart; keep source order.
+// A failed/empty feed must never turn a search result into a claimed #1.
+function loadAudiobookChart(done) {
+    return requestJson("https://itunes.apple.com/" + COUNTRY + "/rss/topaudiobooks/limit=10/json", function(json, error) {
+        var entry = entriesOf(json)[0];
+        if (error || !entry) { done([], error || PROVIDER_UNAVAILABLE); return; }
+        var id = entry.id && entry.id.attributes ? entry.id.attributes["im:id"] : "";
+        var title = labelOf(entry["im:name"]);
+        var author = labelOf(entry["im:artist"]);
+        if (!id || !title || !author) { done([], PROVIDER_UNAVAILABLE); return; }
+        var images = entry["im:image"] || [];
+        var image = images.length ? String(images[images.length - 1].label || "") : "";
+        var row = fullAudiobook({
+            collectionId: id,
+            collectionName: title,
+            artistName: author,
+            description: labelOf(entry.summary),
+            releaseDate: labelOf(entry["im:releaseDate"]),
+            primaryGenreName: entry.category && entry.category.attributes ? entry.category.attributes.label : "",
+            artworkUrl100: image
+        });
+        row.cover = image.replace(/\/[0-9]+x[0-9]+bb\.(png|jpg|jpeg)$/, "/400x400bb.jpg");
+        done([row], "");
+    });
+}
 // ───────────────────────────────────────────────────────────────────────────
 // LIBGEN — the delivery layer. Recreates TB2's LibGenScraper (C++) in QML JS:
 // search libgen.li by title+author, scrape the result table, list the available

@@ -23,6 +23,7 @@ TestCase {
         visible: true
         property bool androidHost: false
         property bool desktopPresentation: true
+        property int theatreSourcesDockInset: 80
         Item { id: surface; anchors.fill: parent }
     }
 
@@ -75,6 +76,7 @@ TestCase {
         sheet = sourcesComponent.createObject(surface)
         verify(sheet !== null)
         sheet.title = "Example film"
+        sheet.smartPlayQuality = "off" // manual list: Smart Play hides the table while it picks
         sheet.rows = rows
         sheet.open = true
         sheet.opacity = 1
@@ -116,11 +118,27 @@ TestCase {
         compare(Math.round(r.rect.height), 900 - 544)
     }
 
-    function test_desktop_short_window_not_rebudgeted() {
-        // Windows/desktop geometry stays exactly as before even when short.
+    function test_desktop_short_window_yields_banner_to_list() {
         openSheet(1280, 600, false, makeRows(6, ["1080p"], ["Torrentio"]))
-        verify(!sheet.compactHeight)
-        compare(findChild(sheet, "sourcesSheetBanner").height, 300)
+        verify(sheet.compactHeight)
+        verify(findChild(sheet, "sourcesSheetBanner").height < 300)
+        verify(listRect().rect.height >= 150)
+    }
+
+    function test_list_runs_to_window_bottom_not_above_dock() {
+        // The dock floats bottom-left only; the table (and list) must not stop above it.
+        var sizes = [[1891, 984, false, 2.5 * 150], [1280, 700, false, 190], [1280, 573, true, 190]]
+        for (var i = 0; i < sizes.length; ++i) {
+            var sz = sizes[i]
+            openSheet(sz[0], sz[1], sz[2], makeRows(10, ["1080p", "720p"], ["Torrentio"]))
+            var table = findChild(sheet, "sourcesSheetTable")
+            var tr = table.mapToItem(sheet, 0, 0, table.width, table.height)
+            verify(sz[1] - (tr.y + tr.height) <= 26, "table reaches the bottom at " + sz[0] + "x" + sz[1] + ": gap " + (sz[1] - tr.y - tr.height))
+            var r = listRect()
+            verify(r.rect.height >= sz[3], "list height " + r.rect.height + " at " + sz[0] + "x" + sz[1])
+            verify(r.list.bottomMargin > 0, "scroll padding clears the dock")
+            cleanup()
+        }
     }
 
     function test_android_tall_viewport_keeps_desktop_banner() {

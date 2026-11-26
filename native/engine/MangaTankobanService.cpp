@@ -1,6 +1,7 @@
 // native/engine/MangaTankobanService.cpp
 #include "engine/MangaTankobanService.h"
 #include "engine/DownloadFileOps.h"
+#include "engine/DownloadMediaPaths.h"
 
 #include "engine/MangaTankobanLogic.h"          // MangaTankoban::prepareSeries / volumeId / settingsKey
 #include "engine/MangaSynopsisEnricher.h"
@@ -591,6 +592,10 @@ void MangaTankobanService::searchSeriesSources(QString key, QString seriesTitle)
 
 void MangaTankobanService::downloadNyaa(QString volumeId, QString infoHash)
 {
+    if (DownloadMediaPaths::moving()) {
+        emit failed(volumeId, tr("Downloads are moving. Try again when the move finishes."));
+        return;
+    }
     if (!m_recoveryReady) {
         emit failed(volumeId, QStringLiteral("Local volume index is still recovering."));
         return;
@@ -639,6 +644,11 @@ void MangaTankobanService::downloadNyaaBatch(QStringList volumeIds, QString info
 {
     if (volumeIds.isEmpty())
         return;
+    if (DownloadMediaPaths::moving()) {
+        for (const QString &volumeId : volumeIds)
+            emit failed(volumeId, tr("Downloads are moving. Try again when the move finishes."));
+        return;
+    }
     if (!m_recoveryReady) {
         for (const QString& volumeId : volumeIds)
             emit failed(volumeId, QStringLiteral("Local volume index is still recovering."));
@@ -724,6 +734,10 @@ void MangaTankobanService::downloadNyaaBatch(QStringList volumeIds, QString info
 
 void MangaTankobanService::compileWeebCentral(QString volumeId)
 {
+    if (DownloadMediaPaths::moving()) {
+        emit failed(volumeId, tr("Downloads are moving. Try again when the move finishes."));
+        return;
+    }
     if (!m_recoveryReady) {
         emit failed(volumeId, QStringLiteral("Local volume index is still recovering."));
         return;
@@ -767,6 +781,8 @@ void MangaTankobanService::cancel(QString volumeId)
 
 QVariantMap MangaTankobanService::remove(QString volumeId)
 {
+    if (DownloadMediaPaths::moving())
+        return DownloadFileOps::toMap({false, tr("Downloads are moving.")});
     if (!m_recoveryReady)
         return DownloadFileOps::toMap({false, QStringLiteral("Local volume index is still recovering.")});
     const bool inflight = m_acq.contains(volumeId);
@@ -832,6 +848,17 @@ QVariantList MangaTankobanService::localPages(QString volumeId) const
 QVariantList MangaTankobanService::downloadedVolumes() const
 {
     return m_recoveryReady ? m_index->downloadedVolumes() : QVariantList{};
+}
+
+QList<DownloadLocation::Item> MangaTankobanService::managedDownloadItems() const
+{
+    return m_recoveryReady ? m_index->managedDownloadItems() : QList<DownloadLocation::Item>{};
+}
+
+void MangaTankobanService::refreshDownloadPaths()
+{
+    if (m_recoveryReady)
+        m_index->refreshDownloadPaths();
 }
 
 QVariantList MangaTankobanService::activeVolumeJobs() const

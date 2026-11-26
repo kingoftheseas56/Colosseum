@@ -26,6 +26,7 @@ Item {
     signal minimizeRequested()
     signal fullscreenRequested()
     signal closeRequested()
+    signal manualSourceRequested()
 
     // Player 2 gave up on this playback before a frame was shown. There is no other backend to hand
     // it to in this process (mpv cannot render on D3D11) — this signal exists so Main.qml can log the
@@ -36,7 +37,10 @@ Item {
     signal backendRestartRequired(string reason)
 
     // Main.qml calls the same interface on either player backend.
-    function requestEscape() { shell.requestEscape() }
+    function requestEscape() {
+        if (page.smartPickLoading) { page.backRequested(); return }
+        shell.requestEscape()
+    }
 
     // --- what we're playing -------------------------------------------------------------------
     property string mediaId: ""
@@ -84,6 +88,9 @@ Item {
     property real pendingSeekSec: 0
     // True between Stream.play() and streamReady/streamError - a torrent is warming up.
     property bool _awaitingStream: false
+    // Smart Pick search is running before any media session or stream exists. Same name and meaning
+    // as qml/PlayerPage.qml, so Main.qml drives both backends identically.
+    property bool smartPickLoading: false
 
     // --- loader / error surface state ---------------------------------------------------------
     // Loader identity, derived exactly as the shipped player derives it (qml/PlayerPage.qml:1173):
@@ -127,7 +134,8 @@ Item {
     // buffering speaks through the transport line, exactly as production does.
     property bool _hasPlayed: false
     readonly property bool _starting: !page.errored
-                                      && (page._awaitingStream
+                                      && (page.smartPickLoading
+                                          || page._awaitingStream
                                           || (!page._hasPlayed
                                               && (page._state === 1 || page._state === 2
                                                   || page._state === 7)))
@@ -135,6 +143,8 @@ Item {
     function _statusText() {
         if (page.errored)
             return page.errorText
+        if (page.smartPickLoading)
+            return qsTr("Finding the best stream")
         if (page._awaitingStream)
             return "Starting stream..."
         if (page._state === 2 || page._state === 7 || page._stalledSeek)
@@ -226,6 +236,8 @@ Item {
         backdropUrl: page.mediaLoadingArt
         statusText: page._statusText()
         errorText: page._statusText()
+        allowManual: page.smartPickLoading
+        onManualRequested: if (page.smartPickLoading) page.manualSourceRequested()
         onCancelRequested: page.closeRequested()
     }
 
@@ -314,6 +326,20 @@ Item {
     }
 
     // --- the six entry points Main.qml uses ---------------------------------------------------
+
+    // Presentation-only startup for the title-page Smart Pick: no session, no Stream.play until the
+    // sources sheet picks. Mirrors qml/PlayerPage.qml beginSmartPick.
+    function beginSmartPick(title, posterUrl, subType, subId, playbackContext) {
+        page.stop()
+        page._reset()
+        var ctx = playbackContext || ({})
+        var imdbId = String(ctx.imdbId || subId || "").match(/tt\d+/)
+        page.mediaTitle = title || ""
+        page.mediaLogo = ctx.logo || (imdbId ? "https://live.metahub.space/logo/medium/" + imdbId[0] + "/img" : "")
+        page.mediaLoadingArt = ctx.episodeStill || ctx.loaderBackdrop || posterUrl || ""
+        page.mediaLoadingLine = ctx.episodeLine || ""
+        page.smartPickLoading = true
+    }
 
     function playTorrent(infoHash, fileIdx, title, posterUrl, subType, subId, streamCandidates, playbackContext) {
         page._reset()
@@ -437,6 +463,7 @@ Item {
     }
 
     function _reset() {
+        page.smartPickLoading = false
         page.sendTraktPlayback(false)
         page.pendingSeekSec = 0
         page.errorText = ""

@@ -8,6 +8,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 
 Item {
     id: root
@@ -33,18 +34,34 @@ Item {
     signal redownloadRequested(var item)     // file absent here → fetch the same logical item
     signal openWorldRequested(string world)  // empty-lane CTA → host opens that world
     signal playArrivingRequested(var job)    // live theatre job → host streams the same url
+    signal listenAudiobookRequested(var item)
     signal openAudiobookRequested(var item)
+    signal replaceAudiobookRequested(string key, string attempt)
 
     Theme { id: theme }
 
     // ---- read-model bindings (revision-driven refresh) ----
     property var downloadsApi: (typeof LocalDownloads !== "undefined") ? LocalDownloads : null
+    readonly property var locationApi: downloadsApi && downloadsApi.location ? downloadsApi.location : null
     property var audiobooksApi: (typeof Audiobooks !== "undefined") ? Audiobooks : null
     property var vaultApi: (typeof VaultLibrary !== "undefined") ? VaultLibrary : null
     property var jobs: []
     property var jobGroups: []
-    property int liveJobCount: 0
-    property int attentionCount: 0
+    readonly property var jobCounts: {
+        var live = 0;
+        var attention = 0;
+        for (var k = 0; k < jobs.length; k++) {
+            if (isLiveState(jobs[k].state)) live++;
+            else if (jobs[k].state === "failed") attention++;
+        }
+        for (var key in abActive) {
+            if (isLiveState(abActive[key].state)) live++;
+            else if (abActive[key].state === "failed") attention++;
+        }
+        return { live: live, attention: attention };
+    }
+    readonly property int liveJobCount: jobCounts.live
+    readonly property int attentionCount: jobCounts.attention
     property var openGroups: ({})
     property var laneSeries: ({})      // world -> series list
     property var remoteItems: []       // intent exists in the account, bytes do not exist here
@@ -177,6 +194,7 @@ Item {
     }
 
     property bool confirmationOpen: false
+    property bool locationConfirmation: false
     property string confirmationTitle: ""
     property string confirmationBody: ""
     property string confirmationLabel: ""
@@ -184,6 +202,7 @@ Item {
     property Item confirmationInvoker: null
 
     function confirmAction(title, body, label, callback) {
+        locationConfirmation = false;
         confirmationTitle = title;
         confirmationBody = body;
         confirmationLabel = label;
@@ -194,6 +213,9 @@ Item {
     }
     function closeConfirmation() {
         var invoker = confirmationInvoker;
+        if (locationConfirmation && locationApi)
+            locationApi.cancelPreview();
+        locationConfirmation = false;
         confirmationOpen = false;
         confirmationCallback = null;
         confirmationInvoker = null;
@@ -201,9 +223,48 @@ Item {
             Qt.callLater(function() { invoker.forceActiveFocus(Qt.BacktabFocusReason) });
     }
     function runConfirmedAction() {
+        if (locationConfirmation) {
+            if (locationApi && !locationApi.preview.error) {
+                locationApi.confirmMove();
+                if (locationApi.pending)
+                    closeConfirmation();
+            }
+            return;
+        }
         var callback = confirmationCallback;
         closeConfirmation();
         if (callback) callback();
+    }
+
+    function locationPreviewText(preview) {
+        var text = qsTr("Current folder\n%1\n\nNew folder\n%2")
+            .arg(preview.currentPath || "").arg(preview.proposedPath || "");
+        text += "\n\n" + qsTr("%n managed download(s)", "", preview.items || 0)
+            + " · " + (fmtBytes(preview.bytes || 0) || qsTr("0 bytes"));
+        if (preview.collisions)
+            text += "\n" + qsTr("%n download(s) will get a distinct name to keep existing files.", "", preview.collisions);
+        if (preview.error)
+            text += "\n\n" + preview.error;
+        return text;
+    }
+
+    FolderDialog {
+        id: downloadFolderPicker
+        title: qsTr("Choose a download location")
+        onAccepted: {
+            if (!root.locationApi) return;
+            root.locationApi.previewLocation(selectedFolder);
+            root.confirmAction(qsTr("Move downloads?"), "", qsTr("Move"), null);
+            root.locationConfirmation = true;
+        }
+    }
+
+    Connections {
+        target: root.locationApi
+        function onChanged() {
+            root.abRefresh();
+            root.refresh();
+        }
     }
     function finishMutation(result, fallbackMessage) {
         if (result && result.success === false) {
@@ -231,12 +292,8 @@ Item {
     // countdown on its "Now arriving" row, cleared on the next progress/finish/fail.
     property var coolMap: ({})              // chapterId -> resume-at epoch ms (absent = not cooling)
 
-    // ---- audiobooks (A2 lane) ----
-    // The audiobook engine (`Audiobooks`) keys by pairKey ("title|author") and enumerates only
-    // COMPLETED sets (downloadedAudiobooks). Active jobs are mirrored HERE from its progress
-    // signals — a download streams in chunks, so an already-running job repaints within a beat
-    // of this page opening. (This closes the 2026-07-18 gap: audiobook downloads ran invisible.)
-    property var abActive: ({})        // pairKey -> { state: "resolving"|"downloading"|"failed", pct }
+    // The downloader owns recording identities and snapshots for both active and completed jobs.
+    property var abActive: ({})
     property var abDone: []            // downloadedAudiobooks() snapshot: {id,title,author,bytes,addedAt,missing,fileCount}
     function abRefresh() {
         abDone = audiobooksApi ? audiobooksApi.downloadedAudiobooks() : [];
@@ -250,6 +307,10 @@ Item {
                     title: item.title || "",
                     author: item.author || "",
                     error: item.error || "",
+                    attempt: item.attempt || "",
+                    pairKey: item.pairKey || "",
+                    workId: item.workId || "",
+                    stallPhase: item.stallPhase || "",
                     received: item.received || 0,
                     total: item.total || 0,
                     pct: item.total > 0 ? item.received / item.total : 0
@@ -258,6 +319,18 @@ Item {
         }
         abActive = m;
     }
+    function audiobookJobText(job) {
+        const progress = job.total > 0
+            ? qsTr("%1 of %2").arg(job.received > 0 ? fmtBytes(job.received) : qsTr("0 bytes")).arg(fmtBytes(job.total))
+            : job.received > 0 ? fmtBytes(job.received) : ""
+        if (job.stallPhase === "file-list") return qsTr("Stalled while waiting for the release’s file list.")
+        if (job.stallPhase === "audio-data") return progress
+            ? qsTr("Stopped receiving audio data at %1.").arg(progress)
+            : qsTr("Stopped receiving audio data.")
+        if (job.state === "failed") return qsTr("Audiobook · failed — %1").arg(job.error || qsTr("download failed"))
+        if (job.state === "resolving") return qsTr("Audiobook · resolving")
+        return progress ? qsTr("Audiobook · %1").arg(progress) : qsTr("Audiobook · downloading")
+    }
     function abTitleOf(key) {          // pairKey → display title (its lowercased "title|author" front half)
         var p = String(key || "").split("|");
         return p[0] ? p[0] : String(key || "");
@@ -265,11 +338,13 @@ Item {
     Connections {
         target: root.audiobooksApi
         ignoreUnknownSignals: true
-        function onResolving(key)          { var m = Object.assign({}, root.abActive); var old = m[key] || ({}); m[key] = { state: "resolving", title: old.title || "", author: old.author || "", error: "", received: 0, total: 0, pct: 0 }; root.abActive = m }
-        function onProgress(key, rcv, tot) { var m = Object.assign({}, root.abActive); var old = m[key] || ({}); m[key] = { state: "downloading", title: old.title || "", author: old.author || "", error: "", received: rcv, total: tot, pct: tot > 0 ? rcv / tot : 0 }; root.abActive = m }
-        function onFinished(key, path)     { var m = root.abActive; delete m[key]; root.abActive = m; root.abRefresh() }
-        function onFailed(key, why)        { var m = Object.assign({}, root.abActive); var old = m[key] || ({}); m[key] = { state: "failed", title: old.title || "", author: old.author || "", error: why || "download failed", received: old.received || 0, total: old.total || 0, pct: old.pct || 0 }; root.abActive = m }
-        function onFailuresChanged()       { root.abRefresh() }
+        function onActiveCountChanged() { root.abRefresh() }
+        function onResolving(key) { root.abRefresh() }
+        function onProgress(key, received, total) { root.abRefresh() }
+        function onFinished(key, path) { root.abRefresh() }
+        function onRemoved(key) { root.abRefresh() }
+        function onFailed(key, reason) { root.abRefresh() }
+        function onFailuresChanged() { root.abRefresh() }
     }
     property double nowTick: Date.now()     // bumped 1/s while anything cools, drives the countdown
     readonly property bool anyCooling: {
@@ -289,17 +364,6 @@ Item {
         if (!downloadsApi) return;
         jobs = downloadsApi.activeJobs();
         jobGroups = groupJobs(jobs);
-        var live = 0;
-        var attention = 0;
-        for (var k = 0; k < jobs.length; k++)
-            if (isLiveState(jobs[k].state)) live++;
-            else if (jobs[k].state === "failed") attention++;
-        for (var abKey in abActive) {
-            if (isLiveState(abActive[abKey].state)) live++;
-            else if (abActive[abKey].state === "failed") attention++;
-        }
-        liveJobCount = live;
-        attentionCount = attention;
         // drop cooldowns whose job left the queue without a terminal signal
         // (e.g. cancelled) so a stale countdown never lingers.
         var present = {};
@@ -316,9 +380,7 @@ Item {
             tankoban: baseTotals.tankoban || 0,
             biblio: baseTotals.biblio || 0,
             theatre: baseTotals.theatre || 0,
-            audiobook: abDone.length,
-            active: live,
-            attention: attention
+            audiobook: abDone.length
         };
         var lanes = {};
         for (var i = 0; i < worlds.length; i++)
@@ -614,6 +676,7 @@ Item {
                     height: 36
                     radius: 18
                     enabled: !!root.downloadsApi && !root.deletingAllDownloads
+                             && (!root.locationApi || !root.locationApi.pending)
                              && ((root.totalsMap.items || 0) > 0 || root.jobs.length > 0 || Object.keys(root.abActive).length > 0)
                     color: deleteAllInput.interactionActive ? "#543238" : "#302027"
                     border.color: "#805058"
@@ -639,6 +702,67 @@ Item {
             Item { width: 1; height: 20 }
             Rectangle { width: 34; height: 3; radius: 2; color: theme.gold }
 
+            Column {
+                width: parent.width
+                visible: !!root.locationApi
+                topPadding: 16
+                spacing: 8
+
+                Text {
+                    width: parent.width
+                    text: root.locationApi ? root.locationApi.currentPath : ""
+                    color: theme.ink
+                    textFormat: Text.PlainText
+                    wrapMode: Text.Wrap
+                    font.family: theme.ui
+                    font.pixelSize: 13
+                    Accessible.name: qsTr("Current download folder") + " " + text
+                }
+
+                Rectangle {
+                    width: Math.min(parent.width, locationLabel.implicitWidth + 28)
+                    height: 36
+                    radius: 18
+                    enabled: root.locationApi && !root.locationApi.working
+                    opacity: enabled ? 1 : 0.5
+                    color: locationInput.interactionActive ? "#ffd968" : theme.gold
+                    Text {
+                        id: locationLabel
+                        anchors.centerIn: parent
+                        text: root.locationApi && root.locationApi.pending
+                            ? qsTr("Resume download move") : qsTr("Change download location")
+                        color: "#111217"
+                        font.family: theme.ui
+                        font.pixelSize: 13
+                        font.weight: Font.DemiBold
+                    }
+                    KeyboardAction {
+                        id: locationInput
+                        objectName: "changeDownloadLocationAction"
+                        anchors.fill: parent
+                        accessibleName: locationLabel.text
+                        focusRadius: 18
+                        onTriggered: {
+                            if (root.locationApi.pending)
+                                root.locationApi.retryMove();
+                            else
+                                downloadFolderPicker.open();
+                        }
+                    }
+                }
+
+                Text {
+                    width: parent.width
+                    visible: text.length > 0
+                    text: root.locationApi ? root.locationApi.status : ""
+                    color: theme.inkDim
+                    textFormat: Text.PlainText
+                    wrapMode: Text.Wrap
+                    font.family: theme.ui
+                    font.pixelSize: 13
+                }
+            }
+
             // one quiet inline metrics line — no stat cards, no pills
             Text {
                 topPadding: 16
@@ -658,8 +782,8 @@ Item {
                     parts.push("Biblio <font color='#c9c8d0'>" + (t.biblio || 0) + "</font>");
                     parts.push("Theatre <font color='#c9c8d0'>" + (t.theatre || 0) + "</font>");
                     parts.push("Audiobooks <font color='#c9c8d0'>" + (t.audiobook || 0) + "</font>");
-                    if (t.active) parts.push("<b><font color='#f0c44a'>" + t.active + " arriving</font></b>");
-                    if (t.attention) parts.push("<b><font color='#c98b8b'>" + t.attention + " need attention</font></b>");
+                    if (root.liveJobCount) parts.push("<b><font color='#f0c44a'>" + root.liveJobCount + " arriving</font></b>");
+                    if (root.attentionCount) parts.push("<b><font color='#c98b8b'>" + root.attentionCount + " need attention</font></b>");
                     return parts.join("  ·  ");
                 }
             }
@@ -1090,10 +1214,6 @@ Item {
                                                 visible: epRow.modelData.state === "done"
                                                 text: "✓"; color: theme.inkDim
                                                 font.family: theme.ui; font.pixelSize: 13
-                                                HoverHandler { id: completeMarkHover }
-                                                ToolTip.visible: completeMarkHover.hovered
-                                                ToolTip.text: qsTr("Download complete")
-                                                ToolTip.delay: 350
                                             }
                                             Text {
                                                 // Android touch host: glyph unchanged, hit host >= 48 (desktop: implicit size).
@@ -1190,8 +1310,12 @@ Item {
                                 id: managerAudioRow
                                 required property var modelData
                                 readonly property var st: root.abActive[modelData] || ({})
+                                readonly property bool canReplace: st.state === "failed" && !!st.attempt
+                                    && !!st.pairKey && !!st.title && (!!st.author || !!st.workId)
+                                readonly property bool stacked: canReplace && width < 480
                                 width: groupsCol.width
-                                height: 58
+                                height: Math.max(58, managerAudioLabels.implicitHeight
+                                    + (stacked ? managerAudioActions.height + 24 : 16))
 
                                 Rectangle {
                                     anchors.left: parent.left; anchors.right: parent.right
@@ -1199,12 +1323,18 @@ Item {
                                     height: 1; color: Qt.rgba(1, 1, 1, 0.06)
                                 }
                                 Column {
-                                    anchors.left: parent.left; anchors.leftMargin: 52
-                                    anchors.right: managerAudioAction.left; anchors.rightMargin: 18
-                                    anchors.verticalCenter: parent.verticalCenter
+                                    id: managerAudioLabels
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: managerAudioRow.stacked ? 18 : 52
+                                    anchors.right: managerAudioRow.stacked ? parent.right : managerAudioActions.left
+                                    anchors.rightMargin: 18
+                                    anchors.top: managerAudioRow.stacked ? parent.top : undefined
+                                    anchors.topMargin: 8
+                                    anchors.verticalCenter: managerAudioRow.stacked ? undefined : parent.verticalCenter
                                     spacing: 3
                                     Text {
                                         width: parent.width
+                                        textFormat: Text.PlainText
                                         text: managerAudioRow.st.title || root.abTitleOf(managerAudioRow.modelData)
                                         color: theme.ink
                                         font.family: theme.ui; font.pixelSize: 14; font.weight: Font.Medium
@@ -1212,52 +1342,68 @@ Item {
                                     }
                                     Text {
                                         width: parent.width
-                                        text: {
-                                            if (managerAudioRow.st.state === "failed")
-                                                return "Audiobook · failed — " + (managerAudioRow.st.error || "download failed");
-                                            if (managerAudioRow.st.state === "resolving")
-                                                return "Audiobook · resolving";
-                                            if (managerAudioRow.st.total > 0)
-                                                return "Audiobook · " + root.fmtBytes(managerAudioRow.st.received)
-                                                        + " of " + root.fmtBytes(managerAudioRow.st.total);
-                                            return "Audiobook · downloading";
-                                        }
+                                        objectName: "downloadsAudiobookStatus_" + managerAudioRow.modelData
+                                        text: root.audiobookJobText(managerAudioRow.st)
+                                        textFormat: Text.PlainText
+                                        wrapMode: Text.Wrap
                                         color: managerAudioRow.st.state === "failed" ? "#c98b8b" : theme.inkDimmer
                                         font.family: theme.ui; font.pixelSize: 12
-                                        elide: Text.ElideRight
                                     }
                                 }
-                                Text {
-                                    id: managerAudioAction
-                                    anchors.right: parent.right; anchors.rightMargin: 26
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: managerAudioRow.st.state === "failed" ? "Dismiss" : "Cancel"
-                                    color: managerAudioInput.interactionActive ? theme.ink : theme.inkDimmer
-                                    font.family: theme.ui; font.pixelSize: 12
-                                    KeyboardAction {
-                                        id: managerAudioInput
-                                        anchors.fill: parent
-                                        accessibleName: managerAudioAction.text
-                                        showFocusFrame: false
-                                        onTriggered: {
-                                            if (managerAudioRow.st.state === "failed") {
-                                                root.audiobooksApi.dismissFailure(managerAudioRow.modelData);
-                                                root.abRefresh();
-                                                return;
+                                Row {
+                                    id: managerAudioActions
+                                    anchors.right: parent.right
+                                    anchors.rightMargin: 26
+                                    anchors.bottom: managerAudioRow.stacked ? parent.bottom : undefined
+                                    anchors.bottomMargin: 8
+                                    anchors.verticalCenter: managerAudioRow.stacked ? undefined : parent.verticalCenter
+                                    spacing: 18
+
+                                    Text {
+                                        id: replaceAction
+                                        visible: managerAudioRow.canReplace
+                                        text: qsTr("Choose another release")
+                                        color: replaceInput.interactionActive ? theme.ink : theme.gold
+                                        font.family: theme.ui; font.pixelSize: 12
+                                        KeyboardAction {
+                                            id: replaceInput
+                                            objectName: "downloadsReplaceAudiobook_" + managerAudioRow.modelData
+                                            anchors.fill: parent
+                                            accessibleName: replaceAction.text
+                                            onTriggered: root.replaceAudiobookRequested(managerAudioRow.modelData, managerAudioRow.st.attempt)
+                                        }
+                                    }
+
+                                    Text {
+                                        id: managerAudioAction
+                                        text: managerAudioRow.st.state === "failed" ? qsTr("Dismiss") : qsTr("Cancel")
+                                        color: managerAudioInput.interactionActive ? theme.ink : theme.inkDimmer
+                                        font.family: theme.ui; font.pixelSize: 12
+                                        KeyboardAction {
+                                            id: managerAudioInput
+                                            anchors.fill: parent
+                                            accessibleName: managerAudioAction.text
+                                            showFocusFrame: false
+                                            onTriggered: {
+                                                if (managerAudioRow.st.state === "failed") {
+                                                    root.audiobooksApi.dismissFailure(managerAudioRow.modelData);
+                                                    root.abRefresh();
+                                                    return;
+                                                }
+                                                // abActive is reassigned wholesale on every event (Object.assign
+                                                // builds a fresh object each time), so Object.keys(root.abActive)
+                                                // is a new array reference on every refresh and this Repeater's
+                                                // delegates are torn down and rebuilt just like jobGroups' above.
+                                                // Capture the recording key before the dialog opens.
+                                                var abKey = managerAudioRow.modelData;
+                                                root.confirmAction(
+                                                    "Cancel audiobook download?",
+                                                    "The partial files will be deleted.",
+                                                    "Cancel download",
+                                                    function() {
+                                                        root.audiobooksApi.cancelDownload(abKey);
+                                                    });
                                             }
-                                            // abActive is reassigned wholesale on every event (Object.assign
-                                            // builds a fresh object each time), so Object.keys(root.abActive)
-                                            // is a new array reference on every refresh and this Repeater's
-                                            // delegates are torn down and rebuilt just like jobGroups' above.
-                                            // Capture the pairKey primitive before the async dialog.
-                                            var abKey = managerAudioRow.modelData;
-                                            root.confirmAction(
-                                                "Cancel audiobook download?",
-                                                "The partial files will be deleted.",
-                                                "Cancel download",
-                                                function() {
-                                                    root.audiobooksApi.cancelDownload(abKey);
-                                                });
                                         }
                                     }
                                 }
@@ -1701,10 +1847,6 @@ Item {
                                 width: abShelfCol.width; height: 54
                                 Text {
                                     id: abMark
-                                    HoverHandler { id: audiobookMarkHover }
-                                    ToolTip.visible: audiobookMarkHover.hovered
-                                    ToolTip.text: abDoneRow.modelData.missing ? qsTr("File missing") : qsTr("Saved on this device")
-                                    ToolTip.delay: 350
                                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                                     width: 22
                                     text: abDoneRow.modelData.missing ? "✕" : "✓"
@@ -1734,10 +1876,6 @@ Item {
                                             if (b) parts.push(b);
                                             var w = root.fmtWhen(abDoneRow.modelData.addedAt || 0);
                                             if (w) parts.push(w);
-                                            if (abDoneRow.modelData.bookPath)
-                                                parts.push("ready to listen");
-                                            else
-                                                parts.push("the paired book is not available locally");
                                             return parts.join(" · ");
                                         }
                                         color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
@@ -1749,6 +1887,20 @@ Item {
                                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                                     spacing: 20
                                     Text {
+                                        visible: !abDoneRow.modelData.missing && !!abDoneRow.modelData.recordingKey
+                                        text: qsTr("Listen")
+                                        color: abListenInput.interactionActive ? "#ffd968" : theme.gold
+                                        font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                                        KeyboardAction {
+                                            id: abListenInput
+                                            objectName: "downloadsListenAction_" + abDoneRow.modelData.id
+                                            anchors.fill: parent
+                                            accessibleName: qsTr("Listen")
+                                            showFocusFrame: false
+                                            onTriggered: root.listenAudiobookRequested(abDoneRow.modelData)
+                                        }
+                                    }
+                                    Text {
                                         visible: !abDoneRow.modelData.missing
                                                  && String(abDoneRow.modelData.bookPath || "").length > 0
                                         text: "Open book"
@@ -1756,6 +1908,7 @@ Item {
                                         font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
                                         KeyboardAction {
                                             id: abOpenInput
+                                            objectName: "downloadsOpenAudiobookBookAction_" + abDoneRow.modelData.id
                                             anchors.fill: parent
                                             accessibleName: "Open book"
                                             showFocusFrame: false
@@ -1840,7 +1993,9 @@ Item {
                 }
                 Text {
                     width: parent.width
-                    text: root.confirmationBody
+                    text: root.locationConfirmation && root.locationApi
+                        ? root.locationPreviewText(root.locationApi.preview) : root.confirmationBody
+                    textFormat: Text.PlainText
                     color: theme.inkDim
                     font.family: theme.ui
                     font.pixelSize: 13
@@ -1857,7 +2012,7 @@ Item {
                         Text {
                             id: cancelConfirmText
                             anchors.centerIn: parent
-                            text: "Go back"
+                            text: root.locationConfirmation ? qsTr("Cancel") : qsTr("Go back")
                             color: theme.ink
                             font.family: theme.ui
                             font.pixelSize: 13
@@ -1865,7 +2020,7 @@ Item {
                         KeyboardAction {
                             id: cancelConfirmInput
                             anchors.fill: parent
-                            accessibleName: "Go back"
+                            accessibleName: cancelConfirmText.text
                             focusRadius: 17
                             KeyNavigation.tab: confirmActionInput
                             KeyNavigation.backtab: confirmActionInput
@@ -1876,6 +2031,8 @@ Item {
                         width: confirmActionText.implicitWidth + 28
                         height: 34
                         radius: 17
+                        enabled: !root.locationConfirmation || (root.locationApi && !root.locationApi.preview.error)
+                        opacity: enabled ? 1 : 0.45
                         color: confirmActionInput.interactionActive ? "#ffd968" : theme.gold
                         Text {
                             id: confirmActionText
@@ -1914,7 +2071,6 @@ Item {
                 id: backInput
                 anchors.fill: parent
                 accessibleName: "Back"
-                tooltipText: accessibleName
                 focusRadius: 17
                 onTriggered: root.backRequested()
             }
@@ -1923,16 +2079,16 @@ Item {
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; anchors.rightMargin: 26
             spacing: 20
             Image { source: "../assets/icons/search.svg"; width: 17; height: 17; opacity: 0.7
-                    KeyboardAction { anchors.fill: parent; accessibleName: "Search"; tooltipText: accessibleName; focusRadius: 5
+                    KeyboardAction { anchors.fill: parent; accessibleName: "Search"; focusRadius: 5
                         onTriggered: root.searchClicked() } }
             Image { visible: !root.onAndroid; source: "../assets/icons/minimize.svg"; width: 17; height: 17; opacity: 0.7
-                    KeyboardAction { anchors.fill: parent; accessibleName: "Minimize"; tooltipText: accessibleName; focusRadius: 5
+                    KeyboardAction { anchors.fill: parent; accessibleName: "Minimize"; focusRadius: 5
                         onTriggered: root.minimizeRequested() } }
             Image { visible: !root.onAndroid; source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"; width: 17; height: 17; opacity: 0.7
-                    KeyboardAction { anchors.fill: parent; accessibleName: "Toggle fullscreen"; tooltipText: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen"); focusRadius: 5
+                    KeyboardAction { anchors.fill: parent; accessibleName: "Toggle fullscreen"; focusRadius: 5
                         onTriggered: root.fullscreenRequested() } }
             Image { visible: !root.onAndroid; source: "../assets/icons/power.svg"; width: 17; height: 17; opacity: 0.7
-                    KeyboardAction { anchors.fill: parent; accessibleName: "Close Colosseum"; tooltipText: accessibleName; focusRadius: 5
+                    KeyboardAction { anchors.fill: parent; accessibleName: "Close Colosseum"; focusRadius: 5
                         onTriggered: root.closeRequested() } }
         }
     }
@@ -1950,10 +2106,6 @@ Item {
         }
         Text {
             id: markT
-            HoverHandler { id: ledgerMarkHover }
-            ToolTip.visible: ledgerMarkHover.hovered
-            ToolTip.text: row.rowData.missing ? qsTr("File missing") : qsTr("Saved on this device")
-            ToolTip.delay: 350
             x: row.indent
             anchors.verticalCenter: parent.verticalCenter
             width: 22

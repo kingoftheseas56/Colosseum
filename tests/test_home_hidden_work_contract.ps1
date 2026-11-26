@@ -9,7 +9,7 @@ function Need([bool]$condition, [string]$message) {
 
 # Home's hero timer is a GUI animation. It must stop when the Home Flickable is hidden behind a
 # world, while retaining its current index so returning Home does not rebuild or reset the shell.
-Need ($main.Contains('interval: 6500; running: page.visible && !win.immersiveSurfaceOpen; repeat: true')) `
+Need ($main.Contains('running: page.visible && !win.immersiveSurfaceOpen && !hero.keyboardFocusWithin')) `
     'The Home hero timer must stand down while the Home page is hidden.'
 Need ($main.Contains('visible: !win.immersiveSurfaceOpen')) `
     'The Home page visibility boundary must remain explicit.'

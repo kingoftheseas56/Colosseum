@@ -34,7 +34,7 @@ QString normPath(const QString& p)
     return n;
 }
 
-// Fill the identity-neutral fields of a FileRow for a container download. The
+// Fill the filesystem fields of a FileRow for a container download. The
 // `id` is intentionally left empty — VaultScanner::applyPublish assigns it via
 // VaultIdentity::idForFile, which is what makes the double-count guard work
 // (same file under two roots → same id → INSERT OR REPLACE dedupes).
@@ -228,13 +228,23 @@ VaultDownloadsRoot::rowsFromVolumes(QObject* volumes, const QString& rootPath)
         const QString archive = pages.first().toMap().value(QStringLiteral("archive")).toString();
         if (archive.isEmpty())
             continue; // legacy loose-page volume — not Vault-openable
-        out.append(baseRow(rootPath,
-                           m.value(QStringLiteral("seriesTitle")).toString(),
-                           QStringLiteral("comic"),
-                           archive,
+        const QString seriesTitle = m.value(QStringLiteral("seriesTitle")).toString();
+        auto row = baseRow(rootPath, seriesTitle, QStringLiteral("comic"), archive,
                            m.value(QStringLiteral("bytes")).toLongLong(),
                            normalizeAddedAtMs(m.value(QStringLiteral("addedAt")).toLongLong()),
-                           m.value(QStringLiteral("label")).toString()));
+                           m.value(QStringLiteral("label")).toString());
+        const QString seriesId = m.value(QStringLiteral("seriesId")).toString();
+        const int malId = seriesId.mid(4).toInt();
+        if (malId > 0 && seriesId == QStringLiteral("mal:") + QString::number(malId)
+            && !seriesTitle.trimmed().isEmpty()) {
+            row.identityId = seriesId;
+            row.identityTitle = seriesTitle;
+            row.identitySource = QStringLiteral("MAL");
+            row.identityWorld = QStringLiteral("Tankoban");
+            row.identityState = QStringLiteral("adopted");
+            row.identityCandidateCount = 1;
+        }
+        out.append(row);
     }
     return out;
 }

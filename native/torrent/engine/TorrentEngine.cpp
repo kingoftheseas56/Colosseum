@@ -22,6 +22,7 @@
 #include <libtorrent/announce_entry.hpp>
 #include <libtorrent/peer_info.hpp>
 #include <libtorrent/ip_filter.hpp>
+#include <libtorrent/version.hpp>
 
 #include <QSettings>
 #include <QStringList>
@@ -115,7 +116,10 @@ private:
 
         for (auto* a : alerts) {
             if (auto* removed = lt::alert_cast<lt::torrent_removed_alert>(a)) {
-                m_engine->observeOwnedRemoval(removed->handle, true, false, 0);
+                // libtorrent 2.0.9+ posts removal after the disk job has
+                // stopped. A separate cache-flushed alert need not follow.
+                constexpr bool removalClosesFiles = LIBTORRENT_VERSION_NUM >= 20009;
+                m_engine->observeOwnedRemoval(removed->handle, true, false, 0, removalClosesFiles);
             }
             else if (auto* flushed = lt::alert_cast<lt::cache_flushed_alert>(a)) {
                 m_engine->observeOwnedRemoval(flushed->handle, false, false, 0, true);

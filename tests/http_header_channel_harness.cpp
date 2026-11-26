@@ -20,6 +20,7 @@
 
 #include <QByteArray>
 #include <QEventLoop>
+#include <QFile>
 #include <QGuiApplication>
 #include <QHostAddress>
 #include <QList>
@@ -63,6 +64,8 @@ public:
     }
     bool listen() { return m_server.listen(QHostAddress::LocalHost, 0); }
     quint16 port() const { return m_server.serverPort(); }
+    QByteArray video;
+    QByteArray redirectTo;
 
 Q_SIGNALS:
     void requestCaptured(const QString &path);
@@ -106,8 +109,14 @@ private Q_SLOTS:
         }
         g_requests.append(req);
 
-        const QByteArray body = "notmedia";
-        const QByteArray resp = "HTTP/1.1 200 OK\r\nContent-Length: " + QByteArray::number(body.size())
+        QByteArray body = "notmedia";
+        if (req.path == "/movie.mp4")
+            body = video;
+        else if (req.path == "/subtitle.srt" || req.path == "/leaked.srt")
+            body = "1\n00:00:00,000 --> 00:00:00,950\nFixture subtitle\n";
+        const QByteArray status = req.path == "/redirect.srt"
+            ? QByteArray("302 Found\r\nLocation: ") + redirectTo : QByteArray("200 OK");
+        const QByteArray resp = "HTTP/1.1 " + status + "\r\nContent-Length: " + QByteArray::number(body.size())
             + "\r\nContent-Type: application/octet-stream\r\nConnection: close\r\n\r\n" + body;
         sock->write(resp);
         sock->flush();
@@ -220,6 +229,73 @@ int main(int argc, char **argv)
                      .arg(req.headers.value(QStringLiteral("x-thing"))));
     }
 
+    QFile video(app.arguments().value(1));
+    if (!video.open(QIODevice::ReadOnly))
+        fail(QStringLiteral("could not open the video fixture"));
+    server.video = video.readAll();
+    LoopbackServer foreign;
+    if (!foreign.listen())
+        fail(QStringLiteral("could not start the redirect target"));
+    server.redirectTo = QStringLiteral("http://127.0.0.1:%1/leaked.srt").arg(foreign.port()).toLatin1();
+    item.setProperty(QStringLiteral("vo"), QStringLiteral("null"));
+    item.setProperty(QStringLiteral("ao"), QStringLiteral("null"));
+    item.setProperty(QStringLiteral("pause"), true);
+    item.loadSourceWithSubtitles(base + "/movie.mp4", {{"X-Plex-Token", "REPLAY"}},
+        {{QUrl(base + "/subtitle.srt"), "Fixture English", "eng", "srt"},
+         {QUrl(base + "/redirect.srt"), "Wrong origin", "eng", "srt"}});
+    if (!waitForRequest(&server, "/redirect.srt", 8000))
+        fail(QStringLiteral("subtitle redirect was never exercised"));
+    QEventLoop loop;
+    QTimer timeout;
+    timeout.setSingleShot(true);
+    QObject::connect(&timeout, &QTimer::timeout, &loop, &QEventLoop::quit);
+    const auto hasFixtureSubtitle = [&] {
+        for (const auto &track : item.subtitleTracks()) {
+            const auto row = track.toMap();
+            if (row.value("title") == "Fixture English" && row.value("lang") == "eng")
+                return true;
+        }
+        return false;
+    };
+    QObject::connect(&item, &MpvItem::trackListChanged, &loop, [&] {
+        if (hasFixtureSubtitle())
+            loop.quit();
+    });
+    const auto waitForSubtitle = [&] {
+        if (!hasFixtureSubtitle()) {
+            timeout.start(8000);
+            loop.exec();
+            timeout.stop();
+        }
+        return hasFixtureSubtitle();
+    };
+    if (!waitForSubtitle() || !firstFor("/subtitle.srt", r)
+        || r.headers.value("x-plex-token") != "REPLAY")
+        fail(QStringLiteral("the authenticated subtitle did not reach mpv's track list"));
+    if (item.subtitleTracks().size() != 1 || firstFor("/leaked.srt", r))
+        fail(QStringLiteral("the foreign redirect must be rejected"));
+    QEventLoop seekLoop;
+    QTimer seekTimeout;
+    seekTimeout.setSingleShot(true);
+    QObject::connect(&seekTimeout, &QTimer::timeout, &seekLoop, &QEventLoop::quit);
+    bool reopened = false;
+    QObject::connect(&item, &MpvItem::trackedSeekReply, &seekLoop,
+        [&](quint64 serial, bool success, quint64, quint64) {
+            if (serial == 1) {
+                reopened = success;
+                seekLoop.quit();
+            }
+        });
+    seekTimeout.start(8000);
+    item.seekExactTracked(0.1, 1);
+    seekLoop.exec();
+    if (!reopened || !waitForSubtitle())
+        fail(QStringLiteral("the server subtitle did not survive a playback reopen"));
+    item.loadFile(base + "/subtitle-reset.bin");
+    if (!waitForRequest(&server, "/subtitle-reset.bin", 8000))
+        fail(QStringLiteral("playback did not replace the server source"));
+    if (!firstFor("/subtitle-reset.bin", r) || r.headers.contains("x-plex-token"))
+        fail(QStringLiteral("server playback credentials reached the next source"));
     std::printf("HTTP_HEADER_CHANNEL_OK\n");
     return 0;
 }

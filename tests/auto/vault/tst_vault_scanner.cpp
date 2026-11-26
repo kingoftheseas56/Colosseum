@@ -15,7 +15,10 @@
 
 #include <QDir>
 #include <QDateTime>
+#include <QElapsedTimer>
+#include <QScopeGuard>
 #include <QFile>
+#include <QFileSystemWatcher>
 #include <QMap>
 #include <QSignalSpy>
 #include <QSemaphore>
@@ -26,6 +29,7 @@
 #include <QtConcurrent>
 
 #include <memory>
+#include <algorithm>
 
 namespace {
 QString writeMediaFile(const QString& dir, const QString& name);
@@ -76,8 +80,13 @@ private:
     }
 
 private slots:
+    void real_release_names_keep_nested_shows_separate();
+    void real_episode_numbering_is_recognized();
     void watcher_preserves_overlapping_download_identity();
     void build_scan_produces_expected_census();
+    void shared_book_folder_keeps_individual_title_groups();
+    void book_pdf_group_does_not_adopt_container_identity();
+    void watcher_book_arrivals_match_scanner_groups();
     // ── Vault ux uplift S16: the census year the cleaner stripped is captured ──
     void build_scan_derives_parsed_year_from_raw_folder_name();
     void build_scan_enriches_slice_model();
@@ -94,6 +103,9 @@ private slots:
     void generation_guard_drops_stale_publish();
     void scan_root_async_delivers_candidate_only();
     void publish_confirmed_async_populates_index();
+    void large_publish_keeps_owner_event_loop_active();
+    void newer_personal_choices_supersede_a_ready_publication();
+    void watcher_census_waits_off_thread_and_discards_old_choices();
     void buffered_rescan_runs_after();
     void publish_missing_root_preserves_rows_and_revives();
     void scanner_rename_reattaches_same_id_and_progress();
@@ -111,6 +123,181 @@ private slots:
     void watcher_override_law_raises_card_for_known_kind_arrival();
     void watcher_degraded_flag_on_failed_watch_and_recovers();
 };
+
+void tst_vault_scanner::shared_book_folder_keeps_individual_title_groups()
+{
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString root = temp.path() + QStringLiteral("/library");
+    const QString shared = root + QStringLiteral("/Books/Fantasy (2020)");
+    QVERIFY(QDir().mkpath(shared));
+    const QString first = writeMediaFile(shared, QStringLiteral("Dune (1965).epub"));
+    const QString second = writeMediaFile(shared, QStringLiteral("The Hobbit (1937).epub"));
+    QVERIFY(!first.isEmpty());
+    QVERIFY(!second.isEmpty());
+
+    const auto scan = VaultScanner::buildScan(root, {}, 1, {});
+    QCOMPARE(scan.rows.size(), 2);
+    QSet<QString> groups;
+    VaultIndex index(temp.path() + QStringLiteral("/index.sqlite"));
+    VaultIdentity identity(temp.path());
+    VaultScanner scanner(&index, &identity);
+    const quint64 generation = scanner.nextGeneration();
+    scanner.applyPublish({scan}, generation);
+    for (const auto& row : index.rowsForKind(QStringLiteral("book"))) {
+        groups.insert(row.groupKey);
+        QCOMPARE(row.groupKey, row.path);
+        QCOMPARE(row.subtreePath, row.path);
+        QCOMPARE(row.rootPath, root);
+        QCOMPARE(row.groupTitle, row.displayTitle);
+        QCOMPARE(row.groupTitle, row.path == first ? QStringLiteral("Dune")
+                                                   : QStringLiteral("The Hobbit"));
+        QCOMPARE(row.parsedYear, row.path == first ? 1965 : 1937);
+        QCOMPARE(row.id, identity.idForFile(row.path, row.size, row.mtimeMs));
+        const auto files = index.filesInSubtree(row.subtreePath);
+        QCOMPARE(files.size(), 1);
+        QCOMPARE(files.first().toMap().value(QStringLiteral("path")).toString(), row.path);
+    }
+    QCOMPARE(groups.size(), 2);
+    // Admission still describes the physical folder, independently of title groups.
+    QCOMPARE(scan.sliceModel.size(), 1);
+    QCOMPARE(scan.sliceModel.first().toMap().value(QStringLiteral("count")).toInt(), 2);
+}
+
+void tst_vault_scanner::book_pdf_group_does_not_adopt_container_identity()
+{
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString shared = temp.path() + QStringLiteral("/Books/Fantasy (2020)");
+    QVERIFY(QDir().mkpath(shared));
+    const QString path = writeMediaFile(shared, QStringLiteral("document.pdf"));
+    QVERIFY(!path.isEmpty());
+    const auto scan = VaultScanner::buildScan(temp.path(), {}, 1, {});
+    QCOMPARE(scan.rows.size(), 1);
+    const auto& row = scan.rows.first();
+    QCOMPARE(row.kind, QStringLiteral("book"));
+    QCOMPARE(row.groupKey, path);
+    QCOMPARE(row.subtreePath, path);
+    QCOMPARE(row.groupTitle, QStringLiteral("document"));
+    QCOMPARE(row.parsedYear, 0);
+    QVERIFY(row.embeddedTitle.isEmpty());
+    QVERIFY(row.identityId.isEmpty());
+    QVERIFY(row.identityTitle.isEmpty());
+}
+
+void tst_vault_scanner::watcher_book_arrivals_match_scanner_groups()
+{
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString root = temp.path() + QStringLiteral("/library");
+    const QString shared = root + QStringLiteral("/Books/Fantasy (2020)");
+    QVERIFY(QDir().mkpath(shared));
+    const QString first = writeMediaFile(shared, QStringLiteral("Dune (1965).epub"));
+    QVERIFY(!first.isEmpty());
+    VaultIndex index(temp.path() + QStringLiteral("/index.sqlite"));
+    VaultIdentity identity(temp.path());
+    VaultScanner scanner(&index, &identity);
+    const quint64 generation = scanner.nextGeneration();
+    scanner.applyPublish({VaultScanner::buildScan(root, {}, generation, {})}, generation);
+    const auto previous = index.rowsForPath(first);
+    QCOMPARE(previous.size(), 1);
+    const QString second = writeMediaFile(shared, QStringLiteral("The Hobbit (1937).epub"));
+    QVERIFY(!second.isEmpty());
+    VaultWatcher watcher(&index, &identity, nullptr);
+    QCOMPARE(watcher.processRoot(root, {}, {}).landedCount, 1);
+    const auto scan = VaultScanner::buildScan(root, {}, generation, {});
+    QCOMPARE(scan.rows.size(), 2);
+    for (const auto& expected : scan.rows) {
+        const auto rows = index.rowsForPath(expected.path);
+        QCOMPARE(rows.size(), 1);
+        const auto& actual = rows.first();
+        QCOMPARE(actual.groupKey, expected.groupKey);
+        QCOMPARE(actual.subtreePath, expected.subtreePath);
+        QCOMPARE(actual.groupTitle, expected.groupTitle);
+        QCOMPARE(actual.parsedYear, expected.parsedYear);
+        QCOMPARE(actual.rootPath, expected.rootPath);
+        QCOMPARE(actual.displayTitle, expected.displayTitle);
+        QCOMPARE(actual.subfolder, expected.subfolder);
+        QCOMPARE(actual.id, identity.idForFile(expected.path, expected.size, expected.mtimeMs));
+    }
+    QCOMPARE(index.rowsForPath(first).first().id, previous.first().id);
+    QCOMPARE(index.rowsForPath(first).first().groupKey, previous.first().groupKey);
+    QVERIFY(index.rowsForPath(first).first().groupKey != index.rowsForPath(second).first().groupKey);
+    QCOMPARE(watcher.processRoot(root, {}, {}).landedCount, 0);
+}
+
+void tst_vault_scanner::real_episode_numbering_is_recognized()
+{
+    const auto worded = VaultKit::parseEpisodeNumber(
+        QStringLiteral("The Sopranos Season 1 Episode 01 - Pilot.avi"));
+    QVERIFY(worded.matched);
+    QCOMPARE(worded.season, 1);
+    QCOMPARE(worded.episode, 1);
+    QCOMPARE(VaultKit::episodeSeriesTitle(
+                 QStringLiteral("The Sopranos Season 1 Episode 01 - Pilot.avi")),
+             QStringLiteral("The Sopranos"));
+    const QString band = QStringLiteral("Band.Of.Brothers.E01.1080p.5.1Ch.BluRay.ReEnc-DeeJayAhmed.mkv");
+    const auto episodeOnly = VaultKit::parseEpisodeNumber(band);
+    QVERIFY(episodeOnly.matched);
+    QVERIFY(episodeOnly.absolute); // the filename does not claim a season
+    QCOMPARE(episodeOnly.episode, 1);
+    QCOMPARE(VaultKit::episodeSeriesTitle(band), QStringLiteral("Band Of Brothers"));
+    QVERIFY(!VaultKit::parseEpisodeNumber(QStringLiteral("Apollo 13 (1995).mkv")).matched);
+    QVERIFY(!VaultKit::parseEpisodeNumber(QStringLiteral("2001 A Space Odyssey.mkv")).matched);
+}
+
+void tst_vault_scanner::real_release_names_keep_nested_shows_separate()
+{
+    QTemporaryDir temp;
+    QVERIFY(temp.isValid());
+    const QString root = temp.path() + QStringLiteral("/Drama");
+    const QString nested = root + QStringLiteral("/The Wire/The Sopranos - The Complete Series (Season 1, 2, 3, 4, 5 & 6) + Extras");
+    const QString wireSeason = root + QStringLiteral("/The Wire/The.Wire.Season.01.S01.Complete.REMASTERED.720p.WEB-DL.2CH.x265.HEVC-PSA");
+    QVERIFY(QDir().mkpath(nested + QStringLiteral("/Season 1")));
+    QVERIFY(QDir().mkpath(nested + QStringLiteral("/Extras")));
+    QVERIFY(QDir().mkpath(wireSeason));
+    const QString sopranos = writeMediaFile(nested + QStringLiteral("/Season 1"),
+        QStringLiteral("The Sopranos Season 1 Episode 01 - Pilot.avi"));
+    const QString wire = writeMediaFile(wireSeason,
+        QStringLiteral("The.Wire.S01E01.The.Target.REMASTERED.720p.WEB-DL.2CH.x265.HEVC-PSA.mkv"));
+    const QString extras = writeMediaFile(nested + QStringLiteral("/Extras"), QStringLiteral("Interview.mkv"));
+    QVERIFY(!sopranos.isEmpty());
+    QVERIFY(!wire.isEmpty());
+    QVERIFY(!extras.isEmpty());
+    const auto scan = VaultScanner::buildScan(root, {}, 1, nullptr);
+    QCOMPARE(scan.rows.size(), 3);
+    QString sopranosKey, wireKey;
+    for (const auto& row : scan.rows) {
+        if (row.path == sopranos) {
+            QCOMPARE(row.groupTitle, QStringLiteral("The Sopranos"));
+            QCOMPARE(row.subtreePath, nested);
+            sopranosKey = row.groupKey;
+        } else if (row.path == wire) {
+            QCOMPARE(row.groupTitle, QStringLiteral("The Wire"));
+            wireKey = row.groupKey;
+        } else if (row.path == extras) {
+            // An unlabelled bonus in a mixed container cannot silently become The Wire.
+            QVERIFY(row.groupTitle != QStringLiteral("The Wire"));
+        }
+    }
+    QVERIFY(!sopranosKey.isEmpty());
+    QVERIFY(!wireKey.isEmpty());
+    QVERIFY(sopranosKey != wireKey);
+
+    VaultIndex index(temp.path() + QStringLiteral("/index.sqlite"));
+    VaultIdentity identity(temp.path());
+    VaultWatcher watcher(&index, &identity, nullptr);
+    watcher.processRoot(root, {}, {});
+    const auto landed = index.rowsForKind(QStringLiteral("video"));
+    QCOMPARE(landed.size(), scan.rows.size());
+    for (const auto& row : landed) {
+        const auto source = std::find_if(scan.rows.cbegin(), scan.rows.cend(),
+            [&row](const auto& other) { return other.path == row.path; });
+        QVERIFY(source != scan.rows.cend());
+        QCOMPARE(row.groupKey, source->groupKey);
+        QCOMPARE(row.groupTitle, source->groupTitle);
+    }
+}
 
 void tst_vault_scanner::build_scan_produces_expected_census()
 {
@@ -208,10 +395,10 @@ void tst_vault_scanner::override_reassigns_mixed_leaf_to_present_kind()
     QCOMPARE(sm.value(QStringLiteral("kind")).toString(), QStringLiteral("book"));
     QCOMPARE(sm.value(QStringLiteral("count")).toInt(), 1);          // the one book shelves
     QCOMPARE(sm.value(QStringLiteral("leftoverCount")).toInt(), 2);  // the two comics leftover
-    QCOMPARE(r.rows.size(), 1);
-    QCOMPARE(r.rows.first().kind, QStringLiteral("book"));
-    // a289133 (2026-08-09) re-fixtured the Akira leftover notes.txt -> notes.epub
-    QVERIFY(r.rows.first().realName.endsWith(QStringLiteral(".epub")));
+    QCOMPARE(r.rows.size(), 3);
+    int books = 0, comics = 0;
+    for (const auto& row : r.rows) { books += row.kind == "book"; comics += row.kind == "comic"; }
+    QCOMPARE(books, 1); QCOMPARE(comics, 2);
 }
 
 void tst_vault_scanner::override_relabels_folder_to_absent_kind()
@@ -449,6 +636,178 @@ void tst_vault_scanner::publish_confirmed_async_populates_index()
     sc.publishConfirmed({mixedRoot()}, {}, {}, {});
     QVERIFY(published.wait(10000));
     QCOMPARE(idx.itemCount(), kExpectedItems);
+}
+
+void tst_vault_scanner::large_publish_keeps_owner_event_loop_active()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString root = tmp.filePath(QStringLiteral("Library"));
+    constexpr int kDirectories = 72;
+    constexpr int kFiles = 40;
+    for (int i = 0; i < kDirectories; ++i) {
+        const QString path = root + QStringLiteral("/Collection-%1").arg(i);
+        QVERIFY(QDir().mkpath(path));
+        for (int j = 0; j < kFiles; ++j) {
+            QVERIFY(!writeMediaFile(path, QStringLiteral("Volume %1.cbz").arg(j)).isEmpty());
+            QVERIFY(!writeMediaFile(path, QStringLiteral("Notes %1.txt").arg(j)).isEmpty());
+        }
+    }
+    VaultIndex index(tmp.filePath(QStringLiteral("index.sqlite")));
+    QVERIFY(index.isOpen());
+    VaultIdentity identity(tmp.path());
+    // The old root has been forgotten, while its progress identities remain.
+    QList<VaultIdentity::FileFacts> previous;
+    for (int i = 0; i < 3111; ++i)
+        previous.append({tmp.filePath(QStringLiteral("Old library/Volume %1.cbz").arg(i)), i + 1, 1});
+    QCOMPARE(identity.reconcile(previous).fresh.size(), previous.size());
+    const auto first = previous.constFirst();
+    const QString oldId = VaultIdentity::computeId(first.path, first.size, first.mtimeMs);
+    VaultLocation::PersonalPaths personal;
+    personal.files.insert(VaultLocation::normalize(root + QStringLiteral("/.DS_Store")));
+    identity.setPersonalPaths(personal);
+    VaultScanner scanner(&index, &identity);
+    QSignalSpy activity(&scanner, &VaultScanner::scanActivity);
+    QSignalSpy finished(&scanner, &VaultScanner::publicationFinished);
+
+    QElapsedTimer clock;
+    clock.start();
+    qint64 lastBeat = 0, maxScanGap = 0, maxFullGap = 0;
+    int scanBeats = 0;
+    bool publishing = false;
+    connect(&scanner, &VaultScanner::scanActivity, this,
+            [&](const QString&, int, int, const QString& phase) {
+        if (phase == QLatin1String("publishing")) publishing = true;
+    });
+    QTimer heartbeat;
+    heartbeat.setTimerType(Qt::PreciseTimer);
+    heartbeat.setInterval(8);
+    connect(&heartbeat, &QTimer::timeout, this, [&] {
+        const qint64 now = clock.elapsed();
+        maxFullGap = qMax(maxFullGap, now - lastBeat);
+        if (!publishing) {
+            maxScanGap = qMax(maxScanGap, now - lastBeat);
+            ++scanBeats;
+        }
+        lastBeat = now;
+    });
+    heartbeat.start();
+    scanner.publishConfirmed({root}, {}, {}, {});
+    QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 20000);
+    // Capture the callback-to-callback gap across indexing, including the final atomic commit.
+    QTest::qWait(20);
+    heartbeat.stop();
+    QCOMPARE(finished.first().at(0).toBool(), true);
+    QVERIFY(publishing);
+    QCOMPARE(index.itemCount(), kDirectories * kFiles);
+    QVERIFY(identity.knows(oldId));
+    QVERIFY(activity.size() > 2);
+    QCOMPARE(activity.last().at(1).toInt(), kDirectories * kFiles);
+    qInfo() << "Vault scan heartbeat for" << kDirectories * kFiles << "media files:"
+            << scanBeats << "during discovery/preparation ticks,"
+            << "max discover/prepare gap" << maxScanGap << "ms;"
+            << "max whole operation gap" << maxFullGap << "ms";
+    QVERIFY2(scanBeats >= 3 && maxScanGap < 350, "Discovery/preparation starved the owner event loop");
+    QVERIFY2(maxFullGap < 1500, "The atomic publication stalled the owner event loop");
+}
+
+void tst_vault_scanner::newer_personal_choices_supersede_a_ready_publication()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString root = tmp.filePath(QStringLiteral("Library"));
+    const QString personal = root + QStringLiteral("/Personal");
+    const QString nested = personal + QStringLiteral("/Nested");
+    const QString sibling = root + QStringLiteral("/Personalized");
+    QVERIFY(QDir().mkpath(nested));
+    QVERIFY(QDir().mkpath(sibling));
+    const QString privateFile = writeMediaFile(nested, QStringLiteral("Private.cbz"));
+    const QString publicFile = writeMediaFile(sibling, QStringLiteral("Public.cbz"));
+    QVERIFY(!privateFile.isEmpty() && !publicFile.isEmpty());
+
+    VaultIndex index(tmp.filePath(QStringLiteral("index.sqlite")));
+    VaultIdentity identity(tmp.path());
+    VaultScanner scanner(&index, &identity);
+    QSignalSpy published(&scanner, &VaultScanner::indexPublished);
+    bool superseded = false;
+    connect(&scanner, &VaultScanner::scanActivity, this,
+            [&](const QString&, int, int, const QString& phase) {
+        if (phase != QLatin1String("publishing") || superseded)
+            return;
+        superseded = true;
+        VaultLocation::PersonalPaths paths;
+        paths.directories.insert(normForTest(personal));
+        scanner.publishConfirmed({root, nested}, {}, {}, {}, paths);
+    });
+    scanner.publishConfirmed({root, nested}, {}, {}, {});
+    QTRY_COMPARE_WITH_TIMEOUT(published.count(), 1, 5000);
+    QVERIFY(superseded);
+    QCOMPARE(index.itemCount(), 1);
+    QCOMPARE(index.rowsForPath(publicFile).size(), 1);
+    QVERIFY(index.rowsForPath(privateFile).isEmpty());
+    QVERIFY(QFileInfo::exists(privateFile));
+}
+
+void tst_vault_scanner::watcher_census_waits_off_thread_and_discards_old_choices()
+{
+    QTemporaryDir tmp;
+    QVERIFY(tmp.isValid());
+    const QString root = normForTest(tmp.filePath(QStringLiteral("Library")));
+    const QString blocked = root + QStringLiteral("/Private");
+    QVERIFY(QDir().mkpath(blocked));
+    // Seed the files before installing OS watches so only the explicit directory-change
+    // invocation below triggers a census.
+    const QString privateFile = writeMediaFile(blocked, QStringLiteral("Hidden.cbz"));
+    const QString publicFile = writeMediaFile(root, QStringLiteral("Public.cbz"));
+    QVERIFY(!privateFile.isEmpty() && !publicFile.isEmpty());
+    VaultIndex index(tmp.filePath(QStringLiteral("index.sqlite")));
+    VaultIdentity identity(tmp.path());
+    VaultConfig config(tmp.path());
+    config.addRoot(root);
+    config.confirmRoot(root);
+    VaultWatcher watcher(&index, &identity, &config);
+    QSignalSpy treeReady(&watcher, &VaultWatcher::watchTreeReconciled);
+    QSignalSpy activity(&watcher, &VaultWatcher::scanActivity);
+    watcher.refresh();
+    QTRY_VERIFY_WITH_TIMEOUT(treeReady.count() >= 1, 5000);
+
+    const int previous = treeReady.count();
+    QVERIFY(QMetaObject::invokeMethod(&watcher, "onDirectoryChanged", Qt::DirectConnection, Q_ARG(QString, root)));
+    QTRY_VERIFY_WITH_TIMEOUT(treeReady.count() > previous, 5000);
+
+    QSemaphore workerStarted;
+    QSemaphore releaseWorker;
+    QThreadPool* pool = QThreadPool::globalInstance();
+    const int oldMaximum = pool->maxThreadCount();
+    pool->setMaxThreadCount(1);
+    QFuture<void> blocker = QtConcurrent::run([&] {
+        workerStarted.release();
+        releaseWorker.acquire();
+    });
+    auto release = qScopeGuard([&] {
+        releaseWorker.release();
+        blocker.waitForFinished();
+        pool->setMaxThreadCount(oldMaximum);
+    });
+    QVERIFY(workerStarted.tryAcquire(1, 5000));
+    QVERIFY(QMetaObject::invokeMethod(&watcher, "flushPending", Qt::DirectConnection));
+    QCOMPARE(index.itemCount(), 0); // a sync census would already have published both files
+    QCOMPARE(activity.count(), 1);
+    VaultLocation::PersonalPaths paths;
+    paths.directories.insert(normForTest(blocked));
+    QVERIFY(config.applyFolderSelection(root, paths));
+    QCOMPARE(index.itemCount(), 0); // older worker result is still queued
+    releaseWorker.release();
+    blocker.waitForFinished();
+    pool->setMaxThreadCount(oldMaximum);
+    release.dismiss();
+
+    QTRY_COMPARE_WITH_TIMEOUT(index.itemCount(), 1, 5000);
+    const auto landed = index.rowsForKind(QStringLiteral("comic"));
+    QCOMPARE(landed.size(), 1);
+    // Qt's directory iterator can uppercase the drive letter of a normalized Windows root.
+    QCOMPARE(VaultLocation::normalize(landed.first().path), VaultLocation::normalize(publicFile));
+    QVERIFY(QFileInfo::exists(privateFile));
 }
 
 void tst_vault_scanner::buffered_rescan_runs_after()
@@ -956,7 +1315,9 @@ void tst_vault_scanner::watcher_override_law_raises_card_for_known_kind_arrival(
     writeMediaFile(subtree, QStringLiteral("Art 02.cbz"));
 
     const auto landing = w.processRoot(root.path(), {}, ov);
-    QCOMPARE(landing.landedCount, 1);
+    // The shared census also brings the old comic into the explicit book declaration.
+    QCOMPARE(landing.landedCount, 2);
+    QCOMPARE(idx.itemCountForKind(QStringLiteral("book")), 2);
     QCOMPARE(landing.newKindSlices.size(), 1);
     QCOMPARE(landing.newKindSlices.first().toMap().value(QStringLiteral("kind")).toString(),
              QStringLiteral("comic"));

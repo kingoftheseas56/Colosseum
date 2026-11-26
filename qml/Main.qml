@@ -31,6 +31,7 @@ import "Torrentio.js" as Torrentio
 import "EpisodeBrowser.js" as EpisodeBrowser
 import "DirectSourcePolicy.js" as DirectSourcePolicy
 import "BiblioApi.js" as BiblioApi
+import "AudiobookBridgeData.js" as AudiobookBridge
 import "CollectionBackfill.js" as CollectionBackfill
 import "WarmingQueue.js" as Warming
 import "ShellBackPolicy.js" as ShellBackPolicy
@@ -268,9 +269,16 @@ Window {
     property string wallpaperSource: win.defaultWallpaperSource
     onDefaultWallpaperSourceChanged: Qt.callLater(win.refreshWallpaper)
     property alias androidHost: phoneShell.androidHost
-    AdaptiveLayout { id: presentationPolicy; viewportWidth: win.width; androidHost: win.androidHost }
+    readonly property real browseBottomInset: win.androidHost ? phoneShell.contentBottomInset : 0
+    AdaptiveLayout {
+        id: presentationPolicy
+        viewportWidth: win.width
+        viewportHeight: win.height
+        bottomInset: win.browseBottomInset
+        androidHost: win.androidHost
+    }
     readonly property alias desktopPresentation: presentationPolicy.desktopPresentation
-    readonly property real headerOuterMargin: theme.margin
+    readonly property real headerOuterMargin: win.androidHost ? presentationPolicy.headerMargin : theme.margin
     readonly property real outerPageMargin: theme.margin
 
     // Non-visual, non-secret bridge projection for the tagged Stremio connection fixture.
@@ -327,28 +335,19 @@ Window {
         }
         return null
     }
-    function openStremioSyncPanel() {
-        stremioPanel.shown = true
+    function openStremioSyncPanel(nuvio) {
+        stremioPanel.openForProvider(nuvio === true ? "nuvio" : "stremio", win.activeFocusItem)
     }
     function openTheatreSyncFromAccount(invoker) {
-        stremioPanel.accountInvoker = invoker || win.activeFocusItem
-        win.openStremioSyncPanel()
+        win.externalServiceCardsPending = true
+        win.openSyncCenterPage()
+        if (syncCenterLayer.item && syncCenterLayer.item.openExternalServices) {
+            syncCenterLayer.item.openExternalServices()
+            win.externalServiceCardsPending = false
+        }
     }
     function closeStremioSyncPanel() {
         stremioPanel.shown = false
-        const invoker = stremioPanel.accountInvoker
-        stremioPanel.accountInvoker = null
-        if (invoker && invoker.visible && invoker.enabled) {
-            Qt.callLater(function() { invoker.forceActiveFocus() })
-            return
-        }
-        if (syncCenterLayer.active && syncCenterLayer.item) {
-            Qt.callLater(function() { syncCenterLayer.item.focusMainSyncButton() })
-            return
-        }
-        const theatreWorld = win.theatreWorldItem()
-        if (theatreWorld)
-            Qt.callLater(function() { theatreWorld.focusStremioButton() })
     }
     function requestTheatreRemoval(entry) {
         theatreRemoval.entry = entry
@@ -765,7 +764,8 @@ Window {
         if (typeof Audiobooks !== "undefined") {
             var abs = Audiobooks.downloadedAudiobooks() || []
             for (var m = 0; m < abs.length; m++)
-                addBook(CollectionBackfill.entryForBook(abs[m], abs[m].id))
+                if (!abs[m].bundle)
+                    addBook(CollectionBackfill.entryForBook(abs[m], abs[m].pairKey || abs[m].id))
         }
         Collection.add("_meta", { "id": "backfill_v3", "type": "flag", "title": "", "cover": "" })
     }
@@ -1016,7 +1016,9 @@ Window {
         taskbar.open = false
         collectionsPanel.showOverview()
     }
-    function closeNamedCollectionsPage() { collectionsPanel.requestClose() }
+    function closeNamedCollectionsPage(restoreDockFocus = true) {
+        collectionsPanel.requestClose(restoreDockFocus)
+    }
     function restoreNamedCollectionsReturn() {
         if (!namedCollectionsReturn) return false
         var target = namedCollectionsReturn
@@ -1053,6 +1055,7 @@ Window {
         comicSeriesLayer.active = false
         theatreSeriesLayer.active = false
         bookLayer.active = false
+        audiobookFlow.clear()
         bookReturnSnapshot = null
         searchLayer.active = false
         worldSearchLayer.active = false
@@ -1115,7 +1118,7 @@ Window {
             return
         }
         if (ref.route === "vault-film-detail") {
-            if (win.androidHost || typeof VaultLibrary === "undefined") {
+            if (typeof VaultLibrary === "undefined") {
                 collectionsPanel.showMessage("Vault is unavailable on this device. The saved item has been kept.")
                 return
             }
@@ -1216,6 +1219,7 @@ Window {
     }
     CollectionsUi.CollectionsPanel {
         id: collectionsPanel
+        parent: dockScene
         anchors.fill: parent
         z: 58.6
         onMinimizeRequested: win.minimizeShell()
@@ -1229,7 +1233,7 @@ Window {
         onPickerActiveChanged: if (pickerActive) win.cancelNamedCollectionsOpen()
         onDeleteActiveChanged: if (deleteActive) win.cancelNamedCollectionsOpen()
         onNavigationCanceled: win.namedCollectionsNavigation = null
-        onClosed: {
+        onClosed: restoreDockFocus => {
             win.cancelNamedCollectionsOpen()
             var continuation = win.namedCollectionsNavigation
             win.namedCollectionsNavigation = null
@@ -1237,13 +1241,15 @@ Window {
             if (continuation) Qt.callLater(function() {
                 if (profileGeneration === win.namedCollectionsProfileGeneration) continuation()
             })
-            else taskbar.focusCollectionsAction()
+            else if (restoreDockFocus) taskbar.focusCollectionsAction()
         }
     }
     Connections {
         target: typeof NamedCollectionsProfileScope !== "undefined" ? NamedCollectionsProfileScope : null
         function onStoresAboutToChange() {
+            win.audiobookReaderArrival = null
             win.namedCollectionsProfileGeneration++
+            win.clearDockPickReturns()
             win.cancelNamedCollectionsOpen()
             win.namedCollectionsNavigation = null
             win.namedCollectionsReturn = null
@@ -1301,6 +1307,7 @@ Window {
             downloadsActive: downloadsLayer.active,
             profileActive: phoneShell.profileActive,
             bookActive: bookLayer.active,
+            audiobookActive: audiobookFlow.active,
             theatreSeriesActive: theatreSeriesLayer.active,
             westernActive: westernLayer.active,
             seriesActive: seriesLayer.active,
@@ -1332,6 +1339,7 @@ Window {
                || (comicSeriesLayer.active && comicSeriesLayer.item && String(comicSeriesLayer.item.openChapterId || "").length))
     }
     function requestPlayerEscape() {
+        if (win.smartPickPlayerPending) { win.closePlayer(); return }
         var rec = Sessions.get(Sessions.activeId)
         if (playerLayer.active && playerLayer.item && playerLayer.item.requestEscape) {
             playerLayer.item.requestEscape()
@@ -1424,8 +1432,8 @@ Window {
         case "bookReader": win.requestBookReaderEscape(); return
         case "comicReader": win.requestComicReaderEscape(); return
         case "update": win.closeUpdatePage(); return
-        case "historyStats": win.closeHistoryStatsPage(); return
-        case "yourFeria": win.closeYourFeriaPage(); return
+        case "historyStats": win.closeHistoryStatsPage(); taskbar.focusHistoryStatsAction(); return
+        case "yourFeria": win.closeYourFeriaPage(); taskbar.focusHistoryStatsAction(); return
         case "syncCenter":
             if (syncCenterLayer.item && syncCenterLayer.item.requestEscape)
                 syncCenterLayer.item.requestEscape()
@@ -1441,9 +1449,13 @@ Window {
             else win.closeFeriaPage()
             return
         case "vault": if (vaultLayer.item && vaultLayer.item.handleBack) vaultLayer.item.handleBack(); else win.closeVaultPage(); return
-        case "downloads": win.closeDownloadsPage(); return
+        case "downloads":
+            if (audiobookFlow.replacingDownload) audiobookFlow.back()
+            else win.closeDownloadsPage()
+            return
         case "profile": phoneShell.closeProfilePage(); return
         case "book": win.closeBook(); return
+        case "audiobook": audiobookFlow.back(); return
         case "theatreSeries":
             // Native Back (PF-03) closes the title's visible transient first (episode
             // context, Sources context/extension menu/sheet, episode jump, season menu);
@@ -1597,16 +1609,22 @@ Window {
         return item.visible !== true || item.enabled !== true
     }
 
-    // Returning focus to the ignition item keeps the next keypress live without showing a
-    // ring in the meantime. callLater lets a surface that seeds its own focus win the race
-    // rather than fighting it for the same frame.
-    onKeyboardFocusDeadChanged: {
+    function recoverKeyboardFocus() {
         if (!win.keyboardFocusDead)
             return
-        Qt.callLater(function() {
-            if (win.keyboardFocusDead)
-                keyboardIgnition.forceActiveFocus()
-        })
+        // A focused HUD control disappears when the video player hides its chrome.
+        // Keep playback keys in the player until the player itself closes.
+        const player = playerLayer.item
+        if (win.playerOpen && player && player.visible && player.enabled)
+            player.forceActiveFocus(Qt.OtherFocusReason)
+        else
+            keyboardIgnition.forceActiveFocus(Qt.OtherFocusReason)
+    }
+
+    // Let a newly opened surface set its focus before recovering an abandoned one.
+    onKeyboardFocusDeadChanged: {
+        if (win.keyboardFocusDead)
+            Qt.callLater(win.recoverKeyboardFocus)
     }
 
     // The secret developer door: F11 flips the whole shell between fullscreen (Colosseum's
@@ -1681,8 +1699,8 @@ Window {
         feriaReturnSnapshot = null
         return true
     }
-    function openWorld(medium) {
-        if (win.guardNamedCollectionsNavigation(function() { win.openWorld(medium) })) return
+    function openWorld(medium, biblioTab) {
+        if (win.guardNamedCollectionsNavigation(function() { win.openWorld(medium, biblioTab) })) return
  win.cancelCatalogueRoute();
         // These worlds are not available in this release, including through indirect callers.
         var requestedWorld = String(medium || "").trim().toLowerCase()
@@ -1690,6 +1708,10 @@ Window {
         if (medium !== "Vinyl") win.pendingVinylResume = null
         if (medium === "Feria") { win.openFeriaPage(); return }
         if (win.parkFeria) win.parkFeria(true)
+        if (medium === "Biblio" && biblioTab === "audiobooks") {
+            if (audiobookFlow.world) audiobookFlow.world.activeTab = biblioTab
+            else worldStack.pendingBiblioAudiobooks = true
+        }
         var found = false
         for (var i = 0; i < openModes.count; i++)
             if (openModes.get(i).mode === medium) { found = true; break }
@@ -1715,8 +1737,10 @@ Window {
                 win.openSeries(identity.title || "")
         } else if (identity.world === "Theatre") {
             win.openWorld("Theatre")
-            win.openTheatreSeries({ id: sid.replace(/^imdb:/, ""), type: "movie",
-                                    title: identity.title || "", cover: identity.coverUrl || "" })
+            win.openTheatreSeries({ id: sid.replace(/^imdb:/, ""), type: identity.type === "series" ? "series" : "movie",
+                                    tmdbId: identity.tmdbId || 0, tvdbId: identity.tvdbId || 0,
+                                    title: identity.title || "", cover: identity.coverUrl || "",
+                                    resumeSources: identity.resumeSources || null })
         } else if (identity.world === "Biblio") {
             win.openWorld("Biblio")
             win.openBook({ id: sid, title: identity.title || "", synopsis: identity.synopsis || "" })
@@ -1866,7 +1890,8 @@ Window {
             sourceRequiredMarkers: ["colored", "full color", "full colour"]
         }, "13")
     }
-    function openSeries(title, malId, profile, requestedVolumeNumber) {
+    function openSeries(title, malId, profile, requestedVolumeNumber, pickerIntent) {
+        const pickerReturn = win.prepareDockPickDetail(seriesLayer, pickerIntent)
         seriesLayer.exactCollectionReference = null
  if (win.cancelCatalogueRoute) win.cancelCatalogueRoute();
         if (seriesLayer.legacyWeebCentral) { seriesLayer.active = false; seriesLayer.legacyWeebCentral = false }
@@ -1883,9 +1908,11 @@ Window {
                 seriesLayer.item.requestedVolumeNumber = seriesLayer.requestedVolumeNumber
             seriesLayer.item.seriesTitle = title
         } else seriesLayer.active = true
+        win.attachDockPickDetail(seriesLayer, pickerReturn)
     }
     // Direct provider compatibility for the returning WeebCentral colored edition.
     function openWeebCentralSeries(title, requestedVolumeNumber) {
+        seriesLayer.dockPickReturn = null
         seriesLayer.exactCollectionReference = null
 
         if (seriesLayer.active) seriesLayer.active = false
@@ -1901,6 +1928,7 @@ Window {
 
     // open a manga series AND jump straight into the reader at a saved chapter (Continue resume).
     function openSeriesAt(title, seriesId, chapterId) {
+        seriesLayer.dockPickReturn = null
         seriesLayer.exactCollectionReference = null
  win.cancelCatalogueRoute();
         if (seriesLayer.legacyWeebCentral) { seriesLayer.active = false; seriesLayer.legacyWeebCentral = false }
@@ -1919,7 +1947,12 @@ Window {
             else seriesLayer.item.openChapterId = chapterId || ""
         } else seriesLayer.active = true
     }
-    function closeSeries() { seriesLayer.active = false; win.restoreNamedCollectionsReturn() }
+    function closeSeries(returnToPicker) {
+        const pick = win.takeDockPickDetail(seriesLayer, returnToPicker)
+        seriesLayer.active = false
+        if (!win.finishDockPickDetail(seriesLayer, pick))
+            win.restoreNamedCollectionsReturn()
+    }
 
     // Featured Read (WT-06). Comics (ghost "C") need the GetComics source: without it the
     // Extensions page opens instead of a dead end. Manga opens the existing series owner and
@@ -1930,13 +1963,6 @@ Window {
         if (!slide || !String(slide.title || "").length) return
         var title = String(slide.title)
         if (slide.ghost === "C") {
-            var installed = (typeof Extensions !== "undefined" && Extensions
-                            && typeof Extensions.installed === "function") ? (Extensions.installed() || []) : []
-            var getComicsEnabled = false
-            for (var i = 0; i < installed.length; ++i)
-                if (installed[i] && installed[i].id === "colosseum.well.getcomics.issues"
-                        && installed[i].enabled === true) { getComicsEnabled = true; break }
-            if (!getComicsEnabled) { win.openExtensionsPage("tankoban"); return }
             win.openWestern({ title: title })
             return
         }
@@ -2283,7 +2309,7 @@ Window {
         return ComicsDb.ready() ? ComicsDb.seriesByTitle(title) : null
     }
 
-    function openComicSeries(d) {
+    function openComicSeries(d, pickerIntent) {
         win.cancelCatalogueRoute();
         var generation = _catalogueRouteGeneration;
         var snapshot = win.catalogueRouteSnapshot();
@@ -2294,10 +2320,11 @@ Window {
         }, function() {
             if (generation !== _catalogueRouteGeneration || snapshot !== win.catalogueRouteSnapshot()) return;
             _catalogueRouteCancel = null;
-            win._openComicSeriesReady(d);
+            win._openComicSeriesReady(d, pickerIntent);
         });
     }
-    function _openComicSeriesReady(d) {
+    function _openComicSeriesReady(d, pickerIntent) {
+        const pickerReturn = win.prepareDockPickDetail(comicSeriesLayer, pickerIntent)
         comicSeriesLayer.locgSid = (d && d.id) || ""
         comicSeriesLayer.locgMeta = (d && d.locgMeta) || ({})
         comicSeriesLayer.title = (d && d.title) || ""
@@ -2309,8 +2336,15 @@ Window {
             comicSeriesLayer.item.locgMeta = comicSeriesLayer.locgMeta
             comicSeriesLayer.item.locgId = comicSeriesLayer.locgSid   // set LAST — triggers attach()
         } else comicSeriesLayer.active = true
+        win.attachDockPickDetail(comicSeriesLayer, pickerReturn)
     }
-    function closeComicSeries() { win.cancelCatalogueRoute(); comicSeriesLayer.active = false; win.restoreNamedCollectionsReturn() }
+    function closeComicSeries(returnToPicker) {
+        win.cancelCatalogueRoute()
+        const pick = win.takeDockPickDetail(comicSeriesLayer, returnToPicker)
+        comicSeriesLayer.active = false
+        if (!win.finishDockPickDetail(comicSeriesLayer, pick))
+            win.restoreNamedCollectionsReturn()
+    }
 
     // ---- LOCG publisher grid: one publisher shelf (Marvel/DC/Image...) as a paginated
     //      series grid; tile → LOCG series list via openComicSeries. ----
@@ -2344,7 +2378,9 @@ Window {
 
 
     // ---- Theatre detail: its own layer (Cinemeta meta + Torrentio sources), parallel to series ----
-    function openTheatreSeries(item) { win.cancelCatalogueRoute();
+    function openTheatreSeries(item, pickerIntent) {
+        win.cancelCatalogueRoute()
+        const pickerReturn = win.prepareDockPickDetail(theatreSeriesLayer, pickerIntent)
         theatreSeriesLayer.pendingItem = item
         if (theatreSeriesLayer.active && theatreSeriesLayer.item) {
             theatreSeriesLayer.item.itemData = item
@@ -2352,6 +2388,7 @@ Window {
                 theatreSeriesLayer.item.openResumeSources(item.resumeSources)
         }
         else theatreSeriesLayer.active = true
+        win.attachDockPickDetail(theatreSeriesLayer, pickerReturn)
     }
     // PF-04: Continue on a download whose local file is gone. Returns true when it routed to
     // the exact title/episode Sources sheet (canonical tt/anime ids only); false keeps the
@@ -2360,6 +2397,11 @@ Window {
     function openMissingDownloadSources(entry, r, presentation, title, cover) {
         if (typeof Download === "undefined" || !Download || typeof Download.localFileAvailable !== "function")
             return false
+        var location = typeof LocalDownloads !== "undefined" && LocalDownloads ? LocalDownloads.location : null
+        if (location && location.pathWaitingForDrive(String(r.localPath))) {
+            localLaunchToast.flash(qsTr("Reconnect the download drive to play this video."), false)
+            return true
+        }
         if (Download.localFileAvailable(String(r.localPath)))
             return false
         var sourceId = String(r.subId || entry.id || "")
@@ -2378,11 +2420,22 @@ Window {
                     "resumePosition": Number(r.position) || 0 } } })
         return true
     }
-    function closeTheatreSeries() { theatreSeriesLayer.active = false; win.restoreNamedCollectionsReturn() }
+    function closeTheatreSeries(returnToPicker) {
+        if (returnToPicker !== false && theatreSeriesLayer.dockPickReturn && theatreSeriesLayer.item
+                && theatreSeriesLayer.item.requestEscape && theatreSeriesLayer.item.requestEscape())
+            return
+        if (win.smartPickPlayerPending) win.closePlayer()
+        const pick = win.takeDockPickDetail(theatreSeriesLayer, returnToPicker)
+        theatreSeriesLayer.active = false
+        if (!win.finishDockPickDetail(theatreSeriesLayer, pick))
+            win.restoreNamedCollectionsReturn()
+    }
 
     // ---- video player: a fullscreen layer over everything; kept alive once opened so mpv
     //      isn't torn down/recreated each play (avoids the use-after-free teardown trap). ----
     property bool playerOpen: false
+    // No session is created until Smart Pick returns a playable source.
+    property bool smartPickPlayerPending: false
     // The movie session the player minimized while still loaded. Reopening it from the
     // taskbar finds the stream warm — we resume in place instead of re-streaming.
     property string warmPlayerSessionId: ""
@@ -2426,6 +2479,11 @@ Window {
         win.ensurePlayerLayerLoading()
     }
 
+    function queueSmartPickPlayerOpen(title, backdrop, subType, subId, context) {
+        win.pendingPlayerOpen = { "kind": "smartPick", "title": title, "backdrop": backdrop,
+                                  "subType": subType, "subId": subId, "context": context || ({}) }
+        win.ensurePlayerLayerLoading()
+    }
     function queueWatchPartyPlayerOpen() {
         win.pendingPlayerOpen = { "kind": "watchParty" }
         win.ensurePlayerLayerLoading()
@@ -2443,6 +2501,11 @@ Window {
             return
         var p = win.pendingPlayerOpen
         win.pendingPlayerOpen = null
+        if (p.kind === "smartPick") {
+            if (win.playerOpen && win.smartPickPlayerPending && playerLayer.item.beginSmartPick)
+                playerLayer.item.beginSmartPick(p.title, p.backdrop, p.subType, p.subId, p.context)
+            return
+        }
         if (p.kind === "session") {
             if (!win.playerOpen || Sessions.activeId !== p.sessionId)
                 return
@@ -2500,6 +2563,7 @@ Window {
         collectionsPanel.showing
         || theatreSeriesLayer.active
         || bookLayer.active
+        || audiobookFlow.active
         || seriesLayer.active
         || westernLayer.active
         || comicSeriesLayer.active
@@ -2518,6 +2582,10 @@ Window {
         || onePieceArcLayer.active
         || vaultLayer.active
         || continueSeeAllLayer.active
+
+    readonly property bool androidUniverseDetailReady:
+        win.androidHost && universeLayer.active && universeLayer.status === Loader.Ready
+        && universeLayer.item !== null
 
     readonly property alias wideWorldNavigationLeftInset: phoneShell.wideWorldNavigationLeftInset
 
@@ -2721,6 +2789,7 @@ Window {
     // ---- Tracker Sync Center: tracker connections, separate from Stremio Main Sync ----
     function openSyncCenterPage() {
         if (win.guardNamedCollectionsNavigation(function() { win.openSyncCenterPage() })) return
+        const openingServices = win.vaultServerConnectionsPending || win.externalServiceCardsPending
 
         win.parkFeria(true)
         win.bookRouteGeneration += 1
@@ -2731,8 +2800,18 @@ Window {
         historyStatsLayer.active = false
         syncCenterLayer.active = true
         taskbar.open = false
-        if (syncCenterLayer.item && syncCenterLayer.item.takeKeyboardFocus)
+        if (!openingServices && syncCenterLayer.item && syncCenterLayer.item.takeKeyboardFocus)
             Qt.callLater(syncCenterLayer.item.takeKeyboardFocus)
+    }
+    property bool vaultServerConnectionsPending: false
+    property bool externalServiceCardsPending: false
+    function openVaultServerConnections() {
+        vaultServerConnectionsPending = true
+        win.openSyncCenterPage()
+        if (syncCenterLayer.item && syncCenterLayer.item.openHomeServers) {
+            syncCenterLayer.item.openHomeServers()
+            vaultServerConnectionsPending = false
+        }
     }
     function closeSyncCenterPage() {
         syncCenterLayer.active = false
@@ -2741,9 +2820,12 @@ Window {
     function toggleSyncCenterPage() {
         !syncCenterLayer.active ? win.openSyncCenterPage() : win.closeSyncCenterPage()
     }
-    // The trackers door lives in the TopBar of home and of every world; hand focus back to
-    // whichever of those is in front.
+    // Return focus to the launcher on desktop and the current world or Home on Android.
     function focusTrackersDoor() {
+        if (win.desktopPickerUtilities) {
+            Qt.callLater(taskbar.focusPickerButton)
+            return
+        }
         for (let i = 0; i < worldRepeater.count; ++i) {
             const loader = worldRepeater.itemAt(i)
             if (loader && loader.mode === worldStack.current && loader.item
@@ -2786,11 +2868,9 @@ Window {
     }
     function closeYourFeriaPage() {
         yourFeriaLayer.open = false
-        taskbar.focusHistoryStatsAction()
     }
     function closeHistoryStatsPage() {
         historyStatsLayer.active = false
-        taskbar.focusHistoryStatsAction()
     }
 
     // ---- Downloads page: the taskbar's own full page over everything non-immersive ----
@@ -2821,7 +2901,6 @@ Window {
     function openVaultPage() {
         if (win.guardNamedCollectionsNavigation(function() { win.openVaultPage() })) return
 
-        if (win.androidHost) return
         win.parkFeria(true)
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
@@ -2834,30 +2913,15 @@ Window {
     }
     function closeVaultPage() { vaultLayer.active = false; win.restoreNamedCollectionsReturn() }
 
-    // Esc inside the Vault, mirroring VaultPage's own top-left Back law: sheet, then folder
-    // detail, then one browse level up (or out of the Hidden shelf), and only leave once
-    // there is nowhere left to ascend.
-    // The sheet must be handled HERE, not by its own Keys.onPressed: the window-context
-    // Escape Shortcut above is matched before the key reaches the focus item, and nothing in
-    // the Vault accepts Keys.onShortcutOverride, so an inner handler can never win Escape
-    // back. Backspace is not a Shortcut, so inner ascend handlers still see it.
+    // One Back law: transient sheet/search, then Home, then leave Vault.
     function vaultBack() {
-        var page = vaultLayer.item
-        if (!page) { win.closeVaultPage(); return }
-        if (page.detailSheetVisible) { page.closeDetailSheet(); return }
-        // Vault ux uplift S14: Escape leaves the search pseudo-level first — it is the most
-        // transient view state (the field itself can never see the key: the window-context
-        // Shortcut is matched before the focus item, the S2 lesson).
-        if (page.searchViewActive) { page.leaveSearchView(); return }
-        if (page.hiddenViewActive || (page.crumbStack && page.crumbStack.length > 1)) {
-            page.ascendBrowse()
-            return
-        }
-        win.closeVaultPage()
+        if (vaultLayer.item && vaultLayer.item.handleBack) vaultLayer.item.handleBack()
+        else win.closeVaultPage()
     }
 
     Loader {
         id: yourFeriaLayer
+        parent: dockScene
         objectName: "yourFeriaLayer"
         anchors.fill: parent
         z: 58.5
@@ -2889,8 +2953,12 @@ Window {
             if (!ExtCatalog.isUniverse(e)) continue
             if (e.enabled !== true) continue
             var m = e.manifest || ({})
+            // Cosmere's manifest banner is a Wikimedia hotlink that answers 429/403 to the app's
+            // default user agent, leaving the hero blank; use the bundled copy of the same art.
+            var banner = e.id === "com.colosseum.universe.cosmere"
+                ? Qt.resolvedUrl("../assets/extensions/house/cosmere.jpg") : (m.background || "")
             out.push({ extensionId: e.id, name: m.name || e.id,
-                       banner: m.background || "", logo: m.logo || "" })
+                       banner: banner, logo: m.logo || "" })
         }
         return out
     }
@@ -2902,7 +2970,9 @@ Window {
     // for the header band before the payload lands.
     // One renderer for every universe. The per-category dispatcher is gone: it existed to
     // pick between bespoke per-IP pages, and those are being deleted (next task).
-    function openUniverse(extensionId, name, plain) {
+    function openUniverse(extensionId, name, plain, pickerIntent) {
+        universeLayer.returnToExtensions = false
+        const pickerReturn = win.prepareDockPickDetail(universeLayer, pickerIntent)
         if (!extensionId) return
         win.closeOnePieceArc()
         universeLayer.templatePage = ""
@@ -2914,10 +2984,13 @@ Window {
             universeLayer.item.universeName = name || ""
         }
         universeLayer.active = true
+        win.attachDockPickDetail(universeLayer, pickerReturn)
     }
     // An archived universe has no extension; it opens by name on its category's template.
-    function openArchivedUniverse(name, page) {
+    function openArchivedUniverse(name, page, pickerIntent) {
+        universeLayer.returnToExtensions = false
         if (!name || !universeLayer.templateSources[page]) return
+        const pickerReturn = win.prepareDockPickDetail(universeLayer, pickerIntent)
         win.closeOnePieceArc()
         universeLayer.plain = false
         universeLayer.extensionId = "archive." + page
@@ -2926,21 +2999,25 @@ Window {
         if (universeLayer.item && universeLayer.status === Loader.Ready && universeLayer.item.universeName !== undefined)
             universeLayer.item.universeName = name
         universeLayer.active = true
+        win.attachDockPickDetail(universeLayer, pickerReturn)
     }
     // A banner in the Universes world opens the universe's STANDARD page. An entry with a
     // page (a curated sagaGrid, or an archived universe's template) opens through
     // openArchivedUniverse; only an entry with no page falls back to the extension route —
     // an installed One Piece carries both, and its story-grid page wins over the payload
     // route (a payload-less Cosmere still lands on its Tribute).
-    function openRosterUniverse(entry) {
+    function openRosterUniverse(entry, pickerIntent) {
         if (!entry) return
         if (entry.page)
-            win.openArchivedUniverse(entry.name, entry.page)
+            win.openArchivedUniverse(entry.name, entry.page, pickerIntent)
         else
-            win.openUniverse(entry.extensionId, entry.name, UniverseApi.fileFor(entry.extensionId).length > 0)
+            win.openUniverse(entry.extensionId, entry.name, UniverseApi.fileFor(entry.extensionId).length > 0, pickerIntent)
     }
     // The Universes world's carousel: the hand-made art page.
-    function openTribute(entry) { if (entry && entry.extensionId) win.openUniverse(entry.extensionId, entry.name) }
+    function openTribute(entry, pickerIntent) {
+        if (entry && entry.extensionId)
+            win.openUniverse(entry.extensionId, entry.name, false, pickerIntent)
+    }
     // A "More universes" card names a sibling; its template comes from the curated list.
     function openUniverseByName(name) {
         var cfg = UniverseCanon.configFor(name)
@@ -2950,8 +3027,12 @@ Window {
             win.openArchivedUniverse(cfg.name, (cfg.shelves || cfg.manga) ? "shelves" : (cfg.sagaGrid ? "saga" : cfg.category))
     }
     function closeUniverse() {
+        const returnToExtensions = universeLayer.returnToExtensions
+        const pick = win.takeDockPickDetail(universeLayer)
         win.closeOnePieceArc()
         universeLayer.active = false
+        win.finishDockPickDetail(universeLayer, pick)
+        if (returnToExtensions) win.openExtensionsPage()
     }
     function openOnePieceArc(arc) {
         if (!arc) return
@@ -3050,8 +3131,7 @@ Window {
         updateLayer.active = true
         // Full-bleed: the chronicle owns the whole page. The taskbar closes like
         // every other full-page destination (Downloads/Vault/Extensions)
-        // and still reveals on hover for session switching. The Update entry point
-        // is the home topbar glyph now — no launcher in the taskbar dock.
+        // and still reveals on hover for session switching.
         taskbar.open = false
         if (typeof Updates !== "undefined" && Updates.markSeen)
             Updates.markSeen()
@@ -3175,18 +3255,55 @@ Window {
                    : (worldKey === "biblio" || worldKey === "audiobook") ? "Biblio" : "Theatre"
         win.openWorld(medium)
     }
-    function routeDownloadedAudiobook(item) {
-        if (!item || !String(item.bookPath || "").length) return
-        win.closeDownloadsPage()
-        win.openBookSession(item.bookPath, {
+    function routeDownloadedAudiobook(item, pickerIntent) {
+        if (!item || !String(item.bookPath || "").length || (pickerIntent && item.missing)) return
+        if (!pickerIntent) win.closeDownloadsPage()
+        const sessionId = win.openBookSession(item.bookPath, {
             "id": item.bookId || item.bookPath,
             "title": item.title || "Book",
             "author": item.author || "",
             "pairKey": item.id || "",
             "openAudio": true
         })
+        if (pickerIntent && sessionId && Sessions.activeId === sessionId && bookReaderLayer.active
+                && bookReaderLayer.status !== Loader.Error)
+            win.dockPickAudiobookReturn = { sessionId: sessionId, intent: pickerIntent }
+    }
+    function routeDownloadListen(item) {
+        const key = item && item.recordingKey
+        const downloads = audiobookFlow.downloads
+        if (key && !item.missing && downloads && downloads.resolveRecordingKey(key) === key
+                && audiobookFlow.openListen(key, item)) {
+            if (worldStack.current !== "Biblio") win.openWorld("Biblio")
+            win.closeDownloadsPage()
+        } else if (downloadsLayer.item) {
+            downloadsLayer.item.abRefresh()
+            downloadsLayer.item.mutationMessage = qsTr("This downloaded recording could not be opened.")
+        }
     }
 
+    function beginSmartPickPlayer(title, backdrop, subType, subId, playbackContext) {
+        setGuiStallContext("open", "Player")
+        win.smartPickPlayerPending = true
+        win.playerOpen = true
+        if (!playerLayer.item) {
+            win.queueSmartPickPlayerOpen(title, backdrop, subType, subId, playbackContext)
+            return
+        }
+        if (playerLayer.item.beginSmartPick)
+            playerLayer.item.beginSmartPick(title, backdrop, subType, subId, playbackContext)
+        else
+            win.chooseSmartPickSourceManually()
+    }
+    function chooseSmartPickSourceManually() {
+        if (!win.smartPickPlayerPending) return
+        if (theatreSeriesLayer.item && theatreSeriesLayer.item.chooseSmartPickSourceManually)
+            theatreSeriesLayer.item.chooseSmartPickSourceManually()
+        win.closePlayer()
+    }
+    function smartPickNoSource() {
+        if (win.smartPickPlayerPending) win.closePlayer()
+    }
     function openPlayer(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates, playbackContext) {
         setGuiStallContext("open", "Player")
         win.playerOpen = true
@@ -3228,6 +3345,9 @@ Window {
         return true
     }
     function closePlayer() {
+        if (win.smartPickPlayerPending && theatreSeriesLayer.item && theatreSeriesLayer.item.cancelSmartPick)
+            theatreSeriesLayer.item.cancelSmartPick()
+        win.smartPickPlayerPending = false
         win.pendingPlayerOpen = null
         if (playerLayer.item) playerLayer.item.stop()
         win.playerOpen = false
@@ -3533,21 +3653,25 @@ Window {
         return target.activeFocus === true || (snapshot.owner && snapshot.owner.activeFocus === true)
     }
 
-    function openBook(b) { win.cancelCatalogueRoute();
+    function openBook(b, pickerIntent) {
+        win.cancelCatalogueRoute()
+        const pickerReturn = win.prepareDockPickDetail(bookLayer, pickerIntent)
         win.pendingBookReturn = null
         if (!bookLayer.active)
             win.bookReturnSnapshot = win._captureBookReturn()
         win.bookRouteGeneration += 1
         bookLayer.book = b
         bookLayer.active = true
+        win.attachDockPickDetail(bookLayer, pickerReturn)
     }
     function closeBook() {
         var generation = ++win.bookRouteGeneration
         win.pendingBookReturn = null
-        bookLayer.active = false
-        if (win.restoreNamedCollectionsReturn()) { win.bookReturnSnapshot = null; return }
+        const pick = win.takeDockPickDetail(bookLayer)
         var snapshot = win.bookReturnSnapshot
         win.bookReturnSnapshot = null
+        bookLayer.active = false
+        if (win.finishDockPickDetail(bookLayer, pick) || win.restoreNamedCollectionsReturn()) return
         if (snapshot)
             Qt.callLater(function() {
                 if (generation === win.bookRouteGeneration)
@@ -3574,8 +3698,7 @@ Window {
         setGuiStallContext("navigate", currentSurface || "Home")
     }
 
-    // ---- search: a layer over the world. Biblio has its own rich surface; Tankoban + Theatre use the
-    //      generic SearchSurface fed by their own source (AniList / Cinemeta). ----
+    // ---- search: each world supplies its own catalogue to the shared search surface. ----
     function openSearch() {
         if (win.guardNamedCollectionsNavigation(function() { win.openSearch() })) return
  win.cancelCatalogueRoute();
@@ -3583,7 +3706,11 @@ Window {
         setGuiStallContext("open", "Search")
         var w = worldStack.current
         if (w === "Vinyl" && win.vinylWorld) { win.vinylWorld.enterDiscoverSearch(true, false); return }
-        if (w === "Biblio") { searchLayer.active = true; return }
+        if (w === "Biblio") {
+            searchLayer.audioFirst = !!audiobookFlow.world && audiobookFlow.world.activeTab === "audiobooks"
+            searchLayer.active = true
+            return
+        }
         if (w === "Tankoban") {
             worldSearchLayer.searchMode = "Tankoban"
             worldSearchLayer.placeholder = "Search manga…"
@@ -3816,6 +3943,7 @@ Window {
 
     // UI entry points (replace direct open* calls from cards / world pages):
     function openMovieSession(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates, playbackContext, position) {
+        win.smartPickPlayerPending = false
         setGuiStallContext("open", "Player")
         // Library membership (spec §4.4): the moment playback starts, it joins the shelf.
         // The show root is EpisodeBrowser.seriesRootId (tt123:1:2 → tt123 ; kitsu:9:3:4 → kitsu:9);
@@ -3851,12 +3979,16 @@ Window {
     // A downloaded video's session: dedup key = target.id (the stream id, e.g. "tt123:1:2"),
     // so re-opening the same episode reuses its tile. `position` rides along for first-open
     // resume; a fresher captured position (minimize) wins via restoreState.
+    function resolvedDownloadPath(path) {
+        var location = typeof LocalDownloads !== "undefined" && LocalDownloads ? LocalDownloads.location : null
+        return location ? location.resolveLocalPath(String(path || "")) : path
+    }
     function openLocalVideoSession(v) {
         setGuiStallContext("open", "Player")
         Sessions.openOrSwitch({
             "appType": "theatre", "contentKind": "movie", "title": v.title || "Video",
             "target": { "showKey": EpisodeBrowser.seriesRootId(v.id || ""),
-                        "localPath": v.path, "id": v.id || "", "title": v.title || "",
+                        "localPath": win.resolvedDownloadPath(v.path), "id": v.id || "", "title": v.title || "",
                         "playbackContext": v.playbackContext || ({}),
                         "art": v.art || "", "kind": v.kind || "", "position": v.position || 0 }
         })
@@ -3873,12 +4005,56 @@ Window {
     }
     function openBookSession(path, book) {
         if (!path) return
+        win.dockPickAudiobookReturn = null
+        path = win.resolvedDownloadPath(path)
         setGuiStallContext("open", "Reader")
         var b = book || ({})
-        Sessions.openOrSwitch({
+        return Sessions.openOrSwitch({
             "appType": "biblio", "contentKind": "book", "title": b.title || "Book",
             "target": { "path": path, "book": b, "id": path }
         })
+    }
+
+    property var audiobookReaderArrival: null
+    property int ebookDownloadRevision: 0
+
+    function takeAudiobookArrival(path) {
+        if (!audiobookReaderArrival || audiobookReaderArrival.path !== path) return ""
+        const key = audiobookReaderArrival.recordingKey
+        audiobookReaderArrival = null
+        return key
+    }
+
+    function openReadAlong(ebook, recordingKey) {
+        if (!ebook || !ebook.path || !recordingKey) return
+        const path = win.resolvedDownloadPath(ebook.path)
+        if (!path) return
+        const current = audiobookFlow.currentPage
+        const meta = Object.assign({}, ebook, { audiobookWorkId: current && current.route
+                ? current.route.workId || ebook.audiobookWorkId : ebook.audiobookWorkId })
+        audiobookReaderArrival = { path: path, recordingKey: recordingKey }
+        openBookSession(path, meta)
+        if (audiobookReaderArrival && bookReaderLayer.item && bookReaderLayer.bookPath === path) {
+            bookReaderLayer.bookMeta = meta
+            bookReaderLayer.item.bookMeta = meta
+            bookReaderLayer.item.openBook(path, takeAudiobookArrival(path))
+        }
+    }
+
+    function openAudiobookBridge(bridge, recordingKey, jump, fromReader) {
+        if (!bridge || (!bridge.workId && !recordingKey)) return
+        const origin = fromReader ? Sessions.activeId : ""
+        if (worldStack.current !== "Biblio") openWorld("Biblio")
+        const alreadyOpen = audiobookFlow.active
+        if (recordingKey) {
+            if (!audiobookFlow.openListen(recordingKey, {
+                    workId: bridge.workId, recordingId: bridge.recordingId, pairKey: bridge.pairKey
+                }, jump)) return
+        } else audiobookFlow.openWork(bridge.workId, bridge.recordingId)
+        if (fromReader) {
+            if (!alreadyOpen) audiobookFlow.returnSessionId = origin
+            minimizeBookReader()
+        }
     }
 
     // ── Vault launch pillar (execution plan Slice 8): hand the app a local file ──
@@ -3902,6 +4078,97 @@ Window {
         else if (r.family === "video") win.openLocalVideoSession(win.videoTargetFor(r.path, r.vaultId, r.title))
     }
     readonly property bool localMediaAvailable: typeof LocalLaunch !== "undefined" && LocalLaunch !== null
+    property var dockPickAudiobookReturn: null
+
+    // A pick returns through the route it opened. Keep the picker snapshot on that
+    // detail loader, or on its exact audiobook reader session.
+    function snapshotDockPickDetail(layer) {
+        if (!layer.active) return null
+        const values = {}
+        for (const field of layer.dockPickFields)
+            values[field] = layer[field]
+        return { values: values, pickerReturn: layer.dockPickReturn,
+                 bookReturn: layer === bookLayer ? win.bookReturnSnapshot : null }
+    }
+    function prepareDockPickDetail(layer, intent) {
+        const result = intent ? { intent: intent, previous: win.snapshotDockPickDetail(layer) } : null
+        layer.dockPickReturn = null
+        return result
+    }
+    function attachDockPickDetail(layer, pick, restoring) {
+        if (layer.active && layer.status !== Loader.Error
+                && (!pick || restoring || ShellBackPolicy.actionFor(win.shellEscapeState()) === layer.dockPickAction))
+            layer.dockPickReturn = pick
+    }
+    function takeDockPickDetail(layer, returnToPicker) {
+        const pick = returnToPicker !== false && layer.active && layer.status !== Loader.Error
+                   ? layer.dockPickReturn : null
+        layer.dockPickReturn = null
+        return pick
+    }
+    function restoreDockPickDetail(layer, snapshot) {
+        for (const field of layer.dockPickFields)
+            layer[field] = snapshot.values[field]
+        if (layer === bookLayer) {
+            win.bookReturnSnapshot = snapshot.bookReturn
+        } else if (layer === seriesLayer) {
+            layer.resumeChapterId = ""
+            layer.resumeVolumeId = ""
+        }
+        layer.active = true
+        win.attachDockPickDetail(layer, snapshot.pickerReturn, true)
+    }
+    function canReturnToDockPick(intent) {
+        return !!intent && taskbar.visible && intent.world === worldStack.current
+            && intent.profile === win.namedCollectionsProfileGeneration
+            && intent.showExplicit === contentPreferences.showExplicit
+    }
+    function finishDockPickDetail(layer, pick) {
+        if (!pick || !win.canReturnToDockPick(pick.intent))
+            return false
+        if (pick.previous)
+            win.restoreDockPickDetail(layer, pick.previous)
+        return taskbar.restorePicker(pick.intent.state)
+    }
+    function clearDockPickReturns() {
+        for (const layer of [seriesLayer, comicSeriesLayer, theatreSeriesLayer, bookLayer, universeLayer])
+            if (layer) layer.dockPickReturn = null
+        win.dockPickAudiobookReturn = null
+    }
+    function openDockPick(medium, entry, returnState) {
+        if (!entry || !entry.title || !returnState) return
+        const raw = entry.raw || entry
+        const intent = { state: returnState, world: worldStack.current,
+                         profile: win.namedCollectionsProfileGeneration, showExplicit: contentPreferences.showExplicit }
+        switch (medium) {
+        case "manga":
+        case "manhwa": win.openSeries(entry.title, entry.id, null, "", intent); break
+        case "comics": win.openComicSeries({
+            id: raw.locgId || raw.locg_id || entry.id || "",
+            title: entry.title, cover: entry.cover, locgMeta: raw
+        }, intent); break
+        case "books": win.openBook(raw, intent); break
+        case "audiobooks": win.routeDownloadedAudiobook(raw, intent); break
+        case "anime":
+        case "tv":
+        case "movies": win.openTheatreSeries(raw, intent); break
+        case "universes": win.openRosterUniverse(raw, intent); break
+        case "tributes": win.openTribute(raw, intent); break
+        }
+    }
+    function openDroppedMedia(urls) {
+        if (!win.localMediaAvailable || !urls || !urls.length) return false
+        var files = []
+        var anyFolder = false
+        for (var i = 0; i < urls.length; i++) {
+            var url = String(urls[i])
+            if (LocalLaunch.isDir(url)) anyFolder = true
+            else files.push(url)
+        }
+        if (files.length === 0 && anyFolder) win.showFolderDropExplain()
+        else win.openLocalMedia(files)
+        return true
+    }
     function openLocalMedia(paths) {
         if (!paths || !paths.length) return
         if (!win.localMediaAvailable) return
@@ -3961,7 +4228,7 @@ Window {
     // A loose local comic has no series page — open it in the standalone Vault reader host
     // (vaultComicLayer) as a taskbar comic session keyed to its content id.
     function openVaultComic(path, vaultId, title) {
-        if (win.androidHost || !path) return
+        if (!path) return
         Sessions.openOrSwitch({
             "appType": "tankoban", "contentKind": "comic", "title": title || "Comic",
             "target": { "vaultPath": path, "id": vaultId || ("vault-file:" + path), "title": title || "" }
@@ -4006,11 +4273,13 @@ Window {
         Sessions.close(id)
     }
     function minimizePlayer() {
+        if (win.smartPickPlayerPending) { win.closePlayer(); return }
         var rec = Sessions.get(Sessions.activeId)
         if (rec && rec.contentKind === "movie") Sessions.switchTo("")
         else win.closePlayer()                       // not session-run (legacy path): just drop it
     }
     function closePlayerSession() {
+        if (win.smartPickPlayerPending) { win.closePlayer(); return }
         var rec = Sessions.get(Sessions.activeId)
         if (rec && rec.contentKind === "movie") win.closeSession(rec.id)
         else win.closePlayer()
@@ -4028,7 +4297,7 @@ Window {
                 win.openComicSession(w.seriesTitle, w.seriesId, w.openChapterId)   // seriesId = "gc:<slug>" (live) or "gcd:<id>" (baked catalogue run)
             } else {
                 var s = seriesLayer.item
-                if (!s || !s.openChapterId) { win.closeSeries(); return }
+                if (!s || !s.openChapterId) { win.closeSeries(false); return }
                 win.openComicSession(s.seriesTitle, s.seriesId, s.openChapterId, s.openEntryKind)
             }
         }
@@ -4037,11 +4306,21 @@ Window {
     function closeComicReader() {
         var rec = Sessions.get(Sessions.activeId)
         if (rec && rec.contentKind === "comic") win.closeSession(rec.id)
-        else if (comicSeriesLayer.active && comicSeriesLayer.item && comicSeriesLayer.item.openChapterId.length) win.closeComicSeries()
+        else if (comicSeriesLayer.active && comicSeriesLayer.item && comicSeriesLayer.item.openChapterId.length) win.closeComicSeries(false)
         else if (westernLayer.active && westernLayer.item && westernLayer.item.openChapterId.length) win.closeWestern()
-        else win.closeSeries()
+        else win.closeSeries(false)
+    }
+    function returnDockComicDetail(layer) {
+        if (!layer.active || !layer.dockPickReturn || !layer.item || !layer.item.openChapterId)
+            return false
+        const snapshot = win.snapshotDockPickDetail(layer)
+        win.closeComicReader()
+        layer.active = false
+        win.restoreDockPickDetail(layer, snapshot)
+        return true
     }
     function backFromMangaReader() {
+        if (win.returnDockComicDetail(seriesLayer)) return
         var page = seriesLayer.item
         if (!page || !page.openChapterId) { win.closeComicReader(); return }
         var title = page.seriesTitle
@@ -4079,8 +4358,12 @@ Window {
     }
     function closeBookReaderSession() {
         var rec = Sessions.get(Sessions.activeId)
+        const pick = win.dockPickAudiobookReturn
+        win.dockPickAudiobookReturn = null
         if (rec && rec.contentKind === "book") win.closeSession(rec.id)
         else win.closeBookReader()
+        if (pick && rec && rec.id === pick.sessionId && win.canReturnToDockPick(pick.intent))
+            taskbar.restorePicker(pick.intent.state)
     }
     // (minimizeAudiobook / closeAudiobookSession retired with the standalone player, 2026-07-18.)
 
@@ -4097,9 +4380,10 @@ Window {
             playerLayer.item.resumeFromMinimize()
         } else {
             win.requestTheatreAudio()
-            if (t.localPath && String(t.localPath).length)
+            if (t.localPath && String(t.localPath).length) {
+                t.localPath = win.resolvedDownloadPath(t.localPath)
                 playerLayer.item.playLocalFile(t)
-            else if (t.streamUrl && String(t.streamUrl).length) {
+            } else if (t.streamUrl && String(t.streamUrl).length) {
                 var landed = win.downloadedVideoPath(t.id || "")
                 if (landed.length) {
                     t.localPath = landed
@@ -4183,6 +4467,8 @@ Window {
                 if (westernLayer.item && westernLayer.item.restoreState) westernLayer.item.restoreState(st)
                 return
             }
+            if (seriesLayer.dockPickReturn && (!seriesLayer.item || seriesLayer.item.seriesId !== t.seriesId))
+                seriesLayer.dockPickReturn = null
             var savedComicId = (st.chapterId || t.chapterId || "")
             if (t.entryKind === "tankoban") {
                 // a VOLUME session: restore the series with Tankoban Mode ON, then open the
@@ -4220,7 +4506,7 @@ Window {
             // THREW when the layer was already live — Continue resume into an open reader died).
             if (bookReaderLayer.active && bookReaderLayer.item) {
                 bookReaderLayer.item.bookMeta = bookReaderLayer.bookMeta
-                bookReaderLayer.item.openBook(t.path)
+                bookReaderLayer.item.openBook(t.path, win.takeAudiobookArrival(t.path))
                 if (bookReaderLayer.bookMeta.openAudio) {
                     var audioPanelGeneration = win.vinylShellGeneration
                     var audioPanelSessionId = rec.id
@@ -4292,7 +4578,6 @@ Window {
 
     // ---- design tokens (the skin: glass is the constant; gold is sparing) ----
     Theme { id: theme }
-
     // ---- bundled editorial serif (the theme's target display face: theme.display = "Fraunces") ----
     FontLoader { source: "../assets/fonts/Fraunces-Regular.ttf" }
     FontLoader { source: "../assets/fonts/Fraunces-Italic.ttf" }
@@ -4322,8 +4607,17 @@ Window {
     // =====================================================================
     // BACKDROP — the persistent wallpaper everything composites over.
     // =====================================================================
+    // The launcher captures this scene once, below the taskbar and modal layers.
+    Item {
+        id: dockScene
+        anchors.fill: parent
+    }
+
     Item {
         id: wall
+        parent: dockScene
+        // Keep the wallpaper behind the pages that share the dock snapshot.
+        z: -1
         anchors.fill: parent
         // Not painted while the player is up. The player layer is opaque (PlayerPage draws a
         // full-bleed black Rectangle at z:-1) and does not fade, so nothing below it is ever
@@ -4351,7 +4645,7 @@ Window {
             active: win.wallpaperIsNative && win.nativeWallpaperFile(win.wallpaperSource).length > 0
             source: active ? win.nativeWallpaperFile(win.wallpaperSource) : ""
             onLoaded: item.running = Qt.binding(function() {
-                return !win.immersiveSurfaceOpen && win.visibility !== Window.Minimized
+                return !win.immersiveSurfaceOpen && !taskbar.pickerShown && win.visibility !== Window.Minimized
             })
         }
         // Global vignette so chrome + text read against the wallpaper, bright or dark.
@@ -4402,12 +4696,16 @@ Window {
     TopBar {
         onAccountClicked: (anchorRight, anchorBottom) => accountFlyout.toggleAt(anchorRight, anchorBottom)
         id: topbar
+        parent: dockScene
         z: 20
-        visible: !win.immersiveSurfaceOpen && !feriaLayer.open && worldStack.current === ""
+        visible: !win.immersiveSurfaceOpen && !win.androidUniverseDetailReady
+                 && !feriaLayer.open && worldStack.current === ""
         backdrop: wall
         activeMedium: ""
         androidHost: win.androidHost
-        x: win.headerOuterMargin; y: 18
+        reserveHomeBackSpace: true
+        x: win.headerOuterMargin
+        y: win.androidHost ? presentationPolicy.topInset : 18
         width: win.width - win.headerOuterMargin * 2
         onMediumSelected: (medium) => win.openWorld(medium)
         onWallpaperClicked: win.openWallpaperSearch("Home")
@@ -4415,12 +4713,12 @@ Window {
         onFullscreenClicked: win.toggleFullscreenShell()
         onMinimizeClicked: win.minimizeShell()
         onPowerClicked: win.requestApplicationQuit()
-        // Update glyph (home only, takes the retired search slot). Toggle mirrors
-        // the taskbar launcher: open when closed, close when already front.
+        // Toggle mirrors the taskbar launcher: open when closed, close when already front.
         updateAvailable: typeof Updates !== "undefined" ? Updates.updateAvailable : false
         updateUnseen: typeof Updates !== "undefined" ? Updates.unseenUpdate : false
         reducedMotion: win.reducedMotion
         onUpdateClicked: !updateLayer.active ? win.openUpdatePage() : win.closeUpdatePage()
+        utilityActionsInPicker: win.desktopPickerUtilities
         trackersEnabled: true
         trackersActive: syncCenterLayer.active
         onTrackersClicked: win.toggleSyncCenterPage()
@@ -4542,19 +4840,22 @@ Window {
     // ---- pinned top bar is above; everything below SCROLLS (vertical wheel/drag) ----
     Flickable {
         id: page
+        parent: dockScene
         objectName: "homePageFlickable"
         z: 0
-        visible: !win.immersiveSurfaceOpen && !feriaLayer.open && worldStack.current === "" && !collectionsPanel.showing
+        visible: !win.immersiveSurfaceOpen && !win.androidUniverseDetailReady
+                 && !feriaLayer.open && worldStack.current === "" && !collectionsPanel.showing
         anchors.left: parent.left; anchors.right: parent.right
         anchors.leftMargin: win.wideWorldNavigationLeftInset
         y: topbar.y + topbar.height + 10
-        height: win.height - y
+        height: Math.max(0, win.height - y)
         contentWidth: width
-        contentHeight: contentCol.implicitHeight + 40
+        // Keep the viewport behind the Android dock, but let the final row clear it.
+        contentHeight: contentCol.implicitHeight + 40 + win.browseBottomInset
         clip: true
         flickableDirection: Flickable.VerticalFlick
         boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: HouseScrollBar { flick: page }   // gold sliver, same as every page
+        ScrollBar.vertical: HouseScrollBar { flick: page; showTrack: !win.androidHost }
         KeyboardSpatialNavigator {
             id: homePageSpatialNav
             root: page
@@ -4628,20 +4929,33 @@ Window {
                 spacing: page.width <= 740 ? 13 : 15
                 Glass {
                     id: hero
+                    readonly property bool keyboardFocusWithin: {
+                        for (var item = win.activeFocusItem; item; item = item.parent) {
+                            if (item === hero) return true
+                        }
+                        return false
+                    }
                     backdrop: wall
                     track: page.contentY
-                    width: parent.width; height: 360; radius: 20
+                    width: parent.width; height: presentationPolicy.homeHeroHeight; radius: 20
                     tint: 0.06
 
                     SwipeView {
                         id: heroView
                         anchors.fill: parent
                         clip: true
+                        // The carousel only ever pages sideways; say so, so its inner ListView
+                        // never treats a vertical drag as its own.
+                        Component.onCompleted: if (contentItem) contentItem.flickableDirection = Flickable.HorizontalFlick
                         Repeater {
                             model: win.installedUniverses
                             delegate: Item {
                                 id: slide
                                 required property var modelData
+                                readonly property bool keyboardActionFocused: exKey.activeFocus
+                                // SwipeView clips its other pages but does not remove their
+                                // descendants from Tab navigation or accessibility.
+                                enabled: SwipeView.isCurrentItem
 
                                 // banner key-art full-bleed; a neutral plate stands in while it
                                 // loads, then the left-weighted scrim keeps the words legible
@@ -4675,11 +4989,16 @@ Window {
                                 // content over the scrim (chips row retired — ratified 2026-07-12)
                                 Column {
                                     anchors.left: parent.left; anchors.bottom: parent.bottom
-                                    anchors.margins: 44
+                                    anchors.margins: presentationPolicy.shortAndroid ? presentationPolicy.heroCopyInset : 44
                                     width: Math.min(620, parent.width - anchors.leftMargin * 2)
                                     spacing: 12
                                     Text { text: "TRIBUTE"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3 }
-                                    Text { text: slide.modelData.name; color: theme.ink; font.family: theme.display; font.pixelSize: 48 }
+                                    Text {
+                                        text: slide.modelData.name; color: theme.ink; font.family: theme.display
+                                        font.pixelSize: presentationPolicy.heroTitleSize
+                                        width: presentationPolicy.shortAndroid ? parent.width : implicitWidth
+                                        wrapMode: presentationPolicy.shortAndroid ? Text.WordWrap : Text.NoWrap
+                                    }
                                     // (the blurb line went with the baked list — the roster carries
                                     // identity and art, no prose, and a faked one would be a lie)
                                     Row {
@@ -4721,19 +5040,47 @@ Window {
                                                 onClicked: win.openUniverse(slide.modelData.extensionId,
                                                                             slide.modelData.name)
                                             }
-                                            KeyboardAction {
-                                                anchors.fill: parent
-                                                pointerEnabled: false
-                                                focusEnabled: win.televisionMode && slide.visible
-                                                accessibleName: "Explore " + slide.modelData.name
-                                                focusRadius: 12
-                                                onTriggered: win.openUniverse(slide.modelData.extensionId,
-                                                                              slide.modelData.name)
-                                            }
                                         }
                                     }
                                 }
                             }
+                        }
+                    }
+
+                    FocusRing {
+                        objectName: "homeHeroFocusRing"
+                        anchors.fill: heroView
+                        radius: hero.radius
+                        shown: heroView.activeFocus
+                               && (!heroView.currentItem || !heroView.currentItem.keyboardActionFocused)
+                    }
+
+                    // Touch only: a mostly-vertical finger drag on the hero scrolls the Home page.
+                    // The carousel (and the Explore MouseArea under it) swallowed those drags, so
+                    // on a phone the page could not be scrolled from the hero. The handler only
+                    // activates on Y travel, so a horizontal drag still swipes the carousel;
+                    // the mouse and wheel are untouched (desktop unchanged).
+                    DragHandler {
+                        id: heroVerticalScroll
+                        target: null
+                        xAxis.enabled: false
+                        acceptedDevices: PointerDevice.TouchScreen
+                        grabPermissions: PointerHandler.CanTakeOverFromItems | PointerHandler.CanTakeOverFromHandlersOfDifferentType
+                        property real lastY: 0
+                        onActiveChanged: {
+                            if (active) {
+                                lastY = 0
+                                page.cancelFlick()
+                            } else if (page.contentHeight > page.height) {
+                                page.flick(0, centroid.velocity.y)
+                            }
+                        }
+                        onActiveTranslationChanged: {
+                            if (!active) return
+                            var dy = activeTranslation.y - lastY
+                            lastY = activeTranslation.y
+                            page.contentY = Math.max(0, Math.min(page.contentHeight - page.height,
+                                                                 page.contentY - dy))
                         }
                     }
 
@@ -4742,7 +5089,9 @@ Window {
                         // Stands down while the player is up: this advances a carousel nobody can see
                         // behind the film, and every advance is an animation plus cover work on the
                         // GUI thread — the thread Qt Quick needs free to present video frames.
-                        interval: 6500; running: page.visible && !win.immersiveSurfaceOpen; repeat: true
+                        interval: 6500
+                        running: page.visible && !win.immersiveSurfaceOpen && !hero.keyboardFocusWithin
+                        repeat: true
                         // guarded: an empty roster would turn the modulo into NaN
                         onTriggered: if (heroView.count > 0)
                                          heroView.currentIndex = (heroView.currentIndex + 1) % heroView.count
@@ -4782,14 +5131,6 @@ Window {
                             id: hallMa; anchors.fill: parent
                             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                             onClicked: win.openWorld("Universes")
-                        }
-                        KeyboardAction {
-                            anchors.fill: parent
-                            pointerEnabled: false
-                            focusEnabled: win.televisionMode
-                            accessibleName: "Hall of Worlds"
-                            focusRadius: 8
-                            onTriggered: win.openUniverseHall()
                         }
                     }
                 }
@@ -4864,12 +5205,20 @@ Window {
             Loader {
                 id: homeReadingDeskLoader
                 width: parent.width
-                height: 400
+                height: status === Loader.Ready ? item.implicitHeight : 400
                 active: false
                 asynchronous: true
                 onLoaded: {
                     item.track = Qt.binding(function() { return page.contentY })
                     item.clicked.connect(function() { win.openWorld("Biblio") })
+                    item.audiobookPicked.connect(function(book) {
+                        const work = AudiobookBridge.findWork(audiobookFlow.catalog, book, AudiobookBridge.pairFor(book))
+                        if (work.id) audiobookFlow.openWork(work.id)
+                        else win.openBook(book)
+                    })
+                    item.audiobookBrowseRequested.connect(function() {
+                        win.openWorld("Biblio", "audiobooks")
+                    })
                     item.genrePicked.connect(function(name) {
                         win.openWorld("Biblio")
                         win.openBiblioGenre(name)
@@ -4980,10 +5329,19 @@ Window {
     ListModel { id: openModes }
     Item {
         id: worldStack
-        visible: !collectionsPanel.showing
+        parent: dockScene
+        visible: !collectionsPanel.showing && !win.androidUniverseDetailReady
         anchors.fill: parent
         anchors.leftMargin: win.wideWorldNavigationLeftInset
         property string current: ""                      // "" = home; else the visible mode
+        property bool pendingBiblioAudiobooks: false
+        onCurrentChanged: {
+            win.clearDockPickReturns()
+            if (current !== "Biblio") {
+                pendingBiblioAudiobooks = false
+                audiobookFlow.clear()
+            }
+        }
         Repeater {
             id: worldRepeater
             model: openModes
@@ -5142,6 +5500,13 @@ Window {
                     if (biblioGenreSignal) biblioGenreSignal.connect(win.openBiblioGenre)
                     var biblioGenreIndexSignal = item["biblio" + "GenreIndexRequested"]
                     if (biblioGenreIndexSignal) biblioGenreIndexSignal.connect(win.openBiblioGenreIndex)
+                    if (mode === "Biblio") {
+                        audiobookFlow.world = item
+                        if (worldStack.pendingBiblioAudiobooks) {
+                            item.activeTab = "audiobooks"
+                            worldStack.pendingBiblioAudiobooks = false
+                        }
+                    }
                     if (item.continueResumeRequested) item.continueResumeRequested.connect(win.resumeContinue)
                     if (item.continueDetailRequested) item.continueDetailRequested.connect(win.detailContinue)
                     // the Universes world: its list is the installed roster plus the archived templates
@@ -5190,7 +5555,15 @@ Window {
                         if (tgiSignal) tgiSignal.connect(win.openTheatreGenreIndex)
                     }
                     item.searchClicked.connect(win.openSearch)
+                    if (win.androidHost && item.updateClicked) {
+                        item.updateAvailable = Qt.binding(() => topbar.updateAvailable)
+                        item.updateUnseen = Qt.binding(() => topbar.updateUnseen)
+                        item.updateReducedMotion = Qt.binding(() => topbar.reducedMotion)
+                        item.updateClicked.connect(() => topbar.updateClicked())
+                    }
                     if (item.stremioClicked) item.stremioClicked.connect(win.openStremioSyncPanel)
+                    if (item.topBarUtilityActionsInPicker !== undefined)
+                        item.topBarUtilityActionsInPicker = Qt.binding(function() { return win.desktopPickerUtilities })
                     if (item.trackersClicked) {
                         item.trackersClicked.connect(win.toggleSyncCenterPage)
                         item.trackersActive = Qt.binding(function() { return syncCenterLayer.active })
@@ -5234,7 +5607,9 @@ Window {
 
     Loader {
         id: genreLayer
+        parent: dockScene
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 45
         active: false
         visible: active
@@ -5258,7 +5633,9 @@ Window {
     //      its page over the index. ----
     Loader {
         id: genreIndexLayer
+        parent: dockScene
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 44
         active: false
         visible: active
@@ -5279,7 +5656,9 @@ Window {
     // later-declared BiblioGenrePage paints over it when both are up.
     Loader {
         id: biblioGenreIndexLayer
+        parent: dockScene
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 46
         active: false
         visible: active
@@ -5298,7 +5677,9 @@ Window {
 
     Loader {
         id: biblioGenreLayer
+        parent: dockScene
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 46
         active: false
         visible: active
@@ -5322,7 +5703,9 @@ Window {
 
     Loader {
         id: theatreGenreLayer
+        parent: dockScene
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 48
         active: false
         visible: active
@@ -5348,7 +5731,9 @@ Window {
 
     Loader {
         id: theatreGenreIndexLayer
+        parent: dockScene
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 47
         active: false
         visible: active
@@ -5372,13 +5757,24 @@ Window {
     // ---- series detail layer: opened from a Top-10 title tile, sits OVER the world page ----
     Loader {
         id: seriesLayer
+        parent: dockScene
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 53     // above the universe overlay (z:52): a manga opened from a universe stacks on top, back returns to the universe
         active: false
         visible: active
         // Pending Featured Read for one exact title (WT-06); see readTankobanFeatured.
         property var featuredRead: null
-        onActiveChanged: if (!active) featuredRead = null
+        property var dockPickReturn: null
+        readonly property string dockPickAction: "series"
+        readonly property var dockPickFields: ["title", "malId", "seriesIdOverride", "sourceSearchTitle",
+            "sourceSearchAliases", "sourceRequiredMarkers", "resumeSeriesId", "requestedVolumeNumber",
+            "legacyWeebCentral", "exactCollectionReference"]
+        onActiveChanged: if (!active) {
+            featuredRead = null
+            dockPickReturn = null
+        }
+        onStatusChanged: if (status === Loader.Error) dockPickReturn = null
         Connections {
             target: seriesLayer.item
             ignoreUnknownSignals: true
@@ -5435,10 +5831,10 @@ Window {
             item.readerBackRequested.connect(win.backFromMangaReader)
             // Rebuilt title page only: the world pills, search and a Back pill that names its place.
             if (item.worldRequested)
-                item.worldRequested.connect(function(w) { win.closeSeries(); win.openWorld(w) })
+                item.worldRequested.connect(function(w) { win.closeSeries(false); win.openWorld(w) })
             if (item.searchRequested)
                 item.searchRequested.connect(function() {
-                    win.closeSeries()
+                    win.closeSeries(false)
                     if (worldStack.current !== "Tankoban") win.openWorld("Tankoban")
                     win.openSearch()
                 })
@@ -5450,7 +5846,9 @@ Window {
     // ---- western-comics detail layer: the GetComics shelf (ComicSeries), over the world ----
     Loader {
         id: westernLayer
+        parent: dockScene
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 53     // above the universe overlay (z:52): a comic opened from a universe stacks on top, back returns to the universe
         active: false
         visible: active
@@ -5461,6 +5859,7 @@ Window {
         property var    baked: null           // catalogue run {gcdId,releases,cover} OR pack {packSeriesId,releases,cover} OR universe {gcdId:0,releases,cover}
         source: "ComicSeries.qml"
         onLoaded: {
+            item.openExtensionsRequested.connect(function() { win.openExtensionsPage("tankoban") })
             item.backdrop = wall
             item.seriesTitle = westernLayer.title
             item.tagId = westernLayer.tagId
@@ -5499,16 +5898,24 @@ Window {
     //      attached (peer of westernLayer) ----
     Loader {
         id: comicSeriesLayer
+        parent: dockScene
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 50
         active: false
         visible: active
+        property var dockPickReturn: null
+        readonly property string dockPickAction: "comicSeries"
+        readonly property var dockPickFields: ["title", "cover", "locgSid", "locgMeta"]
+        onActiveChanged: if (!active) dockPickReturn = null
+        onStatusChanged: if (status === Loader.Error) dockPickReturn = null
         property string title: ""
         property string cover: ""
         property string locgSid: ""          // "locg:<id>" — the catalogue entry
         property var locgMeta: ({})          // {publisher, rating, startYear…} enriches the hero
         source: "ComicSeriesPage.qml"
         onLoaded: {
+            item.openExtensionsRequested.connect(function() { win.openExtensionsPage("tankoban") })
             item.backdrop = wall
             item.seriesTitle = comicSeriesLayer.title
             item.cover = comicSeriesLayer.cover
@@ -5519,7 +5926,9 @@ Window {
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
             item.readerCloseRequested.connect(win.closeComicReader)
-            item.readerBackRequested.connect(win.closeComicReader)
+            item.readerBackRequested.connect(function() {
+                if (!win.returnDockComicDetail(comicSeriesLayer)) win.closeComicReader()
+            })
             item.locgMeta = comicSeriesLayer.locgMeta
             item.locgId = comicSeriesLayer.locgSid       // set LAST — triggers attach()
         }
@@ -5536,6 +5945,7 @@ Window {
     // trial shows nothing but pages — no world chrome, no identity tells.
     Loader {
         id: bakeoffStripLayer
+        parent: dockScene
         anchors.fill: parent
         z: 200
         active: false
@@ -5548,7 +5958,9 @@ Window {
     //      opens its detail OVER the backlog and back returns here. ----
     Loader {
         id: continueSeeAllLayer
+        parent: dockScene
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 49
         active: false
         visible: active
@@ -5572,6 +5984,7 @@ Window {
     //      (tile → LOCG series list via openComicSeries) ----
     Loader {
         id: locgPublisherLayer
+        parent: dockScene
         anchors.fill: parent
         z: 50
         active: false
@@ -5592,6 +6005,7 @@ Window {
     // ---- GetComics Archives board layer: the publisher/franchise taxonomy ----
     Loader {
         id: comicBoardLayer
+        parent: dockScene
         anchors.fill: parent
         z: 49
         active: false
@@ -5611,6 +6025,7 @@ Window {
     //      (below the series detail, so a picked series opens OVER it) ----
     Loader {
         id: comicIndexLayer
+        parent: dockScene
         anchors.fill: parent
         z: 49
         active: false
@@ -5638,10 +6053,17 @@ Window {
     // ---- Theatre detail layer: opened from a Theatre tile, sits OVER the world page ----
     Loader {
         id: theatreSeriesLayer
+        parent: dockScene
+        // The series Flickable now reserves the Android dock in its scroll content.
         anchors.fill: parent
         z: 53     // above the universe overlay (z:52): a film/show opened from a universe stacks on top, back returns to the universe
         active: false
         visible: active
+        property var dockPickReturn: null
+        readonly property string dockPickAction: "theatreSeries"
+        readonly property var dockPickFields: ["pendingItem"]
+        onActiveChanged: if (!active) dockPickReturn = null
+        onStatusChanged: if (status === Loader.Error) dockPickReturn = null
         property var pendingItem: ({})
         source: viewSettings.rebuiltTitlePages ? "TheatreSeriesView.qml" : "TheatreSeries.qml"
         onLoaded: {
@@ -5652,7 +6074,10 @@ Window {
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.playRequested.connect(win.openMovieSession)
+            item.smartPickStarted.connect(win.beginSmartPickPlayer)
+            item.smartPickFailed.connect(win.smartPickNoSource)
             item.playLocalRequested.connect(win.openLocalVideoSession)
+            item.localMediaRequested.connect(function(path) { win.openLocalMedia([path]) })
             item.playArrivingRequested.connect(win.routeArrivingPlay)
             item.openItemRequested.connect(win.openTheatreSeries)
             item.libraryRemovalRequested.connect(win.requestTheatreRemoval)
@@ -5663,10 +6088,10 @@ Window {
             })
             // Rebuilt title page only: the world pills, search and a Back pill that names its place.
             if (item.worldRequested)
-                item.worldRequested.connect(function(w) { win.closeTheatreSeries(); win.openWorld(w) })
+                item.worldRequested.connect(function(w) { win.closeTheatreSeries(false); win.openWorld(w) })
             if (item.searchRequested)
                 item.searchRequested.connect(function() {
-                    win.closeTheatreSeries()
+                    win.closeTheatreSeries(false)
                     if (worldStack.current !== "Theatre") win.openWorld("Theatre")
                     win.openSearch()
                 })
@@ -5683,7 +6108,6 @@ Window {
     StremioSyncPanel {
         id: stremioPanel
         objectName: "stremioSyncOverlay"
-        property Item accountInvoker: null
         anchors.fill: parent
         z: 960
         syncState: typeof stremioSyncState !== "undefined" ? stremioSyncState : null
@@ -5707,6 +6131,7 @@ Window {
     // ---- video player layer: above every detail/series layer (mpv under house glass) ----
     Loader {
         id: playerLayer
+        parent: dockScene
         objectName: "playerPageLoader"
         anchors.fill: parent
         z: 60
@@ -5732,6 +6157,8 @@ Window {
             if (item.playbackRequested)
                 item.playbackRequested.connect(function() { win.claimAudio("theatre") })
             item.backRequested.connect(win.minimizePlayer)
+            if (item.manualSourceRequested)
+                item.manualSourceRequested.connect(win.chooseSmartPickSourceManually)
             item.minimizeRequested.connect(win.minimizePlayer)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(win.closePlayerSession)
@@ -5762,29 +6189,90 @@ Window {
     // ---- book detail layer: Biblio's OWN dust-jacket page over the world (above series) ----
     Loader {
         id: bookLayer
+        parent: dockScene
         objectName: "biblioBookRouteState"
+        enabled: !audiobookFlow.active
         anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
         z: 53
         active: false
         visible: active
+        property var dockPickReturn: null
+        readonly property string dockPickAction: "book"
+        readonly property var dockPickFields: ["book"]
+        onActiveChanged: if (!active) dockPickReturn = null
+        onStatusChanged: if (status === Loader.Error) dockPickReturn = null
         property var book: ({})
         source: "BiblioBook.qml"
         onLoaded: {
             item.backdrop = wall
-            item.book = bookLayer.book
+            item.audioSessionRef = audioSession
+            item.openExtensionsRequested.connect(function() { win.openExtensionsPage("biblio") })
+            item.audiobookBridge = Qt.binding(function() {
+                audiobookFlow.downloadsRevision
+                const catalogue = audiobookFlow.catalog
+                if (catalogue) catalogue.revision
+                return AudiobookBridge.describe(catalogue, audiobookFlow.downloads, bookLayer.book)
+            })
+            item.audiobookBridgeRequested.connect(function(bridge) {
+                win.openAudiobookBridge(bridge, bridge.recordingKey, null, false)
+            })
+            item.book = Qt.binding(function() { return bookLayer.book })
             item.backRequested.connect(win.closeBook)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.readRequested.connect(win.openBookSession)
-            // (listenRequested retired — the reader carries audiobook playback now)
         }
     }
 
+    Connections {
+        target: typeof Books !== "undefined" ? Books : null
+        function onFinished(key, path) { ++win.ebookDownloadRevision }
+        function onRemoved(key) { ++win.ebookDownloadRevision }
+    }
+
+    Connections {
+        target: typeof BookTorrents !== "undefined" ? BookTorrents : null
+        function onFinished(key, path) { ++win.ebookDownloadRevision }
+        function onRemoved(key) { ++win.ebookDownloadRevision }
+    }
+
+    AudiobookFlow {
+        id: audiobookFlow
+        parent: dockScene
+        objectName: "audiobookFlow"
+        anchors.fill: parent
+        anchors.bottomMargin: win.browseBottomInset
+        z: replacingDownload ? 57 : 54 // Above ebook detail (53), below Downloads (56) during browsing.
+        backdrop: wall
+        androidHost: win.androidHost
+        dockClearance: win.androidHost ? 0 : taskbar.contentBottomInset
+        dockExpanded: taskbar.open
+        session: audioSession
+        ebookLibrary: {
+            win.ebookDownloadRevision
+            let rows = typeof Books !== "undefined" ? Array.prototype.slice.call(Books.downloadedBooks()) : []
+            if (typeof BookTorrents !== "undefined" && BookTorrents.downloadedBooks)
+                rows = rows.concat(Array.prototype.slice.call(BookTorrents.downloadedBooks()))
+            if (bookLayer.item && bookLayer.item.localPath)
+                rows.push(Object.assign({}, bookLayer.book, { path: bookLayer.item.localPath }))
+            return rows
+        }
+        onReplacingDownloadChanged: {
+            if (!replacingDownload && downloadsLayer.active && downloadsLayer.item)
+                downloadsLayer.item.forceActiveFocus()
+        }
+        onOpenExtensionsRequested: win.openExtensionsPage("biblio")
+        onReadAlongRequested: (ebook, key) => win.openReadAlong(ebook, key)
+        onReturnToReaderRequested: (id) => { if (Sessions.get(id).id) Sessions.switchTo(id) }
+        onMinimizeRequested: win.minimizeShell()
+        onFullscreenRequested: win.toggleFullscreenShell()
+        onQuitRequested: win.requestApplicationQuit()
+    }
+
     // ---- the ONE audiobook engine (read-along), hoisted at the window root (never in a
-    // Loader) so playback survives the reader opening/closing. The READER is the only
-    // audiobook surface (standalone player retired 2026-07-18): its HUD transport pill
-    // and Audio tab both drive this session. ----
+    // Loader). The Biblio listening page and the reader's transport share this session. ----
     AudiobookSession {
         id: audioSession
         objectName: "vinylHandoffAudiobook"
@@ -5811,10 +6299,18 @@ Window {
 
     Loader {
         id: bookReaderLayer
+        parent: dockScene
         anchors.fill: parent
         z: 58
         active: false
         visible: active
+        onActiveChanged: {
+            if (!active) {
+                win.dockPickAudiobookReturn = null
+                audiobookFlow.refreshPlayerRoute()
+            }
+        }
+        onStatusChanged: if (status === Loader.Error) win.dockPickAudiobookReturn = null
         property string bookPath: ""
         property var bookMeta: ({})
         // The FRESH reader (Task 16 swap): reader2/ReaderShell replaces the imported TB2
@@ -5826,7 +6322,7 @@ Window {
         onLoaded: {
             item.audioSession = audioSession   // the ONE shared audiobook engine → read-along Audio tab
             item.bookMeta = bookReaderLayer.bookMeta   // catalog identity → the pairing self-heal
-            item.openBook(bookReaderLayer.bookPath)
+            item.openBook(bookReaderLayer.bookPath, win.takeAudiobookArrival(bookReaderLayer.bookPath))
             if (bookReaderLayer.bookMeta.openAudio)
                 Qt.callLater(function() {
                     if (bookReaderLayer.item) bookReaderLayer.item.openAudioPanel()
@@ -5834,6 +6330,12 @@ Window {
             item.closed.connect(win.closeBookReaderSession)
             item.minimized.connect(win.minimizeBookReader)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
+            item.findAudiobookRequested.connect(function(bridge) {
+                win.openAudiobookBridge(bridge, "", null, true)
+            })
+            item.openAudiobookPlayerRequested.connect(function(key, bridge, jump) {
+                win.openAudiobookBridge(bridge, key, jump, true)
+            })
         }
     }
 
@@ -5841,6 +6343,7 @@ Window {
     // injected VaultPageStore — no series page behind it (execution plan Slice 8). ----
     Loader {
         id: vaultComicLayer
+        parent: dockScene
         anchors.fill: parent
         z: 57
         active: false
@@ -5848,7 +6351,7 @@ Window {
         property string archivePath: ""
         property string vaultId: ""
         property string title: "Comic"
-        source: win.androidHost ? "" : "comicreader/VaultComicReader.qml"
+        source: "comicreader/VaultComicReader.qml"
         onLoaded: {
             // archivePath opens the reader synchronously. Supply its progress key
             // first so the first load can restore the saved page.
@@ -5869,6 +6372,7 @@ Window {
     // ---- generic world search layer: Tankoban + Theatre (SearchSurface + their own source) ----
     Loader {
         id: worldSearchLayer
+        parent: dockScene
         anchors.fill: parent
         z: 51
         active: false
@@ -5888,19 +6392,25 @@ Window {
         }
     }
 
-    // ---- search layer: Biblio's search surface over the world (below the book detail) ----
+    // ---- Biblio search remains mounted beneath either detail so Back returns to the results. ----
     Loader {
         id: searchLayer
+        parent: dockScene
         anchors.fill: parent
         z: 51
         active: false
         visible: active
+        enabled: !audiobookFlow.active && !bookLayer.active
+        property bool audioFirst: false
         source: "BiblioSearch.qml"
         onLoaded: {
             item.backdrop = wall
+            item.androidHost = win.androidHost
+            item.audioFirst = searchLayer.audioFirst
+            item.audiobookCatalog = audiobookFlow.catalog
             item.backRequested.connect(win.closeSearch)
-            item.homeRequested.connect(function() { win.closeSearch(); win.closeWorld() })
             item.bookRequested.connect(win.openBook)
+            item.audiobookRequested.connect(function(workId) { audiobookFlow.openWork(workId) })
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { win.requestApplicationQuit() })
@@ -5912,6 +6422,8 @@ Window {
     Connections {
         target: Sessions
         function onActiveChanged(prevId, nextId) {
+            if (win.dockPickAudiobookReturn && win.dockPickAudiobookReturn.sessionId === prevId)
+                win.dockPickAudiobookReturn = null
             var prev = Sessions.get(prevId)
             if (prev && prev.id) {
                 Sessions.saveState(prevId, win.captureSession(prev))
@@ -5939,6 +6451,7 @@ Window {
     // ---- Downloads page: unified local-media vault, entered from the taskbar ----
     Loader {
         id: downloadsLayer
+        parent: dockScene
         objectName: "downloadsLayer"
         anchors.fill: parent
         anchors.leftMargin: win.wideWorldNavigationLeftInset
@@ -5946,7 +6459,8 @@ Window {
                   // so clicking Downloads always lands on top — below only the immersive surfaces
                   // (book reader 58, player 60). Was 52: any detail page silently covered it.
         active: false
-        visible: active
+        visible: active && !audiobookFlow.replacingDownload
+        onActiveChanged: if (!active && audiobookFlow.replacingDownload) audiobookFlow.back()
         // DownloadsPage is a large, taskbar-only surface. Spread component creation across
         // frames so opening the download ledger does not synchronously block the world underneath.
         // The route handlers only touch the item from onLoaded, after construction completes.
@@ -5967,7 +6481,14 @@ Window {
             })
             item.openWorldRequested.connect(win.routeDownloadWorld)
             item.playArrivingRequested.connect(win.routeArrivingPlay)
+            item.listenAudiobookRequested.connect(win.routeDownloadListen)
             item.openAudiobookRequested.connect(win.routeDownloadedAudiobook)
+            item.replaceAudiobookRequested.connect(function(key, attempt) {
+                if (!audiobookFlow.openReplacement(key, attempt)) {
+                    item.abRefresh()
+                    item.mutationMessage = qsTr("This stalled download is no longer available.")
+                }
+            })
         }
     }
 
@@ -5978,24 +6499,32 @@ Window {
     // picker; the folder-scan ingest lands in Slice 11.
     Loader {
         id: vaultLayer
+        parent: dockScene
         objectName: "vaultLayer"
         anchors.fill: parent
         z: 56
         active: false
-        visible: active && !win.immersiveSurfaceOpen
+        visible: active && status === Loader.Ready && !win.immersiveSurfaceOpen
         // VaultPage is a large, taskbar-only surface. Spread component creation across
         // frames so opening the folder door does not synchronously block the world underneath.
         // The open/close paths tolerate item being null until onLoaded (see vaultBack()).
         asynchronous: true
-        source: win.androidHost ? "" : "VaultPage.qml"
+        source: "VaultLibraryPage.qml"
         onLoaded: {
             item.backdrop = wall
+            item.desktopDockInset = Qt.binding(function() { return taskbar.contentBottomInset })
             item.backRequested.connect(win.closeVaultPage)
             win.finishNamedCollectionVaultOpen()
-            item.addFolderRequested.connect(function() { vaultFolderDialog.open() })
+            item.addFolderRequested.connect(function() {
+                // Android: the page shows its own access card, then its own folder chooser
+                // (Android's file dialog hands back content:// addresses the Vault cannot scan).
+                if (win.androidHost) item.beginAndroidAddFolder()
+                else vaultFolderDialog.open()
+            })
             if (item.openMediaRequested)                      // Slice 14: folder-view row / preview door → the shared LocalLaunch open path
                 item.openMediaRequested.connect(function(path) { win.openLocalMedia([path]) })
             item.viewWorldRequested.connect(win.openVaultIdentity)
+            item.connectServerRequested.connect(function() { win.openVaultServerConnections() })
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { win.requestApplicationQuit() })
@@ -6033,11 +6562,24 @@ Window {
     // ---- Universes: extension-backed bespoke pages + generic fallback ----
     Loader {
         id: universeLayer
+        parent: dockScene
         objectName: "universeLayer"
         anchors.fill: parent
+        // Standard detail pages reserve dock clearance at the end of their scroll content.
+        anchors.bottomMargin: status === Loader.Ready && item && item.contentBottomInset !== undefined
+                              ? 0 : win.browseBottomInset
         z: 52
         active: false
         visible: active
+        property var dockPickReturn: null
+        readonly property string dockPickAction: "universe"
+        readonly property var dockPickFields: ["extensionId", "universeName", "templatePage", "plain"]
+        property bool returnToExtensions: false
+        onActiveChanged: if (!active) {
+            dockPickReturn = null
+            returnToExtensions = false
+        }
+        onStatusChanged: if (status === Loader.Error) dockPickReturn = null
         asynchronous: true
         property string extensionId: ""
         property string universeName: ""
@@ -6064,6 +6606,8 @@ Window {
                          ? "CosmereUniversePage.qml"
                          : "UniverseExtensionPage.qml")))
         onLoaded: {
+            if (win.androidHost)
+                phoneShell.attachHostedItem(item)
             if (universeLayer.templatePage.length) {
                 // Template pages share one contract; a page simply lacks the signals it has no use for.
                 item.backdrop = wall
@@ -6104,7 +6648,7 @@ Window {
             // Normal user navigation never opens a universe through the onboarding cover.
             if (accountHost.visible)
                 accountHost.focusReturnItem = item
-            else if (item.takeKeyboardFocus)
+            else if (!taskbar.pickerShown && item.takeKeyboardFocus)
                 Qt.callLater(item.takeKeyboardFocus)
             // Works open ABOVE this overlay — series/theatre/western are z:53 (> this layer's 52),
             // book is z:53 — so a clicked work paints on top and the overlay stays loaded beneath.
@@ -6140,6 +6684,7 @@ Window {
 
     Loader {
         id: onePieceArcLayer
+        parent: dockScene
         anchors.fill: parent
         z: 52.5
         active: false
@@ -6168,6 +6713,7 @@ Window {
     // ---- Feria: its own native app, entered from the taskbar. ----
     Loader {
         id: feriaLayer
+        parent: dockScene
         objectName: "feriaLayer"
         anchors.fill: parent
         z: 58
@@ -6255,6 +6801,7 @@ Window {
     // parses FeriaSessionDeck.qml. Shell-side faces below stay null-safe while inactive.
     Loader {
         id: feriaSessionDeck
+        parent: dockScene
         objectName: "feriaSessionDeck"
         active: win.feriaAvailable && !win.feriaComingSoon && win.feriaRuntimeReady
         // Required properties must exist during construction; onLoaded is too late.
@@ -6318,6 +6865,7 @@ Window {
     // the embedded world's geometry and anchors remain its saved restore point.
     Item {
         id: feriaFullSizeSurface
+        parent: dockScene
         objectName: "feriaFullSizeSurface"
         anchors.fill: parent
         anchors.topMargin: feriaConsentSurface.height
@@ -6326,6 +6874,7 @@ Window {
     }
     Item {
         id: feriaConsentSurface
+        parent: dockScene
         objectName: "feriaConsentSurface"
         anchors { left: parent.left; right: parent.right; top: parent.top }
         height: !feriaSessionDeck.activeEntry || !feriaSessionDeck.activeEntry.hostWindow
@@ -6338,6 +6887,7 @@ Window {
     // ---- Extensions page: the store (Stremio-protocol addons), from the taskbar ----
     Loader {
         id: extensionsLayer
+        parent: dockScene
         objectName: "extensionsLayer"
         anchors.fill: parent
         z: 58     // full-page cover
@@ -6346,9 +6896,22 @@ Window {
         // The Extensions world: House, Essentials and the Store rows (live from stremio-addons.net).
         source: "ExtensionsStorePage.qml"
         onLoaded: {
-            item.backdrop = wall
-            if (item.universeHallRequested)
-                item.universeHallRequested.connect(function() { win.closeExtensionsPage(); win.openWorld("Universes") })
+            item.shellWallpaper = wall
+            item.tributes = Qt.binding(function() { return win.installedUniverses })
+            item.bottomInset = Qt.binding(function() {
+                if (win.androidHost) return win.browseBottomInset + 12
+                return taskbar.visible ? taskbar.closedSize + taskbar.bottomGap + 16 : 24
+            })
+            item.reducedMotion = Qt.binding(function() { return win.reducedMotion })
+            item.tributeRequested.connect(function(tribute) {
+                win.closeExtensionsPage()
+                win.openTribute(tribute)
+                universeLayer.returnToExtensions = true
+            })
+            item.catalogueWorldRequested.connect(function(world) {
+                win.closeExtensionsPage()
+                win.openWorld(world)
+            })
             // Same global preference Discover/genres/search read — a live binding so
             // the registry follows the shell visibility policy.
             item.showExplicit = Qt.binding(function() { return contentPreferences.showExplicit })
@@ -6368,6 +6931,7 @@ Window {
     // ---- Sync Center: the approved tracker catalogue and profile-owned controls ----
     Loader {
         id: syncCenterLayer
+        parent: dockScene
         objectName: "syncCenterLayer"
         anchors.fill: parent
         z: 58
@@ -6388,12 +6952,21 @@ Window {
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.mainSyncRequested.connect(win.openStremioSyncPanel)
-            item.takeKeyboardFocus()
+            if (win.vaultServerConnectionsPending && item.openHomeServers) {
+                item.openHomeServers()
+                win.vaultServerConnectionsPending = false
+            } else if (win.externalServiceCardsPending && item.openExternalServices) {
+                item.openExternalServices()
+                win.externalServiceCardsPending = false
+            } else {
+                item.takeKeyboardFocus()
+            }
         }
     }
 
     Loader {
         id: historyStatsLayer
+        parent: dockScene
         objectName: "historyStatsLayer"
         anchors.fill: parent
         z: 58
@@ -6427,6 +7000,7 @@ Window {
     // ---- Update page: the release chronicle, entered from the permanent taskbar item ----
     Loader {
         id: updateLayer
+        parent: dockScene
         objectName: "updateLayer"
         anchors.fill: parent
         z: 58
@@ -6518,8 +7092,57 @@ Window {
     // ---- the OS-shell taskbar: auto-hidden switcher over everything (under the boot splash) ----
     readonly property int theatreSourcesDockInset: taskbar.visible ? taskbar.closedSize + taskbar.bottomGap : 0
 
+    readonly property bool desktopPickerUtilities: !win.androidHost && taskbar.visible && !!taskbar.pickerScene
+
+    DockPickerCatalog {
+        id: dockCatalog
+        active: taskbar.pickerShown
+        installedAddons: win.installedExtensions
+        installedUniverses: win.installedUniverses
+        showExplicit: contentPreferences.showExplicit
+    }
+
     Taskbar {
         id: taskbar
+        pickerScene: dockScene
+        pickerPicks: dockCatalog.picks
+        pickerUtilityShortcuts: !win.desktopPickerUtilities ? [] : [
+            {
+                key: "sync", title: qsTr("Sync"), icon: "trackers.svg", available: true, utility: true,
+                badge: () => topbar.trackersDotState === "ok" ? "#5fd18b"
+                    : topbar.trackersDotState === "error" ? "#ef6a5a"
+                    : topbar.trackersDotState === "pending" ? "#f0c44a" : "transparent",
+                accessibleTitle: () => topbar.trackersDotState === "error"
+                    ? qsTr("Sync, attention required") : qsTr("Sync"),
+                run: () => win.toggleSyncCenterPage()
+            },
+            {
+                key: "dlna", title: qsTr("DLNA"), icon: "access-point.svg", available: true, utility: true,
+                badge: () => dlnaSharePopup.isRunning ? "#f0c44a" : "transparent",
+                accessibleTitle: () => dlnaSharePopup.isRunning ? qsTr("DLNA, sharing active") : qsTr("DLNA"),
+                run: invoker => {
+                    const anchor = invoker.mapToItem(null, invoker.width, invoker.height)
+                    dlnaSharePopup.toggleAt(anchor.x, anchor.y)
+                }
+            }
+        ].filter(shortcut => shortcut.key !== "dlna" || dlnaSharePopup.available)
+        pickerMapSlide: Component {
+            DockWorldMap {
+                onWorldRequested: world => {
+                    taskbar.open = false
+                    if (world === "vault")
+                        win.openVaultPage()
+                    else
+                        win.openWorld(world.charAt(0).toUpperCase() + world.slice(1))
+                }
+            }
+        }
+        pickerReducedMotion: win.reducedMotion
+        onPickerPickRequested: (medium, entry, returnState) => {
+            const open = () => win.openDockPick(medium, entry, returnState)
+            if (!win.guardNamedCollectionsNavigation(open)) open()
+        }
+        onPickerWallpaperRequested: win.openWallpaperSearch(win.currentSurface)
         localMediaAvailable: win.localMediaAvailable
         z: 900
         onFeedbackClicked: win.openFeedback()
@@ -6528,8 +7151,9 @@ Window {
             && !win.vinylVideoFullscreen
             && (!win.androidHost || win.desktopPresentation)
             && !(feriaLayer.open && feriaLayer.item && feriaLayer.item.hostFullScreenActive)
+            && !(universeLayer.active
+                && universeLayer.bespokeId === "com.colosseum.universe.onepiece")
         enabled: visible
-        onVisibleChanged: if (!visible) open = false
         onSwitchRequested: (id) => {
             if (!win.guardNamedCollectionsNavigation(function() { Sessions.switchTo(id) })) Sessions.switchTo(id)
         }
@@ -6552,11 +7176,28 @@ Window {
                                      ? WatchPartyUi.errorCategory : "unavailable"
         downloadsBadge: win.totalActiveDownloads
         downloadsActive: downloadsLayer.active
-        onDownloadsClicked: !downloadsLayer.active ? win.openDownloadsPage() : win.closeDownloadsPage()
+        onDownloadsClicked: {
+            if (taskbar.pickerShown) taskbar.open = false
+            if (!downloadsLayer.active) win.openDownloadsPage()
+            else win.closeDownloadsPage()
+        }
         collectionsActive: collectionsPanel.showing
-        onCollectionsClicked: collectionsPanel.showing ? win.closeNamedCollectionsPage() : win.openNamedCollectionsPage()
+        onCollectionsClicked: viaPointer => {
+            if (taskbar.pickerShown) taskbar.open = false
+            if (collectionsPanel.showing) win.closeNamedCollectionsPage(!viaPointer)
+            else win.openNamedCollectionsPage()
+        }
         vaultActive: vaultLayer.active
-        onVaultClicked: !vaultLayer.active ? win.openVaultPage() : win.closeVaultPage()
+        onVaultClicked: {
+            if (taskbar.pickerShown) taskbar.open = false
+            if (vaultLayer.visible && vaultLayer.status === Loader.Ready) {
+                win.closeVaultPage()
+            } else if (!vaultLayer.active || vaultLayer.status !== Loader.Loading) {
+                if (vaultLayer.status === Loader.Error)
+                    vaultLayer.active = false
+                win.openVaultPage()
+            }
+        }
         extensionsActive: extensionsLayer.active
         onExtensionsClicked: !extensionsLayer.active ? win.openExtensionsPage() : win.closeExtensionsPage()
         historyStatsActive: historyStatsLayer.active || yourFeriaLayer.active
@@ -6676,8 +7317,7 @@ Window {
         title: "Add a folder to your Vault"
         onAccepted: {
             vaultState.lastAddedFolder = "" + selectedFolder
-            // C++ owns it: add the folder as an unconfirmed root and census it off-thread; the
-            // confirmation card rises on scanFinished (Slice 11).
+            // Open the source selector. Indexing starts after the user confirms what to include.
             if (typeof VaultLibrary !== "undefined")
                 VaultLibrary.addFolder("" + selectedFolder)
         }
@@ -6700,23 +7340,11 @@ Window {
     // media file here. A dropped FOLDER explains + offers the picker (the folder gesture is Slice 10).
     DropArea {
         id: appFileDrop
+        parent: dockScene
         anchors.fill: parent
         z: 5
         keys: ["text/uri-list"]
-        onDropped: (drop) => {
-            if (!win.localMediaAvailable) { drop.accepted = false; return }
-            if (!drop.hasUrls) { drop.accepted = false; return }
-            var files = []
-            var anyFolder = false
-            for (var i = 0; i < drop.urls.length; i++) {
-                var u = "" + drop.urls[i]
-                if (LocalLaunch.isDir(u)) anyFolder = true
-                else files.push(u)
-            }
-            drop.accepted = true
-            if (files.length === 0 && anyFolder) { win.showFolderDropExplain(); return }
-            win.openLocalMedia(files)
-        }
+        onDropped: drop => drop.accepted = drop.hasUrls && win.openDroppedMedia(drop.urls)
     }
 
     Shortcut {
@@ -6924,8 +7552,8 @@ Window {
                 accountHost.focusFirstInside()
             else if (win.televisionMode)
                 Qt.callLater(function() { topbar.focusFirst() })
-            else if (win.keyboardFocusDead)
-                keyboardIgnition.forceActiveFocus()
+            else
+                win.recoverKeyboardFocus()
         }
     }
 
@@ -6992,6 +7620,9 @@ Window {
         controller: typeof AccountController !== "undefined" ? AccountController : null
         accountSettings: accountCenter
         onTheatreSyncRequested: function(invoker) { win.openTheatreSyncFromAccount(invoker) }
+        utilityEntries: win.androidHost
+        onTrackersRequested: win.openSyncCenterPage()
+        onWallpaperRequested: win.openWallpaperSearch()
         initial: {
             const who = (typeof AccountController !== "undefined" && AccountController)
                         ? AccountController.username : "";
@@ -6999,8 +7630,7 @@ Window {
         }
     }
 
-    // "Share on your Wi-Fi" (DLNA) flyout, opened from the top-bar access-point glyph on home
-    // and on every world while sharing runs. Same plain-layer shape as the account flyout.
+    // DLNA flyout, opened from the app picker on desktop.
     DlnaSharePopup {
         id: dlnaSharePopup
         objectName: "dlnaSharePopup"

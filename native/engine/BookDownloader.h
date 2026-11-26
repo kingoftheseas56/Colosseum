@@ -29,6 +29,8 @@
 
 #pragma once
 
+#include "DownloadLocation.h"
+
 #include <QObject>
 #include <QHash>
 #include <QList>
@@ -76,6 +78,10 @@ public:
 
     // Bulk views for the Downloads page facade.
     Q_INVOKABLE QVariantList downloadedBooks() const;
+    QList<DownloadLocation::Item> managedDownloadItems() const;
+    void refreshDownloadPaths();
+    void downloadLocationAvailable() { startQueuedDownload(); }
+    Q_SIGNAL void downloadPathsChanged();
     Q_INVOKABLE QVariantList activeBookJobs() const;
 
     // Cancel a resolving / in-flight / queued download (aborts, drops partials).

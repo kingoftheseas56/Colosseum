@@ -124,7 +124,9 @@ Item {
     property bool topBarBackOnly: false       // Extensions: the bar keeps only Back and the page's name
     property string topBarObjectName: ""
     property bool topBarTrackersEnabled: true
+    property bool topBarUtilityActionsInPicker: false
     property string topBarTitle: ""
+    property string topBarTitleFont: ""
     property string topBarSubtitle: ""
     property string initialFocusName: ""
     // Main binds this to the current world. Bare page harnesses keep the default true, while
@@ -162,7 +164,7 @@ Item {
     }
     readonly property real pageMargin: adaptive.pageMargin
     readonly property real outerPageMargin: adaptive.outerPageMargin
-    readonly property real headerOuterMargin: adaptive.pageMargin
+    readonly property real headerOuterMargin: adaptive.headerMargin
     property real headerTopInset: adaptive.topInset
     // Host-owned chrome can reserve the bottom of the viewport without changing desktop layout.
     property real contentBottomInset: 0
@@ -228,6 +230,10 @@ Item {
     signal continueDetailRequested(var item) // Continue tile elsewhere → host opens its detail view
     signal continueSeeAllRequested()         // Continue row's "See all ›" → host opens the scoped backlog page
     signal searchClicked()
+    signal updateClicked()
+    property alias updateAvailable: topbar.updateAvailable
+    property alias updateUnseen: topbar.updateUnseen
+    property alias updateReducedMotion: topbar.reducedMotion
     signal trackersClicked()                 // topbar third-party trackers door -> host opens the Sync Center
     property bool trackersActive: false
     signal settingsClicked()
@@ -254,6 +260,7 @@ Item {
         activeMedium: world.medium
         backOnly: world.topBarBackOnly
         pageTitle: world.topBarTitle
+        pageTitleFont: world.topBarTitleFont
         pageSubtitle: world.topBarSubtitle
         lifecycleActive: world.lifecycleActive
         androidHost: world.androidHost
@@ -262,6 +269,8 @@ Item {
         onHomeRequested: world.homeRequested()
         onMediumSelected: (m) => world.mediumSelected(m)
         onSearchClicked: world.searchClicked()
+        onUpdateClicked: world.updateClicked()
+        utilityActionsInPicker: world.topBarUtilityActionsInPicker
         trackersEnabled: world.topBarTrackersEnabled
         trackersActive: world.trackersActive
         onTrackersClicked: world.trackersClicked()
@@ -298,9 +307,10 @@ Item {
         objectName: world.medium.length > 0 ? world.medium.toLowerCase() + "WorldScroll" : "worldPageScroll"
         anchors.left: parent.left; anchors.right: parent.right
         y: topbar.y + topbar.height + (world.televisionMode ? 18 : (adaptive.compactChrome ? 8 : 10))
-        height: Math.max(0, world.height - y - world.contentBottomInset)
+        height: Math.max(0, world.height - y - (world.androidHost ? 0 : world.contentBottomInset))
         contentWidth: width
         contentHeight: board.implicitHeight + 50 + world.contentEndPadding
+            + (world.androidHost ? world.contentBottomInset : 0)
         clip: true
         pixelAligned: false
         flickableDirection: Flickable.VerticalFlick
@@ -308,6 +318,7 @@ Item {
         ScrollBar.vertical: HouseScrollBar {
             objectName: world.medium.length ? world.medium.toLowerCase() + "WorldScrollBar" : "worldPageScrollBar"
             flick: page
+            showTrack: !world.androidHost
             prominent: world.prominentScrollBar
             glassStyle: world.glassScrollBar
         }

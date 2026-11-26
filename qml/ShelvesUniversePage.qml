@@ -20,6 +20,7 @@ import "UniverseApi.js" as CoverApi
 Item {
     id: root
     property bool touchInput: Qt.platform.os === "android"
+    property real contentBottomInset: 0
     onUniverseContentGenerationChanged: reload()
     readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
     property bool imageLayoutReady: false
@@ -380,7 +381,7 @@ Item {
         objectName: "shelvesScroll"
         anchors.fill: parent
         contentWidth: width
-        contentHeight: col.implicitHeight
+        contentHeight: col.implicitHeight + root.contentBottomInset
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: HouseScrollBar { flick: page }
@@ -1380,7 +1381,6 @@ Item {
             id: edgeAction; anchors.fill: parent
             focusPolicy: Qt.NoFocus; focusEnabled: false
             accessibleName: chevron.atRight ? "More " + chevron.label : "Earlier " + chevron.label
-            tooltipText: accessibleName
             onTriggered: chevron.triggered()
         }
     }

@@ -68,6 +68,14 @@ void BookTorrents::download(const QString& infoHash, const QString& title, const
     m_dl->download(infoHash, title, author);
 }
 void BookTorrents::deleteDownload(const QString& h) { m_dl->deleteDownload(h); }
+bool BookTorrents::busy() const { return m_dl->busy(); }
+QList<DownloadLocation::Item> BookTorrents::managedDownloadItems() const { return m_dl->managedDownloadItems(); }
+void BookTorrents::refreshDownloadPaths() { m_dl->refreshDownloadPaths(); }
+void BookTorrents::downloadLocationAvailable() { m_dl->downloadLocationAvailable(); }
+QVariantList BookTorrents::downloadedBooks() const { return m_dl->downloadedBooks(); }
+QVariantList BookTorrents::activeBookJobs() const { return m_dl->activeBookJobs(); }
+void BookTorrents::cancelDownload(const QString &hash) { m_dl->cancelDownload(hash); }
+QVariantMap BookTorrents::removeCompletedBook(const QString &hash) { return m_dl->removeCompletedBook(hash); }
 bool        BookTorrents::isDownloaded(const QString& h) const { return m_dl->isDownloaded(h); }
 QString     BookTorrents::localFile(const QString& h) const    { return m_dl->localFile(h); }
 QVariantMap BookTorrents::statusOf(const QString& h) const     { return m_dl->statusOf(h); }

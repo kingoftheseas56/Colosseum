@@ -51,6 +51,7 @@ public:
         QString errorDetail;
     };
     static BookFacts readBookFacts(const QString& epubPath);
+    static void applyBookFacts(VaultIndex::FileRow& row, const BookFacts& facts);
 
     // ── Local artwork adoption (browse-face execution plan, Slice 3) ──
     // Adopt by CONVENTION ONLY: a poster./folder./cover. basename (jpg/jpeg/png,
@@ -65,7 +66,9 @@ public:
     // shipped comic/book "image://comiccover/" and "image://vaultbookcover/"
     // refs, which carry a bare in-archive entry name instead of a URL — or ""
     // when no valid conventional art exists. Pure/static; no DB, no network.
-    static QString findLocalArtwork(const QString& folderPath);
+    static QString findLocalArtwork(const QString& folderPath,
+                                    const VaultLocation::PersonalPaths& personal = {},
+                                    const VaultKit::CancellationToken* cancel = nullptr);
 
     // ── Video duration cache ──
     double durationForVideo(const QString& path, qint64 size, qint64 mtimeMs); // cache-then-probe
@@ -78,6 +81,10 @@ public:
     // ── Orchestration ──
     void enrich(const QList<VaultIndex::FileRow>& rows,
                 const VaultKit::CancellationToken* cancel = nullptr);
+    // Production jobs carry the index revision and access policy read on its owner thread.
+    void enrichSnapshot(const QList<VaultIndex::FileRow>& rows, quint64 baseRevision,
+                        const VaultLocation::PersonalPaths& personal,
+                        const VaultKit::CancellationToken* cancel);
 
 signals:
     void progress(int done, int total);

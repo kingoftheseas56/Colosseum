@@ -31,10 +31,17 @@
 //   - `tankobanReadingRoomBack` stays on BackAction (catalogue-independence Slice 3 naming
 //     law) — the committed scenarios navigate away from a series page through it.
 import QtQuick
+import QtQuick.Window
 
 Item {
     id: root
     objectName: "mangaReadingRoom"
+    AdaptiveLayout {
+        id: adaptive
+        androidHost: Qt.platform.os === "android" || !!(root.Window.window && root.Window.window.androidHost === true)
+    }
+    readonly property bool scrollsContent: adaptive.androidHost
+        && sharedHeader.height + adaptive.mangaShelfMinimumHeight + tankLib.actionBarHeight > root.height
 
     property Item backdrop
     property string seriesId: ""
@@ -68,7 +75,7 @@ Item {
     // Arc 19: page-owned foreground intent mirrored into the volume action bar.
     property string pendingReadVolumeId: ""
     property bool synopsisExpanded: false
-    readonly property real contentHeight: root.height
+    readonly property real contentHeight: pageScroll.contentHeight
 
     signal backRequested()
     signal minimizeRequested()
@@ -84,50 +91,75 @@ Item {
 
     Rectangle { anchors.fill: parent; color: "#050608" }
 
-    MangaSeriesSharedHeader {
-        id: sharedHeader
-        anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
-        tankobanMode: true
-        seriesTitle: root.seriesTitle
-        banner: root.banner
-        cover: root.cover
-        author: root.author
-        status: root.status
-        year: root.year
-        score: root.score
-        synopsis: root.synopsis
-        collectionEntry: root.collectionEntry
-        chapterLanguages: root.chapterLanguages
-        selectedChapterLanguage: "en"
-        onBackRequested: root.backRequested()
-        onMinimizeRequested: root.minimizeRequested()
-        onFullscreenRequested: root.fullscreenRequested()
-        onCloseRequested: root.closeRequested()
-        onChapterRequested: root.chapterModeRequested()
+    Flickable {
+        // Short Android viewports retain the full header and volume art; the existing
+        // volume actions stay at the bottom while this one vertical surface scrolls.
+        id: pageScroll
+        objectName: "mangaReadingRoomScroll"
+        anchors.fill: parent
+        anchors.bottomMargin: actionHost.height
+        contentWidth: width
+        contentHeight: root.scrollsContent ? collectionSurface.y + collectionSurface.height : height
+        clip: root.scrollsContent
+        interactive: root.scrollsContent
+        flickableDirection: Flickable.VerticalFlick
+        boundsBehavior: Flickable.StopAtBounds
+
+        MangaSeriesSharedHeader {
+            id: sharedHeader
+            anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
+            tankobanMode: true
+            seriesTitle: root.seriesTitle
+            banner: root.banner
+            cover: root.cover
+            author: root.author
+            status: root.status
+            year: root.year
+            score: root.score
+            synopsis: root.synopsis
+            collectionEntry: root.collectionEntry
+            chapterLanguages: root.chapterLanguages
+            selectedChapterLanguage: "en"
+            onBackRequested: root.backRequested()
+            onMinimizeRequested: root.minimizeRequested()
+            onFullscreenRequested: root.fullscreenRequested()
+            onCloseRequested: root.closeRequested()
+            onChapterRequested: root.chapterModeRequested()
+        }
+
+        Item {
+            id: collectionSurface
+            anchors.top: sharedHeader.bottom; anchors.left: parent.left; anchors.right: parent.right
+            height: root.scrollsContent ? pageScroll.height
+                                        : pageScroll.height - sharedHeader.height
+            anchors.leftMargin: 0; anchors.rightMargin: 0; anchors.topMargin: 0; anchors.bottomMargin: 0
+            MangaTankobanLibrary {
+                id: tankLib
+                objectName: "readingRoomLibrary"
+                actionBarHost: root.scrollsContent ? actionHost : null
+                anchors.fill: parent
+                seriesId: root.seriesId; seriesTitle: root.seriesTitle
+                service: root.service; progress: root.progress; downloader: root.downloader
+                pendingReadVolumeId: root.pendingReadVolumeId
+                onReadVolumeRequested: (volumeId) => root.readVolumeRequested(volumeId)
+                onSourcesRequested: (ctx) => root.sourcesRequested(ctx)
+                onBatchRequested: (numbers, label) => root.batchRequested(numbers, label)
+            }
+            Rectangle {
+                visible: root.errorText.length > 0; z: 30
+                anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; height: 34
+                color: Qt.rgba(0.08, 0.04, 0.05, 0.92)
+                Text { anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; verticalAlignment: Text.AlignVCenter
+                    text: root.errorText; color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: 12; elide: Text.ElideRight; maximumLineCount: 1 }
+            }
+        }
     }
 
     Item {
-        id: collectionSurface
-        anchors.top: sharedHeader.bottom; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-        anchors.leftMargin: 0; anchors.rightMargin: 0; anchors.topMargin: 0; anchors.bottomMargin: 0
-        MangaTankobanLibrary {
-            id: tankLib
-            objectName: "readingRoomLibrary"
-            anchors.fill: parent
-            seriesId: root.seriesId; seriesTitle: root.seriesTitle
-            service: root.service; progress: root.progress; downloader: root.downloader
-            pendingReadVolumeId: root.pendingReadVolumeId
-            onReadVolumeRequested: (volumeId) => root.readVolumeRequested(volumeId)
-            onSourcesRequested: (ctx) => root.sourcesRequested(ctx)
-            onBatchRequested: (numbers, label) => root.batchRequested(numbers, label)
-        }
-        Rectangle {
-            visible: root.errorText.length > 0; z: 30
-            anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; height: 34
-            color: Qt.rgba(0.08, 0.04, 0.05, 0.92)
-            Text { anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; verticalAlignment: Text.AlignVCenter
-                text: root.errorText; color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: 12; elide: Text.ElideRight; maximumLineCount: 1 }
-        }
+        id: actionHost
+        anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+        height: root.scrollsContent ? tankLib.actionBarHeight : 0
+        z: 1
     }
 
     property alias library: tankLib

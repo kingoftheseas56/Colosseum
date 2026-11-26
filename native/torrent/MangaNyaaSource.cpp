@@ -244,8 +244,18 @@ QString inferUploaderFromTitle(const QString& title, const TrustTable& trust)
 
 } // namespace
 
-QStringList queryVariants(const QString& seriesTitle, const QString& volumeNumber)
+QStringList queryVariants(const QString& rawSeriesTitle, const QString& volumeNumber)
 {
+    // Nyaa's search reads "-word" as "exclude word", so "One Punch-Man" asked for
+    // every Punch result WITHOUT "Man" and came back empty. Dashes are search
+    // operators there, never title text: send them as spaces. Matching folds
+    // punctuation anyway (foldWords), so "One-Punch Man" results still match.
+    QString seriesTitle = rawSeriesTitle;
+    for (QChar& c : seriesTitle) {
+        if (c.category() == QChar::Punctuation_Dash)
+            c = QLatin1Char(' ');
+    }
+
     QStringList out;
     const auto add = [&out](const QString& q) {
         const QString t = q.simplified();

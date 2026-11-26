@@ -10,7 +10,7 @@ import QtQuick.Controls
 
 Glass {
     id: vault
-    property bool available: Qt.platform.os !== "android"
+    property bool available: typeof VaultLibrary !== "undefined" && VaultLibrary !== null
     objectName: "vaultHomeWidget"
 
     property string heading: "Vault"
@@ -398,8 +398,5 @@ Glass {
         accessibleDescription: vault.available ? "" : qsTr("Vault is unavailable on Android.")
         onTriggered: vault.clicked()
     }
-    ToolTip.visible: !vault.available && hit.containsMouse
-    ToolTip.text: qsTr("Vault is unavailable on Android.")
-    ToolTip.delay: 350
 
 }

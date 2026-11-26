@@ -5,11 +5,14 @@ import ".."
 
 Rectangle {
     id: root
+    AdaptiveLayout {
+        id: touchMetrics
+        androidHost: Qt.platform.os === "android" || !!(root.Window.window && root.Window.window.androidHost === true)
+    }
     objectName: "addToCollectionsButton"
     property var reference: ({})
     property string labelText: qsTr("Add to Collections")
     property bool iconOnly: false
-    property bool hoverDescriptionEnabled: true
     readonly property var resolution: typeof CollectionsIdentity !== "undefined"
         ? CollectionsIdentity.collectionReference(root.reference)
         : ({ok:false, error:qsTr("Collections are not available in this window.")})
@@ -47,15 +50,15 @@ Rectangle {
         font.weight: Font.DemiBold
         textFormat: Text.PlainText
     }
-    HoverHandler { id: hintHover; cursorShape: root.available ? Qt.PointingHandCursor : Qt.ArrowCursor }
-    ToolTip.visible: root.hoverDescriptionEnabled && hintHover.hovered
-    ToolTip.delay: 350
-    ToolTip.text: !root.available ? root.resolution.error
-        : root.membershipCount > 0 ? qsTr("In %1 collections").arg(root.membershipCount) : qsTr("Keep this title in your collections")
+    HoverHandler { cursorShape: root.available ? Qt.PointingHandCursor : Qt.ArrowCursor }
     KeyboardAction {
         id: action
         objectName: root.objectName + "Action"
         anchors.fill: parent
+        anchors.leftMargin: -touchMetrics.targetInset(parent.width)
+        anchors.rightMargin: -touchMetrics.targetInset(parent.width)
+        anchors.topMargin: -touchMetrics.targetInset(parent.height)
+        anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
         enabled: root.available
         focusEnabled: root.visible && root.enabled && root.available
         accessibleName: root.labelText

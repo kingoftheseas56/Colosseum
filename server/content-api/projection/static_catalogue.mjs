@@ -117,6 +117,9 @@ for(const[bucket,values]of lookupBuckets)manifest.lookups[bucket]=put(values);
 if(tankobanLookups.size)manifest.lookupRanges={version:1,ranges:packLookupFiles([...tankobanLookups].sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0)).map(({first,last,body})=>({first,last,path:putRaw(body)}))};
 
 const fold=s=>s.replace(/[A-Z]/g,c=>c.toLowerCase());const lex=(a,b)=>a<b?-1:a>b?1:0;
+// IMDb title_alias (optional table): extra normalized names per canonical tt, same dual-name mechanism MAL uses for English titles.
+const imdbAliasNames=new Map();
+if(sqlite.prepare("SELECT 1 FROM sqlite_master WHERE name='lib_imdb_title_alias'").get())for(const a of sqlite.prepare('SELECT tt,norm_title FROM lib_imdb_title_alias ORDER BY rowid').all()){const set=imdbAliasNames.get(a.tt)??new Set();set.add(a.norm_title);imdbAliasNames.set(a.tt,set);}
 for(const [family,table]of [['imdb','lib_imdb_title'],['anime','lib_mal_anime'],['manga','lib_mal_manga'],['comics','den_comics_series']]){
  const source=sqlite.prepare('SELECT * FROM '+table+' ORDER BY rowid').all().map((r,i)=>({...r,__staticOrder:i})).sort((a,b)=>lex(fold(family==='comics'?a.title??'':a.norm_title??''),fold(family==='comics'?b.title??'':b.norm_title??''))||a.__staticOrder-b.__staticOrder),names=[],keys=[];
  const recordRows=raw=>raw.map(r=>family==='imdb'?{identity:imdbRow(r,true)}:family==='comics'?{identity:legacyRow(r)}:{identity:malRow(r,family,true),...(family==='manga'?{normal:malRow(r,family)}:{})});
@@ -130,7 +133,7 @@ for(const [family,table]of [['imdb','lib_imdb_title'],['anime','lib_mal_anime'],
   source.slice(start,end+1).forEach((r,i)=>{
    const id=family==='imdb'?r.tt:family==='comics'?r.gcd_id:r.mal_id;
    keys.push([id,path,i,...(family==='imdb'?[{identity:{title:records[i].identity.title,type:records[i].identity.type,rating:records[i].identity.rating,votes:records[i].identity.votes,isAnime:records[i].identity.isAnime},ordinal:r.__staticOrder}]:[])]);
-   for(const name of family==='comics'?[r.title??'']:[r.norm_title,r.norm_title_english].filter(Boolean))names.push([name,id,path,i,r.norm_title??'',r.year,family==='imdb'?r.rating:family==='comics'?r.__downloads:r.score,family==='imdb'?r.votes:r.__staticOrder]);
+   for(const name of family==='comics'?[r.title??'']:family==='imdb'?[...new Set([r.norm_title,...(imdbAliasNames.get(r.tt)??[])].filter(Boolean))]:[r.norm_title,r.norm_title_english].filter(Boolean))names.push([name,id,path,i,r.norm_title??'',r.year,family==='imdb'?r.rating:family==='comics'?r.__downloads:r.score,family==='imdb'?r.votes:r.__staticOrder]);
   });
  }
  names.sort((a,b)=>lex(fold(a[0]),fold(b[0]))||a[7]-b[7]);keys.sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0);

@@ -250,7 +250,6 @@ Item {
                 id: backAction
                 anchors.fill: parent
                 accessibleName: "Back"
-                tooltipText: accessibleName
                 focusRadius: 20
                 onTriggered: root.backRequested()
             }

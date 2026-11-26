@@ -292,7 +292,6 @@ Item {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             keyboardLabel: vb.verbName
-            tooltipText: vb.verbName === "Fullscreen" ? qsTr("Toggle fullscreen") : vb.verbName
             onClicked: vb.tapped()
         }
     }
@@ -324,7 +323,6 @@ Item {
             enabled: ra.enabledArrow
             cursorShape: Qt.PointingHandCursor
             keyboardLabel: ra.verbName
-            tooltipText: ra.verbName
             onClicked: ra.tapped()
         }
     }
@@ -533,9 +531,6 @@ Item {
                 id: navMa
                 anchors.fill: parent
                 keyboardTabStop: false
-                tooltipText: parent.isLeft
-                    ? (hud.rtl ? qsTr("Next page") : qsTr("Previous page"))
-                    : (hud.rtl ? qsTr("Previous page") : qsTr("Next page"))
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: hud.navBarTap(parent.isLeft)

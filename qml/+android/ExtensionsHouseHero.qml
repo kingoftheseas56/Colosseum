@@ -6,6 +6,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import "../ExtensionsCatalog.js" as ExtensionCatalog
 import QtQuick.Effects
 import QtQuick.Window
 import ".."
@@ -13,11 +14,13 @@ import ".."
 Item {
     id: hero
 
+    property bool controlsOnly: false
     property int revision: 0                 // bump when Extensions changes
     signal universesRequested()
     signal searchRequested()
     // Keep the shared store's handler valid without changing Android controls.
     signal installUrlRequested()
+    signal installRequested(string extensionId, string url)
     signal configureRequested(string extensionId)
 
     readonly property bool compact: width < 1250
@@ -39,7 +42,8 @@ Item {
     property int universeIndex: 0
 
     width: parent ? parent.width : 1400
-    height: phoneLayout ? mobileHouseList.y + mobileHouseList.implicitHeight + 8 : 330
+    height: phoneLayout ? mobileHouseList.y + mobileHouseList.implicitHeight + 8
+                        : controlsOnly ? 220 : 330
 
     Theme { id: theme }
 
@@ -52,13 +56,18 @@ Item {
     }
     function isInstalled(id) { hero.revision; var r = hero.rowFor(id); return !!r && r.enabled !== false }
     function isPresent(id) { hero.revision; return hero.rowFor(id) !== null }
+    function canToggle(id) {
+        return hero.isPresent(id) || (typeof Extensions !== "undefined" && ExtensionCatalog.houseInstallUrl(id).length > 0)
+    }
     function toggle(id) {
         if (hero.isPresent(id)) Extensions.setEnabled(id, !hero.isInstalled(id))
+        else if (ExtensionCatalog.houseInstallUrl(id).length > 0 && typeof Extensions !== "undefined")
+            hero.installRequested(id, ExtensionCatalog.houseInstallUrl(id))
     }
 
     Timer {
         interval: 7500; repeat: true
-        running: hero.visible && !hero.phoneLayout
+        running: hero.visible && !hero.phoneLayout && !hero.controlsOnly
         onTriggered: hero.universeIndex = (hero.universeIndex + 1) % banners.count
     }
 
@@ -81,7 +90,7 @@ Item {
             anchors.fill: parent
             Repeater {
                 id: banners
-                model: ["../../assets/extensions/house/starwars-banner.jpg",
+                model: hero.controlsOnly ? [] : ["../../assets/extensions/house/starwars-banner.jpg",
                         "../../assets/extensions/house/dcau.jpg",
                         "../../assets/extensions/house/cosmere.jpg"]
                 delegate: Image {
@@ -116,6 +125,7 @@ Item {
 
     // ---- Search: the Store's add-on search ----
     Rectangle {
+        visible: !hero.controlsOnly
         anchors.right: parent.right; anchors.top: parent.top
         anchors.rightMargin: 26; anchors.topMargin: 20
         width: searchRow.implicitWidth + 36; height: 34
@@ -143,7 +153,7 @@ Item {
         }
         KeyboardAction {
             id: searchAction
-            objectName: "extensionsSearchButton"
+            objectName: hero.controlsOnly ? "" : "extensionsSearchButton"
             anchors.fill: parent
             accessibleName: "Search add-ons"
             focusRadius: 17
@@ -155,7 +165,7 @@ Item {
     Column {
         id: mobileHouseList
         visible: hero.phoneLayout
-        y: 58
+        y: hero.controlsOnly ? 0 : 58
         width: parent.width
         spacing: 0
 
@@ -182,7 +192,6 @@ Item {
                              || mobileRow.modelData.id === "colosseum.well.tankoyomi"
                     accessibleName: mobileRow.modelData.kind === "universes"
                                     ? "Open Universes" : mobileRow.modelData.name + " settings"
-                    tooltipText: mobileRow.modelData.id === "colosseum.well.tankoyomi" ? accessibleName : ""
                     focusRadius: 8
                     onTriggered: mobileRow.modelData.kind === "universes"
                                  ? hero.universesRequested()
@@ -222,7 +231,7 @@ Item {
                             anchors.centerIn: parent
                             width: 42; height: 28; radius: 14
                             color: mobileRow.installed ? "#328d67" : "#454953"
-                            opacity: hero.isPresent(mobileRow.modelData.id) ? 1 : 0.5
+                            opacity: hero.canToggle(mobileRow.modelData.id) ? 1 : 0.5
                             Rectangle {
                                 x: mobileRow.installed ? parent.width - width - 4 : 4
                                 anchors.verticalCenter: parent.verticalCenter
@@ -234,8 +243,7 @@ Item {
                             anchors.fill: parent
                             accessibleName: (mobileRow.installed ? "Turn off " : "Turn on ")
                                             + mobileRow.modelData.name
-                            tooltipText: accessibleName
-                            enabled: hero.isPresent(mobileRow.modelData.id)
+                            enabled: hero.canToggle(mobileRow.modelData.id)
                             focusRadius: 14
                             onTriggered: hero.toggle(mobileRow.modelData.id)
                         }
@@ -321,7 +329,6 @@ Item {
                             enabled: tile.modelData.kind === "universes" || tile.modelData.id === "colosseum.well.tankoyomi"
                             accessibleName: tile.modelData.kind === "universes" ? tile.modelData.name
                                                                                  : tile.modelData.name + " settings"
-                            tooltipText: tile.modelData.id === "colosseum.well.tankoyomi" ? accessibleName : ""
                             focusRadius: 19
                             onTriggered: tile.modelData.kind === "universes" ? hero.universesRequested()
                                                                              : hero.configureRequested(tile.modelData.id)
@@ -356,7 +363,7 @@ Item {
                             color: tile.installed ? Qt.rgba(40 / 255, 120 / 255, 82 / 255, 0.82) : Qt.rgba(18 / 255, 19 / 255, 24 / 255, 0.72)
                             border.width: 1
                             border.color: tile.installed ? Qt.rgba(159 / 255, 1, 210 / 255, 0.55) : Qt.rgba(1, 1, 1, 0.34)
-                            opacity: hero.isPresent(tile.modelData.id) ? 1 : 0.5
+                            opacity: hero.canToggle(tile.modelData.id) ? 1 : 0.5
                             Behavior on y { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
                             Text {
                                 anchors.centerIn: parent
@@ -374,9 +381,8 @@ Item {
                                         ? Math.max(parent.height, hero.sourceToggleMinimumTouchTarget / Math.max(0.01, appsRow.scale))
                                         : parent.height
                                 focusInset: Qt.platform.os === "android" ? (width - parent.width) / 2 - 2 : -2
-                                enabled: hero.isPresent(tile.modelData.id)
+                                enabled: hero.canToggle(tile.modelData.id)
                                 accessibleName: (tile.installed ? "Turn off " : "Add ") + tile.modelData.name
-                                tooltipText: accessibleName
                                 focusRadius: 14
                                 onTriggered: hero.toggle(tile.modelData.id)
                             }

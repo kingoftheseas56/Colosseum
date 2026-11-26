@@ -221,7 +221,9 @@ jobs:
           target: google_apis
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: bash scripts/android/emulator_smoke.sh apk-out/colosseum-x86_64-debug.apk smoke-artifacts 60
+          script: >-
+            bash scripts/android/emulator_smoke.sh apk-out/colosseum-x86_64-debug.apk smoke-artifacts 60 &&
+            timeout 120 bash scripts/android/check_home_server_identity.sh smoke-artifacts
       - uses: actions/upload-artifact@v4
         if: always()
         with:

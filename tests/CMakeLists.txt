@@ -14,6 +14,9 @@
 # live-network probes, seeders, or destructive gates as ordinary tests.
 
 
+add_subdirectory(home_servers)
+add_subdirectory(audiobook_torrent_transport)
+
 if(WIN32)
     add_subdirectory(feria_host_probe)
 endif()
@@ -52,12 +55,28 @@ add_test(NAME colosseum.feria_availability_test COMMAND feria_availability_test)
 
 find_program(COLOSSEUM_FERIA_TEST_NODE NAMES node)
 if(COLOSSEUM_FERIA_TEST_NODE)
+    add_test(NAME colosseum.audiobook_recording_session
+        COMMAND "${COLOSSEUM_FERIA_TEST_NODE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/audiobook_torrent_transport/session_recording_test.mjs")
+    add_test(NAME colosseum.audiobook_player_session
+        COMMAND "${COLOSSEUM_FERIA_TEST_NODE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/audiobook_torrent_transport/session_player_test.mjs")
     foreach(test_name feria_playback feria_resume feria_resume_repairs feria_connectors feria_youtube_music)
         add_test(NAME colosseum.${test_name}_test
             COMMAND "${COLOSSEUM_FERIA_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/${test_name}_test.mjs")
     endforeach()
     add_test(NAME colosseum.feria_app_mode_test
         COMMAND "${COLOSSEUM_FERIA_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/feria_app_mode_test.mjs")
+    # ABB uses QML library JavaScript exercised through deterministic Node fixtures.
+    # Run from the source root so the existing fixture-relative paths stay valid.
+    foreach(abb_test abb_parse abb_adapter)
+        add_test(NAME colosseum.${abb_test}_test
+            COMMAND "${COLOSSEUM_FERIA_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/${abb_test}_test.mjs")
+        set_tests_properties(colosseum.${abb_test}_test PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
+            LABELS "unit;audiobooks;abb"
+            TIMEOUT 30)
+    endforeach()
 endif()
 
 # One place to grow the pilot set. Each entry: target name + labels.
@@ -111,6 +130,7 @@ colosseum_register_harness(reader2_autoattach_harness    unit;reader2)
 colosseum_register_harness(tankoyomi_script_provider_transport_harness unit;tankoyomi;network)
 colosseum_register_harness(tankoyomi_worker_transport_harness unit;tankoyomi;network)
 colosseum_register_harness(tankorent_worker_transport_harness unit;torrent;network)
+colosseum_register_harness(audiobook_torrents_harness unit;torrent)
 colosseum_register_harness(manga_nyaa_worker_harness unit;torrent;network)
 colosseum_register_harness(tankoyomi_page_security_harness unit;tankoyomi;network)
 colosseum_register_harness(tankoyomi_provider_attempt_timeout_harness unit;tankoyomi;network)
@@ -693,6 +713,23 @@ set_tests_properties(colosseum.qttest.local_downloads_projection PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+add_executable(tst_download_location
+    auto/downloads/tst_download_location.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/DownloadLocation.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/DownloadMoveController.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/DownloadMoveController.h")
+target_include_directories(tst_download_location PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_download_location PRIVATE Qt6::Core Qt6::Concurrent Qt6::Test)
+set_target_properties(tst_download_location PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_download_location POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.download_location COMMAND tst_download_location)
+set_tests_properties(colosseum.qttest.download_location PROPERTIES
+    LABELS "unit;qttest;downloads" TIMEOUT 120)
+
 # ── Vault kit (execution plan Slice 1, 2026-08-08) ───────────────────────────
 # The Vault's pure-logic kit (VaultKit): census classifier (kind inference,
 # mixed-leaf flag, loose capture, scanIgnore needles), the ported title cleaner,
@@ -762,36 +799,6 @@ set_tests_properties(colosseum.qttest.vault_stores PROPERTIES
 # volumes + epub/pdf books). Backbone calls go through QMetaObject::invokeMethod
 # (the same path QML uses), so the test drives the real derivation with QObject
 # fakes. Pure Qt6::Core, GUILESS; QTemporaryDir isolation, no net.
-# Android Vault provider snapshot -> shared index contract. Pure Qt/SQLite; no Android SDK needed.
-add_executable(tst_vault_android_index_adapter
-    auto/vault/tst_vault_android_index_adapter.cpp
-    "${COLOSSEUM_NATIVE_DIR}/engine/VaultAndroidIndexAdapter.cpp"
-    "${COLOSSEUM_NATIVE_DIR}/engine/VaultAndroidIndexAdapter.h"
-    "${COLOSSEUM_NATIVE_DIR}/engine/VaultAndroidStorageBridge.cpp"
-    "${COLOSSEUM_NATIVE_DIR}/engine/VaultAndroidStorageBridge.h"
-    "${COLOSSEUM_NATIVE_DIR}/engine/VaultLocation.h"
-    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.cpp"
-    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.h"
-    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
-    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h"
-    "${COLOSSEUM_NATIVE_DIR}/engine/VaultStoreIo.h"
-    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
-    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.h")
-target_include_directories(tst_vault_android_index_adapter PRIVATE "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(tst_vault_android_index_adapter PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
-set_target_properties(tst_vault_android_index_adapter PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
-add_custom_command(TARGET tst_vault_android_index_adapter POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "$<TARGET_FILE:Qt6::Test>"
-            "$<TARGET_FILE_DIR:tst_vault_android_index_adapter>")
-add_test(NAME colosseum.qttest.vault_android_index_adapter
-         COMMAND tst_vault_android_index_adapter)
-set_tests_properties(colosseum.qttest.vault_android_index_adapter PROPERTIES
-    LABELS "unit;qttest;android;vault"
-    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
-    TIMEOUT 120)
-
 add_executable(tst_vault_downloads_root
     auto/vault/tst_vault_downloads_root.cpp
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
@@ -1058,6 +1065,45 @@ set_tests_properties(colosseum.qttest.vault_scanner PROPERTIES
 # away; offlineBrowseAt() is the durable-index fallback for a level whose owning root can no
 # longer be walked at all (design §4.7 "nothing disappears"). Qt6::Sql for VaultIndex; GUILESS;
 # QTemporaryDir index + real small fixture trees per run.
+# Overlapping sources, mixed media, durable facts and guarded title actions.
+add_executable(tst_vault_integrity
+    auto/vault/tst_vault_integrity.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultScanner.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultScanner.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBookStateMigrator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultBookStateMigrator.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultWatcher.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultWatcher.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultConfig.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultConfig.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentifier.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentifier.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ComicsCatalog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ComicsCatalog.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/MalCatalog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/MalCatalog.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/StaticCatalogueResolver.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/StaticCatalogueResolver.h"
+    "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.h")
+target_include_directories(tst_vault_integrity PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_vault_integrity PRIVATE Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Network Qt6::Test)
+set_target_properties(tst_vault_integrity PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_vault_integrity POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Qt6::Test>" "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.vault_integrity COMMAND tst_vault_integrity)
+set_tests_properties(colosseum.qttest.vault_integrity PROPERTIES LABELS "unit;qttest" TIMEOUT 120)
+
 add_executable(tst_vault_browse_away
     auto/vault/tst_vault_browse_away.cpp
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
@@ -1178,9 +1224,15 @@ add_custom_command(TARGET tst_vault_enricher POST_BUILD
             "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_test(NAME colosseum.qttest.vault_enricher
          COMMAND tst_vault_enricher)
+set(_vault_enricher_environment "QT_FORCE_STDERR_LOGGING=1")
+if(TARGET Qt6::QJpegPlugin)
+    # The build tree does not deploy imageformats. Use the matching codec from this Qt kit.
+    list(APPEND _vault_enricher_environment
+        "QT_PLUGIN_PATH=$<TARGET_FILE_DIR:Qt6::QJpegPlugin>/..")
+endif()
 set_tests_properties(colosseum.qttest.vault_enricher PROPERTIES
     LABELS "unit;qttest"
-    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    ENVIRONMENT "${_vault_enricher_environment}"
     TIMEOUT 120)
 
 # ── Vault browse artwork: persistent frame-grab producer (browse-artwork execution
@@ -1279,6 +1331,30 @@ set_tests_properties(colosseum.qttest.vault_imdb_match PROPERTIES
     TIMEOUT 120)
 
 # ── Vault identity adoption (Slice 17) ──────────────────────────────────────
+# The store's identity query shares Biblio's canonical title/author fold.
+target_sources(biblio_catalog_store_harness PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}/engine/BiblioProviders.cpp")
+
+add_executable(tst_vault_book_identity
+    auto/vault/tst_vault_book_identity.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/BiblioCatalog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/BiblioCanonicalizer.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/BiblioCatalogStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/BiblioProviders.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/BiblioRanking.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/BiblioTaxonomy.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultConfig.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/reader/BookStores.cpp")
+target_include_directories(tst_vault_book_identity PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_vault_book_identity PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+set_target_properties(tst_vault_book_identity PROPERTIES AUTOMOC ON
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.vault_book_identity COMMAND tst_vault_book_identity)
+set_tests_properties(colosseum.qttest.vault_book_identity PROPERTIES
+    LABELS "unit;qttest;biblio;vault"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # Fixture-backed certainty gate: one candidate adopts, ambiguity and absent catalogues stay
 # filename-honest, identity removal preserves progress/file ids, and reshelving changes kind only.
 add_executable(tst_vault_identifier
@@ -1309,6 +1385,40 @@ set_tests_properties(colosseum.qttest.vault_identifier PROPERTIES
     LABELS "unit;qttest"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
+
+# Reuse the same native ownership seams as the surrounding Vault tests.
+# The catalogue classes' remote fallback owners are linked even though these
+# fixture tests perform no network requests.
+foreach(_catalogue_fixture_target tst_vault_identifier tst_vault_imdb_match)
+    target_sources(${_catalogue_fixture_target} PRIVATE
+        "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.h"
+        "${COLOSSEUM_NATIVE_DIR}/engine/StaticCatalogueResolver.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/engine/StaticCatalogueResolver.h")
+    target_link_libraries(${_catalogue_fixture_target} PRIVATE Qt6::Network)
+endforeach()
+get_target_property(_vault_book_identity_sources tst_vault_identifier SOURCES)
+list(REMOVE_ITEM _vault_book_identity_sources auto/vault/tst_vault_identifier.cpp)
+target_sources(tst_vault_book_identity PRIVATE ${_vault_book_identity_sources})
+target_link_libraries(tst_vault_book_identity PRIVATE Qt6::Concurrent Qt6::Network)
+
+get_target_property(_vault_video_identity_sources tst_vault_integrity SOURCES)
+list(REMOVE_ITEM _vault_video_identity_sources auto/vault/tst_vault_integrity.cpp)
+add_executable(tst_vault_video_identity auto/vault/tst_vault_video_identity.cpp
+    ${_vault_video_identity_sources})
+target_include_directories(tst_vault_video_identity PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_vault_video_identity PRIVATE
+    Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Network Qt6::Test)
+set_target_properties(tst_vault_video_identity PROPERTIES AUTOMOC ON
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.vault_video_identity COMMAND tst_vault_video_identity)
+set_tests_properties(colosseum.qttest.vault_video_identity PROPERTIES
+    LABELS "unit;qttest;vault" ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1" TIMEOUT 120)
+foreach(_vault_identity_target tst_vault_book_identity tst_vault_video_identity)
+    add_custom_command(TARGET ${_vault_identity_target} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Qt6::Test>"
+            "$<TARGET_FILE_DIR:${_vault_identity_target}>")
+endforeach()
 
 # ── Vault admission probe (execution plan Slice 6, 2026-08-08) ───────────────
 # MediaAdmissionProbe drives its OWN headless libmpv handle and admits only on a
@@ -1506,6 +1616,45 @@ set_tests_properties(colosseum.qttest.vault_forensics PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# Real native/QML projection regression: reuse the forensic service closure.
+get_target_property(_vault_projection_sources tst_vault_forensics SOURCES)
+list(REMOVE_ITEM _vault_projection_sources auto/vault/tst_vault_forensics.cpp)
+add_executable(tst_vault_projection auto/vault/tst_vault_projection.cpp ${_vault_projection_sources})
+target_include_directories(tst_vault_projection PRIVATE "${COLOSSEUM_NATIVE_DIR}" "${COLOSSEUM_NATIVE_DIR}/player")
+target_link_libraries(tst_vault_projection PRIVATE
+    Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Network Qt6::Test Qt6::Qml MpvQt::MpvQt)
+target_compile_definitions(tst_vault_projection PRIVATE COLOSSEUM_QML_SOURCE_DIR="${COLOSSEUM_NATIVE_DIR}/../qml")
+set_target_properties(tst_vault_projection PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_vault_projection POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Qt6::Test>" "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.vault_projection COMMAND tst_vault_projection)
+set(_vault_projection_environment "QT_FORCE_STDERR_LOGGING=1")
+if(TARGET Qt6::QOffscreenIntegrationPlugin)
+    list(APPEND _vault_projection_environment
+        "QT_PLUGIN_PATH=$<TARGET_FILE_DIR:Qt6::QOffscreenIntegrationPlugin>/..")
+endif()
+set_tests_properties(colosseum.qttest.vault_projection PROPERTIES
+    LABELS "unit;qttest" TIMEOUT 120 ENVIRONMENT "${_vault_projection_environment}")
+
+# Auto-filing of folder extras through VaultLibrary's real pass, plus the declined marker. Same
+# sources as the forensics target minus the mpv/forensics pieces VaultLibrary does not need.
+get_target_property(_vault_extras_hook_sources tst_vault_forensics SOURCES)
+list(REMOVE_ITEM _vault_extras_hook_sources
+    auto/vault/tst_vault_forensics.cpp
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvproperties.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/http_header_fields.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultForensics.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultForensics.h")
+add_executable(tst_vault_extras_hook auto/vault/tst_vault_extras_hook.cpp ${_vault_extras_hook_sources})
+target_include_directories(tst_vault_extras_hook PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_vault_extras_hook PRIVATE Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Network Qt6::Test)
+set_target_properties(tst_vault_extras_hook PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.vault_extras_hook COMMAND tst_vault_extras_hook)
+set_tests_properties(colosseum.qttest.vault_extras_hook PROPERTIES
+    LABELS "unit;qttest" TIMEOUT 120 ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1")
+
 # Slice 1 WIRE proof: drives a REAL MpvItem at a loopback QTcpServer and asserts the Referer/Origin
 # reaches ffmpeg's request, a comma value stays one header, ytdl is off, and loadFile clears the
 # field (leak guard). Compiles mpvitem.cpp (nearly standalone — only mpvproperties.h) and links the
@@ -1524,7 +1673,7 @@ target_link_libraries(http_header_channel_harness
 set_target_properties(http_header_channel_harness PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_test(NAME colosseum.http_header_channel_harness
-         COMMAND http_header_channel_harness)
+         COMMAND http_header_channel_harness "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/vault/media/tiny.mp4")
 set_tests_properties(colosseum.http_header_channel_harness PROPERTIES
     LABELS "unit"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
@@ -1771,6 +1920,27 @@ set_tests_properties(colosseum.qttest.player1_selftest_bridge PROPERTIES
 # windows (physical hit-testing is their point): label `qml`, never an
 # offscreen gate.
 find_package(Qt6 REQUIRED COMPONENTS QuickTest Qml Quick)
+# Slice 0: isolated QML behavior runner; build ONLY this target for the tooltip check.
+add_executable(android_tooltip_qml_tests qml/tooltip_quicktest_main.cpp)
+set_target_properties(android_tooltip_qml_tests PROPERTIES AUTOMOC ON
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+target_link_libraries(android_tooltip_qml_tests PRIVATE
+    Qt6::Core Qt6::Gui Qt6::Quick Qt6::QuickTest Qt6::Qml)
+if(WIN32)
+    add_custom_command(TARGET android_tooltip_qml_tests POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:android_tooltip_qml_tests>
+            "${CMAKE_CURRENT_BINARY_DIR}/.."
+        COMMAND_EXPAND_LISTS)
+endif()
+add_test(NAME colosseum.qml.android_tooltip_foundation
+    COMMAND android_tooltip_qml_tests -input
+        "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_android_tooltip_foundation.qml")
+set_tests_properties(colosseum.qml.android_tooltip_foundation PROPERTIES
+    LABELS "unit;qml;android;tooltip"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_QUICK_CONTROLS_STYLE=Basic;QT_FORCE_STDERR_LOGGING=1;QT_PLUGIN_PATH=$<TARGET_FILE_DIR:Qt6::Gui>/../plugins;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml"
+    ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
+    TIMEOUT 120)
 add_executable(colosseum_qml_tests qml/quicktest_main.cpp)
 add_executable(vault_browse_restore_qml_tests qml/vault_browse_restore_main.cpp)
 target_compile_definitions(vault_browse_restore_qml_tests PRIVATE
@@ -1797,6 +1967,10 @@ set_tests_properties(colosseum.qml.vault_offline_restore PROPERTIES
     TIMEOUT 120)
 colosseum_add_tracker_sync_center_sources(colosseum_qml_tests)
 target_sources(colosseum_qml_tests PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}/engine/AudiobookCatalog.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/AudiobookCatalog.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.h"
     "${COLOSSEUM_NATIVE_DIR}/stream/SmartPlayBridge.cpp"
     "${COLOSSEUM_NATIVE_DIR}/stream/SmartPlayBridge.h")
 target_link_libraries(colosseum_qml_tests PRIVATE colosseum_stream_picker)
@@ -1804,7 +1978,7 @@ target_compile_definitions(colosseum_qml_tests PRIVATE SMART_PLAY_PLAYER_SOURCE=
 target_include_directories(colosseum_qml_tests PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(colosseum_qml_tests
-    PRIVATE Qt6::Core Qt6::QuickTest Qt6::Qml Qt6::Quick Qt6::Gui)
+    PRIVATE Qt6::Core Qt6::QuickTest Qt6::Qml Qt6::Quick Qt6::Gui Qt6::Sql Qt6::Concurrent)
 set_target_properties(colosseum_qml_tests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET colosseum_qml_tests POST_BUILD
@@ -1820,6 +1994,8 @@ add_custom_command(TARGET colosseum_qml_tests POST_BUILD
             "$<TARGET_FILE:Qt6::Quick>"
             "$<TARGET_FILE:Qt6::QuickTest>"
             "$<TARGET_FILE:Qt6::Test>"
+            "$<TARGET_FILE:Qt6::Sql>"
+            "$<TARGET_FILE:Qt6::Concurrent>"
             "${CMAKE_CURRENT_BINARY_DIR}/..")
 if(WIN32)
 add_custom_command(TARGET colosseum_qml_tests POST_BUILD
@@ -1843,6 +2019,13 @@ set_tests_properties(colosseum.qml.manga_live_reading PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QPA_PLATFORM=offscreen;QT_QUICK_CONTROLS_STYLE=Basic"
     TIMEOUT 120)
 
+add_test(NAME colosseum.qml.audiobook_flow
+    COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_audiobook_flow.qml")
+set_tests_properties(colosseum.qml.audiobook_flow PROPERTIES
+    LABELS "unit;qml;audiobook"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_QUICK_CONTROLS_STYLE=Basic;QT_PLUGIN_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../plugins;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
+    TIMEOUT 300)
+
 foreach(arc74_suite IN ITEMS continue_tile continue_surfaces restore_integrity strip_restore)
     if(arc74_suite STREQUAL "restore_integrity")
         set(arc74_qml_file "tst_arc74d_${arc74_suite}.qml")
@@ -1856,6 +2039,13 @@ foreach(arc74_suite IN ITEMS continue_tile continue_surfaces restore_integrity s
         ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic;QT_QUICK_BACKEND=software"
         TIMEOUT 60)
 endforeach()
+
+add_test(NAME colosseum.qml.vault_android_add_folder
+         COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_vault_android_add_folder.qml")
+set_tests_properties(colosseum.qml.vault_android_add_folder PROPERTIES
+    LABELS "qml;android;vault"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic;QT_QUICK_BACKEND=software;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
+    TIMEOUT 60)
 
 add_test(NAME colosseum.qml.native_wallpaper_assets
          COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_native_wallpaper_assets.qml")
@@ -1911,6 +2101,54 @@ foreach(vinyl_suite IN ITEMS
             TIMEOUT 120)
     endif()
 endforeach()
+
+# Audiobook player Task 2: both bar sizes against the shared session contract.
+add_test(NAME colosseum.qml.audiobook_control_bar
+    COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_audiobook_control_bar.qml")
+set_tests_properties(colosseum.qml.audiobook_control_bar PROPERTIES
+    LABELS "unit;qml;audiobook;regression"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 120)
+
+# Audiobook player Task 3: reader compact host and Audio-tab chapter controls.
+add_test(NAME colosseum.qml.reader_audiobook_bar
+    COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_reader_audiobook_bar.qml")
+set_tests_properties(colosseum.qml.reader_audiobook_bar PROPERTIES
+    LABELS "unit;qml;audiobook;reader;regression"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 120)
+
+# Audiobooks 1.4.0 slice E: the audio-only listening page, against a stub session.
+add_test(NAME colosseum.qml.audiobook_listen_page
+    COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_audiobook_listen_page.qml")
+set_tests_properties(colosseum.qml.audiobook_listen_page PROPERTIES
+    LABELS "unit;qml;audiobook;regression"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 120)
+
+# Audiobooks 1.4.0: the Biblio Audiobooks tab (Discover rows, Your Library), against fakes.
+add_test(NAME colosseum.qml.biblio_audiobooks_tab
+    COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_biblio_audiobooks_tab.qml")
+set_tests_properties(colosseum.qml.biblio_audiobooks_tab PROPERTIES
+    LABELS "unit;qml;audiobook;biblio;regression"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 120)
+
+# Audiobook tile attribution: both shared gallery wrappers, against audiobook/movie cards.
+add_test(NAME colosseum.qml.catalogue_poster_attribution
+    COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_catalogue_poster_attribution.qml")
+set_tests_properties(colosseum.qml.catalogue_poster_attribution PROPERTIES
+    LABELS "unit;qml;audiobook;catalogue;regression"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 120)
+
+# Audiobooks 1.4.0 slice F: the audiobook book page (recordings as editions), against fixtures.
+add_test(NAME colosseum.qml.audiobook_book_page
+    COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_audiobook_book_page.qml")
+set_tests_properties(colosseum.qml.audiobook_book_page PROPERTIES
+    LABELS "unit;qml;audiobook;regression"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 120)
 
 # These discovery regressions cover components shared across worlds.
 set_tests_properties(colosseum.qml.discover_picker colosseum.qml.discover_sidebar PROPERTIES
@@ -4797,6 +5035,11 @@ if(COLOSSEUM_PLAYER_TEST_NODE)
              COMMAND "${COLOSSEUM_PLAYER_TEST_NODE}"
                      "${CMAKE_CURRENT_SOURCE_DIR}/player_loader_failure_test.mjs")
     set_tests_properties(colosseum.player_loader_failure PROPERTIES
+        LABELS "unit;player" TIMEOUT 30)
+    add_test(NAME colosseum.player2_smart_pick_loader
+             COMMAND "${COLOSSEUM_PLAYER_TEST_NODE}"
+                     "${CMAKE_CURRENT_SOURCE_DIR}/player2_smart_pick_loader_test.mjs")
+    set_tests_properties(colosseum.player2_smart_pick_loader PROPERTIES
         LABELS "unit;player" TIMEOUT 30)
     add_test(NAME colosseum.player1_recovery_resume
              COMMAND "${COLOSSEUM_PLAYER_TEST_NODE}"

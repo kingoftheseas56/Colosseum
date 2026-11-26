@@ -1,5 +1,6 @@
 #include "BookDownloader.h"
 #include "DownloadFileOps.h"
+#include "DownloadMediaPaths.h"
 
 #include <QDateTime>
 #include <QDebug>
@@ -13,6 +14,7 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QRegularExpression>
+#include <QSaveFile>
 #include <QSet>
 #include <QStandardPaths>
 #include <QStorageInfo>
@@ -145,7 +147,7 @@ void BookDownloader::loadIndex()
     for (auto it = root.begin(); it != root.end(); ++it) {
         const QJsonObject o = it.value().toObject();
         Entry e;
-        e.path    = o.value(QStringLiteral("path")).toString();
+        e.path    = DownloadMediaPaths::resolved(o.value(QStringLiteral("path")).toString());
         e.title   = o.value(QStringLiteral("title")).toString();
         e.author  = o.value(QStringLiteral("author")).toString();
         e.bytes   = static_cast<qint64>(o.value(QStringLiteral("bytes")).toDouble());
@@ -157,7 +159,7 @@ void BookDownloader::loadIndex()
         // old tree, so the whole library read as "not downloaded" and the reader hit
         // "can't find". If the recorded file is gone but a same-named file lives under the
         // CURRENT books dir, re-root onto it before pruning; only drop a truly-missing file.
-        if (!QFileInfo::exists(e.path)) {
+        if (!QFileInfo::exists(e.path) && !DownloadMediaPaths::waitingForDrive(e.path)) {
             const QString rerooted = baseDir() + QStringLiteral("/") + QFileInfo(e.path).fileName();
             if (rerooted != e.path && QFileInfo::exists(rerooted)) { e.path = rerooted; repaired = true; }
             else continue;
@@ -180,9 +182,10 @@ void BookDownloader::saveIndex() const
         o[QStringLiteral("addedAt")] = static_cast<double>(it.value().addedAt);
         root[it.key()] = o;
     }
-    QFile f(baseDir() + QStringLiteral("/index.json"));
-    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        f.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
+    QSaveFile f(baseDir() + QStringLiteral("/index.json"));
+    const QByteArray bytes = QJsonDocument(root).toJson(QJsonDocument::Compact);
+    if (f.open(QIODevice::WriteOnly) && f.write(bytes) == bytes.size())
+        f.commit();
 }
 
 void BookDownloader::writeEntry(const InFlight& f)
@@ -205,7 +208,7 @@ QString BookDownloader::localBook(const QString& md5) const
 {
     auto it = m_index.constFind(md5.trimmed().toLower());
     if (it == m_index.constEnd()) return {};
-    if (!QFileInfo::exists(it.value().path)) return {};
+    if (DownloadMediaPaths::waitingForDrive(it.value().path) || !QFileInfo::exists(it.value().path)) return {};
     return it.value().path;
 }
 
@@ -264,6 +267,10 @@ void BookDownloader::downloadBook(const QString& md5In, const QString& suggested
     if (isDownloaded(md5)) { emit finished(md5, localBook(md5)); return; }
     // Already resolving / downloading / queued → no-op.
     if (isActive(md5)) return;
+    if (DownloadMediaPaths::moving()) {
+        emit failed(md5, tr("Downloads are moving. Try again when the move finishes."));
+        return;
+    }
 
     InFlight job;
     job.generation = ++m_nextGeneration;
@@ -416,6 +423,8 @@ QVariantMap BookDownloader::deleteBook(const QString& md5In)
     auto it = m_index.find(md5);
     if (it == m_index.end())
         return DownloadFileOps::toMap({true, QString()});
+    if (DownloadMediaPaths::moving() || DownloadMediaPaths::waitingForDrive(it.value().path))
+        return DownloadFileOps::toMap({false, tr("The download location is unavailable.")});
     const auto result = DownloadFileOps::removeFile(it.value().path);
     if (!result.success) {
         qWarning() << "[downloads] delete failed" << md5 << result.message;
@@ -470,7 +479,7 @@ void BookDownloader::issueAttempt(InFlight& f)
 {
     // Disk-space pre-check when LibGen gave us a usable size.
     if (f.expectedBytes > 0) {
-        const QStorageInfo storage(baseDir());
+        const QStorageInfo storage(DownloadMediaPaths::enabled() ? DownloadMediaPaths::root() : baseDir());
         if (storage.isValid() && storage.isReady()
             && storage.bytesAvailable() < f.expectedBytes + kDiskSpaceSafetyBytes) {
             failAndCleanup(f, QStringLiteral("insufficient disk space for download"));
@@ -480,7 +489,7 @@ void BookDownloader::issueAttempt(InFlight& f)
 
     if (!pickTargetFilename(f)) { failAndCleanup(f, QStringLiteral("could not prepare destination path")); return; }
     f.file = new QFile(f.partPath);
-    if (!f.file->open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+    if (!f.file->open(QIODevice::WriteOnly | (DownloadMediaPaths::enabled() ? QIODevice::NewOnly : QIODevice::Truncate))) {
         const QString err = f.file->errorString();
         delete f.file; f.file = nullptr;
         failAndCleanup(f, QStringLiteral("cannot open .part file: %1").arg(err));
@@ -530,9 +539,17 @@ void BookDownloader::onReadyRead()
         // stays in sync with the already-open QFile, renamed at finalize).
         const QString cd = reply->header(QNetworkRequest::ContentDispositionHeader).toString();
         const QString cdName = filenameFromContentDisposition(cd);
-        if (!cdName.isEmpty()) {
+        if (!cdName.isEmpty() && !DownloadMediaPaths::enabled()) {
             const QString sane = sanitizeFilename(cdName);
             if (!sane.isEmpty()) f.finalPath = QDir(baseDir()).absoluteFilePath(sane);
+        } else if (!cdName.isEmpty()) {
+            const QString suffix = QFileInfo(sanitizeFilename(cdName)).suffix();
+            if (!suffix.isEmpty() && suffix.compare(QFileInfo(f.finalPath).suffix(), Qt::CaseInsensitive) != 0) {
+                const QString path = DownloadMediaPaths::allocate(DownloadMediaPaths::bookPath(
+                    f.title, m_pendingAuthor.value(f.md5), suffix));
+                if (!path.isEmpty())
+                    f.finalPath = path;
+            }
         }
     }
 
@@ -592,7 +609,7 @@ void BookDownloader::finalizeSuccess(InFlight& f)
         failAndCleanup(f, QStringLiteral("server returned empty body"));
         return;
     }
-    if (QFile::exists(f.finalPath)) QFile::remove(f.finalPath);
+    if (!DownloadMediaPaths::enabled() && QFile::exists(f.finalPath)) QFile::remove(f.finalPath);
     if (!QFile::rename(f.partPath, f.finalPath)) {
         const QString reason = QStringLiteral("rename %1 -> %2 failed").arg(f.partPath, f.finalPath);
         QFile::remove(f.partPath);
@@ -656,8 +673,18 @@ void BookDownloader::cancelAndCleanup(InFlight& f)
 
 void BookDownloader::startQueuedDownload()
 {
-    if (!m_active && m_resolving.isEmpty() && !m_queue.isEmpty())
-        startResolution(std::move(m_queue.takeFirst()));
+    if (m_active || !m_resolving.isEmpty() || m_queue.isEmpty() || !DownloadMediaPaths::ready())
+        return;
+    auto &job = m_queue.first();
+    if (DownloadMediaPaths::enabled() && job.finalPath.isEmpty()) {
+        const QString suffix = QFileInfo(job.suggestedName).suffix();
+        job.finalPath = DownloadMediaPaths::allocate(DownloadMediaPaths::bookPath(
+            job.title, m_pendingAuthor.value(job.md5), suffix), false, {}, QStringLiteral("book:") + job.md5);
+        if (job.finalPath.isEmpty())
+            return;
+        job.partPath = job.finalPath + QStringLiteral(".part");
+    }
+    startResolution(std::move(m_queue.takeFirst()));
 }
 
 void BookDownloader::closeAndDeletePart(InFlight& f)
@@ -672,7 +699,7 @@ void BookDownloader::closeAndDeletePart(InFlight& f)
         const QString path = f.file->fileName();
         delete f.file; f.file = nullptr;
         QFile::remove(path);
-    } else if (!f.partPath.isEmpty() && QFile::exists(f.partPath)) {
+    } else if (!DownloadMediaPaths::enabled() && !f.partPath.isEmpty() && QFile::exists(f.partPath)) {
         QFile::remove(f.partPath);
     }
 }
@@ -690,6 +717,11 @@ bool BookDownloader::detectStaleHtml(const QByteArray& firstChunk, const QString
 
 bool BookDownloader::pickTargetFilename(InFlight& f)
 {
+    if (DownloadMediaPaths::enabled()) {
+        return !f.finalPath.isEmpty() && !DownloadMediaPaths::waitingForDrive(f.finalPath)
+            && DownloadMediaPaths::destinationParentsSafe(DownloadMediaPaths::root(), f.finalPath)
+            && QDir().mkpath(QFileInfo(f.finalPath).absolutePath());
+    }
     QDir dir(baseDir());
     if (!dir.exists() && !dir.mkpath(QStringLiteral("."))) {
         qWarning() << "[BookDownloader] mkpath failed for" << baseDir();
@@ -733,10 +765,28 @@ QVariantList BookDownloader::downloadedBooks() const
             {QStringLiteral("path"), e.path},
             {QStringLiteral("bytes"), e.bytes},
             {QStringLiteral("addedAt"), e.addedAt},
-            {QStringLiteral("missing"), !QFile::exists(e.path)}
+            {QStringLiteral("missing"), DownloadMediaPaths::waitingForDrive(e.path) || !QFile::exists(e.path)}
         });
     }
     return out;
+}
+
+QList<DownloadLocation::Item> BookDownloader::managedDownloadItems() const
+{
+    QList<DownloadLocation::Item> result;
+    for (const Entry &entry : m_index) {
+        result.append({entry.path, DownloadMediaPaths::bookPath(
+            entry.title, entry.author, QFileInfo(entry.path).suffix()), {}});
+    }
+    return result;
+}
+
+void BookDownloader::refreshDownloadPaths()
+{
+    for (Entry &entry : m_index)
+        entry.path = DownloadMediaPaths::resolved(entry.path);
+    saveIndex();
+    emit downloadPathsChanged();
 }
 
 QVariantList BookDownloader::activeBookJobs() const

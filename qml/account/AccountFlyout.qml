@@ -17,6 +17,11 @@ Item {
     property bool nuvioAvailable: typeof NuvioAccounts !== "undefined" && !!NuvioAccounts
         && NuvioAccounts.available
     signal theatreSyncRequested(Item invoker)
+    // Android has no app picker, so the utilities desktop keeps there (Sync, Wallpaper)
+    // live in this menu instead of the top bar (Hemanth 2026-11-21).
+    property bool utilityEntries: false
+    signal trackersRequested()
+    signal wallpaperRequested()
 
     readonly property bool accountPresent: controller
         && (controller.mode === "signedIn" || controller.mode === "offline")
@@ -31,6 +36,10 @@ Item {
         }
         if ((localDevice || accountPresent) && (stremioAvailable || nuvioAvailable))
             entries.push({ section: "theatre", label: qsTr("Theatre sync") })
+        if (utilityEntries) {
+            entries.push({ section: "trackers", label: qsTr("Sync") })
+            entries.push({ section: "wallpaper", label: qsTr("Wallpaper") })
+        }
         if (localDevice || accountPresent)
             entries.push({ section: "privacy", label: qsTr("Data & privacy") })
         if (accountPresent && controller.syncRetryAvailable)
@@ -129,6 +138,12 @@ Item {
             break
         case "theatre":
             theatreSyncRequested(invoker)
+            break
+        case "trackers":
+            trackersRequested()
+            break
+        case "wallpaper":
+            wallpaperRequested()
             break
         default:
             if (accountSettings)
@@ -278,6 +293,7 @@ Item {
                         readonly property bool theatre: section === "theatre"
                         readonly property bool opensPage: section === "profile" || section === "devices"
                             || section === "privacy" || theatre
+                            || section === "trackers" || section === "wallpaper"
                         objectName: section === "signIn" || section === "signOut" ? "accountFlyoutSessionAction"
                             : section === "retry" ? "accountFlyoutSyncRetry" : "accountFlyoutNav_" + section
                         width: parent.width

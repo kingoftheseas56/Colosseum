@@ -11,6 +11,8 @@
 // directory so tests point it at a QTemporaryDir and production passes
 // <appdata>/vault; nothing here touches QStandardPaths directly.
 
+#include "VaultLocation.h"
+
 #include <QJsonObject>
 #include <QObject>
 #include <QString>
@@ -46,6 +48,11 @@ public:
     // lane, so removing it from the Vault must not delete those files.
     Q_INVOKABLE void removeRoot(const QString& path);
 
+    VaultLocation::PersonalPaths personalPaths() const;
+    bool applyFolderSelection(const QString& root, const VaultLocation::PersonalPaths& selection);
+    bool hasCompletedFolderImport() const;
+    bool markFolderImportComplete();
+
     // ── Synthetic / hidden-root mechanics (Slice 18 — downloads root) ──
     // Adds the trusted downloads root pre-confirmed (no card). Idempotent: a
     // second call with the same path is a no-op.
@@ -72,9 +79,19 @@ public:
     // ── Hidden items (hide-don't-delete) ──
     Q_INVOKABLE bool isHidden(const QString& fileId) const;
     Q_INVOKABLE void setHidden(const QString& fileId, bool hidden);
+    // Explicit extras filing is user intent, keyed by stable file id and adopted
+    // parent identity. Files and their progress ids never move.
+    QString extrasParent(const QString& fileId) const;
+    bool setExtrasParent(const QStringList& fileIds, const QString& parentIdentityId);
+    // A deliberate "this is not an extra" decision (the user detached it). Removes any parent and
+    // records a declined marker, keyed by the same file id, so automatic filing never re-files it.
+    // A later setExtrasParent with a real parent clears the marker.
+    bool declineExtras(const QStringList& fileIds);
+    bool extrasDeclined(const QString& fileId) const;
 
 signals:
     void changed();
+    void personalPathsChanged();
 
 private:
     void load();

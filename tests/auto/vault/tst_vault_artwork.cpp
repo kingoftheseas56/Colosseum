@@ -79,6 +79,7 @@ private slots:
     void ladder_precedence_local_then_poster_then_thumb_then_typographic();
     void async_video_row_kicks_thumb_fetch_and_signals_row_ready();
     void container_row_without_video_or_cached_poster_resolves_to_typographic();
+    void poster_payload_and_late_local_priority();
 };
 
 void tst_vault_artwork::still_is_produced_at_keyed_cache_path()
@@ -368,6 +369,49 @@ void tst_vault_artwork::async_video_row_kicks_thumb_fetch_and_signals_row_ready(
     const QString second = resolver.resolve(facts);
     QVERIFY(!second.isEmpty());
     QCOMPARE(second, QUrl::fromLocalFile(thumbnailer.cachedThumbPath(tinyMp4(), size, mtimeMs)).toString());
+}
+
+void tst_vault_artwork::poster_payload_and_late_local_priority()
+{
+    QTemporaryDir tmp;
+    const QString source = tmp.filePath(QStringLiteral("source.jpg"));
+    QFile image(source);
+    QVERIFY(image.open(QIODevice::WriteOnly));
+    image.write("poster bytes");
+    image.close();
+    VaultPosterFetcher fetcher(tmp.path());
+    VaultArtworkResolver resolver(nullptr, &fetcher);
+    VaultArtworkResolver::RowFacts facts;
+    facts.rowKey = QStringLiteral("ready-row");
+    facts.identityId = QStringLiteral("first-identity");
+    facts.posterUrl = QUrl::fromLocalFile(source).toString();
+    QSignalSpy ready(&resolver, &VaultArtworkResolver::artReady);
+    QCOMPARE(resolver.resolve(facts), QString());
+    QVERIFY(ready.wait(5000));
+    QCOMPARE(ready.size(), 1);
+    QCOMPARE(ready.first().at(0).toString(), facts.rowKey);
+    QCOMPARE(ready.first().at(1).toString(),
+             QUrl::fromLocalFile(fetcher.cachedPosterPath(facts.identityId)).toString());
+
+    ready.clear();
+    facts.rowKey = QStringLiteral("late-row");
+    facts.identityId = QStringLiteral("second-identity");
+    QSignalSpy fetched(&fetcher, &VaultPosterFetcher::posterReady);
+    QCOMPARE(resolver.resolve(facts), QString());
+    facts.localRef = QStringLiteral("file:///curated-local.jpg");
+    QCOMPARE(resolver.resolve(facts), facts.localRef);
+    QVERIFY(fetched.wait(5000));
+    QCOMPARE(ready.size(), 0);
+    QCOMPARE(resolver.resolve(facts), facts.localRef);
+
+    facts.localRef.clear();
+    facts.rowKey = QStringLiteral("retired-row");
+    facts.identityId = QStringLiteral("third-identity");
+    QCOMPARE(resolver.resolve(facts), QString());
+    resolver.clearPendingRows();
+    fetched.clear();
+    QVERIFY(fetched.wait(5000));
+    QCOMPARE(ready.size(), 0);
 }
 
 void tst_vault_artwork::container_row_without_video_or_cached_poster_resolves_to_typographic()

@@ -9,11 +9,13 @@ Column {
     property string kicker: ""
     property string title: ""
     property string copy: ""
+    property bool compact: false
 
     width: parent ? parent.width : implicitWidth
     spacing: 0
 
     Theme { id: theme }
+    AdaptiveLayout { id: adaptive }
 
     Text {
         width: parent.width
@@ -26,19 +28,19 @@ Column {
         wrapMode: Text.WordWrap
     }
 
-    Item { width: 1; height: 12 }
+    Item { width: 1; height: root.compact ? adaptive.welcomeSmallGap : 12 }
 
     Text {
         width: parent.width
         text: root.title
         color: theme.ink
         font.family: theme.display
-        font.pixelSize: theme.fontSize(29)
+        font.pixelSize: theme.fontSize(root.compact ? adaptive.welcomePanelTitleSize : 29)
         font.weight: Font.Medium
         wrapMode: Text.WordWrap
     }
 
-    Item { width: 1; height: root.copy.length > 0 ? 10 : 0 }
+    Item { width: 1; height: root.copy.length > 0 ? (root.compact ? adaptive.welcomeSmallGap : 10) : 0 }
 
     Text {
         width: parent.width
@@ -46,8 +48,8 @@ Column {
         text: root.copy
         color: theme.inkDimmer
         font.family: theme.ui
-        font.pixelSize: theme.fontSize(13)
-        lineHeight: 1.45
+        font.pixelSize: theme.fontSize(root.compact ? adaptive.welcomeBodySize : 13)
+        lineHeight: root.compact ? 1.25 : 1.45
         wrapMode: Text.WordWrap
     }
 }

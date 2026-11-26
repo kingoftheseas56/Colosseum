@@ -1,12 +1,10 @@
 import QtQuick
-import QtQuick.Controls
 
 MouseArea {
     id: area
 
     property bool keyboardTabStop: cursorShape === Qt.PointingHandCursor
     property string keyboardLabel: objectName.length ? objectName : qsTr("Action")
-    property string tooltipText: ""
     property int keyboardRole: Accessible.Button
     property var keyboardActivate: null
     property var keyboardContext: null
@@ -15,12 +13,9 @@ MouseArea {
     property var keyboardHome: null
     property var keyboardEnd: null
     property var keyboardFocused: null
-
-    // Tooltip is opt-in; existing click, keyboard and hover handlers stay the owners.
-    hoverEnabled: tooltipText.length > 0
-    ToolTip.text: area.tooltipText
-    ToolTip.delay: 350
-    ToolTip.visible: area.tooltipText.length > 0 && area.containsMouse && area.visible && area.enabled
+    // True while this area holds focus because of a pointer press. Reader chrome
+    // pins itself awake only for keyboard focus, so a click still lets it idle away.
+    property bool pointerFocused: false
 
     // Qt focus traversal already skips disabled/effectively-hidden items; keep eligibility stable
     // while a focused popup is closing so activeFocusOnTab never flips underneath active focus.
@@ -30,7 +25,10 @@ MouseArea {
     Accessible.focusable: activeFocusOnTab
     Accessible.focused: activeFocus
 
-    function focusKeyboard() { area.forceActiveFocus(Qt.OtherFocusReason) }
+    function focusKeyboard() {
+        area.pointerFocused = false
+        area.forceActiveFocus(Qt.OtherFocusReason)
+    }
 
     function activateFromKeyboard() {
         if (keyboardActivate)
@@ -65,11 +63,15 @@ MouseArea {
     Connections {
         target: area
         function onPressed(mouse) {
-            if (area.keyboardTabStop)
+            if (area.keyboardTabStop) {
+                area.pointerFocused = true
                 area.forceActiveFocus(Qt.MouseFocusReason)
+            }
         }
     }
     onActiveFocusChanged: {
+        if (!activeFocus)
+            pointerFocused = false
         if (activeFocus && keyboardFocused)
             keyboardFocused()
     }

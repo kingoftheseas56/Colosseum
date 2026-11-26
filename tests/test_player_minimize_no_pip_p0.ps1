@@ -22,21 +22,21 @@ $playerIcon = Get-Content (Join-Path $root "qml/PlayerIcon.qml") -Raw
 Assert-Contains $playerIcon 'case "minimizeToBar":' `
     "PlayerIcon must map the minimizeToBar kind to a Lucide glyph (renderer moved off the Canvas IconGlyph)."
 Assert-Contains $player 'Minimize — paused in the taskbar, resumes with no reload' `
-    "Minimize tooltip must be honest: paused but kept warm, no reload on return."
+    "Minimize accessible label must be honest: paused but kept warm, no reload on return."
 $minCalls = [regex]::Matches($player, 'root\.minimizeRequested\(\)').Count
 if ($minCalls -ne 1) { throw "Exactly ONE control must call minimizeRequested() (found $minCalls)." }
 Assert-NotContains $player 'kind === "minimize") {' `
     "The dock 'minimize' glyph branch must be gone (dock minimize removed)."
 Assert-NotContains $player 'keeps playing in the taskbar' `
-    "The old overpromising tooltip must be gone."
+    "The old overpromising accessible label must be gone."
 Assert-NotContains $player 'your spot is saved in the taskbar' `
-    "The old 'spot is saved' tooltip must be gone (minimize now keeps the stream warm)."
+    "The old 'spot is saved' accessible label must be gone (minimize now keeps the stream warm)."
 Assert-Contains $player 'function suspendForMinimize' `
     "Minimize must pause via suspendForMinimize (keeps the stream warm, no reload)."
 
 # --- minimize sits immediately before Close in the control bar (Hemanth 2026-07-07) ---
 $minIdx   = $player.IndexOf('icon: "minimizeToBar"')
-$closeIdx = $player.IndexOf('tooltip: "Close"')
+$closeIdx = $player.IndexOf('actionLabel: "Close"')
 if ($minIdx -lt 0 -or $closeIdx -lt 0) { throw "Both minimize and Close buttons must exist." }
 if ($minIdx -ge $closeIdx) { throw "Minimize must come before Close." }
 if (($closeIdx - $minIdx) -gt 900) { throw "Minimize must sit adjacent to Close in the control bar." }

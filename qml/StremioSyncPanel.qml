@@ -11,7 +11,10 @@ Item {
     property var actions: null
     property string confirmation: ""
     property var nuvioAccount: typeof NuvioAccounts !== "undefined" ? NuvioAccounts : null
-    property bool showingNuvio: false
+    property string providerKey: "stremio"
+    property Item invoker: null
+    property bool activeFlowCancelled: false
+    readonly property bool showingNuvio: providerKey === "nuvio"
     property bool firstRun: false
     property bool firstRunStarted: false
     property bool touchInput: Qt.platform.os === "android"
@@ -100,6 +103,7 @@ Item {
             cancelStremioImport()
         }
         confirmation = ""
+        if (!firstRun) shown = false
         closeRequested()
     }
 
@@ -110,22 +114,33 @@ Item {
     function cancelStremioImport() {
         if ((!firstRun || stremioImportPhase !== "applying")
                 && (stremioImportOpen || stremioImportPhase === "loading" || (firstRun && firstRunStarted))
-                && typeof actions.cancelStremioImport === "function") {
+                && actions && typeof actions.cancelStremioImport === "function") {
             firstRunStarted = false
             actions.cancelStremioImport()
         }
     }
-    function selectService(nuvio) {
-        if (showingNuvio === nuvio)
-            return
-        if (showingNuvio && nuvioAccount) {
+    function openForProvider(provider, returnFocus) {
+        if (["stremio", "nuvio"].indexOf(provider) < 0 || (firstRun && provider !== "stremio")) return false
+        if (shown) {
+            if (providerKey !== provider) return false
+            takeKeyboardFocus()
+            return true
+        }
+        providerKey = provider
+        invoker = returnFocus || (root.Window.window ? root.Window.window.activeFocusItem : null)
+        confirmation = ""
+        shown = true
+        return true
+    }
+    function cancelActiveFlow() {
+        if (showingNuvio) {
             nuvioFlow.clearSecrets()
-            nuvioAccount.cancel()
+            if (!activeFlowCancelled && nuvioAccount && typeof nuvioAccount.cancel === "function") nuvioAccount.cancel()
         } else {
             cancelStremioImport()
+            if (!firstRun && status === "connecting" && syncState && typeof syncState.cancelAuthentication === "function")
+                syncState.cancelAuthentication()
         }
-        confirmation = ""
-        showingNuvio = nuvio
     }
 
     function revealPanelAction(item) {
@@ -157,14 +172,16 @@ Item {
     }
 
     function takeKeyboardFocus() {
-        if (shown && primaryAction.visible && primaryAction.enabled)
-            primaryAction.focusInput()
+        if (!shown) return
+        if (showingNuvio) nuvioFlow.takeKeyboardFocus()
+        else if (primaryAction.visible && primaryAction.enabled) primaryAction.focusInput()
     }
 
     onShownChanged: {
         if (panelScroll) panelScroll.cancelFlick()
         if (actionScroll) actionScroll.cancelFlick()
         if (shown) {
+            activeFlowCancelled = false
             if (!firstRun) {
                 Qt.callLater(function() {
                     panelScroll.contentY = 0
@@ -173,9 +190,13 @@ Item {
                 })
             }
         } else {
-            selectService(false)
-            cancelStremioImport()
+            cancelActiveFlow()
             confirmation = ""
+            const target = invoker
+            invoker = null
+            if (target && !firstRun) Qt.callLater(function() {
+                if (!root.shown && target && target.visible && target.enabled) target.forceActiveFocus(Qt.PopupFocusReason)
+            })
         }
     }
     Timer {
@@ -193,12 +214,15 @@ Item {
             completed()
         }
     }
-    Keys.onEscapePressed: {
+    function handleBack() {
+        if (showingNuvio && requestNuvioSignInBack()) return
         if (firstRun) closePanel()
         else if (confirmation.length > 0) confirmation = ""
         else if (!showingNuvio && stremioImportOpen) cancelStremioImport()
         else closePanel()
     }
+    Keys.onEscapePressed: root.handleBack()
+    Keys.onBackPressed: root.handleBack()
 
     Rectangle { anchors.fill: parent; visible: !root.firstRun; color: Qt.rgba(0.01, 0.015, 0.025, 0.82) }
     MouseArea { anchors.fill: parent; enabled: !root.firstRun }
@@ -208,7 +232,7 @@ Item {
         objectName: "stremioSyncPanel"
         anchors.centerIn: parent
         width: root.firstRun ? parent.width : Math.min(620, parent.width - 48)
-        readonly property int overlayHeight: root.nuvioAccount ? 560 : (root.confirmation.length > 0 ? 470 : 440)
+        readonly property int overlayHeight: root.showingNuvio ? 560 : (root.confirmation.length > 0 ? 470 : 440)
         height: root.firstRun ? parent.height
             : Math.max(0, Math.min(overlayHeight, parent.height - (root.touchInput ? 24 : 48)))
         radius: 24
@@ -216,50 +240,33 @@ Item {
         border.width: root.firstRun ? 0 : 1
         border.color: theme.edge
 
-        Flow {
-            id: serviceSwitch
-            anchors.top: parent.top
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.margins: 24
-            visible: !root.firstRun && !!root.nuvioAccount
-            spacing: 8
-
-            PanelAction {
-                objectName: "syncStremioService"
-                label: qsTr("Stremio")
-                primary: !root.showingNuvio
-                onTriggered: root.selectService(false)
-            }
-            PanelAction {
-                objectName: "syncNuvioService"
-                label: qsTr("Nuvio")
-                primary: root.showingNuvio
-                onTriggered: root.selectService(true)
-            }
-            PanelAction {
-                objectName: "nuvioCloseSyncPanel"
-                label: qsTr("Close")
-                visible: root.showingNuvio
-                onTriggered: root.closePanel()
-            }
+        VaultLibraryButton {
+            id: closeButton
+            objectName: "providerConnectionClose"
+            anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 16
+            text: "×"; quiet: true; implicitWidth: 38
+            visible: !root.firstRun
+            accessibleName: root.showingNuvio ? qsTr("Close Nuvio connection") : qsTr("Close Stremio connection")
+            onClicked: root.closePanel()
+            z: 2
         }
 
         NuvioAccountFlow {
             id: nuvioFlow
             anchors.fill: parent
             anchors.margins: 24
-            anchors.topMargin: 36 + serviceSwitch.implicitHeight
+            anchors.topMargin: 24
             visible: root.showingNuvio
             account: root.nuvioAccount
+            onCancelRequested: { root.activeFlowCancelled = true; root.closePanel() }
         }
 
         Flickable {
             id: panelScroll
             objectName: "stremioSyncScroll"
             anchors.fill: parent
-            anchors.margins: root.firstRun ? 0 : (serviceSwitch.visible ? 24 : 34)
-            anchors.topMargin: serviceSwitch.visible ? 36 + serviceSwitch.implicitHeight : anchors.margins
+            anchors.margins: root.firstRun ? 0 : 34
+            anchors.topMargin: anchors.margins
             visible: !root.showingNuvio
             clip: true
             contentWidth: width
@@ -285,7 +292,7 @@ Item {
                         fillMode: Image.PreserveAspectFit
                     }
                     Column {
-                        width: parent.width - 52
+                        width: parent.width - 52 - (root.firstRun ? 0 : 28)
                         spacing: 5
                         Text { width: parent.width; wrapMode: Text.Wrap; text: root.heading(); color: theme.ink; font.family: theme.display; font.pixelSize: 30 }
                         Text { width: parent.width; text: root.detail(); color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13; wrapMode: Text.WordWrap }

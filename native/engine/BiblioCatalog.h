@@ -168,6 +168,16 @@ public:
     Q_INVOKABLE void setBackgroundWorkSuspended(bool suspended);
     void setForegroundPriorityActive(bool active);
 
+    // Local-only identity evidence for Vault; this never schedules a refresh.
+    BiblioIdentityLookup exactWorkMatches(const QString &title, const QString &author) const;
+    BiblioIdentityLookup vaultWorkMatches(const QString &title, const QString &author);
+
+    // Nonblocking Vault fallback. Pending/transient failures are Unavailable;
+    // completed negatives and ambiguity are session-cached. No snapshot writes.
+    BiblioIdentityLookup onlineWorkMatches(const QString &title, const QString &author,
+                                           const QString &filenameTitle = {});
+    bool retainVaultWork(const BiblioIdentityCandidate &candidate);
+
     // Proxies BiblioCatalogStore::page() in the identical {items,nextOffset,
     // exhausted,freshness,warning} shape (the DiscoverBrowser contract).
     Q_INVOKABLE QVariantMap discoverPage(const QString &catalogId, const QString &facetAxis,
@@ -209,6 +219,8 @@ public:
     Q_INVOKABLE void requestEnrichment(const QString &catalogId);
 
 signals:
+    void vaultLookupFinished();
+    void vaultIdentityIndexReady();
     void readyChanged();
     void refreshingChanged();
     void staleChanged();
@@ -222,6 +234,25 @@ signals:
     void refreshFinished(bool success);
 
 private:
+    struct VaultLookup {
+        QString title, author, filenameTitle;
+        QList<BiblioSourceRecord> apple;
+        BiblioIdentityLookup result;
+        int stage = 0;
+        int attempt = 0;
+        bool pending = true;
+        QDateTime retryAfter;
+    };
+    QHash<QString, VaultLookup> m_vaultLookups;
+    QHash<QString, QStringList> m_vaultIsbns;
+    QQueue<QString> m_vaultQueue;
+    QSet<BiblioTransportReply *> m_vaultReplies;
+    int m_vaultActive = 0;
+    void pumpVaultLookups();
+    void issueVaultLookup(const QString &key);
+    void finishVaultLookup(const QString &key, const QList<BiblioSourceRecord> &ol,
+                           bool libraryAvailable = true);
+
     struct FetchJob {
         QUrl url;
         QString kind;       // "apple-rss" | "apple-search" | "openlibrary"
@@ -294,6 +325,9 @@ private:
         const QList<BiblioRankSnapshot> &priorHistory, const QDateTime &capturedAt);
 
     BiblioCatalogStore m_store;
+    void prepareVaultIdentityIndex();
+    BiblioCatalogStore::IdentityTitleIndex m_vaultIdentityIndex;
+    bool m_vaultIdentityIndexLoading = false;
     QString m_dbPath; // immutable DB identity used by worker-owned SQLite publisher connections
     IBiblioTransport *m_transport = nullptr;
     BiblioNetworkTransport *m_ownedTransport = nullptr; // non-null only when we own it

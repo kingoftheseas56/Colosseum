@@ -1,5 +1,8 @@
 #include "MangaDownloader.h"
+#include "CbzArchive.h"
+#include "ComicCoverId.h"
 #include "DownloadFileOps.h"
+#include "DownloadMediaPaths.h"
 #include "MangaPageTransport.h"
 #include "WeebCentralScraper.h"
 #include "TankoyomiChapterService.h"
@@ -315,18 +318,28 @@ void MangaDownloader::loadIndex()
         e.seriesId     = o.value(QStringLiteral("seriesId")).toString();
         e.seriesTitle  = o.value(QStringLiteral("seriesTitle")).toString();
         e.chapterLabel = o.value(QStringLiteral("chapterLabel")).toString();
-        e.dir          = o.value(QStringLiteral("dir")).toString();
+        e.dir          = DownloadMediaPaths::resolved(o.value(QStringLiteral("dir")).toString());
+        e.archive      = DownloadMediaPaths::resolved(o.value(QStringLiteral("archive")).toString());
         e.bytes        = qint64(o.value(QStringLiteral("bytes")).toDouble());
         e.addedAt      = qint64(o.value(QStringLiteral("addedAt")).toDouble());
         for (const QJsonValue v : o.value(QStringLiteral("files")).toArray())
             e.files.append(v.toString());
+        if (!e.archive.isEmpty()) {
+            if (QFileInfo(e.archive).isFile() || DownloadMediaPaths::waitingForDrive(e.archive)) {
+                if (!e.files.isEmpty())
+                    m_index.insert(it.key(), e);
+            } else {
+                healed = true;
+            }
+            continue;
+        }
         // self-heal, REPAIR-then-prune (2026-07-12): a dir that no longer exists is
         // first assumed MOVED, not gone — the org-rename relocated the whole manga
         // tree while the ledger kept old absolute paths (prune-only destroyed live
         // Bleach / One Piece entries; caught pre-commit). Re-root the path tail
         // (everything after the last "/manga/") onto the current base; only an entry
         // whose files are missing THERE TOO is a true ghost, and only then dropped.
-        if (!e.dir.isEmpty() && !QDir(e.dir).exists()) {
+        if (!e.dir.isEmpty() && !QDir(e.dir).exists() && !DownloadMediaPaths::waitingForDrive(e.dir)) {
             const QString marker = QStringLiteral("/manga/");
             const int at = e.dir.lastIndexOf(marker);
             QString repairedDir;
@@ -368,6 +381,7 @@ void MangaDownloader::saveIndex()
             {QStringLiteral("seriesTitle"),  e.seriesTitle},
             {QStringLiteral("chapterLabel"), e.chapterLabel},
             {QStringLiteral("dir"),          e.dir},
+            {QStringLiteral("archive"),      e.archive},
             {QStringLiteral("bytes"),        double(e.bytes)},
             {QStringLiteral("addedAt"),      double(e.addedAt)},
             {QStringLiteral("files"),        files},
@@ -387,17 +401,25 @@ void MangaDownloader::startIndexWrite()
     if (m_pendingIndexSnapshot.isNull()) return;
 
     const QByteArray payload = std::exchange(m_pendingIndexSnapshot, QByteArray());
+    const auto archiveCommits = std::exchange(m_pendingArchiveCommits, {});
     const QString outputPath = baseDir() + QStringLiteral("/index.json");
     m_indexWriteInFlight = true;
 
     auto* watcher = new QFutureWatcher<IndexWriteResult>(this);
     connect(watcher, &QFutureWatcher<IndexWriteResult>::finished, this,
-            [this, watcher]() {
+            [this, watcher, archiveCommits]() {
         const IndexWriteResult result = watcher->result();
         watcher->deleteLater();
-        m_indexWriteInFlight = false;
         if (!result.committed)
             qWarning("[downloads] index snapshot commit failed");
+        for (const auto& lifetime : archiveCommits) {
+            if (Job* job = lifetime->job)
+                finishArchiveCommit(job, result.committed);
+        }
+        // Rollback must also remove failed archive rows from any newer snapshot.
+        if (!result.committed && !archiveCommits.isEmpty() && !m_pendingIndexSnapshot.isNull())
+            saveIndex();
+        m_indexWriteInFlight = false;
         // A completion/delete may have superseded this payload while it was
         // writing. Start that newest snapshot only after this QSaveFile has
         // finished, preventing stale snapshots from winning on disk.
@@ -430,17 +452,18 @@ void MangaDownloader::runWhenIndexIdle(std::function<void()> continuation)
     });
 }
 
-void MangaDownloader::writeEntry(const Job* job)
+void MangaDownloader::writeEntry(Job* job, qint64 archiveBytes)
 {
     Entry e;
     e.seriesId     = job->seriesId;
     e.seriesTitle  = job->seriesTitle;
     e.chapterLabel = job->chapterLabel;
-    e.dir          = job->dir;
+    e.archive      = job->archive;
     e.files        = job->files;
-    e.bytes        = job->bytes;
+    e.bytes        = archiveBytes;
     e.addedAt      = QDateTime::currentMSecsSinceEpoch();
     m_index.insert(job->chapterId, e);
+    m_pendingArchiveCommits.append(job->lifetime);
     saveIndex();
 }
 
@@ -571,6 +594,10 @@ void MangaDownloader::downloadChapter(const QString& chapterId, const QString& s
     if (isDownloaded(chapterId)) { emit finished(chapterId); return; }
     if (m_active.contains(chapterId)) return;
     for (const Job* q : m_queue) if (q->chapterId == chapterId) return;   // already queued
+    if (DownloadMediaPaths::moving()) {
+        emit failed(chapterId, tr("Downloads are moving. Try again when the move finishes."));
+        return;
+    }
 
     Job* job = new Job;
     job->lifetime = std::make_shared<JobLifetime>();
@@ -579,25 +606,41 @@ void MangaDownloader::downloadChapter(const QString& chapterId, const QString& s
     job->seriesId     = seriesId;
     job->seriesTitle  = seriesTitle;
     job->chapterLabel = chapterLabel;
-    job->dir          = chapterDir(seriesId, chapterId);
+    if (!DownloadMediaPaths::enabled())
+        job->dir = chapterDir(seriesId, chapterId);
     m_queue.enqueue(job);
     emit progress(chapterId, 0, 0);    // surfaces "queued" immediately
     pumpQueue();
+}
+
+QString MangaDownloader::pageUrl(const Entry& entry, const QString& file)
+{
+    if (entry.archive.isEmpty())
+        return QUrl::fromLocalFile(QDir(entry.dir).filePath(file)).toString();
+    return QStringLiteral("image://comiccover/") + Colosseum::buildComicCoverId(entry.archive, file);
 }
 
 QVariantList MangaDownloader::localPages(const QString& chapterId) const
 {
     QVariantList out;
     const auto it = m_index.constFind(chapterId);
-    if (it == m_index.constEnd()) return out;
+    if (it == m_index.constEnd() || m_active.contains(chapterId)) return out;
     const Entry& e = it.value();
+    const QString& payload = e.archive.isEmpty() ? e.dir : e.archive;
+    if (DownloadMediaPaths::waitingForDrive(payload)
+        || (!e.archive.isEmpty() && !QFileInfo(payload).isFile()))
+        return out;
     for (int i = 0; i < e.files.size(); ++i) {
         if (e.files[i].isEmpty()) continue;
-        out.append(QVariantMap{
+        QVariantMap page{
             {QStringLiteral("index"), i},
-            {QStringLiteral("url"),
-             QUrl::fromLocalFile(e.dir + QStringLiteral("/") + e.files[i]).toString()},
-            {QStringLiteral("group"), -1}});
+            {QStringLiteral("url"), pageUrl(e, e.files.at(i))},
+            {QStringLiteral("group"), -1}};
+        if (!e.archive.isEmpty()) {
+            page.insert(QStringLiteral("archive"), e.archive);
+            page.insert(QStringLiteral("entry"), e.files.at(i));
+        }
+        out.append(page);
     }
     return out;
 }
@@ -605,7 +648,7 @@ QVariantList MangaDownloader::localPages(const QString& chapterId) const
 bool MangaDownloader::isDownloaded(const QString& chapterId) const
 {
     const auto it = m_index.constFind(chapterId);
-    return it != m_index.constEnd() && !it.value().files.isEmpty();
+    return it != m_index.constEnd() && !it.value().files.isEmpty() && !m_active.contains(chapterId);
 }
 
 QVariantMap MangaDownloader::statusOf(const QString& chapterId) const
@@ -634,10 +677,13 @@ QVariantList MangaDownloader::downloadedChapters() const
 {
     QVariantList out;
     for (auto it = m_index.constBegin(); it != m_index.constEnd(); ++it) {
+        if (m_active.contains(it.key()))
+            continue;
         const Entry& e = it.value();
-        const QString first = e.files.isEmpty()
-            ? QString() : e.dir + QStringLiteral("/") + e.files.first();
-        const bool missing = first.isEmpty() || !QFile::exists(first);
+        const QString payload = e.archive.isEmpty()
+            ? QDir(e.dir).filePath(e.files.value(0)) : e.archive;
+        const bool missing = e.files.value(0).isEmpty() || DownloadMediaPaths::waitingForDrive(payload)
+            || !QFileInfo(payload).isFile();
         out.append(QVariantMap{
             {QStringLiteral("id"), it.key()},
             {QStringLiteral("seriesId"), e.seriesId},
@@ -649,10 +695,40 @@ QVariantList MangaDownloader::downloadedChapters() const
             {QStringLiteral("missing"), missing},
             // First page = the chapter's own local cover (Downloads-page art).
             {QStringLiteral("art"), missing
-                ? QString() : QUrl::fromLocalFile(first).toString()}
+                ? QString() : pageUrl(e, e.files.first())}
         });
     }
     return out;
+}
+
+QList<DownloadLocation::Item> MangaDownloader::managedDownloadItems() const
+{
+    QList<DownloadLocation::Item> result;
+    for (const Entry &entry : m_index) {
+        if (!entry.archive.isEmpty()) {
+            result.append({entry.archive, DownloadMediaPaths::mangaTitlePath(
+                entry.seriesTitle, QStringLiteral("Chapter"), entry.chapterLabel, QStringLiteral("cbz")), {}});
+            continue;
+        }
+        QStringList members = entry.files;
+        members.removeAll(QString());
+        if (!members.isEmpty()) {
+            result.append({entry.dir, DownloadMediaPaths::mangaTitlePath(
+                entry.seriesTitle, QStringLiteral("Chapter"), entry.chapterLabel), members});
+        }
+    }
+    return result;
+}
+
+void MangaDownloader::refreshDownloadPaths()
+{
+    for (Entry &entry : m_index) {
+        entry.dir = DownloadMediaPaths::resolved(entry.dir);
+        entry.archive = DownloadMediaPaths::resolved(entry.archive);
+    }
+    m_thumbCache.clear();
+    saveIndex();
+    emit downloadPathsChanged();
 }
 
 QVariantList MangaDownloader::activeChapterJobs() const
@@ -685,8 +761,36 @@ QVariantMap MangaDownloader::deleteChapter(const QString& chapterId)
     const auto it = m_index.constFind(chapterId);
     if (it == m_index.constEnd())
         return DownloadFileOps::toMap({true, QString()});
-    const QString dir = it.value().dir;
-    const auto result = DownloadFileOps::removeTree(dir);
+    if (m_active.contains(chapterId))
+        return DownloadFileOps::toMap({false, tr("The chapter download is still finishing.")});
+    const Entry& entry = it.value();
+    const QString& dir = entry.dir;
+    const QString& payload = entry.archive.isEmpty() ? dir : entry.archive;
+    if (DownloadMediaPaths::moving() || DownloadMediaPaths::waitingForDrive(payload))
+        return DownloadFileOps::toMap({false, tr("The download location is unavailable.")});
+    auto result = DownloadFileOps::Result{true, QString()};
+    if (!entry.archive.isEmpty()) {
+        const QString root = DownloadMediaPaths::root();
+        if (DownloadMediaPaths::isWithin(root, payload)
+            && !DownloadMediaPaths::destinationParentsSafe(root, payload))
+            return DownloadFileOps::toMap({false, tr("A download path is no longer safe to remove.")});
+        result = DownloadFileOps::removeFile(payload);
+    } else if (DownloadMediaPaths::enabled() && DownloadMediaPaths::isWithin(DownloadMediaPaths::root(), dir)) {
+        for (const QString &page : entry.files) {
+            if (page.isEmpty())
+                continue;
+            const QString path = QDir(dir).filePath(page);
+            if (!DownloadMediaPaths::destinationParentsSafe(dir, path))
+                return DownloadFileOps::toMap({false, tr("A download path is no longer safe to remove.")});
+            result = DownloadFileOps::removeFile(path);
+            if (!result.success)
+                break;
+        }
+        if (result.success)
+            QDir().rmdir(dir);
+    } else {
+        result = DownloadFileOps::removeTree(dir);
+    }
     if (!result.success) {
         qWarning() << "[downloads] delete failed" << chapterId << result.message;
         return DownloadFileOps::toMap(result);
@@ -727,7 +831,7 @@ void MangaDownloader::cancelDownload(const QString& chapterId)
     }
     // in-flight -> flag + abort replies; finalize once all slots have drained
     Job* job = m_active.value(chapterId, nullptr);
-    if (!job) return;
+    if (!job || !job->archive.isEmpty()) return;
     job->cancelled = true;
     if (job->scraperPending) {
         // Stop future scraper signals before the Job can be reclaimed. Any
@@ -749,16 +853,33 @@ void MangaDownloader::cancelDownload(const QString& chapterId)
 
 void MangaDownloader::finalizeCancel(Job* job)
 {
-    if (job->cleanupPending || job->scanPending) return;
+    if (job->cleanupPending || job->scanPending || job->packing) return;
     if (job->live) { cleanupJob(job); return; }
     job->cleanupPending = true;
     const QString id = job->chapterId;
     const QString dir = job->dir;
+    const QStringList pages = job->files;
     const std::shared_ptr<JobLifetime> lifetime = job->lifetime;
-    const DownloadFileOps::Remover remover = m_cleanupRemover;
+    const auto remover = [pages, legacyRemover = m_cleanupRemover](const QString &dir) {
+        if (DownloadMediaPaths::enabled() && DownloadMediaPaths::isWithin(DownloadMediaPaths::root(), dir)) {
+            for (const QString &page : pages) {
+                if (page.isEmpty())
+                    continue;
+                const QString path = QDir(dir).filePath(page);
+                if (!DownloadMediaPaths::destinationParentsSafe(dir, path))
+                    return DownloadFileOps::Result{false, QStringLiteral("A partial download path is no longer safe.")};
+                const auto result = DownloadFileOps::removeFile(path);
+                if (!result.success)
+                    return result;
+            }
+            QDir().rmdir(dir);
+            return DownloadFileOps::Result{true, QString()};
+        }
+        return legacyRemover ? DownloadFileOps::removeTree(dir, legacyRemover)
+                             : DownloadFileOps::removeTree(dir);
+    };
     QtConcurrent::run([dir, remover]() {
-        return remover ? DownloadFileOps::removeTree(dir, remover)
-                        : DownloadFileOps::removeTree(dir);
+        return remover(dir);
     }).then(this, [this, lifetime, id](DownloadFileOps::Result result) {
         Job* job = lifetime ? lifetime->job : nullptr;
         if (!job) return;
@@ -1087,9 +1208,18 @@ void MangaDownloader::indexSelfTest()
 // ---------------------------------------------------------------------------
 void MangaDownloader::pumpQueue()
 {
-    if (m_liveJob || !m_stoppingLiveJobs.isEmpty()) return;
+    if (m_liveJob || !m_stoppingLiveJobs.isEmpty() || !DownloadMediaPaths::ready()) return;
     while (m_active.size() < MAX_CONCURRENT_CHAPTERS && !m_queue.isEmpty()) {
         Job* job = m_queue.dequeue();
+        if (job->dir.isEmpty()) {
+            job->dir = DownloadMediaPaths::allocate(DownloadMediaPaths::mangaTitlePath(
+                job->seriesTitle, QStringLiteral("Chapter"), job->chapterLabel), true, {},
+                QStringLiteral("chapter:") + job->chapterId);
+            if (job->dir.isEmpty()) {
+                m_queue.prepend(job);
+                return;
+            }
+        }
         m_active.insert(job->chapterId, job);
         beginJob(job);
     }
@@ -1672,11 +1802,84 @@ void MangaDownloader::onImageSaved(Job* job, int pageIndex, const QString& fileN
 
 void MangaDownloader::finishJob(Job* job)
 {
-    if (job->live) return; // even a fully cached live chapter is not an acquired chapter
-    writeEntry(job);
-    qInfo("[downloads] finished '%s' - %d pages, %.1f MB",
-          qUtf8Printable(job->chapterId), job->total, double(job->bytes) / (1024.0 * 1024.0));
+    if (job->live || job->packing || !job->archive.isEmpty()) return;
+    const bool managed = DownloadMediaPaths::enabled();
+    const QString root = managed ? DownloadMediaPaths::root() : baseDir();
+    const QString dir = job->dir;
+    const QString archive = managed
+        ? DownloadMediaPaths::allocate(DownloadMediaPaths::mangaTitlePath(
+              job->seriesTitle, QStringLiteral("Chapter"), job->chapterLabel, QStringLiteral("cbz")))
+        : DownloadMediaPaths::availablePath(root, QDir(root).relativeFilePath(dir)
+                                                 + QStringLiteral(".cbz"), false);
+    if (archive.isEmpty()) {
+        failJob(job, tr("Colosseum could not choose a file for the chapter archive."));
+        return;
+    }
+    job->packing = true;
+    const auto lifetime = job->lifetime;
+    const QStringList files = job->files;
+    QtConcurrent::run([root, dir, archive, files]() {
+        if (!DownloadMediaPaths::destinationParentsSafe(root, archive))
+            return QStringLiteral("chapter archive path is no longer safe");
+        for (const QString& file : files) {
+            const QString path = QDir(dir).filePath(file);
+            if (!DownloadMediaPaths::destinationParentsSafe(root, path)
+                || !DownloadMediaPaths::destinationParentsSafe(dir, path)
+                || QFileInfo(path).isSymLink())
+                return QStringLiteral("unsafe chapter page path");
+        }
+        QString error;
+        if (!MangaTankoban::CbzArchive::writeImagesAtomic(archive, dir, files, &error))
+            return error.isEmpty() ? QStringLiteral("chapter archive failed validation") : error;
+        return QString();
+    }).then(this, [this, lifetime, archive](const QString& error) {
+        Job* job = lifetime->job;
+        if (!job) return;
+        job->packing = false;
+        if (job->cancelled) {
+            if (error.isEmpty() && !DownloadFileOps::removeFile(archive).success)
+                qWarning("[downloads] could not remove a cancelled chapter archive");
+            finalizeCancel(job);
+            return;
+        }
+        if (!error.isEmpty()) {
+            qWarning() << "[downloads] could not pack chapter:" << error;
+            failJob(job, tr("Colosseum could not create the chapter archive."));
+            return;
+        }
+        job->archive = archive;
+        writeEntry(job, QFileInfo(archive).size());
+    });
+}
+
+void MangaDownloader::finishArchiveCommit(Job* job, bool committed)
+{
+    if (!committed) {
+        m_index.remove(job->chapterId);
+        if (!DownloadFileOps::removeFile(job->archive).success)
+            qWarning("[downloads] could not remove an unindexed chapter archive");
+        failJob(job, tr("Colosseum could not save the chapter in the download index."));
+        return;
+    }
+    const QString root = DownloadMediaPaths::enabled() ? DownloadMediaPaths::root() : baseDir();
+    const QString dir = job->dir;
+    const QStringList files = job->files;
+    // The index and CBZ are durable. Remove only the loose files this download wrote.
+    QtConcurrent::run([root, dir, files] {
+        for (const QString& file : files) {
+            const QString path = QDir(dir).filePath(file);
+            if (!DownloadMediaPaths::destinationParentsSafe(root, path)
+                || !DownloadMediaPaths::destinationParentsSafe(dir, path)
+                || !DownloadFileOps::removeFile(path).success) {
+                qWarning("[downloads] could not remove a staged chapter page");
+                return;
+            }
+        }
+        QDir().rmdir(dir);
+    }).then(this, [] {});
     const QString id = job->chapterId;
+    qInfo("[downloads] finished '%s' - %d pages in CBZ",
+          qUtf8Printable(id), job->total);
     cleanupJob(job);
     emit finished(id);
 }

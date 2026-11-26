@@ -1,5 +1,6 @@
 #include "ComicDownloader.h"
 #include "DownloadFileOps.h"
+#include "DownloadMediaPaths.h"
 
 #include "ComicDlsParse.h"
 #include "engine/ComicCoverId.h"
@@ -314,6 +315,21 @@ QString ComicDownloader::issueArchivePath(const QString& seriesId, const QString
     return issueDir(seriesId, label, id) + QStringLiteral(".cbz");
 }
 
+QString ComicDownloader::publicationPath(InFlight &flight) const
+{
+    if (!DownloadMediaPaths::enabled())
+        return issueArchivePath(flight.seriesId, flight.label, flight.id);
+    if (flight.publicationPath.isEmpty()) {
+        const QString label = flight.label == flight.id ? QString() : flight.label;
+        flight.publicationPath = DownloadMediaPaths::allocate(DownloadMediaPaths::comicPath(
+            flight.seriesTitle, label, QStringLiteral("cbz")), false, {QStringLiteral(".incoming")},
+            QStringLiteral("comic:") + flight.id);
+    }
+    if (DownloadMediaPaths::waitingForDrive(flight.publicationPath))
+        return {};
+    return flight.publicationPath;
+}
+
 bool ComicDownloader::adoptExistingCanonicalIfValid(const QString& id, const QString& seriesId,
                                                     const QString& seriesTitle,
                                                     const QString& label)
@@ -368,8 +384,8 @@ void ComicDownloader::loadIndex()
         e.seriesId    = o.value(QStringLiteral("seriesId")).toString();
         e.seriesTitle = o.value(QStringLiteral("seriesTitle")).toString();
         e.label       = o.value(QStringLiteral("label")).toString();
-        e.dir         = o.value(QStringLiteral("dir")).toString();
-        e.archive     = o.value(QStringLiteral("archive")).toString();
+        e.dir         = DownloadMediaPaths::resolved(o.value(QStringLiteral("dir")).toString());
+        e.archive     = DownloadMediaPaths::resolved(o.value(QStringLiteral("archive")).toString());
         e.bytes       = static_cast<qint64>(o.value(QStringLiteral("bytes")).toDouble());
         e.addedAt     = static_cast<qint64>(o.value(QStringLiteral("addedAt")).toDouble());
         // Pack-demux fields are OPTIONAL (Slice 1): absent on every legacy row,
@@ -387,7 +403,7 @@ void ComicDownloader::loadIndex()
         // every archive-shaped row on the very first restart.)
         const bool archiveOk = e.usesArchive() && QFileInfo(e.archive).isFile() && !e.files.isEmpty();
         const bool dirOk = !e.dir.isEmpty() && QDir(e.dir).exists() && !e.files.isEmpty();
-        if (archiveOk) {
+        if (archiveOk || DownloadMediaPaths::waitingForDrive(e.usesArchive() ? e.archive : e.dir)) {
             m_index.insert(it.key(), e);
         } else if (dirOk) {
             // The row survives on its dir, but its `archive` field (if any)
@@ -403,7 +419,8 @@ void ComicDownloader::loadIndex()
     // One-shot, synchronous legacy migration (Task 7). Runs after every row is
     // loaded/demoted above, so it sees each row's final on-disk shape -- and
     // saves the index itself if anything changed.
-    migrateLegacyComicsInPlace();
+    if (!DownloadMediaPaths::moving())
+        migrateLegacyComicsInPlace();
 }
 
 // ── Task 7: boot-time legacy CBZ-in-place migration ─────────────────────────
@@ -692,6 +709,10 @@ void ComicDownloader::ingestLocalArchive(const QString& issueIdIn, const QString
                                           const QString& archivePathIn)
 {
     const QString id = issueIdIn.trimmed();
+    if (DownloadMediaPaths::moving()) {
+        emit failed(id, tr("Downloads are moving. Try again when the move finishes."));
+        return;
+    }
     const QString archivePath = QDir::cleanPath(archivePathIn);
     const QFileInfo archive(archivePath);
     const QString absSource = archive.absoluteFilePath();
@@ -775,6 +796,10 @@ void ComicDownloader::ingestAssembledEdition(const QString& editionIdIn, const Q
                                              const QList<int>& groups)
 {
     const QString id = editionIdIn.trimmed();
+    if (DownloadMediaPaths::moving()) {
+        emit failed(id, tr("Downloads are moving. Try again when the move finishes."));
+        return;
+    }
     const QString stagingDir = QDir::cleanPath(stagingDirIn);
     if (id.isEmpty()) {
         emit failed(id, QStringLiteral("empty edition id"));
@@ -868,6 +893,10 @@ void ComicDownloader::downloadIssueTorrent(const QString& issueIdIn, const QStri
                                             const QString& query)
 {
     const QString id = issueIdIn.trimmed();
+    if (DownloadMediaPaths::moving()) {
+        emit failed(id, tr("Downloads are moving. Try again when the move finishes."));
+        return;
+    }
     if (id.isEmpty() || query.trimmed().isEmpty()) {
         emit failed(id, QStringLiteral("empty issue id / torrent query"));
         return;
@@ -927,6 +956,10 @@ void ComicDownloader::downloadTorrentSource(const QString& issueIdIn, const QStr
                                             const QString& magnetUri)
 {
     const QString id = issueIdIn.trimmed();
+    if (DownloadMediaPaths::moving()) {
+        emit failed(id, tr("Downloads are moving. Try again when the move finishes."));
+        return;
+    }
     if (id.isEmpty() || infoHash.trimmed().isEmpty()) {
         emit failed(id, QStringLiteral("empty issue id / infoHash"));
         return;
@@ -960,6 +993,10 @@ void ComicDownloader::downloadTorrentEdition(const QString& issueIdIn, const QSt
                                              const QString& infoHash, const QString& magnetUri)
 {
     const QString id = issueIdIn.trimmed();
+    if (DownloadMediaPaths::moving()) {
+        emit failed(id, tr("Downloads are moving. Try again when the move finishes."));
+        return;
+    }
     if (id.isEmpty() || infoHash.trimmed().isEmpty()) {
         emit failed(id, QStringLiteral("empty edition id / infoHash"));
         return;
@@ -1004,6 +1041,10 @@ void ComicDownloader::downloadIssue(const QString& issueIdIn, const QString& pos
                                     const QString& issueLabel, double expectedBytes)
 {
     const QString id = issueIdIn.trimmed();
+    if (DownloadMediaPaths::moving()) {
+        emit failed(id, tr("Downloads are moving. Try again when the move finishes."));
+        return;
+    }
     if (id.isEmpty() || postUrl.isEmpty()) { emit failed(id, QStringLiteral("empty issue id / post url")); return; }
     if (isDownloaded(id)) { emit finished(id); return; }
     if (m_active && m_active->id == id) return;
@@ -1059,6 +1100,13 @@ void ComicDownloader::downloadIssue(const QString& issueIdIn, const QString& pos
             }
             return;
         }
+    }
+
+    // Local adoption and existing jobs above remain available with the source
+    // disabled. Every new GetComics transfer, including reader retries, gates here.
+    if (m_sourceEnabledCheck && !m_sourceEnabledCheck()) {
+        emit failed(id, QStringLiteral("Enable GetComics in Extensions to download this comic."));
+        return;
     }
 
     // Resolve the FULL signed DOWNLOAD NOW href from the release post.
@@ -1194,6 +1242,8 @@ QVariantMap ComicDownloader::deleteIssue(const QString& issueIdIn)
     if (it == m_index.end())
         return DownloadFileOps::toMap({true, QString()});
     const Entry& e = it.value();
+    if (DownloadMediaPaths::moving() || DownloadMediaPaths::waitingForDrive(e.usesArchive() ? e.archive : e.dir))
+        return DownloadFileOps::toMap({false, tr("The download location is unavailable.")});
     // An archive row's payload is the archive FILE; a dir may still be set
     // alongside it mid-migration (Task 7's first-boot pass), so remove both
     // when present rather than branching to exactly one. Dir (the reclaimable
@@ -1203,8 +1253,21 @@ QVariantMap ComicDownloader::deleteIssue(const QString& issueIdIn)
     // -- still fully valid and openable -- instead of the reverse order,
     // where a failed dir removal after the archive is already gone leaves a
     // row that looks downloaded but opens to nothing.
-    auto result = !e.dir.isEmpty() ? DownloadFileOps::removeTree(e.dir)
-                                    : DownloadFileOps::Result{true, QString()};
+    auto result = DownloadFileOps::Result{true, QString()};
+    if (DownloadMediaPaths::enabled() && DownloadMediaPaths::isWithin(DownloadMediaPaths::root(), e.dir)) {
+        for (const QString &name : e.files) {
+            const QString path = QDir(e.dir).filePath(name);
+            if (!DownloadMediaPaths::destinationParentsSafe(e.dir, path))
+                return DownloadFileOps::toMap({false, tr("A download path is no longer safe to remove.")});
+            result = DownloadFileOps::removeFile(path);
+            if (!result.success)
+                break;
+        }
+        if (result.success)
+            QDir().rmdir(e.dir);
+    } else if (!e.dir.isEmpty()) {
+        result = DownloadFileOps::removeTree(e.dir);
+    }
     if (result.success && e.usesArchive()) {
         const auto archiveResult = DownloadFileOps::removeFile(e.archive);
         if (!archiveResult.success) result = archiveResult;
@@ -1587,8 +1650,11 @@ void ComicDownloader::finalizeSafeMove(InFlight& f, const MangaTankoban::CbzProb
     Q_UNUSED(probe);   // its entries are re-read from the post-move reprobe -- the archive
                        // hasn't moved yet, so re-probing after is what proves the MOVED bytes
                        // (not just the pre-move bytes) are what actually got indexed.
-    const QString canonical = issueArchivePath(f.seriesId, f.label, f.id);
-    QDir().mkpath(QFileInfo(canonical).absolutePath());
+    const QString canonical = publicationPath(f);
+    if (canonical.isEmpty() || !QDir().mkpath(QFileInfo(canonical).absolutePath())) {
+        failPreservingSource(f, tr("The download drive is unavailable."));
+        return;
+    }
     // NOT ".part" -- writeImagesAtomic() (the fallback repack) uses that exact
     // temp name for the same canonical path, so a distinct suffix lets
     // post-crash forensics tell which stage left a file behind.
@@ -1602,13 +1668,13 @@ void ComicDownloader::finalizeSafeMove(InFlight& f, const MangaTankoban::CbzProb
     // before onFinished() ever called this function, so a verified
     // replacement is already in hand before this stale litter is touched --
     // the same rule completeSafeMove() applies for a stale CANONICAL.
-    if (QFileInfo(tempCanonical).isFile()) {
+    if (!DownloadMediaPaths::enabled() && QFileInfo(tempCanonical).isFile()) {
         qWarning() << "[ComicDownloader] clearing a leftover .incoming from a prior attempt"
                    << tempCanonical << QFileInfo(tempCanonical).size() << "bytes";
         QFile::remove(tempCanonical);
     }
 
-    if (QFile::rename(f.archivePath, tempCanonical)) {
+    if (!DownloadMediaPaths::enabled() && QFile::rename(f.archivePath, tempCanonical)) {
         // Same-volume rename -- the overwhelmingly common case (the HTTP
         // staging path and the library both live under AppDataLocation) --
         // is an OS metadata op, near-instant even for a multi-GB file.
@@ -1636,11 +1702,16 @@ void ComicDownloader::finalizeSafeMove(InFlight& f, const MangaTankoban::CbzProb
     runPackOrCopyThenPublish(serial,
         [source, tempCanonical]() -> PackOrCopyResult {
             PackOrCopyResult result;
-            result.cleanupPathsOnDiscard = {source, tempCanonical};
-            if (!QFile::copy(source, tempCanonical)) {
+            const bool managed = DownloadMediaPaths::enabled();
+            if (!managed)
+                result.cleanupPathsOnDiscard = {source, tempCanonical};
+            if (!(managed ? DownloadMediaPaths::copyVerified(source, tempCanonical)
+                          : QFile::copy(source, tempCanonical))) {
                 result.error = QStringLiteral("cannot stage archive for library move (copy failed)");
                 return result;
             }
+            if (managed)
+                result.cleanupPathsOnDiscard.append(tempCanonical);
             result.ok = true;
             result.probe = MangaTankoban::CbzArchive::probe(tempCanonical, &result.error);
             return result;
@@ -1663,8 +1734,12 @@ void ComicDownloader::completeSafeMove(InFlight& f, const QString& tempCanonical
         return;
     }
 
-    const QString canonical = issueArchivePath(f.seriesId, f.label, f.id);
-    if (QFileInfo(canonical).isFile()) {
+    const QString canonical = publicationPath(f);
+    if (canonical.isEmpty()) {
+        failPreservingSource(f, tr("The download drive is unavailable."));
+        return;
+    }
+    if (!DownloadMediaPaths::enabled() && QFileInfo(canonical).isFile()) {
         // A pre-existing canonical is stale litter by definition here -- we
         // ALREADY hold a fresh, independently-verified replacement (reprobe
         // just passed). Log before removing so a forensic trail survives.
@@ -1979,8 +2054,11 @@ void ComicDownloader::finalizeExtract(InFlight& f)
         return;
     }
 
-    const QString canonical = issueArchivePath(f.seriesId, f.label, f.id);
-    QDir().mkpath(QFileInfo(canonical).absolutePath());
+    const QString canonical = publicationPath(f);
+    if (canonical.isEmpty() || !QDir().mkpath(QFileInfo(canonical).absolutePath())) {
+        failPreservingSource(f, tr("The download drive is unavailable."));
+        return;
+    }
 
     // Pack via writeImagesAtomic (a real CBZ, not loose page_NNN.ext files)
     // OFF the GUI thread — a multi-GB repack synchronously would recreate
@@ -1996,13 +2074,13 @@ void ComicDownloader::finalizeExtract(InFlight& f)
     runPackOrCopyThenPublish(serial,
         [extractTmp, originalArchive, canonical, rel]() -> PackOrCopyResult {
             PackOrCopyResult result;
-            result.cleanupPathsOnDiscard = {extractTmp, originalArchive, canonical};
+            result.cleanupPathsOnDiscard = {extractTmp, originalArchive};
             // A pre-existing canonical at this point is stale litter — this
             // worker holds a freshly-collected source about to be verified.
             // writeImagesAtomic() hard-refuses to replace an existing file,
             // so remove it first (log path+size for a forensic trail), the
             // same rule completeSafeMove() applies for the fast path.
-            if (QFileInfo(canonical).isFile()) {
+            if (!DownloadMediaPaths::enabled() && QFileInfo(canonical).isFile()) {
                 qWarning() << "[ComicDownloader] replacing stale leftover canonical (repack)"
                            << canonical << QFileInfo(canonical).size() << "bytes";
                 if (!QFile::remove(canonical)) {
@@ -2015,6 +2093,7 @@ void ComicDownloader::finalizeExtract(InFlight& f)
                 result.error = packError;
                 return result;
             }
+            result.cleanupPathsOnDiscard.append(canonical);
             result.ok = true;
             result.probe = MangaTankoban::CbzArchive::probe(canonical, &result.error);
             return result;
@@ -2518,8 +2597,11 @@ void ComicDownloader::publishAssembledEdition(InFlight& f)
     // (which would silently reorder pages and desync the group mapping). The
     // post-pack probe here is a readability GATE only, not the source of the
     // page list.
-    const QString canonical = issueArchivePath(f.seriesId, f.label, f.id);
-    QDir().mkpath(QFileInfo(canonical).absolutePath());
+    const QString canonical = publicationPath(f);
+    if (canonical.isEmpty() || !QDir().mkpath(QFileInfo(canonical).absolutePath())) {
+        failPreservingSource(f, tr("The download drive is unavailable."));
+        return;
+    }
 
     f.packing = true;
     f.serial = ++m_nextJobSerial;
@@ -2530,13 +2612,13 @@ void ComicDownloader::publishAssembledEdition(InFlight& f)
     runPackOrCopyThenPublish(serial,
         [canonical, root, orderedFiles]() -> PackOrCopyResult {
             PackOrCopyResult result;
-            result.cleanupPathsOnDiscard = {canonical, root};
+            result.cleanupPathsOnDiscard = {root};
             // A pre-existing canonical is stale litter -- all validation above
             // already passed, so this worker holds a verified-source about to
             // be packed. writeImagesAtomic() hard-refuses to replace an
             // existing file, so remove it (logged) first, same rule the Task 4
             // paths apply.
-            if (QFileInfo(canonical).isFile()) {
+            if (!DownloadMediaPaths::enabled() && QFileInfo(canonical).isFile()) {
                 qWarning() << "[ComicDownloader] replacing stale leftover canonical (assembled)"
                            << canonical << QFileInfo(canonical).size() << "bytes";
                 if (!QFile::remove(canonical)) {
@@ -2549,6 +2631,7 @@ void ComicDownloader::publishAssembledEdition(InFlight& f)
                 result.error = packError;
                 return result;
             }
+            result.cleanupPathsOnDiscard.append(canonical);
             result.ok = true;
             result.probe = MangaTankoban::CbzArchive::probe(canonical, &result.error);
             return result;
@@ -2889,6 +2972,32 @@ QVariantList ComicDownloader::downloadedIssues() const
     for (auto it = m_index.constBegin(); it != m_index.constEnd(); ++it)
         out.append(downloadedIssueRow(it.key(), it.value()));
     return out;
+}
+
+QList<DownloadLocation::Item> ComicDownloader::managedDownloadItems() const
+{
+    QList<DownloadLocation::Item> result;
+    for (auto it = m_index.cbegin(); it != m_index.cend(); ++it) {
+        const Entry &entry = it.value();
+        const QString label = entry.label == it.key() ? QString() : entry.label;
+        if (entry.usesArchive()) {
+            result.append({entry.archive, DownloadMediaPaths::comicPath(
+                entry.seriesTitle, label, QFileInfo(entry.archive).suffix()), {}});
+        } else if (!entry.files.isEmpty()) {
+            result.append({entry.dir, DownloadMediaPaths::comicPath(entry.seriesTitle, label), entry.files});
+        }
+    }
+    return result;
+}
+
+void ComicDownloader::refreshDownloadPaths()
+{
+    for (Entry &entry : m_index) {
+        entry.dir = DownloadMediaPaths::resolved(entry.dir);
+        entry.archive = DownloadMediaPaths::resolved(entry.archive);
+    }
+    saveIndex();
+    emit downloadPathsChanged();
 }
 
 QVariantMap ComicDownloader::packVolumes(const QString& seriesId) const

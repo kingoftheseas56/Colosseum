@@ -21,14 +21,14 @@ spec.loader.exec_module(package)
 
 class PackagingBoundary(unittest.TestCase):
     def release_inputs(self, root):
-        identity = dict(version='1.3.0', source_sha='a' * 40)
+        identity = dict(version='1.4.0', source_sha='a' * 40)
         receipt = root / 'build-receipt.json'
-        receipt.write_text(json.dumps(dict(source_sha=identity['source_sha'])))
+        receipt.write_text(json.dumps(identity))
         (root / 'BUILD-IDENTITY.json').write_text(json.dumps(identity))
         resources = root / 'Colosseum.app/Contents/Resources'
         resources.mkdir(parents=True)
         (resources / 'BUILD-IDENTITY.json').write_text(json.dumps(identity))
-        archive = root / 'Colosseum-1.3.0-macOS-arm64-preview.zip'
+        archive = root / 'Colosseum-1.4.0-macOS-arm64-preview.zip'
         archive.write_bytes(b'checked archive')
         return receipt, archive
 
@@ -51,7 +51,7 @@ class PackagingBoundary(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             receipt, archive = self.release_inputs(root)
-            dmg = root / 'Colosseum-1.3.0-macOS-arm64.dmg'
+            dmg = root / 'Colosseum-1.4.0-macOS-arm64.dmg'
             with patch.object(package, 'run') as run, \
                     patch.object(package, 'verify_archive') as audit, \
                     patch.object(package, 'create_dmg', side_effect=lambda app, image: image.write_bytes(b'dmg')) as create, \

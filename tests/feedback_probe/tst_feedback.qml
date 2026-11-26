@@ -207,13 +207,19 @@ Item {
             wait(0);
             const trackers = findChild(bar, "topBarTrackersButton_Theatre");
             const wallpaper = findChild(bar, "topBarWallpaperButton");
-            verify(trackers && trackers.visible, "Trackers is available from the world top bar");
-            verify(wallpaper && wallpaper.visible, "Wallpaper is back in the top bar");
+            if (data.tag === "android") {
+                verify(trackers === null, "Android top bar carries no Trackers button (Profile tab owns it)");
+                verify(wallpaper === null, "Android top bar carries no Wallpaper button (Profile tab owns it)");
+            } else {
+                verify(trackers && trackers.visible, "Trackers is available from the world top bar");
+                verify(wallpaper, "Wallpaper action exists");
+                compare(wallpaper.visible, false);
+                trackerSpy.target = bar; trackerSpy.clear();
+                bar.focusTrackersButton();
+                keyClick(Qt.Key_Return);
+                compare(trackerSpy.count, 1, "The restored Trackers control still opens its owner");
+            }
             verify(findChild(bar, "feedbackEntry") === null, "Feedback is reached through the taskbar");
-            trackerSpy.target = bar; trackerSpy.clear();
-            bar.focusTrackersButton();
-            keyClick(Qt.Key_Return);
-            compare(trackerSpy.count, 1, "The restored Trackers control still opens its owner");
             bar.activeMedium = "";
             wait(0);
             verify(findChild(bar, "colosseumTopbarUpdateButton").visible, "Updates is back on Home");
@@ -223,6 +229,29 @@ Item {
             const vault = createTemporaryObject(vaultComponent, parent, {width:1200, height:800});
             verify(vault);
             verify(findChild(vault, "vaultFeedbackEntry") === null, "Vault uses the same taskbar feedback entry");
+        }
+
+        // The APK ships qml/TopBar.qml, not +android/TopBar.qml (native/cmake/android.cmake
+        // _android_desktop_chrome), so the shipped bar must drop Sync and Wallpaper itself.
+        function test_shipped_topbar_on_android_has_no_sync_or_wallpaper() {
+            const shell = createTemporaryObject(desktopTopBarHost, parent, {width:1700, height:96});
+            verify(shell);
+            const bar = findChild(shell, "testTopBar");
+            bar.androidHost = true;
+            bar.trackersEnabled = true;
+            bar.activeMedium = "Theatre";
+            wait(0);
+            const trackers = findChild(bar, "topBarTrackersButton_Theatre");
+            verify(trackers, "Trackers item exists in the shipped bar");
+            compare(trackers.visible, false, "Sync is not in the Android top bar");
+            const wallpaper = findChild(bar, "topBarWallpaperButton");
+            verify(!wallpaper || !wallpaper.visible, "Wallpaper is not in the Android top bar");
+            const search = findChild(bar, "topBarSearch");
+            verify(search && search.visible, "Search stays");
+            bar.activeMedium = "";
+            wait(0);
+            compare(findChild(bar, "topBarTrackersButton").visible, false, "No Sync on Home either");
+            verify(findChild(bar, "colosseumTopbarUpdateButton").visible, "Update stays on Home");
         }
 
         function test_android_topbar_keeps_search_but_hides_desktop_window_controls() {

@@ -118,9 +118,6 @@ Button {
             textFormat: Text.PlainText
         }
     }
-    ToolTip.visible: card.hovered && collectionTitle.truncated
-    ToolTip.text: card.collection.name
-    ToolTip.delay: 500
     HoverHandler { cursorShape: Qt.PointingHandCursor }
     Keys.onReturnPressed: card.clicked()
     Keys.onEnterPressed: card.clicked()

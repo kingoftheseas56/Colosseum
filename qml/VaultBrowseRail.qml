@@ -14,6 +14,7 @@
 import QtQuick
 import QtQuick.Window
 import QtQuick.Controls
+import QtQuick.Controls.Basic as Basic
 
 Item {
     id: rail
@@ -24,6 +25,8 @@ Item {
     activeFocusOnTab: true
 
     property var roots: []                 // VaultLibrary.rootsDetail() rows: {path,name,available,itemCount,fileCount}
+    property var servers: []
+    property string selectedServerId: ""
     property bool expanded: false
     property string selectedRootPath: ""
     property bool hiddenActive: false
@@ -42,6 +45,7 @@ Item {
     property var scanIgnore: []
 
     signal rootSelected(string path)
+    signal serverSelected(string id)
     signal hiddenRequested()
     signal addRequested()
     signal toggleRequested()
@@ -180,9 +184,85 @@ Item {
                     anchors.fill: parent
                     pointerEnabled: false
                     accessibleName: rail.expanded ? "Collapse storage rail" : "Expand storage rail"
-                    tooltipText: accessibleName
-                    tooltipHovered: toggleMa.containsMouse
                     onTriggered: rail.toggleRequested()
+                }
+            }
+        }
+
+        Text {
+            visible: rail.servers.length > 0 && rail.expanded
+            width: col.width
+            text: qsTr("Home servers")
+            color: theme.inkDimmer
+            font.family: theme.ui
+            font.pixelSize: 11
+        }
+        Repeater {
+            model: rail.servers
+            delegate: Basic.Button {
+                id: serverRow
+                required property var modelData
+                objectName: "vaultBrowseRailServer_" + modelData.id
+                width: col.width
+                height: 52
+                Accessible.name: modelData.name
+                onClicked: rail.serverSelected(serverRow.modelData.id)
+                background: Rectangle {
+                    radius: 6
+                    color: rail.selectedServerId === serverRow.modelData.id ? theme.glassHi
+                        : serverRow.hovered ? theme.glassTint : "transparent"
+                    border.width: serverRow.activeFocus ? 1 : 0
+                    border.color: theme.gold
+                }
+                contentItem: Item {
+                    Item {
+                        id: serverIcon
+                        anchors.verticalCenter: parent.verticalCenter
+                        x: rail.expanded ? 8 : (parent.width - width) / 2
+                        width: 26
+                        height: 26
+                        readonly property string provider: serverRow.modelData.provider || ""
+                        readonly property bool branded: ["jellyfin", "emby", "plex"].indexOf(provider) >= 0
+                        Image {
+                            objectName: "vaultBrowseRailServerIcon_" + serverRow.modelData.id
+                            anchors.fill: parent
+                            visible: serverIcon.branded
+                            source: serverIcon.branded ? "../assets/icons/servers/" + serverIcon.provider + ".svg" : ""
+                            fillMode: Image.PreserveAspectFit
+                            sourceSize.width: 52
+                            sourceSize.height: 52
+                        }
+                        Text {
+                            anchors.centerIn: parent
+                            visible: !serverIcon.branded
+                            text: "▤"
+                            color: theme.gold
+                            font.pixelSize: 23
+                        }
+                    }
+                    Column {
+                        visible: rail.expanded
+                        anchors.left: serverIcon.right; anchors.leftMargin: 11
+                        anchors.right: parent.right; anchors.rightMargin: 8
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 4
+                        Text {
+                            objectName: "vaultBrowseRailServerName_" + serverRow.modelData.id
+                            width: parent.width
+                            text: serverRow.modelData.name
+                            textFormat: Text.PlainText
+                            elide: Text.ElideRight
+                            color: theme.ink
+                            font.family: theme.ui; font.pixelSize: 13
+                        }
+                        Text {
+                            width: parent.width
+                            text: serverRow.modelData.titleCount === 1 ? qsTr("1 title")
+                                : qsTr("%1 titles").arg(serverRow.modelData.titleCount)
+                            color: theme.inkDimmer
+                            font.family: theme.ui; font.pixelSize: 11
+                        }
+                    }
                 }
             }
         }
@@ -229,12 +309,6 @@ Item {
                                                           || rootRow.watcherDegraded
                 width: col.width
                 height: 52
-                ToolTip.visible: rowMa.containsMouse && !overflowMa.containsMouse
-                    && !removeMa.containsMouse && (!rail.expanded || rootRow.hasNeedsAttention)
-                ToolTip.text: (rootRow.modelData.name || qsTr("Storage"))
-                    + (rootRow.available ? qsTr(" · Available") : qsTr(" · Drive disconnected"))
-                    + (rootRow.hasNeedsAttention ? qsTr(" · Needs attention") : "")
-                ToolTip.delay: 350
 
                 Rectangle {
                     anchors.fill: parent
@@ -344,9 +418,6 @@ Item {
                 // overlap; opens the shared menu anchored at this row.
                 Item {
                     id: rowOverflow
-                    ToolTip.visible: overflowMa.containsMouse
-                    ToolTip.text: qsTr("Storage actions")
-                    ToolTip.delay: 350
                     objectName: "vaultBrowseRailRowOverflow"
                     visible: rail.expanded
                              && (rowMa.containsMouse || overflowMa.containsMouse
@@ -377,9 +448,6 @@ Item {
                 // (hide + republish — the files on the Downloads lane are never touched).
                 Item {
                     id: downloadsRemove
-                    ToolTip.visible: removeMa.containsMouse
-                    ToolTip.text: qsTr("Remove Downloads from Vault")
-                    ToolTip.delay: 350
                     objectName: "vaultBrowseRailDownloadsRemove"
                     visible: rail.expanded && rootRow.isDownloads
                              && (rowMa.containsMouse || removeMa.containsMouse || rootRow.activeFocus)
@@ -465,8 +533,6 @@ Item {
                 anchors.fill: parent
                 pointerEnabled: false
                 accessibleName: "Open hidden Vault items"
-                tooltipText: rail.expanded ? "" : accessibleName
-                tooltipHovered: hiddenMa.containsMouse
                 onTriggered: rail.hiddenRequested()
             }
         }
@@ -520,8 +586,6 @@ Item {
                 anchors.fill: parent
                 pointerEnabled: false
                 accessibleName: "Add Vault storage"
-                tooltipText: rail.expanded ? "" : accessibleName
-                tooltipHovered: addMa.containsMouse
                 onTriggered: rail.addRequested()
             }
         }

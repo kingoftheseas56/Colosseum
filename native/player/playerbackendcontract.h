@@ -3,6 +3,14 @@
 
 #include <QString>
 #include <QVariantMap>
+#include <QUrl>
+
+struct PlayerExternalSubtitle {
+    QUrl url;
+    QString title;
+    QString language;
+    QString format;
+};
 
 // Host-facing operations every playback backend must provide. The concrete
 // backend remains a QQuickItem/QML type, but shared host code can rely on this
@@ -14,6 +22,12 @@ public:
 
     virtual QVariantMap capabilities() const = 0;
     virtual void loadSource(const QString &url, const QVariantMap &headers) = 0;
+    virtual void loadSourceWithSubtitles(const QString &url, const QVariantMap &headers,
+                                         const QList<PlayerExternalSubtitle> &subtitles)
+    {
+        Q_UNUSED(subtitles);
+        loadSource(url, headers);
+    }
     virtual void stopPlayback() = 0;
 
     // Android uses these when the Activity/surface is recreated and when audio

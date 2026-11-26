@@ -261,6 +261,7 @@ BuildInput gatherInput(VaultIndex* index, VaultConfig* config, QObject* audioboo
 {
     BuildInput in;
     in.cover = cover;
+    const auto personal = config ? config->personalPaths() : VaultLocation::PersonalPaths{};
     if (index && config) {
         QHash<QString, bool> rootOk; // config-side only; the folder-exists stat happens on the worker
         auto rootEligible = [&](const QString& root) {
@@ -280,7 +281,7 @@ BuildInput gatherInput(VaultIndex* index, VaultConfig* config, QObject* audioboo
                     continue;
                 if (kind == QLatin1String("video") && r.admissionVerdict != QLatin1String("Admitted"))
                     continue;
-                if (!rootEligible(r.rootPath) || config->isHidden(r.id))
+                if (!rootEligible(r.rootPath) || config->isHidden(r.id) || personal.excludes(r.path))
                     continue;
                 VRow v;
                 v.row = r;
@@ -311,14 +312,16 @@ BuildInput gatherInput(VaultIndex* index, VaultConfig* config, QObject* audioboo
             a.author = m.value(QStringLiteral("author")).toString().trimmed();
             QMetaObject::invokeMethod(audiobooks, "localFiles", Qt::DirectConnection,
                                       Q_RETURN_ARG(QStringList, a.files), Q_ARG(QString, id));
-            in.audiobooks.append(a);
+            a.files.removeIf([&](const QString& path) { return personal.excludes(path); });
+            if (!a.files.isEmpty()) in.audiobooks.append(a);
         }
     }
     return in;
 }
 
 // ── Worker thread: stats + projection. Pure function of its input. ──────────────────────
-std::shared_ptr<DlnaSnapshot> buildSnapshot(const BuildInput& in)
+std::shared_ptr<DlnaSnapshot> buildSnapshot(
+    const BuildInput& in, const VaultLocation::PersonalPaths& personal)
 {
     auto snap = emptySnapshot();
     Builder b(*snap, in.cover);
@@ -351,7 +354,7 @@ std::shared_ptr<DlnaSnapshot> buildSnapshot(const BuildInput& in)
         if (!fi.isFile() || fi.size() != r.size)
             continue;
         const QString canonical = fi.canonicalFilePath();
-        if (canonical.isEmpty())
+        if (canonical.isEmpty() || personal.excludes(canonical))
             continue;
         Cand c;
         c.row = r;
@@ -560,7 +563,7 @@ std::shared_ptr<DlnaSnapshot> buildSnapshot(const BuildInput& in)
                 if (!fi.isFile())
                     continue;
                 const QString canonical = fi.canonicalFilePath();
-                if (canonical.isEmpty())
+                if (canonical.isEmpty() || personal.excludes(canonical))
                     continue;
                 const QString key = dedupeKey(canonical);
                 if (seenPaths.contains(key))
@@ -598,6 +601,13 @@ std::shared_ptr<DlnaSnapshot> buildSnapshot(const BuildInput& in)
         }
     }
 
+    if (!personal.isEmpty()) {
+        for (auto& item : snap->items) {
+            if (personal.excludesPhysical(item.coverPath))
+                item.coverPath.clear();
+            item.subtitlePersonal = personal.excludesPhysical(item.subtitleCandidatePath());
+        }
+    }
     snap->itemCount = snap->items.size();
     return snap;
 }
@@ -649,8 +659,15 @@ void DlnaLibrary::start()
     m_started = true;
     if (m_index)
         m_connections << connect(m_index, &VaultIndex::changed, this, &DlnaLibrary::scheduleRebuild);
-    if (m_config)
+    if (m_config) {
         m_connections << connect(m_config, &VaultConfig::changed, this, &DlnaLibrary::scheduleRebuild);
+        m_connections << connect(m_config, &VaultConfig::personalPathsChanged, this, [this] {
+            ++m_epoch; // discard a background snapshot built with older choices
+            // Revoke old URLs immediately while the worker checks physical paths and sidecars.
+            publish(emptySnapshot(), true);
+            scheduleRebuild();
+        });
+    }
     if (m_vaultLibrary
         && m_vaultLibrary->metaObject()->indexOfSignal(QMetaObject::normalizedSignature("changed()")) >= 0)
         m_connections << connect(m_vaultLibrary, SIGNAL(changed()), this, SLOT(scheduleRebuild()));
@@ -701,7 +718,10 @@ void DlnaLibrary::rebuildNow()
                              .arg(input.rows.size()).arg(input.audiobooks.size());
     m_building = true;
     m_jobEpoch = m_epoch;
-    m_watcher.setFuture(QtConcurrent::run([input = std::move(input)]() { return buildSnapshot(input); }));
+    const auto personal = m_config ? m_config->personalPaths() : VaultLocation::PersonalPaths{};
+    m_watcher.setFuture(QtConcurrent::run([input = std::move(input), personal]() {
+        return buildSnapshot(input, personal);
+    }));
 }
 
 void DlnaLibrary::onBuildFinished()

@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 // ImdbCatalog — read-only seam onto the baked IMDb index (data/imdb_catalog.db,
 // built by scripts/theatre_brain/build_imdb_db.py). The movies/shows twin of
 // MalCatalog: QML paints, C++ decides. Allowlisted keys only, every value bound,
@@ -56,6 +57,15 @@ public:
     // Offline normalized-title identity lookup. The baked IMDb schema has no
     // plot corpus, so returned synopsis is intentionally empty.
     Q_INVOKABLE QVariantList matchByTitle(const QString& title, int year = 0) const;
+    // The two matching helpers matchByTitle uses, shared with the Vault's Cinemeta fallback so
+    // one rule decides both. numeralVariant: "godfather part 3" <-> "godfather part iii" (1-10,
+    // trailing or after "part"), empty when none. subtitleHeads: a catalogue title's text before
+    // its first ':' (or before " or:"), normalized.
+    static QString numeralVariant(const QString& normalizedTitle);
+    static QStringList subtitleHeads(const QString& catalogueTitle);
+    // Test seam: replaces the remote read, so the content-API branch can be driven without a server.
+    void setRemoteReaderForTest(std::function<QVariant(const QString&, const QVariantList&)> reader)
+    { m_remoteReaderForTest = std::move(reader); }
     // Cheap prefix search over the baked normalized title column. Fully offline;
     // manual Identify may fall through to Cinemeta only when this returns empty.
     Q_INVOKABLE QVariantList search(const QString& text, int limit = 20) const;
@@ -79,6 +89,10 @@ signals:
 
 private:
     bool openAt(const QString& dbPath);
+    QVariant remoteRead(const QString& method, const QVariantList& args) const;
+    QVariantList exactMatches(const QString& key, int year) const;
+    QVariantList prefixMatches(const QString& key, int limit) const;
+    std::function<QVariant(const QString&, const QVariantList&)> m_remoteReaderForTest;
 
     CatalogRemote* m_remote;
     QSqlDatabase m_db;

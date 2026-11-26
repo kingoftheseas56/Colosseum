@@ -33,6 +33,7 @@
 #include <QVariantMap>
 
 #include "account/ProfilePaths.h"
+#include "engine/AudiobookCatalog.h"
 #include "stream/SmartPlayBridge.h"
 #include "trackers/TrackerConnectionStore.h"
 #include "trackers/TrackerDeliveryStore.h"
@@ -106,6 +107,11 @@ public slots:
     {
         if (!engine)
             return;
+        const QString audiobookBake = qEnvironmentVariable("COLOSSEUM_AUDIOBOOK_CATALOG_PATH");
+        if (!audiobookBake.isEmpty()) {
+            engine->rootContext()->setContextProperty(QStringLiteral("AudiobookCatalog"),
+                new AudiobookCatalog(audiobookBake, engine));
+        }
         engine->rootContext()->setContextProperty(QStringLiteral("SmartPlay"), new SmartPlayBridge(engine));
         static QTemporaryDir smartPlayProfile(QDir::tempPath() + "/colosseum-smart-play-test-XXXXXX");
         engine->rootContext()->setContextProperty(QStringLiteral("SmartPlayTestSettingsUrl"),

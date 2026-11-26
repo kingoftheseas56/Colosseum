@@ -5,6 +5,7 @@
 #include "engine/MalCatalog.h"
 #include "engine/VaultIdentifier.h"
 #include "engine/VaultIndex.h"
+#include "engine/VaultKit.h"
 
 #include <QSqlDatabase>
 #include <QSqlQuery>
@@ -42,7 +43,9 @@ bool buildImdbDuneFixture(const QString& path)
                 ok = execSql(q, QStringLiteral(
                     "INSERT INTO title VALUES "
                     "('tt0000001','movie','Dune','dune',1984,0,137,'[\"Sci-Fi\"]',7.1,6000,0,'en',0),"
-                    "('tt0000002','movie','Dune','dune',2021,0,155,'[\"Sci-Fi\",\"Adventure\"]',8.1,30000,0,'en',0)"));
+                    "('tt0000002','movie','Dune','dune',2021,0,155,'[\"Sci-Fi\",\"Adventure\"]',8.1,30000,0,'en',0),"
+                    "('tt0062622','movie','2001: A Space Odyssey','%1',1968,0,149,'[\"Sci-Fi\"]',8.3,30000,0,'en',0)")
+                    .arg(VaultKit::normalizedTitle(QStringLiteral("2001: A Space Odyssey"))));
             }
             db.close();
         }
@@ -129,6 +132,11 @@ private slots:
     // ── Vault ux uplift S16: the census's parsed year disambiguates remakes ──
     void duneRemakeYearAdoptsTheRightRow();
     void yearlessDuneStaysHonestlyAmbiguous();
+    void numericTitleKeepsItsLeadingYearAndMatchesReleaseYear();
+    void bookMatchRequiresActualEmbeddedTitleInsteadOfFilenameFallback();
+    void conflictingBookTitlesOrUnprovenGroupMembersRefuseAutoMatch();
+    void manualPdfMatchSurvivesAutoPassAndExplicitSuppressionSemantics();
+    void manualFlatShowTypePersistsWithoutCatalogueAndRejectsUnknownType();
 
 private:
     QTemporaryDir m_dir;
@@ -171,6 +179,7 @@ void VaultIdentifierTest::duneRemakeYearAdoptsTheRightRow()
     QCOMPARE(match.source, QStringLiteral("IMDB"));
     QCOMPARE(match.sourceId, QStringLiteral("imdb:tt0000002")); // the 2021 Dune
     QCOMPARE(match.year, 2021);
+    QCOMPARE(match.type, QStringLiteral("movie"));
     // Phase-4 G1: the adopted IMDb facts ride the match AND the group's rows (applyGroup).
     QCOMPARE(match.rating, 8.1);
     QCOMPARE(match.genres, QStringLiteral("Sci-Fi · Adventure"));
@@ -181,12 +190,52 @@ void VaultIdentifierTest::duneRemakeYearAdoptsTheRightRow()
     QCOMPARE(adopted.size(), 1);
     QCOMPARE(adopted.first().identityRating, 8.1);
     QCOMPARE(adopted.first().identityGenres, QStringLiteral("Sci-Fi · Adventure"));
+    QCOMPARE(adopted.first().identityType, QStringLiteral("movie"));
 
     // Un-identify clears them (no stale billboard on a filename-honest tile).
     QVERIFY(identifier.unidentifyGroup(row.groupKey));
     const QList<VaultIndex::FileRow> cleared = index.rowsForGroup(row.groupKey);
     QCOMPARE(cleared.first().identityRating, 0.0);
     QVERIFY(cleared.first().identityGenres.isEmpty());
+    QVERIFY(cleared.first().identityType.isEmpty());
+}
+
+void VaultIdentifierTest::numericTitleKeepsItsLeadingYearAndMatchesReleaseYear()
+{
+    QTemporaryDir tmp; VaultIndex index(tmp.filePath(QStringLiteral("numeric-title.sqlite"))); QVERIFY(index.isOpen());
+    ImdbCatalog imdb(m_imdbDunePath); QVERIFY(imdb.ready());
+    VaultIdentifier identifier(&index, nullptr, nullptr, &imdb);
+    const QString raw = QStringLiteral("2001 A Space Odyssey (1968)");
+    auto row = fixtureRow(QStringLiteral("vault:odyssey"), VaultKit::cleanMediaFolderTitle(raw));
+    row.kind = QStringLiteral("video"); row.parsedYear = VaultKit::parsedTitleYear(raw);
+    QCOMPARE(row.groupTitle, QStringLiteral("2001 A Space Odyssey")); QCOMPARE(row.parsedYear, 1968);
+    QVERIFY(index.upsert(row));
+    auto match = identifier.matchGroup(row.groupKey);
+    QVERIFY(match.adopted); QCOMPARE(match.sourceId, QStringLiteral("imdb:tt0062622")); QCOMPARE(match.year, 1968);
+    // Older/unprocessed rows use the same qualified parser, without dropping the title's 2001.
+    row.groupTitle = raw; row.parsedYear = 0; QVERIFY(index.upsert(row));
+    match = identifier.matchGroup(row.groupKey);
+    QVERIFY(match.adopted); QCOMPARE(match.sourceId, QStringLiteral("imdb:tt0062622")); QCOMPARE(match.year, 1968);
+}
+
+void VaultIdentifierTest::manualFlatShowTypePersistsWithoutCatalogueAndRejectsUnknownType()
+{
+    QTemporaryDir tmp; VaultIndex index(tmp.filePath(QStringLiteral("manual-type.sqlite"))); QVERIFY(index.isOpen());
+    auto row = fixtureRow(QStringLiteral("vault:flat"), QStringLiteral("Flat show"));
+    row.kind = QStringLiteral("video"); row.progressed = true; QVERIFY(index.upsert(row));
+    VaultIdentifier identifier(&index, nullptr, nullptr, nullptr);
+    VaultIdentifier::Match choice; choice.adopted = true; choice.source = QStringLiteral("IMDB");
+    choice.sourceId = QStringLiteral("imdb:tt123"); choice.title = QStringLiteral("Flat show");
+    choice.world = QStringLiteral("Theatre"); choice.type = QStringLiteral(" SERIES ");
+    QVERIFY(identifier.identifyGroupWith(row.groupKey, choice));
+    auto saved = index.rowsForGroup(row.groupKey).first(); QCOMPARE(saved.identityType, QStringLiteral("series"));
+    QCOMPARE(saved.id, row.id); QVERIFY(saved.progressed); QCOMPARE(identifier.autoIdentifyExisting(), 0);
+    QVERIFY(identifier.unidentifyGroup(row.groupKey)); saved = index.rowsForGroup(row.groupKey).first();
+    QVERIFY(saved.identityType.isEmpty()); QVERIFY(saved.identitySuppressed); QCOMPARE(saved.id, row.id); QVERIFY(saved.progressed);
+    choice.type = QStringLiteral("mini"); QVERIFY(identifier.identifyGroupWith(row.groupKey, choice));
+    QCOMPARE(index.rowsForGroup(row.groupKey).first().identityType, QStringLiteral("mini"));
+    choice.type = QStringLiteral("episode"); QVERIFY(identifier.identifyGroupWith(row.groupKey, choice));
+    QVERIFY(index.rowsForGroup(row.groupKey).first().identityType.isEmpty());
 }
 
 // The negative, the gate's own law: without a year the cleaned title "Dune" matches BOTH
@@ -208,6 +257,59 @@ void VaultIdentifierTest::yearlessDuneStaysHonestlyAmbiguous()
     const VaultIdentifier::Match match = identifier.matchGroup(row.groupKey);
     QVERIFY(!match.adopted);
     QCOMPARE(match.candidateCount, 2);
+}
+
+void VaultIdentifierTest::bookMatchRequiresActualEmbeddedTitleInsteadOfFilenameFallback()
+{
+    QTemporaryDir tmp; VaultIndex index(tmp.filePath(QStringLiteral("index.sqlite"))); QVERIFY(index.isOpen());
+    auto row = fixtureRow(QStringLiteral("vault:book"), QStringLiteral("Release filename"));
+    row.kind = QStringLiteral("book"); row.metadataSource = QStringLiteral("EPUB");
+    row.displayTitle = QStringLiteral("Release filename"); row.progressed = true;
+    QVERIFY(index.publish({row})); VaultIdentifier identifier(&index, nullptr, nullptr, nullptr);
+    QVERIFY(!identifier.matchGroup(row.groupKey).adopted); QCOMPARE(identifier.autoIdentifyExisting(), 0);
+    row.embeddedTitle = QStringLiteral("Actual embedded title"); QVERIFY(index.upsert(row));
+    const auto match = identifier.matchGroup(row.groupKey); QVERIFY(match.adopted);
+    QCOMPARE(match.title, row.embeddedTitle); QCOMPARE(identifier.autoIdentifyExisting(), 1);
+    const auto adopted = index.rowsForGroup(row.groupKey).first();
+    QCOMPARE(adopted.identityTitle, row.embeddedTitle); QCOMPARE(adopted.id, row.id); QVERIFY(adopted.progressed);
+}
+
+void VaultIdentifierTest::conflictingBookTitlesOrUnprovenGroupMembersRefuseAutoMatch()
+{
+    QTemporaryDir tmp; VaultIndex index(tmp.filePath(QStringLiteral("index.sqlite"))); QVERIFY(index.isOpen());
+    auto first = fixtureRow(QStringLiteral("vault:first"), QStringLiteral("Books"));
+    first.kind = QStringLiteral("book"); first.metadataSource = QStringLiteral("EPUB"); first.embeddedTitle = QStringLiteral("First book");
+    auto second = first; second.id = QStringLiteral("vault:second"); second.path += QStringLiteral(".second");
+    second.embeddedTitle = QStringLiteral("Different book");
+    QVERIFY(index.publish({first, second})); VaultIdentifier identifier(&index, nullptr, nullptr, nullptr);
+    QVERIFY(!identifier.matchGroup(first.groupKey).adopted); QCOMPARE(identifier.autoIdentifyExisting(), 0);
+    second.embeddedTitle = QStringLiteral(" first book "); QVERIFY(index.upsert(second));
+    QVERIFY(identifier.matchGroup(first.groupKey).adopted);
+    second.metadataSource.clear(); QVERIFY(index.upsert(second));
+    QVERIFY(!identifier.matchGroup(first.groupKey).adopted);
+    second.metadataSource = QStringLiteral("EPUB"); second.embeddedTitle.clear(); QVERIFY(index.upsert(second));
+    QVERIFY(!identifier.matchGroup(first.groupKey).adopted);
+}
+
+void VaultIdentifierTest::manualPdfMatchSurvivesAutoPassAndExplicitSuppressionSemantics()
+{
+    QTemporaryDir tmp; VaultIndex index(tmp.filePath(QStringLiteral("index.sqlite"))); QVERIFY(index.isOpen());
+    auto row = fixtureRow(QStringLiteral("vault:manual-book"), QStringLiteral("Books"));
+    row.kind = QStringLiteral("book"); row.format = QStringLiteral("pdf"); row.realName = QStringLiteral("manual.pdf");
+    row.path = row.subtreePath + QStringLiteral("/manual.pdf"); row.progressed = true; row.identitySuppressed = true;
+    QVERIFY(index.publish({row})); VaultIdentifier identifier(&index, nullptr, nullptr, nullptr);
+    VaultIdentifier::Match chosen; chosen.adopted = true; chosen.source = QStringLiteral("EPUB");
+    chosen.sourceId = QStringLiteral("book:manual"); chosen.title = QStringLiteral("Deliberate manual title"); chosen.world = QStringLiteral("Biblio");
+    QVERIFY(identifier.identifyGroupWith(row.groupKey, chosen)); QCOMPARE(identifier.autoIdentifyExisting(), 0);
+    auto current = index.rowsForGroup(row.groupKey).first();
+    QCOMPARE(current.id, row.id); QVERIFY(current.progressed); QVERIFY(!current.identitySuppressed);
+    QCOMPARE(current.identityId, chosen.sourceId); QCOMPARE(current.identityTitle, chosen.title); QVERIFY(current.embeddedTitle.isEmpty());
+    QVERIFY(identifier.unidentifyGroup(row.groupKey)); QCOMPARE(identifier.autoIdentifyExisting(), 0);
+    current = index.rowsForGroup(row.groupKey).first(); QVERIFY(current.identitySuppressed); QVERIFY(current.identityId.isEmpty());
+    QCOMPARE(current.id, row.id); QVERIFY(current.progressed);
+    QVERIFY(identifier.identifyGroupWith(row.groupKey, chosen));
+    current = index.rowsForGroup(row.groupKey).first(); QVERIFY(!current.identitySuppressed);
+    QCOMPARE(current.identityTitle, chosen.title); QCOMPARE(current.id, row.id); QVERIFY(current.progressed);
 }
 
 void VaultIdentifierTest::unambiguousMatchAdopts()

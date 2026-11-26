@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 # RC = compile the Windows .rc that carries the app/exe icon. Windows-only: enabled below via
 # enable_language(RC) once WIN32 is known, instead of unconditionally in the base project()
 # declaration (arc-17 Linux port, first configure pass).
-project(colosseum VERSION 1.3.0 LANGUAGES C CXX)
+project(colosseum VERSION 1.4.0 LANGUAGES C CXX)
 if(WIN32)
     enable_language(RC)
 endif()
@@ -176,6 +176,7 @@ endif()
 find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui Sql WebSockets Concurrent)
 add_subdirectory(stream)
 add_subdirectory(account/credentials)
+add_subdirectory(homeserver)
 if(NOT ANDROID)
     # Desktop Reader 2 still uses Foliate/Qt WebEngine; Android deliberately has no WebEngine product path.
     find_package(Qt6 REQUIRED COMPONENTS WebEngineQuick WebChannel)
@@ -367,6 +368,8 @@ set(COLOSSEUM_THEATRE_ACCOUNT_SOURCES
 set(COLOSSEUM_AUDIOBOOK_DOWNLOAD_SOURCES
     engine/AudiobookDownloader.cpp
     engine/AudiobookDownloader.h
+    engine/AudiobookRecordingMatch.cpp
+    engine/AudiobookRecordingMatch.h
     engine/AudiobookTorrentTransport.cpp
     engine/AudiobookTorrentTransport.h
     engine/AudiobookTorrentEngineAdapter.h)
@@ -690,6 +693,8 @@ qt_add_executable(colosseum
     engine/MediaTitleNormalization.h
     engine/ImdbCatalog.cpp
     engine/ImdbCatalog.h
+    engine/AudiobookCatalog.cpp
+    engine/AudiobookCatalog.h
     engine/SourceContentStore.cpp
     engine/SourceContentStore.h
     engine/CatalogRemote.cpp
@@ -699,6 +704,9 @@ qt_add_executable(colosseum
     engine/CatalogVaultClient.cpp  # data-vault adoption, Slice 1/2 (2026-08-22)
     engine/CatalogVaultClient.h
     engine/LocalDownloads.cpp
+    engine/DownloadLocation.cpp
+    engine/DownloadMoveController.cpp
+    engine/DownloadMoveController.h
     engine/LocalDownloads.h
     engine/LocalDownloadsProjection.cpp
     engine/LocalDownloadsProjection.h
@@ -775,6 +783,8 @@ qt_add_executable(colosseum
     torrent/BookTorrentDownloader.h
     torrent/BookTorrents.cpp
     torrent/BookTorrents.h
+    torrent/AudiobookTorrents.cpp
+    torrent/AudiobookTorrents.h
     torrent/ComicTorrentRanker.cpp
     torrent/ComicTorrentRanker.h
     torrent/ComicEditionIdentity.cpp
@@ -922,33 +932,8 @@ if(ANDROID)
     target_link_libraries(colosseum PRIVATE colosseum_update_crypto)
 endif()
 
-if(NOT ANDROID)
-    # Desktop-only shipping organs: preserved for Windows/Linux, absent from the Android target graph.
-    target_sources(colosseum PRIVATE
-        account/WindowsAccountSensitiveClipboard.cpp
-        account/WindowsAccountCredentialStore.h
-        account/WindowsAccountSensitiveClipboard.h
-        update/UpdateVersion.cpp
-        update/UpdateVersion.h
-        update/UpdateManifest.cpp
-        update/UpdateManifest.h
-        update/UpdateTrust.cpp
-        update/UpdateTrust.h
-        update/UpdatePublicKey.h
-        update/UpdateTestPublicKey.h
-        update/InstalledChronicle.cpp
-        update/InstalledChronicle.h
-        update/UpdateCache.cpp
-        update/UpdateCache.h
-        update/UpdateDownload.cpp
-        update/UpdateDownload.h
-        update/UpdateReleaseClient.cpp
-        update/UpdateReleaseClient.h
-        update/UpdateService.cpp
-        update/UpdateService.h
-        update/UpdateInstallBridge.cpp
-        update/UpdateInstallBridge.h
-        installed_chronicle.qrc
+# Vault engine: built on every platform (Android reads real folder paths after All files access).
+target_sources(colosseum PRIVATE
         engine/VaultBookCoverProvider.cpp # image://vaultbookcover/ -- stateless EPUB cover decode
         engine/VaultBookCoverProvider.h
         # ── Vault: local-media engine organs wired into the app (execution plan Slice 8) ──
@@ -998,7 +983,41 @@ if(NOT ANDROID)
         engine/VaultBookStateMigrator.h
         engine/VaultForensics.cpp      # bounded read-only Vault projection over VaultLibrary (Agent Visibility Phase 2, F1-Core/F1-Bridge)
         engine/VaultForensics.h
-        engine/VaultThumbnailer.cpp
+)
+if(ANDROID)
+    # Android has no ffmpeg to shell out to; JNI to VaultMediaProbe instead.
+    target_sources(colosseum PRIVATE engine/VaultThumbnailer_android.cpp)
+else()
+    target_sources(colosseum PRIVATE engine/VaultThumbnailer.cpp)
+endif()
+
+if(NOT ANDROID)
+    # Desktop-only shipping organs: preserved for Windows/Linux, absent from the Android target graph.
+    target_sources(colosseum PRIVATE
+        account/WindowsAccountSensitiveClipboard.cpp
+        account/WindowsAccountCredentialStore.h
+        account/WindowsAccountSensitiveClipboard.h
+        update/UpdateVersion.cpp
+        update/UpdateVersion.h
+        update/UpdateManifest.cpp
+        update/UpdateManifest.h
+        update/UpdateTrust.cpp
+        update/UpdateTrust.h
+        update/UpdatePublicKey.h
+        update/UpdateTestPublicKey.h
+        update/InstalledChronicle.cpp
+        update/InstalledChronicle.h
+        update/UpdateCache.cpp
+        update/UpdateCache.h
+        update/UpdateDownload.cpp
+        update/UpdateDownload.h
+        update/UpdateReleaseClient.cpp
+        update/UpdateReleaseClient.h
+        update/UpdateService.cpp
+        update/UpdateService.h
+        update/UpdateInstallBridge.cpp
+        update/UpdateInstallBridge.h
+        installed_chronicle.qrc
         player/MediaAdmissionProbe.cpp
         player/MediaAdmissionProbe.h
         player/livestore.cpp
@@ -1208,7 +1227,7 @@ if(COLOSSEUM_ACCOUNT_SERVICE_URL)
         COLOSSEUM_ACCOUNT_SERVICE_URL="${COLOSSEUM_ACCOUNT_SERVICE_URL}")
     message(STATUS "Account service baked in: ${COLOSSEUM_ACCOUNT_SERVICE_URL}")
 endif()
-target_link_libraries(colosseum PRIVATE colosseum_account_credentials
+target_link_libraries(colosseum PRIVATE colosseum_home_servers colosseum_account_credentials
     Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent
     Qt6::WebSockets colosseum_libtorrent
 )
@@ -1896,6 +1915,24 @@ add_executable(book_torrent_ranker_harness
 target_include_directories(book_torrent_ranker_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(book_torrent_ranker_harness PRIVATE Qt6::Core)
 
+# audiobook_torrents_harness -- AudiobookTorrents contract (audio-only rows, ranking,
+# stale-handle guard, all-indexers-off) over a mock-indexer search service; no network.
+add_executable(audiobook_torrents_harness
+    ../tests/audiobook_torrents_harness.cpp
+    torrent/AudiobookTorrents.cpp
+    torrent/AudiobookTorrents.h
+    torrent/BookTorrentRanker.cpp
+    torrent/BookTorrentRanker.h
+    torrent/TankorentSearchService.cpp
+    torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
+    torrent/TorrentIndexer.cpp
+    torrent/TorrentIndexer.h
+)
+target_include_directories(audiobook_torrents_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(audiobook_torrents_harness PRIVATE Qt6::Core Qt6::Network)
+
 add_executable(book_torrent_filepicker_harness
     ../tests/book_torrent_filepicker_harness.cpp
     torrent/BookTorrentFilePicker.cpp
@@ -2431,6 +2468,9 @@ add_executable(manga_downloader_cancel_harness
     ../tests/manga_downloader_cancel_harness.cpp
     # unity-compiled into the harness TU (see its include note): engine/MangaDownloader.cpp
     engine/MangaDownloader.h
+    engine/CbzArchive.cpp
+    engine/ComicCoverId.cpp
+    third_party/miniz/miniz.c
     engine/MangaPageTransport.cpp
     engine/MangaPageTransport.h
     engine/DownloadFileOps.h
@@ -2470,6 +2510,9 @@ add_executable(tankoyomi_page_security_harness
     ../tests/tankoyomi_page_security_harness.cpp
     # unity-compiled into the harness TU (see its include note): engine/MangaDownloader.cpp
     engine/MangaDownloader.h
+    engine/CbzArchive.cpp
+    engine/ComicCoverId.cpp
+    third_party/miniz/miniz.c
     engine/MangaPageTransport.cpp
     engine/MangaPageTransport.h
     engine/DownloadFileOps.h
@@ -3300,6 +3343,16 @@ add_executable(catalog_remote_harness
 target_include_directories(catalog_remote_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(catalog_remote_harness PRIVATE Qt6::Core Qt6::Network Qt6::Sql Qt6::Concurrent)
 add_test(NAME colosseum.catalog_remote_harness COMMAND catalog_remote_harness)
+
+# Offline CC0 audiobook catalogue acceptance: no installed app or profile.
+add_executable(audiobook_catalogue_harness
+    ../tests/audiobook_catalogue_harness.cpp
+    engine/AudiobookCatalog.cpp engine/AudiobookCatalog.h
+    engine/CatalogRemote.cpp engine/CatalogRemote.h)
+target_include_directories(audiobook_catalogue_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(audiobook_catalogue_harness PRIVATE Qt6::Core Qt6::Network Qt6::Sql Qt6::Concurrent)
+add_test(NAME colosseum.audiobook_catalogue_harness COMMAND audiobook_catalogue_harness
+    "${CMAKE_CURRENT_SOURCE_DIR}/../server/content-api/tests/fixtures/audiobooks-cc0-fixture.sqlite")
 
 add_executable(static_catalogue_resolver_harness
     ../tests/static_catalogue_resolver_harness.cpp

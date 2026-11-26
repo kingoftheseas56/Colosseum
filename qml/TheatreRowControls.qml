@@ -76,8 +76,6 @@ Item {
             anchors.fill: parent
             focusEnabled: btn.enabledLook
             accessibleName: btn.tip.length > 0 ? btn.tip : btn.glyph
-            tooltipText: btn.tip.length > 0 ? btn.tip
-                         : btn.glyph === "▲" ? qsTr("Move row up") : qsTr("Move row down")
             cursorShape: btn.enabledLook ? Qt.PointingHandCursor : Qt.ArrowCursor
             focusRadius: btn.radius
             onTriggered: btn.clicked()

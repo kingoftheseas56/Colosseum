@@ -1,0 +1,11 @@
+Representative sanitized protocol replay fixtures, not live captures. Jellyfin/Emby user-data preferences, IDs and timestamps are invented; the local HTTP server verifies methods, paths, payload preservation and units. No production credentials or provider accounts are used.
+
+Official references: https://api.jellyfin.org/openapi/jellyfin-openapi-stable.json (v12.4.0 DTOs); https://dev.emby.media/doc/restapi/Playback-Check-ins.html and endpoint DTOs; https://dev.emby.media/reference/RestAPI/PlaystateService/postUsersByUseridPlayeditemsById.html (DatePlayed UTC yyyyMMddHHmmss); https://developer.plex.tv/pms/ (POST timeline, PUT scrobble/unscrobble, X-Plex-* query arguments).
+
+Plex time/duration are explicitly milliseconds. The official timeline description identifies updated as the last playback-state-update time but does not explicitly state its unit. Per primary design, offline sync uses epoch seconds (updatedAt / 1000) with offline=1; that unit mapping remains an inference requiring live Plex verification. Fixtures cannot establish real provider timestamp or resume semantics. No current time is invented for imported activity.
+
+Jellyfin/Emby stable DeviceId is carried by the existing native authorization header, not an unsupported JSON body property. Current start/progress DTOs carry CanSeek, IsPaused and PlayMethod; current stopped DTOs use only ItemId, MediaSourceId, PlaySessionId and PositionTicks from the fields needed here.
+
+Sync re-reads provider activity before writing. A fresh newer LastPlayedDate/lastViewedAt skips the entire write chain; otherwise Jellyfin/Emby retain the fresh Played flag unless writePlayed explicitly authorizes a change. Plex sync requires one fresh metadata row with the exact ratingKey before its offline timeline request. These are pre-write checks, not provider-side conditional writes.
+
+For sync only, a freshly known Played flag or numeric Plex viewCount that already matches the desired state suppresses the separate watched/unwatched endpoint; resume/date reporting still proceeds. A missing Plex viewCount is treated as unknown for this optimization rather than guessed. Selected playback stop and bare explicit watched events retain their separate endpoint behavior.

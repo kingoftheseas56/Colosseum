@@ -180,6 +180,13 @@ bool Runtime::android() const {
     return m_kind == Kind::Android;
 }
 
+qreal Runtime::androidPresentationScale() const {
+    if (!android()) return 1;
+    bool valid = false;
+    const qreal scale = qEnvironmentVariable("QT_SCALE_FACTOR").toDouble(&valid);
+    return valid && std::isfinite(scale) && scale > 0 ? scale : 1;
+}
+
 bool Runtime::androidTelevision() const {
     return m_androidTelevision;
 }
@@ -491,6 +498,58 @@ bool Runtime::requestPermission(const QString &permission) {
         return false;
     emit permissionRequested(normalized);
     return true;
+}
+
+bool Runtime::allFilesAccessGranted() const {
+#if defined(Q_OS_ANDROID)
+    if (m_kind != Kind::Android) return true;
+    const QJniObject context = QNativeInterface::QAndroidApplication::context();
+    if (!context.isValid()) return false;
+    return QJniObject::callStaticMethod<jboolean>(
+        "org/colosseum/platform/AllFilesAccess", "isGranted",
+        "(Landroid/content/Context;)Z", context.object<jobject>());
+#else
+    return true;
+#endif
+}
+
+void Runtime::requestAllFilesAccess() {
+#if defined(Q_OS_ANDROID)
+    if (m_kind != Kind::Android) return;
+    QNativeInterface::QAndroidApplication::runOnAndroidMainThread([]() -> QVariant {
+        if (!QNativeInterface::QAndroidApplication::isActivityContext()) return false;
+        const QJniObject activity = QNativeInterface::QAndroidApplication::context();
+        if (activity.isValid())
+            QJniObject::callStaticMethod<void>(
+                "org/colosseum/platform/AllFilesAccess", "request",
+                "(Landroid/app/Activity;)V", activity.object<jobject>());
+        return {};
+    });
+#endif
+}
+
+QVariantList Runtime::storageVolumes() const {
+    QVariantList volumes;
+#if defined(Q_OS_ANDROID)
+    if (m_kind != Kind::Android) return volumes;
+    const QJniObject context = QNativeInterface::QAndroidApplication::context();
+    if (!context.isValid()) return volumes;
+    const QJniObject listing = QJniObject::callStaticObjectMethod(
+        "org/colosseum/platform/StorageVolumes", "list",
+        "(Landroid/content/Context;)Ljava/lang/String;", context.object<jobject>());
+    if (!listing.isValid()) return volumes;
+    const QStringList lines = listing.toString().split(QChar(10), Qt::SkipEmptyParts);
+    for (const QString &line : lines) {
+        const QStringList parts = line.split(QChar(9));
+        if (parts.size() < 3 || parts.at(1).isEmpty()) continue;
+        QVariantMap volume;
+        volume.insert(QStringLiteral("label"), parts.at(0));
+        volume.insert(QStringLiteral("path"), parts.at(1));
+        volume.insert(QStringLiteral("removable"), parts.at(2) == QLatin1String("1"));
+        volumes.append(volume);
+    }
+#endif
+    return volumes;
 }
 
 bool Runtime::eventFilter(QObject *watched, QEvent *event) {

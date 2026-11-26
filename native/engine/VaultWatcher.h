@@ -5,7 +5,7 @@
 // turns what changed into incremental VaultIndex upserts: a file dropped into a watched root
 // lands on the right shelf within seconds — no card, no action.
 //
-// One debounced pass over a dirty root = processRoot(): enumerate the root under the SAME
+// A debounced dirty root is enumerated off-thread under the SAME
 // VaultKit laws the census uses (groupByFirstLevelSubdir + kindForFile + scanIgnore needles),
 // build rows byte-identical to VaultScanner::buildScan's, diff against the ids already in the
 // index, then reconcile arrivals + removals atomically while leaving unchanged rows intact, and
@@ -24,7 +24,11 @@
 // QTemporaryDir root (touch files → exact upsert set; new-kind → card slices; a nonexistent
 // root → degraded flag via refresh()).
 
+#include "VaultIndex.h"
+#include "VaultKit.h"
+
 #include <QObject>
+#include <memory>
 #include <QSet>
 #include <QString>
 #include <QStringList>
@@ -33,6 +37,7 @@
 
 class QFileSystemWatcher;
 class QTimer;
+class QThread;
 class VaultConfig;
 class VaultIdentity;
 class VaultIndex;
@@ -49,6 +54,9 @@ class VaultWatcher : public QObject
 public:
     explicit VaultWatcher(VaultIndex* index, VaultIdentity* identity, VaultConfig* config,
                           QObject* parent = nullptr);
+
+    ~VaultWatcher() override;
+    void setPublishing(bool publishing);
 
     bool immersive() const { return m_immersive; }
     void setImmersive(bool on);
@@ -75,19 +83,21 @@ public:
         QVariantList newKindSlices;   // one-slice card model per subtree with a new-kind arrival
     };
     // Enumerate `root`, diff against the index, upsert the arrivals, and law-check them.
-    // Pure-ish: synchronous, no timers, no watcher state — the Qt Test drives it directly.
+    // Synchronous fixture seam, without timers or watcher state — the Qt Test drives it directly.
     // kindOverrides keys are NORMALIZED subtree paths (VaultConfig::kindOverrides snapshot).
     Landing processRoot(const QString& root, const QStringList& scanIgnore,
                         const QVariantMap& kindOverrides);
 
 signals:
+    void scanActivity(const QString& root, int done, int total, const QString& phase);
+    void scanEnded();
     void landed(int count);                                  // a non-empty upsert batch landed
     void newKindArrival(const QString& root, const QVariantList& slices); // card model, S11 law
     // Root availability is a state transition, not a destructive scan result. The library keeps
     // rows in place while false and clears their away flag when true.
     void rootAvailabilityChanged(const QString& root, bool available);
-    // Internal reconciliation signal used by deterministic tests and diagnostics. The walk is
-    // off-thread; registration and this signal return to the watcher owner thread.
+    // Internal reconciliation signal used by deterministic tests and diagnostics. The walk
+    // and recursive registration are off-thread. This signal is emitted on the owner thread.
     void watchTreeReconciled(const QString& root, int directoryCount, bool complete);
     void immersiveChanged();
 
@@ -97,9 +107,15 @@ private slots:
     void flushPending();
 
 private:
+    Landing applyRoot(const QString& root, const QVariantMap& kindOverrides,
+                      const QList<VaultIndex::FileRow>& rows);
     void refreshInternal(bool retryDegradedTree);
     void watchRoot(const QString& root);
+    void startNextTreeWatch();
     void scheduleTreeWatch(const QString& root, bool replayIfInFlight = false);
+    void startTreeWatcher();
+    void registerTree(const QString& root, QStringList directories);
+    void finishTreeWatch(const QString& root);
     bool addDirectoryWatch(const QString& path);
     static QString normPath(const QString& p);
     // The subtree's law: config chip override → index dominant kind → "" (a brand-new subtree's
@@ -110,16 +126,27 @@ private:
     VaultIndex* m_index = nullptr;
     VaultIdentity* m_identity = nullptr;
     VaultConfig* m_config = nullptr;
-    QFileSystemWatcher* m_watcher = nullptr; // heap: QFileSystemWatcher needs no Q_OBJECT here
+    QFileSystemWatcher* m_watcher = nullptr; // confirmed roots only
+    QThread* m_treeThread = nullptr;
+    QObject* m_treeWorker = nullptr;
+    QFileSystemWatcher* m_treeWatcher = nullptr; // accessed only on m_treeThread
+    QMap<QString, QString> m_configuredWatchRoots;
+    std::shared_ptr<VaultKit::CancellationToken> m_treeRegistrationCancel;
     QTimer* m_debounce = nullptr;
+    QTimer* m_scanActivityTimer = nullptr;
     QTimer* m_probe = nullptr;       // cheap root-exists probe so a replug revives in-place
     QSet<QString> m_dirty;     // roots with unprocessed changes (normalized)
     QSet<QString> m_degraded;  // normalized roots whose watch/tree registration failed
     QSet<QString> m_treeDegraded; // normalized roots that exceeded the recursive watch budget
     QSet<QString> m_unavailable; // normalized roots whose filesystem root is absent
     QSet<QString> m_watched;   // normalized roots with a live root watch
-    QSet<QString> m_treeScansInFlight; // normalized roots with an off-thread directory walk
+    QSet<QString> m_treeQueue;
+    QSet<QString> m_treeScansInFlight; // normalized roots with a tree walk or registration in flight
     QSet<QString> m_treeRescanRequested; // changes observed while a tree walk was in flight
     QSet<QString> m_treeInitialized; // roots whose recursive registration has already been attempted
+    VaultLocation::PersonalPaths m_personal;
+    QStringList m_scanIgnore;
+    std::shared_ptr<VaultKit::CancellationToken> m_arrivalCancel;
+    bool m_publishing = false;
     bool m_immersive = false;
 };

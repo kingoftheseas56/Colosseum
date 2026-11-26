@@ -38,7 +38,6 @@ Item {
         width: parent.width
         height: 44
         accessibleName: qsTr("Send feedback")
-        tooltipText: root.labelled ? "" : accessibleName
         focusRadius: 10
         onTriggered: root.clicked()
     }

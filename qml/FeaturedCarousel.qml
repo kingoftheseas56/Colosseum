@@ -8,12 +8,16 @@ import QtQuick.Window
 
 Item {
     id: car
+    property bool androidHost: Qt.platform.os === "android"
     property var slides: []
     readonly property bool televisionMode: {
         const w = car.Window.window
         return !!(w && w["televisionMode"] === true)
     }                        // [{ title, blurb, ghost, c1, c2, art?, artKind?, primaryIcon? }]
     property string kicker: "Featured"
+    property bool artworkOnly: false
+    property bool autoAdvance: false
+    readonly property bool swiping: view.contentItem && view.contentItem.moving === true
     property string primaryLabel: "Read"
     property string secondaryLabel: "Details"
     property string automationId: ""
@@ -42,8 +46,12 @@ Item {
     width: parent ? parent.width : 800
     AdaptiveLayout {
         id: adaptive
+        androidHost: car.androidHost
         viewportWidth: car.width
-        desktopPresentation: Qt.platform.os === "android"
+        viewportHeight: car.Window.window ? car.Window.window.height : 0
+        bottomInset: car.Window.window && car.Window.window.browseBottomInset !== undefined
+            ? car.Window.window.browseBottomInset : 0
+        desktopPresentation: car.androidHost
             && (!car.Window.window || car.Window.window.desktopPresentation !== false)
     }
     implicitHeight: car.televisionMode ? 380 : adaptive.heroHeight
@@ -134,6 +142,8 @@ Item {
                 required property int index
                 slide: modelData
                 slideIndex: index
+                artworkOnly: car.artworkOnly
+                shortAndroid: adaptive.shortAndroid
                 kicker: car.kicker
                 primaryLabel: modelData.cta !== undefined ? modelData.cta : car.primaryLabel
                 primaryIcon: modelData.primaryIcon !== undefined ? String(modelData.primaryIcon) : ""
@@ -152,9 +162,19 @@ Item {
         onActivated: (index) => car.primaryClicked(index)
     }
 
+    HoverHandler { id: artworkHover; enabled: car.autoAdvance }
+
+    Timer {
+        interval: 6500
+        repeat: true
+        running: car.autoAdvance && car.visible && car.slides.length > 1
+                 && !car.activeFocus && !car.swiping && !artworkHover.hovered
+        onTriggered: view.setCurrentIndex((view.currentIndex + 1) % view.count)
+    }
+
     // color-agnostic dots: GOLD active on a dark backing strip → reads over any cover
     Rectangle {
-        visible: car.slides.length > 1
+        visible: !car.artworkOnly && car.slides.length > 1
         // The carousel can start unallocated, then switch from narrow to desktop.
         // One position binding avoids retaining geometry from the opposite anchor.
         x: car.dotsLeftMargin >= 0 ? car.dotsLeftMargin
@@ -179,9 +199,6 @@ Item {
                         anchors.fill: parent; anchors.margins: -4
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        ToolTip.text: qsTr("Show slide %1").arg(index + 1)
-                        ToolTip.delay: 350
-                        ToolTip.visible: containsMouse
                         onClicked: view.currentIndex = index
                     }
                 }

@@ -29,6 +29,7 @@ class LocalDownloads : public QObject {
     Q_OBJECT
     Q_PROPERTY(int revision READ revision NOTIFY changed)
     Q_PROPERTY(QVariantMap totals READ totals NOTIFY changed)
+    Q_PROPERTY(QObject *location READ location NOTIFY changed)
 
 public:
     LocalDownloads(MangaDownloader *manga, BookDownloader *books,
@@ -46,6 +47,10 @@ public:
 
     int revision() const { return m_revision; }
     QVariantMap totals() const;
+    QObject *location() const { return m_location; }
+    void setLocation(QObject *location) { m_location = location; emit changed(); }
+    void setBookTorrentSource(QObject *source) { m_bookTorrents = source; }
+    void refreshLocation() { armRevision(); }
 
     // worlds: "tankoban" | "biblio" | "theatre"
     Q_INVOKABLE QVariantList series(const QString &world) const;
@@ -89,6 +94,8 @@ private:
     MangaTankobanService *m_volumes = nullptr;   // Tankoban volume mode
     QObject *m_volumeSource = nullptr;           // test-only fake volume owner
     DownloadIntentStore *m_downloadIntents = nullptr;
+    QObject *m_location = nullptr;
+    QObject *m_bookTorrents = nullptr;
     QTimer *m_coalesce = nullptr;
     QHash<QString, QVariantMap> m_failures;
     int m_revision = 0;

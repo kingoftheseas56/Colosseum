@@ -37,7 +37,7 @@ Get-ChildItem (Join-Path $root "qml") -Filter *.qml | ForEach-Object {
 $migrated = @(
     "qml/TheatreSeries.qml", "qml/MangaSeries.qml", "qml/ComicSeries.qml",
     "qml/ComicArchiveIndex.qml", "qml/SourcesSheet.qml", "qml/BiblioBook.qml",
-    "qml/TopBar.qml", "qml/SearchSurface.qml", "qml/BiblioSearch.qml",
+    "qml/TopBar.qml", "qml/SearchSurface.qml",
     "qml/GenrePage.qml", "qml/GenreIndex.qml", "qml/TheatreGenrePage.qml",
     "qml/TheatreGenreIndex.qml", "qml/BiblioGenrePage.qml", "qml/BiblioGenreIndex.qml",
     "qml/ExtensionsSeeAllPage.qml",
@@ -59,14 +59,13 @@ foreach ($f in @("qml/TheatreSeries.qml", "qml/MangaSeries.qml", "qml/ComicSerie
 }
 
 # --- search surfaces expose a VISIBLE exit (Esc is a hint, not the only door) ---
-foreach ($f in @("qml/SearchSurface.qml", "qml/BiblioSearch.qml")) {
-    Assert-Contains (Read-File $f) 'id: searchBack' "$f must carry the visible header BackAction exit."
-}
+Assert-Contains (Read-File "qml/SearchSurface.qml") 'id: searchBack' "SearchSurface must carry the visible header BackAction exit."
+Assert-Contains (Read-File "qml/BiblioSearch.qml") 'SearchSurface {' "BiblioSearch must inherit the visible header BackAction exit."
 
 # --- player: the top-left control is an honest minimize, not a fake Back ---
 $pp = Read-File "qml/PlayerPage.qml"
 Assert-Contains $pp 'icon: "minimizeToBar"' "Player top-left control must wear the minimize icon."
-Assert-Contains $pp 'tooltip: "Minimize' "Player top-left tooltip must say Minimize, not Back."
+Assert-Contains $pp 'actionLabel: "Minimize' "Player top-left accessible label must say Minimize, not Back."
 Assert-Contains $pp 'PlayerIcon {' "Player RoundButton must render ordinary controls through PlayerIcon."
 Assert-Contains $pp 'kind: rb.icon' "Player RoundButton must pass its semantic icon kind into PlayerIcon."
 $playerIcon = Read-File "qml/PlayerIcon.qml"
@@ -82,12 +81,8 @@ Assert-Contains $readerTop 'onClicked: root.backRequested()' "Fresh reader back 
 Assert-Contains $readerBack 'points="12 19 5 12 12 5"' "Fresh reader back SVG must retain its left chevron geometry."
 
 
-# --- comic reader chrome Back must reach the LIBRARY, not just reveal the series page (2026-08) ---
-# Back used to be swallowed locally in each host (clearing openChapterId just revealed the series
-# page underneath); every host now raises readerBackRequested() and Main.qml routes it through the
-# same teardown authority Close already uses (closeComicReader()), landing on the Tankoban library.
-# A missed connect in even one of the three Loader onLoaded blocks would make that host's Back a
-# silent dead button, so the count below must be exactly 3.
+# All three hosted comic readers forward Back to Main. Main owns the dock-picker
+# return when a reader was opened from a picker.
 foreach ($f in @("qml/MangaSeries.qml", "qml/ComicSeries.qml", "qml/ComicSeriesPage.qml")) {
     $t = Read-File $f
     Assert-Contains $t 'signal readerBackRequested()' "$f must expose readerBackRequested()."
@@ -95,9 +90,14 @@ foreach ($f in @("qml/MangaSeries.qml", "qml/ComicSeries.qml", "qml/ComicSeriesP
         "$f Back must route upward through readerBackRequested(), never just clear openChapterId locally."
 }
 $mainQml = Read-File "qml/Main.qml"
-$backConnects = ([regex]::Matches($mainQml, [regex]::Escape('item.readerBackRequested.connect(win.closeComicReader)'))).Count
+$backConnects = ([regex]::Matches($mainQml, [regex]::Escape('item.readerBackRequested.connect('))).Count
 if ($backConnects -ne 3) {
-    throw "Main.qml must connect readerBackRequested to closeComicReader for all three comic hosts (manga/western/LOCG), found $backConnects"
+    throw "Expected one reader Back route for each comic host, found $backConnects."
+}
+Assert-Contains $mainQml 'item.readerBackRequested.connect(win.backFromMangaReader)' "Manga Back must use the manga return route."
+Assert-Contains $mainQml 'item.readerBackRequested.connect(win.closeComicReader)' "Western comics Back must close its reader."
+if ($mainQml -notmatch 'item\.readerBackRequested\.connect\(function\(\)\s*\{\s*if \(!win\.returnDockComicDetail\(comicSeriesLayer\)\) win\.closeComicReader\(\)') {
+    throw "LOCG Back must try the dock-picker return before closing the reader."
 }
 
 Write-Host "Back-action unification contract checks passed."

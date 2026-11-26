@@ -17,6 +17,8 @@
 // Deploy note (ledger): a Qt SQL harness finds qsqlite.dll only when it runs
 // from build-msvc/ where the app deployed it — the test target lands there.
 
+#include "VaultLocation.h"
+
 #include <QObject>
 #include <QSet>
 #include <QSqlDatabase>
@@ -26,6 +28,7 @@
 #include <QVariantMap>
 
 namespace VaultKit { struct CancellationToken; }
+class QSqlQuery;
 
 class VaultIndex : public QObject
 {
@@ -55,6 +58,8 @@ public:
         QString format;
         QString synopsis;       // embedded book description, when available
         QString metadataSource; // "EPUB" for embedded EPUB facts; empty otherwise
+        QString embeddedTitle; // Actual embedded book title, never the filename/display fallback.
+        QString identityType; // Adopted movie/series/mini fact; empty when unknown.
         QString identityId;     // adopted catalogue/source id, e.g. mal:123 or imdb:tt...
         QString identityTitle;  // user-facing title supplied by a certain identity
         QString identitySource; // MAL / IMDB / COMICS / EPUB
@@ -80,10 +85,7 @@ public:
         // Browse tile can wear "Vault isn't sure" instead of looking merely unscanned.
         // identityCandidateCount is meaningful only when identityState == "ambiguous" (the
         // count of exact catalogue candidates the certainty gate declined to auto-adopt).
-        // NOT carried forward by publish()'s identity-carry snapshot (deliberately — Recon
-        // Gate 9 / the identity-carry hazard is owned by a different arc); a rescan resets it
-        // to "" until VaultIdentifier's auto-identify pass (already scheduled on every index
-        // change) re-derives it.
+        // Carried across fresh scanner/watcher rows only for the unchanged identity tuple.
         QString identityState;
         int identityCandidateCount = 0;
         bool progressed = false;
@@ -113,6 +115,12 @@ public:
 
     // Incremental single-file arrival (no full republish).
     bool upsert(const FileRow& row);
+    // Apply the policy to future writes and remove existing rows. While existing
+    // locations are checked on a worker, reads and writes remain unavailable.
+    // A failed check stays closed until the caller re-applies the policy.
+    bool setPersonalPaths(const VaultLocation::PersonalPaths& paths);
+    bool isPreparingPersonalPaths() const { return m_preparingPersonalPaths; }
+    const VaultLocation::PersonalPaths& personalPaths() const { return m_personalPaths; }
     // Batch upsert in ONE transaction, emitting changed() ONCE — enrichment writes many
     // rows back without N read-model repaints. Rolls back on any row error.
     bool upsertMany(const QList<FileRow>& rows);
@@ -172,6 +180,7 @@ public:
     Q_INVOKABLE int itemCountForKind(const QString& kind) const;
     Q_INVOKABLE QStringList kinds() const;                        // distinct, sorted
     Q_INVOKABLE QVariantList groupsForKind(const QString& kind) const; // [{groupKey,subtreePath,groupTitle,kind,count}]
+    Q_INVOKABLE QVariantList filesForGroup(const QString& kind, const QString& groupKey) const;
     Q_INVOKABLE QVariantList filesInSubtree(const QString& subtreePath) const; // natural order, grouped by subfolder
     // Newest-mtime distinct groups across every kind, most-recent first — the Browse face's
     // "recently arrived" truth (mtime is v1's arrival signal; a durable addedAt column is the
@@ -198,13 +207,22 @@ public:
 
 signals:
     void changed();
+    void personalPathsPrepared(bool success);
 
 private:
     // Migrate/verify the Vault-owned schema and stamp PRAGMA user_version. Returns false (and the
     // caller closes the DB) when the file was created by a newer schema owner — never downgrade.
     bool ensureSchema();
-    bool insertRow(const FileRow& row); // prepared INSERT OR REPLACE
+    QVariantList projectFiles(const QString& key, const QString& kind, bool exactGroup) const;
+    bool insertRow(const FileRow& row);
+    static bool prepareRowInsert(QSqlQuery& query);
+    bool insertRow(QSqlQuery& query, const FileRow& row);
 
+    VaultLocation::PersonalPaths m_personalPaths;
+    VaultLocation::PersonalPaths m_requestedPersonalPaths;
+    bool m_preparingPersonalPaths = false;
+    bool m_personalCheckRunning = false;
+    quint64 m_personalCheckGeneration = 0;
     QString m_conn;
     QSqlDatabase m_db;
     quint64 m_revision = 0; // process-local mutation clock for stale async-write rejection

@@ -8,7 +8,7 @@ only the artifact (data/*.db is gitignored). Downloads happen at BAKE TIME on th
 dev machine; the runtime never touches the dumps.
 
 Usage:  python scripts/theatre_brain/build_imdb_db.py [--selftest]
-Output: data/imdb_catalog.db  (tables: title, genre, meta)
+Output: data/imdb_catalog.db  (tables: title, title_alias, genre, meta)
 """
 from __future__ import annotations
 
@@ -30,7 +30,8 @@ DUMPS = ["title.ratings.tsv.gz", "title.basics.tsv.gz",
          "title.episode.tsv.gz", "title.akas.tsv.gz"]
 
 VOTE_FLOOR = 1000          # inclusion dial — raise if the artifact runs fat
-KEEP_TYPES = {"movie": "movie", "tvSeries": "series", "tvMiniSeries": "mini"}
+KEEP_TYPES = {"movie": "movie", "tvMovie": "movie", "video": "movie",
+              "tvSeries": "series", "tvMiniSeries": "mini"}
 
 _POSSESSIVE = re.compile(r"['’]s")
 _NON_ALNUM = re.compile(r"[^a-z0-9]+")
@@ -127,7 +128,10 @@ def derive_lang(original_title: str, primary_title: str,
     return ""
 
 
-def keep_title(title_type: str, is_adult: str, votes: int) -> bool:
+def keep_title(title_type: str, is_adult: str, votes: int,
+               genres: list[str] | tuple[str, ...] = ()) -> bool:
+    if title_type == "video" and any(genre in {"Short", "Music"} for genre in genres):
+        return False
     return (title_type in KEEP_TYPES and is_adult != "1" and votes >= VOTE_FLOOR)
 
 
@@ -170,8 +174,12 @@ def selftest() -> int:
     check(derive_lang("Ted Lasso", "Ted Lasso", "", [], [], [], True) == "en", "US-verbatim -> en")
     check(derive_lang("Somefilm", "Somefilm", "", [], [], [], False) == "", "no signal -> unknown, never guessed")
     check(keep_title("movie", "0", 1000) and not keep_title("movie", "1", 99999), "adult excluded")
-    check(not keep_title("tvEpisode", "0", 99999) and keep_title("tvMiniSeries", "0", 1000), "type filter")
+    check(not keep_title("tvEpisode", "0", 99999) and keep_title("tvMiniSeries", "0", 1000)
+          and keep_title("tvMovie", "0", 1000), "type filter")
     check(not keep_title("movie", "0", VOTE_FLOOR - 1), "vote floor")
+    check(keep_title("video", "0", VOTE_FLOOR, ["Animation", "Action"])
+          and not keep_title("video", "0", 99999, ["Short"])
+          and not keep_title("video", "0", 99999, ["Drama", "Music"]), "video feature policy")
     check(is_anime("tt0388629", {"tt0388629"}) and not is_anime("tt0096697", {"tt0388629"}),
           "isAnime from the anime-identity set")
     print("SELFTEST OK" if ok else "SELFTEST FAILED")
@@ -225,6 +233,33 @@ def tsv_rows(path: str):
             yield dict(zip(header, line.rstrip("\n").split("\t")))
 
 
+def create_catalog_schema(db: sqlite3.Connection) -> None:
+    db.executescript("""
+        CREATE TABLE title (tt TEXT PRIMARY KEY, type TEXT, title TEXT,
+            norm_title TEXT NOT NULL, year INTEGER, endYear INTEGER, runtimeMin INTEGER, genres TEXT,
+            rating REAL, votes INTEGER, episodes INTEGER, origLang TEXT, isAnime INTEGER,
+            sourceType TEXT NOT NULL);
+        CREATE TABLE genre (tt TEXT, genre TEXT);
+        CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
+        CREATE TABLE title_alias (tt TEXT NOT NULL, norm_title TEXT NOT NULL,
+            title TEXT NOT NULL, region TEXT NOT NULL, language TEXT NOT NULL, source TEXT NOT NULL,
+            PRIMARY KEY (tt, norm_title, title, region, language, source));
+        CREATE INDEX title_alias_lookup ON title_alias (norm_title, tt);
+    """)
+
+
+def add_title_alias(db: sqlite3.Connection, tt: str, title: str,
+                    region: str = "", language: str = "", source: str = "title.akas.tsv") -> None:
+    # Exact IMDb source spelling and provenance survive beside the derived key.
+    # The reader deduplicates canonical IDs, not alias rows or release regions.
+    norm = normalized_title(title)
+    if not norm or title == "\\N":
+        return
+    db.execute("INSERT OR IGNORE INTO title_alias VALUES (?,?,?,?,?,?)",
+               (tt, norm, title, "" if region == "\\N" else region,
+                "" if language == "\\N" else language, source))
+
+
 def bake() -> int:
     # anime identity (definitive; loaded once, reused at insert time)
     anime_tt = load_anime_tt()
@@ -242,11 +277,12 @@ def bake() -> int:
     titles = {}
     for r in tsv_rows(fetch("title.basics.tsv.gz")):
         tt = r["tconst"]
-        if tt not in ratings or not keep_title(r["titleType"], r["isAdult"], ratings[tt][1]):
-            continue
         genres = [] if r["genres"] in ("\\N", "") else r["genres"].split(",")
+        if tt not in ratings or not keep_title(r["titleType"], r["isAdult"], ratings[tt][1], genres):
+            continue
         titles[tt] = {
             "type": KEEP_TYPES[r["titleType"]],
+            "sourceType": r["titleType"],
             "title": r["primaryTitle"],
             "originalTitle": r["originalTitle"],
             "year": 0 if r["startYear"] == "\\N" else int(r["startYear"]),
@@ -267,11 +303,22 @@ def bake() -> int:
         if p in titles:
             titles[p]["episodes"] += 1
 
-    # pass 4 — language evidence from akas
+    # Build aliases as a stream, rather than retaining the public AKA dump in RAM.
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    tmp = DB_PATH + ".building"
+    if os.path.exists(tmp):
+        os.remove(tmp)
+    db = sqlite3.connect(tmp)
+    create_catalog_schema(db)
+    for tt, title in titles.items():
+        add_title_alias(db, tt, title["originalTitle"], source="title.basics.tsv:originalTitle")
+
+    # pass 4 — exact alternate titles and existing language evidence from akas
     for r in tsv_rows(fetch("title.akas.tsv.gz")):
         t = titles.get(r["titleId"])
         if t is None:
             continue
+        add_title_alias(db, r["titleId"], r["title"], r.get("region", ""), r.get("language", ""))
         lang = "" if r["language"] == "\\N" else r["language"]
         region = r.get("region", "\\N")
         if r["isOriginalTitle"] == "1" and lang and not t["origAkaLang"]:
@@ -287,20 +334,7 @@ def bake() -> int:
         if region == "US" and r["title"] == t["title"]:
             t["usPrimary"] = True
 
-    # bake
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    tmp = DB_PATH + ".building"
-    if os.path.exists(tmp):
-        os.remove(tmp)
-    db = sqlite3.connect(tmp)
-    db.executescript("""
-        CREATE TABLE title (tt TEXT PRIMARY KEY, type TEXT, title TEXT,
-            norm_title TEXT NOT NULL, year INTEGER, endYear INTEGER, runtimeMin INTEGER, genres TEXT,
-            rating REAL, votes INTEGER, episodes INTEGER,
-            origLang TEXT, isAnime INTEGER);
-        CREATE TABLE genre (tt TEXT, genre TEXT);
-        CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
-    """)
+    # Finish the same candidate database with canonical title facts.
     n_lang = 0
     n_anime = 0
     for tt, t in titles.items():
@@ -310,11 +344,11 @@ def bake() -> int:
         anime = 1 if is_anime(tt, anime_tt) else 0
         n_anime += anime
         n_lang += 1 if lang else 0
-        db.execute("INSERT INTO title VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        db.execute("INSERT INTO title VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                    (tt, t["type"], t["title"], normalized_title(t["title"]),
                     t["year"], t["endYear"],
                     t["runtimeMin"], json.dumps(t["genres"]), t["rating"],
-                    t["votes"], t["episodes"], lang, anime))
+                    t["votes"], t["episodes"], lang, anime, t["sourceType"]))
         db.executemany("INSERT INTO genre VALUES (?,?)",
                        [(tt, g) for g in t["genres"]])
     db.executescript("""

@@ -129,7 +129,6 @@ Item {
         onActivated: root.cancelScrub()
     }
     component Tool: KeyboardAction {
-        tooltipText: accessibleName
         id: control
         property string glyph
         property string symbol: ""
@@ -219,7 +218,6 @@ Item {
         spacing: 12
         KeyboardAction {
             objectName: "vinylBarPrev"
-            tooltipText: accessibleName
             focusOnPointer: false
             enabled: root.trackNavigationEnabled && (root.pageData.canPrevious === undefined || root.pageData.canPrevious)
             opacity: enabled ? 1 : 0.35
@@ -231,7 +229,6 @@ Item {
         }
         KeyboardAction {
             objectName: "vinylBarPlay"
-            tooltipText: root.showSongPlay ? qsTr("Play viewed song") : root.busy ? qsTr("Waiting for source") : root.pageData.paused ? qsTr("Play") : qsTr("Pause")
             focusOnPointer: false
             focusRadius: 18
             focusPrimary: true
@@ -262,7 +259,6 @@ Item {
         }
         KeyboardAction {
             objectName: "vinylBarNext"
-            tooltipText: accessibleName
             focusOnPointer: false
             enabled: root.trackNavigationEnabled && (root.pageData.canNext === undefined || root.pageData.canNext)
             opacity: enabled ? 1 : 0.35

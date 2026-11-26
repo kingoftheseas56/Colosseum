@@ -89,33 +89,6 @@ Item {
         interval: 12000
         onTriggered: explanation.close()
     }
-    ToolTip {
-        id: hoverExplanation
-        objectName: "smartPickHoverExplanation"
-        parent: Overlay.overlay
-        visible: control.visible && infoAction.hovered && !explanation.visible
-        delay: 350
-        text: control.explanationText
-        width: Math.min(340, Math.max(0, parent ? parent.width - 24 : 340))
-        x: Math.max(12, Math.min(parent ? parent.width - width - 12 : 12,
-                               infoAction.mapToItem(parent, 0, 0).x + 44 - width))
-        y: Math.max(12, Math.min(parent ? parent.height - height - 12 : 12,
-                               infoAction.mapToItem(parent, 0, 44).y + 8))
-        padding: 14
-        background: Rectangle {
-            radius: 11
-            color: "#171a22"
-            border.width: 1
-            border.color: theme.edge
-        }
-        contentItem: Text {
-            text: hoverExplanation.text
-            color: theme.ink
-            font.family: theme.ui
-            font.pixelSize: 13
-            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-        }
-    }
     Popup {
         id: explanation
         objectName: "smartPickExplanation"

@@ -9,6 +9,10 @@ pragma ComponentBehavior: Bound
 
 Item {
     id: tabs
+    AdaptiveLayout {
+        id: touchMetrics
+        androidHost: Qt.platform.os === "android" || !!(tabs.Window.window && tabs.Window.window.androidHost === true)
+    }
 
     required property Item backdrop
     // The world's scroll offset. The glass re-samples the wallpaper behind the bar as the page
@@ -154,6 +158,8 @@ Item {
                     MouseArea {
                         id: ma
                         anchors.fill: parent
+                        anchors.topMargin: -touchMetrics.targetInset(parent.height)
+                        anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: tabs.requestIndex(pill.index, Qt.MouseFocusReason)

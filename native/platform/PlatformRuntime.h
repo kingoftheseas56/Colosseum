@@ -6,6 +6,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QString>
+#include <QVariantList>
 #include <QVariantMap>
 #include <memory>
 
@@ -31,6 +32,7 @@ class Runtime final : public QObject {
     Q_PROPERTY(int backGestureEdge READ backGestureEdge NOTIFY backGestureChanged)
     Q_PROPERTY(qreal playbackBrightness READ playbackBrightness NOTIFY playbackBrightnessChanged)
     Q_PROPERTY(qreal fontScale READ fontScale NOTIFY fontScaleChanged)
+    Q_PROPERTY(qreal androidPresentationScale READ androidPresentationScale CONSTANT)
     Q_PROPERTY(QMargins safeAreaMargins READ safeAreaMargins NOTIFY safeAreaMarginsChanged)
     Q_PROPERTY(bool surfaceAvailable READ surfaceAvailable NOTIFY surfaceAvailableChanged)
     Q_PROPERTY(bool storageAccessFrameworkAvailable READ storageAccessFrameworkAvailable CONSTANT)
@@ -60,6 +62,7 @@ public:
     qreal playbackBrightness() const { return m_playbackBrightness; }
     void acceptPlaybackBrightness(qreal value);
     qreal fontScale() const { return m_fontScale; }
+    qreal androidPresentationScale() const;
     void acceptFontScale(qreal value);
     void requestSurfaceRedraw(qint64 token, int width, int height);
     Q_INVOKABLE void beginPlaybackBrightness();
@@ -79,6 +82,13 @@ public:
     Q_INVOKABLE void backgroundApplication();
     Q_INVOKABLE bool requestStorageAccess(const QString &purpose = QString());
     Q_INVOKABLE bool requestPermission(const QString &permission);
+    // "All files access" (MANAGE_EXTERNAL_STORAGE) so the Vault can read real folder paths.
+    // Non-Android: always granted / no-op.
+    Q_INVOKABLE bool allFilesAccessGranted() const;
+    Q_INVOKABLE void requestAllFilesAccess();
+    // Mounted storage places for the Vault folder chooser: [{label, path, removable}].
+    // Non-Android: empty.
+    Q_INVOKABLE QVariantList storageVolumes() const;
 
 signals:
     void applicationStateChanged();

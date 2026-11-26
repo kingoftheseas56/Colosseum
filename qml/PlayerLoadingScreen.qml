@@ -23,8 +23,10 @@ Item {
     // Passed in from PlayerPage (theme.hud) so this file never depends on cross-file `theme` scope.
     property string hudFamily: "Segoe UI"
     property string errorText: ""
+    property bool allowManual: false
 
     signal cancelRequested()
+    signal manualRequested()
 
     visible: opacity > 0.001
     opacity: active ? 1 : 0
@@ -136,6 +138,7 @@ Item {
         width: Math.min(root.width * 0.40, 440)
 
         Text {
+            objectName: "playerLoadingStatus"
             anchors.horizontalCenter: parent.horizontalCenter
             visible: root.errored ? (root.errorText.length > 0) : (root.statusText.length > 0)
             text: root.errored ? root.errorText : root.statusText.toUpperCase()
@@ -173,6 +176,33 @@ Item {
                 }
             }
         }
+
+        // Only while the title-page Smart Pick is resolving. Keep this on the
+        // existing loading face; the rest of the player's startup has no action.
+        Item {
+            id: chooseSourceAction
+            objectName: "playerChooseSourceAction"
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: Math.min(parent.width, 240)
+            height: 36
+            visible: root.allowManual && root.active && !root.errored
+
+            Text {
+                anchors.centerIn: parent
+                text: qsTr("Choose source")
+                color: "#d0d0d3"
+                font.family: root.hudFamily
+                font.pixelSize: 13
+                font.weight: Font.Medium
+            }
+            KeyboardAction {
+                anchors.fill: parent
+                focusEnabled: chooseSourceAction.visible
+                spaceActivates: true
+                accessibleName: qsTr("Choose source")
+                onTriggered: root.manualRequested()
+            }
+        }
     }
 
     // Cancel affordance (the chrome's back button is hidden while loading): emits cancelRequested,
@@ -204,8 +234,6 @@ Item {
             pointerEnabled: false
             focusEnabled: root.active
             accessibleName: qsTr("Cancel loading")
-            tooltipText: accessibleName
-            tooltipHovered: cancelHover.containsMouse
             focusRadius: width / 2
             onTriggered: root.cancelRequested()
         }

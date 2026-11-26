@@ -5,6 +5,8 @@
 // Plain data, QtCore only. No file path in here is ever sent to a client (filePath is the
 // server's own handle to the bytes; every id is opaque).
 
+#include <QDir>
+#include <QFileInfo>
 #include <QHash>
 #include <QString>
 #include <QStringList>
@@ -28,6 +30,15 @@ struct DlnaItem {
     QString synopsis;
     QString author;      // books/comics/audiobooks
     QString coverPath;   // local image path if cheaply known, else empty
+    bool subtitlePersonal = false;
+
+    QString subtitleCandidatePath() const
+    {
+        if (!mime.startsWith(QLatin1String("video/")))
+            return {};
+        const QFileInfo file(filePath);
+        return QDir(file.absolutePath()).filePath(file.completeBaseName() + QLatin1String(".srt"));
+    }
 
     bool operator==(const DlnaItem& o) const
     {
@@ -35,7 +46,8 @@ struct DlnaItem {
             && filePath == o.filePath && mime == o.mime && size == o.size && mtimeMs == o.mtimeMs
             && durationSec == o.durationSec && season == o.season && episode == o.episode
             && year == o.year && seriesTitle == o.seriesTitle && genres == o.genres
-            && synopsis == o.synopsis && author == o.author && coverPath == o.coverPath;
+            && synopsis == o.synopsis && author == o.author && coverPath == o.coverPath
+            && subtitlePersonal == o.subtitlePersonal;
     }
 };
 

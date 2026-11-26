@@ -4,9 +4,14 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import "collections" as Collections
 
 Item {
     id: bar
+    AdaptiveLayout {
+        id: touchMetrics
+        androidHost: Qt.platform.os === "android" || !!(bar.Window.window && bar.Window.window.androidHost === true)
+    }
     objectName: "colosseumTaskbar"
     anchors.fill: parent
 
@@ -19,19 +24,31 @@ Item {
     property var groups: (typeof Sessions !== "undefined") ? (Sessions.revision, Sessions.groups()) : []
     property string activeId: (typeof Sessions !== "undefined") ? Sessions.activeId : ""
     property bool open: false
+    property Item pickerScene
+    property var pickerPicks: ({})
+    property var pickerUtilityShortcuts: []
+    property Component pickerMapSlide
+    property bool pickerReducedMotion: false
+    readonly property bool pickerShown: visible && open && !autoRevealed && !!pickerScene
+    readonly property bool legacyExpanded: open && !pickerScene
+    readonly property bool dockExpanded: pickerShown || legacyExpanded
+    readonly property real pickerWidth: Math.max(0, width - leftEdge * 2)
     property bool localMediaAvailable: typeof LocalLaunch !== "undefined" && LocalLaunch !== null
     readonly property string localMediaUnavailableReason: qsTr("Local file import is unavailable. Open downloaded media from Downloads.")
     readonly property int leftEdge: Math.max(18, Math.min(80, parent.width * 0.045))
     readonly property int bottomGap: 16
     readonly property int closedSize: 64
     readonly property real contentBottomInset: visible ? height - dock.y : 0
-    // Permanent buttons: Colosseum, Vault, and Your Collections.
-    readonly property int closedWidth: 190
+    // Permanent buttons: Colosseum, Vault, Collections, Downloads.
+    readonly property int closedWidth: pickerScene
+        ? 250 + (extensionsActive ? 60 : 0) + (historyStatsActive ? 60 : 0) : 190
     Keys.onPressed: (event) => spatialNav.handle(event)
 
     signal switchRequested(string id)
     signal closeRequested(string id)
     signal startClicked()
+    signal pickerPickRequested(string medium, var entry, var returnState)
+    signal pickerWallpaperRequested()
     signal openMediaClicked()             // Open Media… — hand the app a local file (Slice 8)
     signal watchPartyJoinClicked()        // Accountless/signed-in Room ID entry outside Player 1
     // Slice 6 Lanista scalars: bound by Main.qml to the outside-player Join sheet.
@@ -42,7 +59,7 @@ Item {
     signal openRecentRequested()          // Open Recent disclosure — the remembered files (Slice 9)
     signal vaultClicked()                 // Vault folder door — opens the "On this machine" page (Slice 10)
     property bool vaultActive: false      // the Vault page is the front surface
-    signal collectionsClicked()
+    signal collectionsClicked(bool viaPointer)
     property bool collectionsActive: false
     signal downloadsClicked()
     property int downloadsBadge: 0        // live download jobs (gold count chip)
@@ -54,28 +71,74 @@ Item {
     property bool historyStatsActive: false // Your Colosseum (history / highlights / stats) is the front surface
     property bool feriaContext: false
     readonly property string activityLabel: feriaContext ? "Your Feria" : "Your Colosseum"
-    // Third-party trackers (the Sync Center) live in the TopBar's right cluster, not here.
+
+    property bool openingMedia: false
+    function requestOpenMedia() {
+        if (openingMedia) return
+        openingMedia = true
+        open = false
+        autoRevealed = false
+        idleTimer.stop()
+        Qt.callLater(function() {
+            bar.openingMedia = false
+            if (bar.visible && !bar.open) bar.openMediaClicked()
+        })
+    }
 
     onOpenChanged: if (!open) fan.visible = false
+    onPickerShownChanged: if (pickerShown) picker.focusEntry()
+    function restorePicker(state) {
+        if (!visible || !pickerScene || !state)
+            return false
+        open = false
+        autoRevealed = false
+        idleTimer.stop()
+        if (!picker.restorePick(state))
+            return false
+        open = true
+        Qt.callLater(picker.restorePageFocus)
+        return true
+    }
+    property bool pendingAutoReveal: false
+    onVisibleChanged: {
+        if (!visible) open = false
+        else if (pendingAutoReveal) reveal()
+    }
 
     // ---- auto-reveal (2026-07-04): a minimize extends the bar out of the icon so you SEE the
     //      session arrive, then it pulls back after 15s without taskbar interaction. A bar the
     //      user opened by clicking the icon is sticky — only auto-revealed bars pull back. ----
     property bool autoRevealed: false
     function reveal() {
+        if (!bar.visible) {
+            pendingAutoReveal = true
+            return
+        }
+        pendingAutoReveal = false
+        if (pickerShown) return
         open = true
         autoRevealed = true
         idleTimer.restart()
     }
     function focusHistoryStatsAction() {
+        if (!bar.visible) return
+        if (bar.pickerScene && !bar.open) {
+            startInput.forceActiveFocus(Qt.TabFocusReason)
+            return
+        }
         bar.autoRevealed = false
         idleTimer.stop()
         if (!bar.open)
             bar.open = true
         Qt.callLater(function() {
-            if (historyStatsInput.visible && historyStatsInput.enabled)
+            if (bar.pickerShown)
+                picker.focusActivity()
+            else if (historyStatsInput.visible && historyStatsInput.enabled)
                 historyStatsInput.forceActiveFocus(Qt.TabFocusReason)
         })
+    }
+    function focusPickerButton() {
+        startInput.forceActiveFocus(Qt.TabFocusReason)
     }
     function focusCollectionsAction() {
         Qt.callLater(function() {
@@ -118,22 +181,80 @@ Item {
         return group.icon || ""
     }
 
+    Loader {
+        anchors.fill: parent
+        active: bar.pickerShown
+        sourceComponent: Component {
+            DockBackdrop {
+                scene: bar.pickerScene
+                onDismissed: {
+                    if (fan.visible) fan.visible = false
+                    else bar.open = false
+                }
+            }
+        }
+    }
+
+    DockPicker {
+        id: picker
+        z: 1
+        visible: bar.pickerShown
+        enabled: visible
+        x: bar.leftEdge
+        y: dock.y - height - 12
+        width: bar.pickerWidth
+        height: Math.max(0, dock.y - 12 - 20)
+        picks: bar.pickerPicks
+        utilityShortcuts: bar.pickerUtilityShortcuts
+        mapSlide: bar.pickerMapSlide
+        reducedMotion: bar.pickerReducedMotion
+        mediaAvailable: bar.localMediaAvailable
+        activityLabel: bar.activityLabel
+        onPickRequested: (medium, entry, returnState) => {
+            bar.open = false
+            bar.pickerPickRequested(medium, entry, returnState)
+        }
+        onWallpaperRequested: {
+            bar.open = false
+            bar.pickerWallpaperRequested()
+        }
+        onUtilityRequested: (shortcut, invoker) => {
+            bar.open = false
+            bar.focusPickerButton()
+            shortcut.run(invoker)
+        }
+        onChooseFilesRequested: bar.requestOpenMedia()
+        onRecentRequested: { bar.open = false; bar.openRecentRequested() }
+        onJoinRequested: { bar.open = false; bar.watchPartyJoinClicked() }
+        onExtensionsRequested: { bar.open = false; bar.extensionsClicked() }
+        onActivityRequested: { bar.open = false; bar.historyStatsClicked() }
+    }
+
     Rectangle {
         id: dock
+        z: 2
         objectName: "taskbarDock"
         x: bar.leftEdge
         y: parent.height - height - bar.bottomGap
-        width: bar.open ? Math.min(parent.width - (bar.leftEdge * 2), 1720) : bar.closedWidth
+        width: bar.pickerShown ? bar.pickerWidth
+             : bar.legacyExpanded ? Math.min(bar.pickerWidth, 1720)
+             : bar.autoRevealed && bar.open && sessionTiles.implicitWidth > 0
+                 ? Math.min(bar.pickerWidth, bar.closedWidth + dockRow.spacing + sessionTiles.implicitWidth)
+                 : bar.closedWidth
         height: bar.closedSize
-        radius: bar.open ? 18 : bar.closedSize / 2
+        radius: bar.dockExpanded ? 18 : bar.closedSize / 2
         clip: true
-        color: startInput.interactionActive || bar.open ? Qt.rgba(0.02, 0.02, 0.04, 0.94)
+        color: bar.pickerShown ? "#7210141c"
+             : startInput.interactionActive || bar.dockExpanded ? Qt.rgba(0.02, 0.02, 0.04, 0.94)
                                                  : Qt.rgba(0.02, 0.02, 0.03, 0.72)
         border.width: 1
         border.color: startInput.interactionActive ? Qt.rgba(0.94, 0.76, 0.35, 0.56)
                                             : Qt.rgba(1, 1, 1, 0.16)
 
-        Behavior on width { NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }
+        Behavior on width {
+            enabled: !bar.openingMedia
+            NumberAnimation { duration: 240; easing.type: Easing.OutCubic }
+        }
         Behavior on radius { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
         Behavior on color { ColorAnimation { duration: 140 } }
         Behavior on border.color { ColorAnimation { duration: 140 } }
@@ -145,6 +266,7 @@ Item {
         }
 
         RowLayout {
+            id: dockRow
             anchors.fill: parent
             anchors.leftMargin: 8
             anchors.rightMargin: 14
@@ -156,15 +278,12 @@ Item {
                 Layout.preferredWidth: 48
                 Layout.preferredHeight: 48
                 Layout.alignment: Qt.AlignVCenter
-                activeFocusOnTab: true
-                Accessible.role: Accessible.Button
-                Accessible.name: bar.open ? "Close taskbar" : "Open taskbar"
 
                 Rectangle {
                     anchors.fill: parent
-                    radius: bar.open ? 14 : 24
+                    radius: bar.dockExpanded ? 14 : 24
                     color: startInput.interactionActive ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
-                    border.width: bar.open || startInput.activeFocus ? 1 : 0
+                    border.width: bar.dockExpanded || startInput.activeFocus ? 1 : 0
                     border.color: startInput.activeFocus ? theme.gold : Qt.rgba(1, 1, 1, 0.13)
 
                     Behavior on radius { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
@@ -180,18 +299,24 @@ Item {
 
                 KeyboardAction {
                     id: startInput
+                    objectName: "taskbarToggleAction"
+                    spaceActivates: true
+                    // Pointer toggles should not leave the keyboard-focus glow behind.
+                    focusOnPointer: false
                     anchors.fill: parent
-                    accessibleName: bar.open ? "Close Colosseum taskbar" : "Open Colosseum taskbar"
-                    tooltipText: accessibleName
-                    focusRadius: bar.open ? 14 : 24
+                    anchors.leftMargin: -touchMetrics.targetInset(parent.width)
+                    anchors.rightMargin: -touchMetrics.targetInset(parent.width)
+                    anchors.topMargin: -touchMetrics.targetInset(parent.height)
+                    anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
+                    accessibleName: bar.dockExpanded
+                        ? "Close Colosseum taskbar" : "Open Colosseum taskbar"
+                    focusRadius: bar.dockExpanded ? 14 : 24
                     onTriggered: {
-                        bar.open = !bar.open
+                        bar.open = !bar.dockExpanded
                         bar.autoRevealed = false
+                        idleTimer.stop()
                     }
                 }
-                Keys.onReturnPressed: { bar.open = !bar.open; bar.autoRevealed = false }
-                Keys.onEnterPressed: { bar.open = !bar.open; bar.autoRevealed = false }
-                Keys.onSpacePressed: { bar.open = !bar.open; bar.autoRevealed = false }
             }
 
             // ---- Vault: the permanent folder door — opens the "On this machine" full page (Slice 10).
@@ -224,24 +349,28 @@ Item {
                     border.width: bar.collectionsActive ? 1 : 0
                     border.color: Qt.rgba(0.94, 0.76, 0.35, 0.45)
                 }
-                Image {
+                Collections.CollectionIcon {
                     anchors.centerIn: parent
                     width: 28; height: 28
-                    source: "../assets/icons/collections-app.png"
-                    sourceSize.width: 56
-                    sourceSize.height: 56
-                    fillMode: Image.PreserveAspectFit
-                    Accessible.ignored: true
+                    strokeColor: "white"
                 }
                 KeyboardAction {
                     id: collectionsInput
                     objectName: "taskbarCollectionsAction"
                     anchors.fill: parent
+                    focusOnPointer: false
+                    anchors.leftMargin: -touchMetrics.targetInset(parent.width)
+                    anchors.rightMargin: -touchMetrics.targetInset(parent.width)
+                    anchors.topMargin: -touchMetrics.targetInset(parent.height)
+                    anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
                     accessibleName: "Your Collections"
                     accessibleDescription: "Open your named collections"
-                    tooltipText: accessibleName
                     focusRadius: 13
-                    onTriggered: bar.collectionsClicked()
+                    onTriggered: {
+                        const viaPointer = activationFocusReason === Qt.MouseFocusReason
+                        if (viaPointer && bar.collectionsActive && activeFocus) focus = false
+                        bar.collectionsClicked(viaPointer)
+                    }
                 }
             }
 
@@ -253,7 +382,7 @@ Item {
                 Layout.preferredWidth: 46
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter
-                visible: bar.open
+                visible: bar.legacyExpanded
                 Rectangle {
                     anchors.fill: parent
                     radius: 13
@@ -273,10 +402,8 @@ Item {
                     anchors.fill: parent
                     accessibleName: bar.localMediaAvailable ? qsTr("Open media") : qsTr("Open media unavailable")
                     accessibleDescription: bar.localMediaAvailable ? "" : bar.localMediaUnavailableReason
-                    tooltipText: accessibleName
-                    tooltipHovered: hovered && !recentInput.hovered
                     focusRadius: 13
-                    onTriggered: bar.openMediaClicked()
+                    onTriggered: bar.requestOpenMedia()
                 }
                 // Recent disclosure (Slice 9): the corner caret opens the remembered-files list;
                 // the icon itself still opens the picker (Slice 8 preserved). Declared after omMa
@@ -303,16 +430,12 @@ Item {
                         anchors.fill: parent
                         accessibleName: bar.localMediaAvailable ? qsTr("Open recent media") : qsTr("Recent media unavailable")
                         accessibleDescription: bar.localMediaAvailable ? "" : bar.localMediaUnavailableReason
-                        tooltipText: accessibleName
                         focusRadius: 4
                         focusInset: -2
                         onTriggered: bar.openRecentRequested()
                     }
                 }
                 HoverHandler { id: localMediaHover; enabled: !bar.localMediaAvailable; cursorShape: Qt.ArrowCursor }
-                ToolTip.visible: !bar.localMediaAvailable && localMediaHover.hovered
-                ToolTip.text: bar.localMediaUnavailableReason
-                ToolTip.delay: 350
             }
 
             // ---- Watch Party: Room ID join lives outside immersive Player 1 so
@@ -324,7 +447,7 @@ Item {
                 Layout.preferredWidth: 46
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter
-                visible: bar.open
+                visible: bar.legacyExpanded
                 readonly property bool atlasActive: bar.watchPartyJoinOpen
 
                 Rectangle {
@@ -359,7 +482,6 @@ Item {
                     id: watchPartyInput
                     anchors.fill: parent
                     accessibleName: "Join Watch Party"
-                    tooltipText: accessibleName
                     focusRadius: 13
                     onTriggered: bar.watchPartyJoinClicked()
                 }
@@ -377,7 +499,7 @@ Item {
                 Layout.preferredWidth: 46
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter
-                visible: bar.open
+                visible: bar.open || !!bar.pickerScene
                 activeFocusOnTab: visible
                 Accessible.role: Accessible.Button
                 Accessible.name: "Downloads"
@@ -390,10 +512,9 @@ Item {
                 }
                 Image {
                     anchors.centerIn: parent
-                    width: 21; height: 21
-                    source: "../assets/icons/download.svg"
+                    width: 26; height: 26
+                    source: "../assets/icons/lucide/download.svg"
                     fillMode: Image.PreserveAspectFit
-                    opacity: bar.downloadsActive ? 1 : 0.75
                 }
                 Rectangle {   // active-page underline, same gold language as session tiles
                     visible: bar.downloadsActive
@@ -414,11 +535,16 @@ Item {
                 }
                 KeyboardAction {
                     id: downloadsInput
+                    objectName: "taskbarDownloadsAction"
                     anchors.fill: parent
+                    focusOnPointer: false
                     accessibleName: "Downloads"
-                    tooltipText: accessibleName
                     focusRadius: 13
-                    onTriggered: bar.downloadsClicked()
+                    onTriggered: {
+                        if (activationFocusReason === Qt.MouseFocusReason && bar.downloadsActive && activeFocus)
+                            focus = false
+                        bar.downloadsClicked()
+                    }
                 }
                 Keys.onReturnPressed: bar.downloadsClicked()
                 Keys.onEnterPressed: bar.downloadsClicked()
@@ -432,7 +558,7 @@ Item {
                 Layout.preferredWidth: 46
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter
-                visible: bar.open
+                visible: bar.legacyExpanded || (!!bar.pickerScene && bar.extensionsActive)
                 activeFocusOnTab: visible
                 Accessible.role: Accessible.Button
                 Accessible.name: "Extensions"
@@ -460,8 +586,8 @@ Item {
                 KeyboardAction {
                     id: extensionsInput
                     anchors.fill: parent
+                    focusOnPointer: !bar.pickerScene
                     accessibleName: "Extensions"
-                    tooltipText: accessibleName
                     focusRadius: 13
                     onTriggered: bar.extensionsClicked()
                 }
@@ -478,7 +604,7 @@ Item {
                 Layout.preferredWidth: 46
                 Layout.preferredHeight: 46
                 Layout.alignment: Qt.AlignVCenter
-                visible: bar.open
+                visible: bar.legacyExpanded || (!!bar.pickerScene && bar.historyStatsActive)
                 Rectangle {
                     objectName: "taskbarHistoryStatsSurface"
                     anchors.fill: parent
@@ -513,8 +639,8 @@ Item {
                     id: historyStatsInput
                     objectName: "taskbarHistoryStatsInput"
                     anchors.fill: parent
+                    focusOnPointer: !bar.pickerScene
                     accessibleName: bar.activityLabel
-                    tooltipText: accessibleName
                     spaceActivates: true
                     focusRadius: 13
                     onTriggered: bar.historyStatsClicked()
@@ -523,6 +649,7 @@ Item {
 
             // Session tiles — the dock's fill-width content.
             Row {
+                id: sessionTiles
                 objectName: "taskbarSessionTiles"
                 Layout.fillWidth: true
                 spacing: 10
@@ -587,9 +714,12 @@ Item {
                                 if (sessions.length === 1) return sessions[0].title || "Open session"
                                 return "Open " + sessions.length + " sessions"
                             }
-                            tooltipText: accessibleName
-                            tooltipHovered: hovered && !tileCloseMa.containsMouse
                             focusRadius: 23
+                            // Touch (Android): a finger can't hover or hit the 18px shoulder
+                            // close, so press-and-hold opens the fan for one session too; its
+                            // row carries the title and a finger-sized close.
+                            longPressEnabled: touchMetrics.androidHost
+                            onLongPressed: fan.openFor(tile, tile.modelData.sessions || [], tileInput)
                             onTriggered: {
                                 var sessions = tile.modelData.sessions || []
                                 if (sessions.length === 1) {
@@ -612,7 +742,7 @@ Item {
                         // switches, because it sits above tileMa in its corner.
                         Item {
                             id: tileClose
-                            visible: !tile.multi
+                            visible: !tile.multi && !touchMetrics.androidHost
                             anchors.right: parent.right
                             anchors.rightMargin: -3
                             anchors.top: parent.top
@@ -645,9 +775,6 @@ Item {
                                 hoverEnabled: true
                                 enabled: tileClose.visible && tileInput.interactionActive
                                 cursorShape: Qt.PointingHandCursor
-                                ToolTip.text: qsTr("Close session")
-                                ToolTip.delay: 350
-                                ToolTip.visible: enabled && containsMouse
                                 onClicked: bar.closeRequested(tile.modelData.sessions[0].id)
                             }
                         }
@@ -660,6 +787,7 @@ Item {
 
     Rectangle {
         id: fan
+        z: 3
         property var sessions: []
         width: 292
         visible: false
@@ -713,7 +841,7 @@ Item {
                     Accessible.role: Accessible.Button
                     Accessible.name: modelData.title || "Session"
                     Accessible.description: "Enter opens this session. Delete closes it."
-                    height: 40
+                    height: touchMetrics.androidHost ? 52 : 40
                     radius: 10
                     color: rowMa.containsMouse || fanRow.activeFocus ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
 
@@ -747,8 +875,8 @@ Item {
                         anchors.rightMargin: 10
                         anchors.verticalCenter: parent.verticalCenter
                         z: 1   // close outranks rowMa (declared later, fills the whole row)
-                        width: 24
-                        height: 24
+                        width: touchMetrics.androidHost ? 44 : 24
+                        height: touchMetrics.androidHost ? 44 : 24
 
                         Rectangle {
                             width: 11; height: 1.4; radius: 1
@@ -769,9 +897,6 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            ToolTip.text: qsTr("Close session")
-                            ToolTip.delay: 350
-                            ToolTip.visible: containsMouse
                             onClicked: {
                                 bar.closeRequested(modelData.id)
                                 fan.closeAndRestore()

@@ -182,7 +182,6 @@ Item {
                         opacity: root.currentPageIndex > 0 ? 1.0 : 0.35
                         Text { anchors.centerIn: parent; text: "‹"; color: theme.ink; font.pixelSize: 20 }
                         KeyboardAction {
-                            tooltipText: accessibleName
                             objectName: "mangaChapterPagePrev"
                             anchors.fill: parent
                             enabled: root.currentPageIndex > 0
@@ -222,7 +221,6 @@ Item {
                         opacity: root.currentPageIndex < root.pageCount - 1 ? 1.0 : 0.35
                         Text { anchors.centerIn: parent; text: "›"; color: theme.ink; font.pixelSize: 20 }
                         KeyboardAction {
-                            tooltipText: accessibleName
                             objectName: "mangaChapterPageNext"
                             anchors.fill: parent
                             enabled: root.currentPageIndex < root.pageCount - 1
@@ -597,7 +595,6 @@ Item {
                             font.pixelSize: 16
                         }
                         KeyboardAction {
-                            tooltipText: row.dlState === 'error' ? qsTr('Retry chapter download') : accessibleName
                             id: trailingAction
                             objectName: "mangaChapterDownload_" + row.chapterId
                             anchors.fill: parent

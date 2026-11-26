@@ -12,9 +12,11 @@ Item {
 
     // ── inputs ──
     property var sources: []                 // ordered candidate URLs from PosterSourcePolicy
+    property string placeholderTitle: ""
     property real radius: 12
     property int revealDuration: 280
     property bool hovered: false             // drives the cheap depth plates + inset edge accent
+    property bool fitArtwork: false
     // 0 → use the live Screen.devicePixelRatio; a positive value is a deterministic harness override.
     property real testDevicePixelRatio: 0
     readonly property bool softwareRendering: root.GraphicsInfo.api === GraphicsInfo.Software
@@ -91,7 +93,7 @@ Item {
         anchors.fill: parent
         visible: root.softwareRendering
         source: root.activeSource
-        fillMode: Image.PreserveAspectCrop
+        fillMode: root.fitArtwork ? Image.PreserveAspectFit : Image.PreserveAspectCrop
         asynchronous: true
         cache: true
         smooth: true
@@ -110,7 +112,9 @@ Item {
     ShaderEffect {
         id: roundedPass
         visible: !root.softwareRendering
-        anchors.fill: parent
+        anchors.centerIn: parent
+        width: root.fitArtwork && root.ready ? Math.min(root.width, root.height * _texAspect) : root.width
+        height: root.fitArtwork && root.ready ? Math.min(root.height, root.width / _texAspect) : root.height
         readonly property real _texW: Math.max(1, art.implicitWidth)
         readonly property real _texH: Math.max(1, art.implicitHeight)
         readonly property real _texAspect: _texW / _texH
@@ -123,6 +127,14 @@ Item {
                                                          : Qt.point(1, _texAspect / _itemAspect)
         property point uvOffset: Qt.point((1 - uvScale.x) / 2, (1 - uvScale.y) / 2)
         fragmentShader: "shaders/roundedposter.frag.qsb"
+    }
+
+    Loader {
+        anchors.fill: parent
+        active: root.placeholderTitle.length > 0 && opacity > 0
+        visible: opacity > 0
+        opacity: 1 - art.opacity
+        sourceComponent: BiblioCoverPlaceholder { title: root.placeholderTitle; radius: root.radius }
     }
 
     // ── inset edge, painted ABOVE the masked art: 1px white 8% at rest, 2px soft gold on hover ──

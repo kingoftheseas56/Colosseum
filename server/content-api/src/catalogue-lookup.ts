@@ -1,5 +1,5 @@
 import {query,type CatalogueDb,type Row} from './catalogue-semantic.ts';
-const allowed=new Set(['imdb_title','mal_anime','mal_manga','comics_series','comics_download','comics_curated_series','comics_curated_edition','comics_curated_source','comics_curated_series_coverage']);
+const allowed=new Set(['imdb_title','imdb_title_alias','mal_anime','mal_manga','comics_series','comics_download','comics_curated_series','comics_curated_edition','comics_curated_source','comics_curated_series_coverage']);
 // Directory ranges prune packed pages BEFORE json_each expansion. Root blocks use
 // INTEGER PRIMARY KEY lookup; DISTINCT removes dual native/English-name hits.
 export function indexedStatement(dataset:string,family:string,mode:'key'|'norm'|'prefix',value:any,tail='',tailArgs:any[]=[]){

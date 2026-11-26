@@ -36,8 +36,7 @@ def qml_policy_failures(files: dict[str, bytes]) -> list[str]:
             continue
         relative = name[len(QML_PREFIX):]
         if (re.search(r"(^|/)(feria|vinyl|player2|player2host)/", relative, re.I)
-                or (re.search(r"(^|/)Vault[^/]*\.(qml|js)$", relative)
-                    and relative not in {"VaultDoor.qml", "VaultHomeWidget.qml"})
+                or relative in {"+android/VaultPage.qml", "VaultPage.qml"}  # retired pages; VaultLibraryPage is the Vault
                 or relative in {"+android/TopBar.qml", "+android/Taskbar.qml", "+android/ExtensionsHouseHero.qml"}
                 or relative in {"reader2/Paper.qml", "TrackerApprovalWebView.qml", "ExtensionsSetupSheet.qml"}):
             failures.append(f"FORBIDDEN_QML_FILE {relative}")
@@ -63,10 +62,13 @@ def android_java_policy_failures(files: dict[str, bytes]) -> list[str]:
     """DEX class names are UTF-8 descriptors, also for otherwise unused classes."""
     failures = []
     for name, data in sorted(files.items()):
-        if "org/colosseum/vault/" in name:
+        # VaultMediaProbe ships (Vault thumbnails); the content:// metadata helper
+        # belongs to the abandoned folder-picker route and must stay out.
+        if "org/colosseum/vault/DocumentMetadata" in name:
             failures.append(f"FORBIDDEN_VAULT_JAVA_FILE {name}")
         if name.endswith((".dex", ".class")) and (
-                b"org/colosseum/vault/" in data or b"org.colosseum.vault." in data):
+                b"org/colosseum/vault/DocumentMetadata" in data
+                or b"org.colosseum.vault.DocumentMetadata" in data):
             failures.append(f"FORBIDDEN_VAULT_JAVA_REFERENCE {name}")
     return failures
 

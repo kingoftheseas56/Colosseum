@@ -103,9 +103,6 @@ FocusScope {
                         else { browser.active = false; Qt.callLater(function() { browser.active = true }) }
                     }
                 }
-                ToolTip.visible: refreshInput.interactionActive
-                ToolTip.delay: 350
-                ToolTip.text: qsTr("Refresh")
             }
             Item {
                 visible: root.universeRequest
@@ -127,7 +124,6 @@ FocusScope {
                     objectName: "universeRequestClose"
                     anchors.fill: parent
                     accessibleName: qsTr("Close Universe request")
-                    tooltipText: accessibleName
                     onTriggered: root.closeRequested()
                 }
             }

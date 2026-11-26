@@ -1,0 +1,327 @@
+{
+  "format": "webp",
+  "quality": 85,
+  "max_width": 2560,
+  "files": {
+    "assets/universes/one-piece/east-blue/banners/arlong.png": {
+      "source_sha256": "9e0d403fb8324d3094031b995c61be161721476b1271fffa5f213c7c2743c7e9",
+      "override_sha256": "805f3d3d4ee1e809615df814fa6bcccbccd5680de246ea5ec64e834d310a74d7"
+    },
+    "assets/universes/one-piece/east-blue/banners/baratie.png": {
+      "source_sha256": "d14ffb38157a46646442e330e6fd53d63a700898f939e282c5d1c75d6cbeabf5",
+      "override_sha256": "60c45afa4e73f8250e215773ea80d68d6baec5902b469bb27dac442682e0f4ca"
+    },
+    "assets/universes/one-piece/east-blue/banners/loguetown.png": {
+      "source_sha256": "28fc9ccefdab2444b54fc6d55c854cf7c1671280878129527c0698be71837dde",
+      "override_sha256": "9f4cfa5b59c46df327c50a6880c0931d8ff31ae1d565409b74dbb7e526465aec"
+    },
+    "assets/universes/one-piece/east-blue/banners/orange.png": {
+      "source_sha256": "d87f36ce8e6c303a8970e44f48b248d8e5323727285bd11822bdadcb5f2a8cae",
+      "override_sha256": "f111cda6dee35a3fb0915c4110e436227fed83f1f5a8ea155327a4618219bed0"
+    },
+    "assets/universes/one-piece/east-blue/banners/romance.png": {
+      "source_sha256": "f28d6d3b27a0dbaa9902ad177bc49b4d5f5672367eda674ef36791251386ed86",
+      "override_sha256": "92d9f95678e8465a160796375dd346b04392f03fc07aae078a8b7510a46271a9"
+    },
+    "assets/universes/one-piece/east-blue/banners/syrup.png": {
+      "source_sha256": "547e46629d6a38f4f4532b31b493c3a9715b933072eaef7f3860da978a558169",
+      "override_sha256": "f5d0dd46c08058637bf04fb2527063835187793303d5acfd614eb1f14923932c"
+    },
+    "assets/universes/one-piece/east-blue/canon/arlong-park.png": {
+      "source_sha256": "9e0d403fb8324d3094031b995c61be161721476b1271fffa5f213c7c2743c7e9",
+      "override_sha256": "805f3d3d4ee1e809615df814fa6bcccbccd5680de246ea5ec64e834d310a74d7"
+    },
+    "assets/universes/one-piece/east-blue/canon/baratie.png": {
+      "source_sha256": "d14ffb38157a46646442e330e6fd53d63a700898f939e282c5d1c75d6cbeabf5",
+      "override_sha256": "60c45afa4e73f8250e215773ea80d68d6baec5902b469bb27dac442682e0f4ca"
+    },
+    "assets/universes/one-piece/east-blue/canon/loguetown.png": {
+      "source_sha256": "28fc9ccefdab2444b54fc6d55c854cf7c1671280878129527c0698be71837dde",
+      "override_sha256": "9f4cfa5b59c46df327c50a6880c0931d8ff31ae1d565409b74dbb7e526465aec"
+    },
+    "assets/universes/one-piece/east-blue/canon/orange-town.png": {
+      "source_sha256": "d87f36ce8e6c303a8970e44f48b248d8e5323727285bd11822bdadcb5f2a8cae",
+      "override_sha256": "f111cda6dee35a3fb0915c4110e436227fed83f1f5a8ea155327a4618219bed0"
+    },
+    "assets/universes/one-piece/east-blue/canon/romance-dawn.png": {
+      "source_sha256": "f28d6d3b27a0dbaa9902ad177bc49b4d5f5672367eda674ef36791251386ed86",
+      "override_sha256": "92d9f95678e8465a160796375dd346b04392f03fc07aae078a8b7510a46271a9"
+    },
+    "assets/universes/one-piece/east-blue/canon/syrup-village.png": {
+      "source_sha256": "547e46629d6a38f4f4532b31b493c3a9715b933072eaef7f3860da978a558169",
+      "override_sha256": "f5d0dd46c08058637bf04fb2527063835187793303d5acfd614eb1f14923932c"
+    },
+    "assets/universes/one-piece/east-blue/east-blue-atlas.png": {
+      "source_sha256": "041353b311ad287816b216e4b6bfc64ebf84bb1a06a527e36ba13e2e55748813",
+      "override_sha256": "d768ee47656f6ed367e1e8da3fcee2362091f39a0bfc2c861f53558956e37cc2"
+    },
+    "assets/universes/one-piece/east-blue/noncanon/01-ganzack.png": {
+      "source_sha256": "024920fec9db49e162c66ccab008e4f125a73a6f67882c27f5e01f2b8cec3f1d",
+      "override_sha256": "ea839b04a03c47a4ab781fe9cd41c1d7fe4a2cfcc5957f9d660af6fb956981d6"
+    },
+    "assets/universes/one-piece/east-blue/noncanon/02-one-piece-movie.png": {
+      "source_sha256": "0ed1620094d23dfb4b4f5326ccff5bc464227d66d2fdc6690ba4011d393c377b",
+      "override_sha256": "8a677df921e47fde64e31079ac96012d74898889e3600465b74aac6d214362d0"
+    },
+    "assets/universes/one-piece/east-blue/noncanon/03-oceans-navel.png": {
+      "source_sha256": "0138c405ff0964bd652928a3a929161f28636ed4a042353aa6cfb2e77bd4a7bd",
+      "override_sha256": "aa0d6a50e57c494cffc2ad4b26f96eb39efa93bc20c781820fd4eadda0258de9"
+    },
+    "assets/universes/one-piece/east-blue/noncanon/04-jangos-dance-carnival.png": {
+      "source_sha256": "37d2f6996d7eabdc26c7f844ac126aceaa9dc4e80c64c3e01a16b2b624a324a4",
+      "override_sha256": "60b50e6cb038eb2abeb63a3b736b7818f0d3cd1cfde244bc09bf241ed72a0d7c"
+    },
+    "assets/universes/one-piece/east-blue/noncanon/05-clockwork-island.png": {
+      "source_sha256": "ccb9eb602ed4f251a4e114c219931425b956df94d88fb79e8aba9f15eb927575",
+      "override_sha256": "0622551bc78561cd4f8b87e81e104acfdcb7eda0ed237f8b01978a975e36fd7e"
+    },
+    "assets/universes/one-piece/east-blue-markers/arlong.png": {
+      "source_sha256": "458546e16fa0dd3b012abb9cbc2d48f8b19b308e2c5e7372347e8489d2e5e152",
+      "override_sha256": "41772492518fc58fd104f71948450e566f044323c3b9393a79460075ae70a8a0"
+    },
+    "assets/universes/one-piece/east-blue-markers/baratie.png": {
+      "source_sha256": "6a1bc252ee1bf4925048d88e88920297f20eef9a2b241c8af313f8022cedc09f",
+      "override_sha256": "31da680e89a3bd6b72a6a5ad7434ad6bcc06a729fcba7304058dbc04c53ce329"
+    },
+    "assets/universes/one-piece/east-blue-markers/loguetown.png": {
+      "source_sha256": "92310d76441c6513045b8fa78ab4929125b29cb5090fc7b5e5a57fb8e096a41a",
+      "override_sha256": "fa8e103795122ed650c013695a8b74c16efc38adedca2d2d6444449761210844"
+    },
+    "assets/universes/one-piece/east-blue-markers/orange.png": {
+      "source_sha256": "6fd11edcec075675b570735c7e84510da8800dcf6961ba69f48748f78c14d4c3",
+      "override_sha256": "33d30bc4b73ce45192bf6f8c16206172b59b73a5447dc974880162cea092e151"
+    },
+    "assets/universes/one-piece/east-blue-markers/romance.png": {
+      "source_sha256": "01cca1d9b7f6b5b263c544acbde7b3d8b89cbdfca2537eb6b18b9077573cade7",
+      "override_sha256": "df7c76ce5566b3b4012f55082eed8823681d7ada31b683b93609ef26448d83bf"
+    },
+    "assets/universes/one-piece/east-blue-markers/syrup.png": {
+      "source_sha256": "c88f352a5d708ad80de84b1b3e715546ed15cbb37bf3e00a594c4c62e530d1bb",
+      "override_sha256": "90b5dc32374162dae9642543d1e880ab48055cc378f027728aff1913a706fe48"
+    },
+    "assets/universes/one-piece/east-blue-relief.png": {
+      "source_sha256": "8f9ce7604c6a05b87d32fe8a14b961cbd258d3f8789814eeb5f23c29f3b9457f",
+      "override_sha256": "48492eedb01bc3dc02b58559b730487a7f7aff10b0e200fa759fc0fe556fd630"
+    },
+    "assets/universes/one-piece/final-sea/badges/egghead.png": {
+      "source_sha256": "eedd8d4b71201646e8dc2313444d099ffa22b5236deb9211a21a44f6264fbb10",
+      "override_sha256": "3a600bd0d988493cfb51db688643983b93703d644e5b300f0a40dbd0d7b39314"
+    },
+    "assets/universes/one-piece/final-sea/badges/elbaf.png": {
+      "source_sha256": "ed912ec9e1598f4fd51ef7444ab2dd2c5c6ff0dc99c5d67357220e728dbc4a00",
+      "override_sha256": "b83fec573e1d0d1f35e175e5ae7e2eca4223d927a1140ef2f207e993b4ffa248"
+    },
+    "assets/universes/one-piece/final-sea/banners/egghead.png": {
+      "source_sha256": "5daad5e1c48e41aa0cd7ae1e895c94d8a4dffd2bc712664a2a8bec06955b1bc6",
+      "override_sha256": "24e9c2e89e2e3c562b2aeacf3005ebbaacb42c46b996ba2b782485ca83ad4fc3"
+    },
+    "assets/universes/one-piece/final-sea/banners/elbaf.png": {
+      "source_sha256": "175a518e4cd464a07e74980d026619b897e3b80208a9fc24a13f3fde04eaa0f1",
+      "override_sha256": "a4bf16d3e8fd1fb20b3b4d6cbcf570fa493be1f1a951cdd45385a6202f2b6023"
+    },
+    "assets/universes/one-piece/final-sea/final-sea-map.png": {
+      "source_sha256": "9e0c40af7bd766d34ea1c070da70b0153d126c3c03e6da78eb4d767f9e3ab989",
+      "override_sha256": "81f329cb5884ecbeefaeddba1346d885c3029c6011671232292ecdea25f6da04"
+    },
+    "assets/universes/one-piece/new-world/badges/dressrosa.png": {
+      "source_sha256": "2303bdbd4641fc0a3f263d1cd039993493cea5b0a32ced36be85eed37c184a10",
+      "override_sha256": "8aeaf0d479e7438877a2b0443ef0bf38f1e77040f2e07bf4f61432c02355ae10"
+    },
+    "assets/universes/one-piece/new-world/badges/fish-man-island.png": {
+      "source_sha256": "a3bcd017cb6476e57e06aed569623e4e623192a92fc0124644bedadfd665bf37",
+      "override_sha256": "3284a1f4ac6713515630e3f4b3240a205100c829c58be68c8203888c6ef94f3e"
+    },
+    "assets/universes/one-piece/new-world/badges/punk-hazard.png": {
+      "source_sha256": "4119a3209d62b1d1647cb9bdec372cae6f8d1de6c301919abd4552c4e137e28f",
+      "override_sha256": "23a90a1e72315e8ac2c08b2e275e403a1b2784bdce2d5fa472d152892d37394a"
+    },
+    "assets/universes/one-piece/new-world/badges/reverie.png": {
+      "source_sha256": "bc6106dcd3a22d8633cbb3c8f5b4d20a041483d716ad0f7cae05455545eb07a5",
+      "override_sha256": "9b598a25bcc60e3e7c5c649494edc7521ec27e9fc5a29ba5fed134ebd4a49df9"
+    },
+    "assets/universes/one-piece/new-world/badges/wano-country.png": {
+      "source_sha256": "2da3f39333ab14930ba7992b44159e28c2aded83f2aea14a2b2f84e3d5549ec3",
+      "override_sha256": "5640accb8e58f5a85c9a803e0b93676b2d9a19ae6ef15e29bdfa6bb97cbfbc25"
+    },
+    "assets/universes/one-piece/new-world/badges/whole-cake-island.png": {
+      "source_sha256": "638bc5ab4f1de16a4e3abdf3d49fb14902b6d23206cbe812bd1e8fc915a9d57b",
+      "override_sha256": "372dcaacf9957836da2a2d200c6870c2a612dae22c95b6c69f46b039c5553004"
+    },
+    "assets/universes/one-piece/new-world/badges/zou.png": {
+      "source_sha256": "7bb9c746864c9ac8c68051ea4421137e108bb6d2517928f6d740c7902fb48ca4",
+      "override_sha256": "06f2baff13107c0112d453b0c472cc5be4acb98dcb63e4c47a1aaae20cf7bdf9"
+    },
+    "assets/universes/one-piece/new-world/banners/dressrosa.png": {
+      "source_sha256": "f4afe358f2d9032238caebeabc3362ef9c653d863181283c19ad780c46bf9381",
+      "override_sha256": "c415b213a27abd8401a9f6e6b8cf71d4272c8ff05af169faffbb82b3459239d2"
+    },
+    "assets/universes/one-piece/new-world/banners/fish-man-island.png": {
+      "source_sha256": "54814530f4a595aa1a021d70cbe3a5ddd486f68ff470f820b6ef8c91cd7af4ca",
+      "override_sha256": "91323092d4478561dbf95f825447c758602103597b5c10e2c7e3ac857996b8f3"
+    },
+    "assets/universes/one-piece/new-world/banners/levely.png": {
+      "source_sha256": "3b7e5f0ffbf6043f6f8c0c1fadaa38541fcfa6d949426d347d94530f98c85c2d",
+      "override_sha256": "0d24de46d01e6b10bf05c04f89f981885493f9971f4cafbeda6401da4118f3aa"
+    },
+    "assets/universes/one-piece/new-world/banners/punk-hazard.png": {
+      "source_sha256": "3708e9b5045a9f2294096e6ace0dcfcb05e0c7c2aa11d3471d56121ba0dc2032",
+      "override_sha256": "7f36477c0f04a169b33ecf10d0074ea108fb33db4fe12a50c785946ddf38ac1e"
+    },
+    "assets/universes/one-piece/new-world/banners/wano-country.png": {
+      "source_sha256": "83d403c5334b5f4aa32b00aedc0489f7973443f739f38f9fb5985d777a7d66fb",
+      "override_sha256": "3f0fbe4c881d1d3497fd1ab054996ae441e5b9e3fe382e78ed4ac2dc42dd3e67"
+    },
+    "assets/universes/one-piece/new-world/banners/whole-cake-island.png": {
+      "source_sha256": "acc08800918791fb48c448782761c5537abd05ac77eb6e388591c410eaec5c85",
+      "override_sha256": "adbc76de0a4a488fe63243b0a46c8e847c348b22ea84099393d9c1df00811271"
+    },
+    "assets/universes/one-piece/new-world/banners/zou.png": {
+      "source_sha256": "7057bd650797d9d88a198c15be04666a823e413844ae67b415758eb3a8ce0e9d",
+      "override_sha256": "21070173dcf94029f5061b2460c4afb2509725fa0e90aa9f8380a4b18056dfd0"
+    },
+    "assets/universes/one-piece/paradise/badges/amazon-lily.png": {
+      "source_sha256": "f2b329edb2941d4d602bcda63bfa19fecf514fce44b06afd39e6c162d754b2b0",
+      "override_sha256": "cf9195c43121b020067da22fa5429c3d6da3af5c6512a3f276e2219c59c4d608"
+    },
+    "assets/universes/one-piece/paradise/badges/arabasta.png": {
+      "source_sha256": "41b8678349257541ffb5daa1efcb5e8aa5c9c82b9e9bcaf34c3599db90c4558f",
+      "override_sha256": "9b6bfb3e498f1d7eed55d5a14c23d4366fecce04074bea4ba19a26b3f575b8ee"
+    },
+    "assets/universes/one-piece/paradise/badges/drum-island.png": {
+      "source_sha256": "e17da69ba1beedb3567921444068020e86e76019ff201ff682e471e756318466",
+      "override_sha256": "25aa47446ea05756e13b2e53d9ff97c5727c6feebba01052d6a600fc57758096"
+    },
+    "assets/universes/one-piece/paradise/badges/enies-lobby.png": {
+      "source_sha256": "7ce9f7e3918da9e391489b113003286dd27f70fc622fe93de135815406e9ec31",
+      "override_sha256": "54acabc00dd158bbc3374fa8f7574d23014b18bded26293a7ead94031df39a7e"
+    },
+    "assets/universes/one-piece/paradise/badges/impel-down.png": {
+      "source_sha256": "5bff7e8d54c10e18ca321f02e8e961343a8957468bae7259922f6ca3d16ce547",
+      "override_sha256": "fd7082cf1ad3e6c692bbba3ba2f82e4783c71b905b786d03b93fa861d82b1ce1"
+    },
+    "assets/universes/one-piece/paradise/badges/jaya.png": {
+      "source_sha256": "cfe42714b8a5423ad52544a1d70f8c61ee65759ed86a4a3e383543e6a100958c",
+      "override_sha256": "3fb49cdd635f71200b218669883342b0f5da9b53c87f9aa993b588f809b3a412"
+    },
+    "assets/universes/one-piece/paradise/badges/little-garden.png": {
+      "source_sha256": "586772b0ec62d17e538b4cb1a83a266ae6a7a431e69533f2179836ff685e669c",
+      "override_sha256": "d283d21990b3b3d18365917039a48942f8e9f37dffa7029f23622fb66c4ef876"
+    },
+    "assets/universes/one-piece/paradise/badges/long-ring-long-land.png": {
+      "source_sha256": "ce420b6674f2d676d50e079c669d20e77a5cbb63713005c2d0544940b6c6f082",
+      "override_sha256": "10dc1a3a34775ea0647c2f833e1ae413aca2764e1648e785aeed6946c6b942eb"
+    },
+    "assets/universes/one-piece/paradise/badges/marineford.png": {
+      "source_sha256": "90285a401dde4085796c0b7dd7ddbff3e5cd5538b3ad5c95eba87f8b442b504e",
+      "override_sha256": "f92d5e7aa0d12791070488b95d2d3c5473441de8d72b5c13dba9a127ee418c3a"
+    },
+    "assets/universes/one-piece/paradise/badges/post-enies-lobby.png": {
+      "source_sha256": "d1958eba8a05a9928aad06ef9d5a8dfbba8fd7168da64d1b19b6ffb1926cc763",
+      "override_sha256": "c76d5fc4193b7134d4b1a892dc448fb2ebd8b6af3e6c4995be4bf3d3b83bc290"
+    },
+    "assets/universes/one-piece/paradise/badges/post-war.png": {
+      "source_sha256": "a40129647dddd15b55cfdd94b2ab1404eaca16ff6c332659e224f21807a446f6",
+      "override_sha256": "d1e44f8c531f3f1380002a4c9b4e2180d2f04d84f315a9a3f2971956be4d5f50"
+    },
+    "assets/universes/one-piece/paradise/badges/return-to-sabaody.png": {
+      "source_sha256": "d95ceaaabe118139268ed5cc3f327fd15a34bb897b5cb30a14b5f2a04b7cd02e",
+      "override_sha256": "e4c1da85915a29a6f2519f38afa56d9cdf93f94141a2c4b1abe51b469148636c"
+    },
+    "assets/universes/one-piece/paradise/badges/reverse-mountain.png": {
+      "source_sha256": "758046a1297dda006248988a2ac0295e63e55a727b21304dfd8295a380f4698d",
+      "override_sha256": "c5dafe5ea01a36a804b8a9231ca16af384aacf4ea7be571d2f500b0fb77bec3c"
+    },
+    "assets/universes/one-piece/paradise/badges/sabaody.png": {
+      "source_sha256": "6e76f38db5a778b73726e60dc3182bea14b0f1845e4d686d0b15ef922e429f93",
+      "override_sha256": "2ba45b02a4f8be9460e2944e4fa275572439e0c53ef44bb19e306910bc3fa868"
+    },
+    "assets/universes/one-piece/paradise/badges/skypiea.png": {
+      "source_sha256": "2fc240cf927f796e1c84e9e8e46bda069911d347d728dffcdea5760744ba019a",
+      "override_sha256": "56848f8a5e7d24d8122ed46424747c6936377e1ff112043505f32afe49616220"
+    },
+    "assets/universes/one-piece/paradise/badges/thriller-bark.png": {
+      "source_sha256": "e579385190065c62b3047033cf40150ab88b77080596c35c8a7bfad28bbb7d55",
+      "override_sha256": "e2a8004a4968d2aa6abec0ca3d02682e5bf5433f97d2791330586781f2dd992e"
+    },
+    "assets/universes/one-piece/paradise/badges/water-7.png": {
+      "source_sha256": "582326b2020cc663d6a0982b9a2ee869b0f7363712bddaa6ce295c800108d8fd",
+      "override_sha256": "b8f576962fac1e0ab007965968cb72ab4cb7890b4d18da18379600ad18f4b219"
+    },
+    "assets/universes/one-piece/paradise/badges/whisky-peak.png": {
+      "source_sha256": "729c4dd068eec1058b35df7d3a19f5f2d33b392493ada069b9bcb23a4e415af3",
+      "override_sha256": "e05ee03cd43214affcf4f1ec4155cf848b8290d6c1767627319b98d191f8461e"
+    },
+    "assets/universes/one-piece/paradise/banners/amazon-lily.png": {
+      "source_sha256": "d8cc19655574803005863fe4cd7d1a97b79711caacaa2cdacfda7223f7b30455",
+      "override_sha256": "55c5c9c73aa17822fbe5a2b2557db6dc5f35bdf0b49efbca6ea94f34f13e68c6"
+    },
+    "assets/universes/one-piece/paradise/banners/arabasta.png": {
+      "source_sha256": "1a413dcf6c80aa66b2d2ae8ba8956c675643989954ec70094c1b002eee92076f",
+      "override_sha256": "d4ecc62419daa9445154b608e123924fa39d356e988d8b4a33a44fbb8a115515"
+    },
+    "assets/universes/one-piece/paradise/banners/drum-island.png": {
+      "source_sha256": "8efc00a2b81cec89bfb0a39f4be1c574182828324dfe24c96451c3786eabac78",
+      "override_sha256": "3ad3fa47a5c355f2b20c126783c589dac133a911a38165ca41f4a7fb1dced8e4"
+    },
+    "assets/universes/one-piece/paradise/banners/enies-lobby.png": {
+      "source_sha256": "a5ca1040406d5d722408c2538365cafd9c52eb1ce2f48b7892924c5e5b171daa",
+      "override_sha256": "2ac75a1967d4c8c07f01ecea0c97e767721e9dda8b95291ece405b16b110c445"
+    },
+    "assets/universes/one-piece/paradise/banners/impel-down.png": {
+      "source_sha256": "6508af38ffe43f1a7bb379209ba120ac90231b84da63801b8fee32ecba3bc78b",
+      "override_sha256": "c56d1d8716fdeec0be7573d98afd561e906a8e9bc45f11596fe95f0fd34f1d40"
+    },
+    "assets/universes/one-piece/paradise/banners/jaya.png": {
+      "source_sha256": "b72eb339db5ba87547597f770f63707396410b0887a0af6b4508647d4e821dbc",
+      "override_sha256": "b7c47a6ac03ab70bb479333961448d2822bd4d5fc26ef2a299c07afa7e26c6be"
+    },
+    "assets/universes/one-piece/paradise/banners/little-garden.png": {
+      "source_sha256": "07e77f8cc676aa2324fac3217a25bde321057e615b050151afab2a429dc31a0e",
+      "override_sha256": "905d76c7a2a3a7d03c10b1c27866bacf9d4e0a229d1bdee62022f47fbded4bd5"
+    },
+    "assets/universes/one-piece/paradise/banners/long-ring-long-land.png": {
+      "source_sha256": "b8c2601139432393c056925cf65f9c7602529c04a9ca1f85f3628b6035c2cba7",
+      "override_sha256": "0b60b80490ab610817be21868f54ab4bc7abde2b46582e894bd5a0ba7022ceeb"
+    },
+    "assets/universes/one-piece/paradise/banners/marineford.png": {
+      "source_sha256": "78a5a96a30ac12bb783a04ae6fb9e5a8c02e64fad9bc528e68f28d44e49c7009",
+      "override_sha256": "fb19a19b8bc8cdc14d0ddb4765fb2eb51e8e8a0c1bb688bccfa716d31131232e"
+    },
+    "assets/universes/one-piece/paradise/banners/post-enies-lobby.png": {
+      "source_sha256": "ddd894467fe6d9c919df250dfa3b486eb0457cabd4bec763e7f30e8a1b11d4e1",
+      "override_sha256": "f29b87940b91ee9b01cec60c2e27591feff40732eeca84c9bbb5d2ee2a7864c0"
+    },
+    "assets/universes/one-piece/paradise/banners/post-war.png": {
+      "source_sha256": "a17a282e88e668163c3926a5f5e4968255ce5af2e9ed4cc3bb343e08a586b366",
+      "override_sha256": "43e841c90c37a7e7fb039f6a70bc4f7debd3b32b01bcc56c8b0cd06ee105ba52"
+    },
+    "assets/universes/one-piece/paradise/banners/return-to-sabaody.png": {
+      "source_sha256": "298a22e07ca2b34b188d13c927ad74e1bc0b2f34a6d92904b0265961758495d9",
+      "override_sha256": "5d1049c3865f8ad0efcd6c653ed81fc5562c440cd21f1aaecab7a4f319b33ee4"
+    },
+    "assets/universes/one-piece/paradise/banners/reverse-mountain.png": {
+      "source_sha256": "d3f5334a282267a8a6821cc46350a198127fcb4ed5e94ae652c422dc47d25db3",
+      "override_sha256": "e5b3d5f21beccb684f1397a317c7b95a00362abeab79df715070cd372b82f044"
+    },
+    "assets/universes/one-piece/paradise/banners/sabaody.png": {
+      "source_sha256": "3b5b1180cdaabe5438e9fba1f64f1e0a525043e5f81f3b5781225cca7112e4ae",
+      "override_sha256": "96331848a4466d73d71425415c276ce1edc65077310d5e325e24c54d8aec5ea6"
+    },
+    "assets/universes/one-piece/paradise/banners/skypiea.png": {
+      "source_sha256": "8f31f51f098917e677ec02950d706f9abe0ee5ec7933e96367cf4f70b19687b6",
+      "override_sha256": "1dadcc1552a9e4432ec2c453646e52c54263e882ea9c7b55e4e203c14f3f613f"
+    },
+    "assets/universes/one-piece/paradise/banners/thriller-bark.png": {
+      "source_sha256": "06a4952d541bca7f1046accb95a5d9b40456fae83fc03df08ade444261a0e395",
+      "override_sha256": "c7dff687b535c8c86f69e186905b7a9da314300334420d97c061dd74787773ff"
+    },
+    "assets/universes/one-piece/paradise/banners/water-7.png": {
+      "source_sha256": "f8983a04c32525dee988daf98211df3014600857ae77c3ba428c5c33f7cd5774",
+      "override_sha256": "68cf2f1c4e280b447233f79682474e590b64c7551678571ce2d1765e9c98337f"
+    },
+    "assets/universes/one-piece/paradise/banners/whisky-peak.png": {
+      "source_sha256": "9093c2edb82cc2ac65cb8a1ccfd5296d3ccd67ad62f1393ec46d04bda3eb37bb",
+      "override_sha256": "0827a18d936c69bf25817c3ee26cac5a2359e619d562d00eb61f51b753854cf3"
+    }
+  }
+}

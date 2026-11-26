@@ -51,7 +51,7 @@ TestCase {
         return null
     }
 
-    function test_world_viewport_ends_above_bar() {
+    function test_world_viewport_extends_behind_bar_on_android() {
         var worlds = ["Theatre", "Tankoban", "Biblio"]
         for (var i = 0; i < worlds.length; ++i) {
             var medium = worlds[i]
@@ -59,6 +59,8 @@ TestCase {
             verify(world !== null)
             var scroll = findChild(world, medium.toLowerCase() + "WorldScroll")
             verify(scroll !== null)
+            compare(scroll.y + scroll.height, world.height)
+            world.androidHost = false
             compare(scroll.y + scroll.height, world.height - world.contentBottomInset)
             world.destroy()
         }
@@ -71,5 +73,27 @@ TestCase {
         verify(scroll !== null)
         compare(scroll.height, downloads.height - downloads.contentBottomInset)
         downloads.destroy()
+    }
+
+    function test_universe_detail_dock_clearance_data() {
+        return [
+            { tag: "shelves", page: "ShelvesUniversePage", scroll: "shelvesScroll" },
+            { tag: "saga", page: "SagaUniversePage", scroll: "sagaScroll" },
+            { tag: "extension", page: "UniverseExtensionPage", scroll: "universeExtensionScroll" }
+        ]
+    }
+
+    function test_universe_detail_dock_clearance(data) {
+        const component = Qt.createComponent(Qt.resolvedUrl("../../qml/" + data.page + ".qml"))
+        compare(component.status, Component.Ready, component.errorString())
+        const page = createTemporaryObject(component, testWindow.contentItem)
+        verify(page)
+        const scroll = findChild(page, data.scroll)
+        verify(scroll)
+        const unpaddedHeight = scroll.contentHeight
+
+        page.contentBottomInset = 120
+        compare(scroll.height, testWindow.height)
+        compare(scroll.contentHeight, unpaddedHeight + page.contentBottomInset)
     }
 }

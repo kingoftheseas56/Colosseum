@@ -9,8 +9,8 @@
 //   1. WeebCentralScraper::fetchPages(chapterId)  -> [{index, imageUrl}]
 //   2. for each page: GET image -> write <dir>/page_NNN.<ext>  (3 retries,
 //      2/4/8s backoff; resume skips existing files > 1 KB; bounded concurrency)
-//   3. write an index entry {chapterId -> dir, files[], pageCount, bytes}
-//   4. reader calls localPages(chapterId) -> file:/// URLs for the saved pages
+//   3. pack permanent chapters into CBZ and persist their ordered entries
+//   4. reader calls localPages(chapterId) for archive entries or legacy files
 //
 // On-disk layout (under QStandardPaths::AppDataLocation, NOT the purgeable
 // CacheLocation the image cache uses):
@@ -25,6 +25,8 @@
 // can never overwrite a newer chapter completion or deletion.
 
 #pragma once
+
+#include "DownloadLocation.h"
 
 #include "DownloadFileOps.h"
 
@@ -91,9 +93,8 @@ public:
     Q_INVOKABLE QVariantList livePages(QString chapterId) const;
     Q_INVOKABLE QVariantMap liveStatus(QString chapterId) const;
 
-    // The local-read FLIP. Returns [{index:int, url:"file:///.../page_NNN.ext"}]
-    // for a downloaded chapter, or an empty list if it isn't downloaded — the
-    // reader shows "go download it" on empty, it NEVER falls back to streaming.
+    // Returns reader page descriptors for a downloaded chapter, or an empty
+    // list when the payload is unavailable.
     Q_INVOKABLE QVariantList localPages(const QString& chapterId) const;
 
     // True once the chapter is on disk with at least one page.
@@ -103,7 +104,7 @@ public:
     // { state:"none"|"queued"|"downloading"|"done", done:int, total:int }.
     Q_INVOKABLE QVariantMap statusOf(const QString& chapterId) const;
 
-    // Delete a downloaded chapter (loose files + index entry). Emits removed().
+    // Delete the chapter archive or legacy page folder and its index entry.
     Q_INVOKABLE QVariantMap deleteChapter(const QString& chapterId);
     Q_INVOKABLE QVariantMap removeIncompleteDownloads();
     // Cancel a queued or in-flight download (aborts replies, drops partials). Emits removed().
@@ -113,6 +114,10 @@ public:
     // whole index (missing:true when the first file vanished outside the app);
     // activeChapterJobs() lists in-flight + queued jobs with live page counts.
     Q_INVOKABLE QVariantList downloadedChapters() const;
+    QList<DownloadLocation::Item> managedDownloadItems() const;
+    void refreshDownloadPaths();
+    void downloadLocationAvailable() { pumpQueue(); }
+    Q_SIGNAL void downloadPathsChanged();
     Q_INVOKABLE QVariantList activeChapterJobs() const;
 
     // Resolve a chapter's THUMBNAIL = its first page. Downloaded -> local file (instant);
@@ -159,6 +164,7 @@ private:
         QString seriesTitle;
         QString chapterLabel;
         QString dir;                 // resolved chapter directory
+        QString archive;             // completed CBZ while its index write is pending
         WeebCentralScraper* scraper = nullptr;
         QObject* pageResolverScope = nullptr;
         QList<PageInfo> pages;
@@ -173,6 +179,7 @@ private:
         bool scraperPending = false;
         bool cleanupPending = false;
         bool scanPending = false;
+        bool packing = false;
         bool live = false;
         bool liveStarted = false;
         qulonglong liveToken = 0;
@@ -189,6 +196,7 @@ private:
         QString seriesTitle;
         QString chapterLabel;
         QString dir;
+        QString archive;
         QStringList files;
         qint64 bytes = 0;
         qint64 addedAt = 0;
@@ -250,7 +258,9 @@ private:
     void saveIndex();
     void startIndexWrite();
     void runWhenIndexIdle(std::function<void()> continuation);
-    void writeEntry(const Job* job);
+    void writeEntry(Job* job, qint64 archiveBytes);
+    void finishArchiveCommit(Job* job, bool committed);
+    static QString pageUrl(const Entry& entry, const QString& file);
 
     QNetworkAccessManager* m_nam = nullptr;
     TankoyomiChapterService* m_tankoyomi = nullptr; // shared with MangaEngine in production
@@ -270,6 +280,7 @@ private:
     QHash<QString, MangaImageHostResolver::RequestId> m_pinLookupRequests;
     QHash<QString, Entry> m_index;                 // chapterId -> entry
     QByteArray m_pendingIndexSnapshot;              // newest owner-thread snapshot awaiting write
+    QList<std::shared_ptr<JobLifetime>> m_pendingArchiveCommits;
     bool m_indexWriteInFlight = false;              // at most one QSaveFile worker at a time
     QHash<QString, Job*>  m_active;                 // chapterId -> in-flight job
     QQueue<Job*>          m_queue;                  // waiting jobs

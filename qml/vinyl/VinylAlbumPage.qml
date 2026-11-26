@@ -191,7 +191,6 @@ Flickable {
                         focusOnPointer: false
                         required property string modelData
                         objectName: "vinylAlbum" + modelData
-                        tooltipText: modelData === "Save" ? (root.pageData.saved ? qsTr("Unsave album") : qsTr("Save album")) : accessibleName
                         width: 40
                         height: 36
                         accessibleName: modelData === "Save" && root.pageData.saved ? "Saved"
@@ -282,7 +281,6 @@ Flickable {
                         id: saveTrackAction
                         focusOnPointer: false
                         objectName: "vinylTrackSave_" + parent.index
-                        tooltipText: accessibleName
                         property var personalRow: root.personalRowForTrack(parent.index)
                         x: (parent.compactTrackActions ? parent.width - parent.trackActionWidth : trackVisual.width) + 8
                         width: 32
@@ -308,7 +306,6 @@ Flickable {
                         id: playlistTrackAction
                         focusOnPointer: false
                         objectName: "vinylTrackPlaylist_" + parent.index
-                        tooltipText: accessibleName
                         property var personalRow: root.personalRowForTrack(parent.index)
                         x: (parent.compactTrackActions ? parent.width - parent.trackActionWidth : trackVisual.width) + 48
                         width: 32
@@ -355,7 +352,6 @@ Flickable {
                     id: playlistMoreAction
                     focusOnPointer: false
                     objectName: "vinylPlaylistMore"
-                    tooltipText: accessibleName
                     width: 36
                     height: 36
                     accessibleName: "Load more tracks"

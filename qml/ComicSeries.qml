@@ -13,6 +13,7 @@ import QtQuick
 import QtQuick.Controls
 import "ComicsApi.js" as Api
 import "ComicResolve.js" as Resolve
+import "ExtensionsCatalog.js" as ExtensionCatalog
 import "collections" as CollectionsUi
 import "CollectionsReferences.js" as CollectionsReferences
 
@@ -42,6 +43,10 @@ Item {
     // Arc 19: injectable service seams preserve production defaults while letting the
     // consume-vs-acquire contract run deterministically in an offscreen harness.
     property var comicsRef: (typeof Comics !== "undefined") ? Comics : null
+    property var extensionsRef: (typeof Extensions !== "undefined") ? Extensions : null
+    readonly property bool getComicsEnabled:
+        ExtensionCatalog.sourceEnabled(page.extensionsRef, "colosseum.well.getcomics.issues")
+    signal openExtensionsRequested()
     property var progressRef: (typeof Progress !== "undefined") ? Progress : null
     signal backRequested()
     signal minimizeRequested()
@@ -342,6 +347,10 @@ Item {
         var snap = page._releaseSnapshot(release)
         var service = page.comicsRef
         if (!snap || !snap.id.length || !service || !service.downloadIssue) return false
+        if (!page.getComicsEnabled) {
+            page.openExtensionsRequested()
+            return false
+        }
         service.downloadIssue(snap.id, snap.url, page.seriesId, page.seriesTitle, snap.name,
                               snap.sizeMB * 1024 * 1024)
         if (typeof Collection !== "undefined")
@@ -476,8 +485,6 @@ Item {
             MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: { page._invalidateReadIntent(); page.minimizeRequested() } }
             KeyboardAction {
-                tooltipText: accessibleName
-                tooltipHovered: minMa.containsMouse
                 id: minimizeKeyboard
                 anchors.fill: parent
                 pointerEnabled: false
@@ -506,8 +513,6 @@ Item {
                 onClicked: page.fullscreenRequested()
             }
             KeyboardAction {
-                tooltipText: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")
-                tooltipHovered: fsMa.containsMouse
                 id: fullscreenKeyboard
                 anchors.fill: parent
                 pointerEnabled: false
@@ -523,8 +528,6 @@ Item {
             MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: { page._invalidateReadIntent(); page.closeRequested() } }
             KeyboardAction {
-                tooltipText: accessibleName
-                tooltipHovered: clMa.containsMouse
                 id: closeKeyboard
                 anchors.fill: parent
                 pointerEnabled: false
@@ -651,6 +654,14 @@ Item {
             }
 
             // ── SHELF CONTROLS — filter + sort; view-only, the reader is untouched ──
+            SourceExtensionPrompt {
+                x: theme.margin
+                width: Math.max(0, parent.width - 2 * theme.margin)
+                visible: !page.getComicsEnabled
+                namePrefix: "comicSource"
+                message: qsTr("No comic download source is enabled for this title. Enable one in Extensions.")
+                onOpenExtensionsRequested: page.openExtensionsRequested()
+            }
             Item {
                 width: parent.width; height: 64
                 visible: page.releases.length > 0
@@ -686,8 +697,6 @@ Item {
                         MouseArea { id: clearMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor; onClicked: filterInput.text = "" }
                         KeyboardAction {
-                            tooltipText: accessibleName
-                            tooltipHovered: clearMa.containsMouse
                             id: clearKeyboard
                             anchors.fill: parent
                             pointerEnabled: false
@@ -975,8 +984,6 @@ Item {
                                                 onClicked: trailing.activateTrailing()
                                             }
                                             KeyboardAction {
-                                                tooltipText: accessibleName
-                                                tooltipHovered: trMa.containsMouse
                                                 id: trailingKeyboard
                                                 anchors.fill: parent
                                                 pointerEnabled: false

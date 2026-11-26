@@ -6,22 +6,25 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import "ExtensionsCatalog.js" as ExtensionCatalog
 import QtQuick.Effects
 
 Item {
     id: hero
 
+    property bool controlsOnly: false
     property int revision: 0                 // bump when Extensions changes
     signal universesRequested()
     signal searchRequested()
     signal installUrlRequested()
+    signal installRequested(string extensionId, string url)
     signal configureRequested(string extensionId)
 
     readonly property bool compact: width < 1250
     property int universeIndex: 0
 
     width: parent ? parent.width : 1400
-    height: 330
+    height: controlsOnly ? 254 : 330
 
     Theme { id: theme }
 
@@ -34,13 +37,18 @@ Item {
     }
     function isInstalled(id) { hero.revision; var r = hero.rowFor(id); return !!r && r.enabled !== false }
     function isPresent(id) { hero.revision; return hero.rowFor(id) !== null }
+    function canToggle(id) {
+        return hero.isPresent(id) || (typeof Extensions !== "undefined" && ExtensionCatalog.houseInstallUrl(id).length > 0)
+    }
     function toggle(id) {
         if (hero.isPresent(id)) Extensions.setEnabled(id, !hero.isInstalled(id))
+        else if (ExtensionCatalog.houseInstallUrl(id).length > 0 && typeof Extensions !== "undefined")
+            hero.installRequested(id, ExtensionCatalog.houseInstallUrl(id))
     }
 
     Timer {
         interval: 7500; repeat: true
-        running: hero.visible
+        running: hero.visible && !hero.controlsOnly
         onTriggered: hero.universeIndex = (hero.universeIndex + 1) % banners.count
     }
 
@@ -62,7 +70,7 @@ Item {
             anchors.fill: parent
             Repeater {
                 id: banners
-                model: ["../assets/extensions/house/starwars-banner.jpg",
+                model: hero.controlsOnly ? [] : ["../assets/extensions/house/starwars-banner.jpg",
                         "../assets/extensions/house/dcau.jpg",
                         "../assets/extensions/house/cosmere.jpg"]
                 delegate: Image {
@@ -98,6 +106,7 @@ Item {
     // ---- Search: the Store's add-on search ----
     Rectangle {
         id: searchPill
+        visible: !hero.controlsOnly
         anchors.right: parent.right; anchors.top: parent.top
         anchors.rightMargin: 26; anchors.topMargin: 20
         width: searchRow.implicitWidth + 36; height: 34
@@ -125,7 +134,7 @@ Item {
         }
         KeyboardAction {
             id: searchAction
-            objectName: "extensionsSearchButton"
+            objectName: hero.controlsOnly ? "" : "extensionsSearchButton"
             anchors.fill: parent
             accessibleName: "Search add-ons"
             focusRadius: 17
@@ -252,7 +261,6 @@ Item {
                             enabled: tile.modelData.kind === "universes" || tile.modelData.id === "colosseum.well.tankoyomi"
                             accessibleName: tile.modelData.kind === "universes" ? tile.modelData.name
                                                                                  : tile.modelData.name + " settings"
-                            tooltipText: tile.modelData.kind === "universes" ? qsTr("Open Tributes") : qsTr("Configure Tankoyomi")
                             focusRadius: 19
                             onTriggered: tile.modelData.kind === "universes" ? hero.universesRequested()
                                                                              : hero.configureRequested(tile.modelData.id)
@@ -287,7 +295,7 @@ Item {
                             color: tile.installed ? Qt.rgba(40 / 255, 120 / 255, 82 / 255, 0.82) : Qt.rgba(18 / 255, 19 / 255, 24 / 255, 0.72)
                             border.width: 1
                             border.color: tile.installed ? Qt.rgba(159 / 255, 1, 210 / 255, 0.55) : Qt.rgba(1, 1, 1, 0.34)
-                            opacity: hero.isPresent(tile.modelData.id) ? 1 : 0.5
+                            opacity: hero.canToggle(tile.modelData.id) ? 1 : 0.5
                             Behavior on y { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
                             Text {
                                 anchors.centerIn: parent
@@ -298,9 +306,8 @@ Item {
                             KeyboardAction {
                                 id: toggleAction
                                 anchors.fill: parent
-                                enabled: hero.isPresent(tile.modelData.id)
+                                enabled: hero.canToggle(tile.modelData.id)
                                 accessibleName: (tile.installed ? "Turn off " : "Add ") + tile.modelData.name
-                                tooltipText: accessibleName
                                 focusRadius: 14
                                 onTriggered: hero.toggle(tile.modelData.id)
                             }

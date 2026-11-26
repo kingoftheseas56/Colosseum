@@ -52,14 +52,57 @@ if(index.lookupRanges!==undefined){
  }
  assert.deepEqual([...fine].sort(),[...tankobanKeys].sort(),'fine ranges cover exactly the coarse tankoban keys');
 }
-assert.equal(bytes,report.totalBytes);assert.equal(max,report.largestFileBytes);assert.ok(paths.length<=18000);
+const freeFileLimit=20000;
+const qualificationFileLimit=report.audiobooks?freeFileLimit:18000;
+assert.equal(bytes,report.totalBytes);assert.equal(max,report.largestFileBytes);
+assert.ok(paths.length<=qualificationFileLimit);
+let audiobookSamples=[],audiobookRows;
+if(report.audiobooks){
+ assert.equal(index.audiobooks?.version,1);
+ assert.equal(index.audiobooks.path,report.audiobooks.root);
+ const root=JSON.parse(readFileSync(join(publication,index.audiobooks.path)));
+ assert.equal(root.date,report.audiobooks.date);
+ const lookup=(field,visit)=>{
+  const ranges=JSON.parse(readFileSync(join(publication,root.records[field])));
+  let previous='';
+  for(const [first,last,path] of ranges){
+   assert.ok(first>previous&&first<=last&&entries.has(path),field+' ranges');
+   const records=Object.entries(JSON.parse(readFileSync(join(publication,path))))
+    .sort(([a],[b])=>a<b?-1:a>b?1:0);
+   assert.equal(records[0][0],first);
+   assert.equal(records.at(-1)[0],last);
+   for(const [id,value] of records){
+    assert.ok(id>previous,field+' keys');
+    visit(id,value);
+    previous=id;
+   }
+  }
+  return ranges;
+ };
+ audiobookRows={works:0,recordings:0,series:0};
+ const workRanges=lookup('work',(id,value)=>{
+  assert.equal(value.id,id);
+  assert.ok(Array.isArray(value.recordings));
+  audiobookRows.works++;
+  audiobookRows.recordings+=value.recordings.length;
+  for(const rec of value.recordings)assert.equal(rec.workId,id);
+ });
+ lookup('series',(id,value)=>{
+  assert.equal(value.id,id);
+  audiobookRows.series++;
+ });
+ for(const [table,count] of Object.entries(audiobookRows))
+  assert.equal(count,report.audiobooks.rows[table],table+' full coverage');
+ audiobookSamples=[index.audiobooks.path,root.start,root.records.work,workRanges[0][2],root.search];
+ for(const path of audiobookSamples)assert.ok(entries.has(path));
+}
 const cfg=JSON.parse(readFileSync(new URL('../wrangler.jsonc',import.meta.url),'utf8').replace(/^\s*\/\/.*$/gm,''));
 const mf=new Miniflare(convertV4MiniflareOptions({modules:true,compatibilityDate:cfg.compatibility_date,
  script:'export default {fetch(){return new Response("WORKER_INVOKED",{status:418,headers:{"X-Worker-Invoked":"yes"}})}}',
  assets:{directory:publication,binding:'ASSETS',run_worker_first:cfg.assets.run_worker_first,routerConfig:{has_user_worker:true}}}));
 const routing=[];
 try{
- const sample=['/catalogue/current.json',entry.index.path,Object.values(index.listBuckets)[0],Object.values(index.lookups)[0],...(index.lookupRanges?.ranges??[]).slice(0,1).map(r=>r.path),Object.values(index.fixed)[0],index.search.manga.names[0].path,index.search.imdb.keys[0].path,index.content.manifest.path,index.content.bundle.path,Object.values(index.content.documents)[0].path,paths.find(p=>p.startsWith('/assets/content/'))];
+ const sample=['/catalogue/current.json',entry.index.path,Object.values(index.listBuckets)[0],Object.values(index.lookups)[0],...(index.lookupRanges?.ranges??[]).slice(0,1).map(r=>r.path),Object.values(index.fixed)[0],index.search.manga.names[0].path,index.search.imdb.keys[0].path,index.content.manifest.path,index.content.bundle.path,Object.values(index.content.documents)[0].path,paths.find(p=>p.startsWith('/assets/content/')),...audiobookSamples];
  for(const path of sample){
   const r=await mf.dispatchFetch('https://public-static.invalid'+path),raw=Buffer.from(await r.arrayBuffer());
   assert.equal(r.status,200,path);assert.equal(r.headers.get('X-Worker-Invoked'),null,path);assert.deepEqual(raw,readFileSync(join(publication,path)));
@@ -73,5 +116,7 @@ try{
  }
 }finally{await mf.dispose();}
 const result={revision:entry.revision,sourceRevision:entry.sourceRevision,files:paths.length,bytes,largestFileBytes:max,hashedFiles,verifiedReferences:refs.size,artworkFiles:report.artworkFiles,contentDocuments:report.contentDocuments,
- filesWithConservative135Artwork:paths.length+Math.max(0,135-report.artworkFiles),fileHeadroom:18000-paths.length,routing,publicGetHead304Checks:33,remoteRequests:0,d1Writes:0,deployed:false};
+ filesWithConservative135Artwork:paths.length+Math.max(0,135-report.artworkFiles),fileHeadroom:qualificationFileLimit-paths.length,
+ freeFileHeadroom:freeFileLimit-paths.length,freeLargestFileHeadroom:25*1024*1024-max,
+ ...(audiobookRows?{audiobookRows}:{}),routing,publicGetHead304Checks:3*routing.filter(r=>!r.workerInvoked).length,remoteRequests:0,d1Writes:0,deployed:false};
 writeFileSync(evidence,JSON.stringify(result,null,2));console.log(JSON.stringify({...result,routing:undefined}));

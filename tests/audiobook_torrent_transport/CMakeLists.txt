@@ -6,6 +6,14 @@ find_package(Qt6 REQUIRED COMPONENTS Core Network Test)
 add_executable(audiobook_transport_test test.cpp stream_stub.cpp ../../native/engine/AudiobookDownloader.cpp ../../native/engine/AudiobookDownloader.h ../../native/AudioPairingStore.h ../../native/player/streamserver.h)
 target_sources(audiobook_transport_test PRIVATE ../../native/engine/AudiobookTorrentTransport.cpp ../../native/engine/AudiobookTorrentTransport.h ../../native/engine/AudiobookTorrentEngineAdapter.h)
 target_link_libraries(audiobook_transport_test PRIVATE Qt6::Core Qt6::Network Qt6::Test)
+add_test(NAME colosseum.audiobook_transport COMMAND audiobook_transport_test)
+add_executable(audiobook_recording_match_test recording_match_test.cpp ../../native/engine/AudiobookRecordingMatch.cpp ../../native/engine/AudiobookRecordingMatch.h)
+set_target_properties(audiobook_recording_match_test PROPERTIES AUTOMOC ON)
+target_link_libraries(audiobook_recording_match_test PRIVATE Qt6::Core Qt6::Test)
+if(MSVC)
+  target_compile_options(audiobook_recording_match_test PRIVATE /utf-8)
+endif()
+add_test(NAME colosseum.audiobook_recording_match COMMAND audiobook_recording_match_test)
 if(MSVC)
  target_compile_options(audiobook_transport_test PRIVATE /utf-8)
 endif()
@@ -16,6 +24,17 @@ target_link_libraries(audiobook_adapter_compile PRIVATE Qt6::Core Qt6::Network)
 if(MSVC)
  target_compile_options(audiobook_adapter_compile PRIVATE /utf-8)
 endif()
+if(WIN32)
+  # Run the isolated QtTest binaries directly from CTest, without relying on a
+  # developer's interactive PATH or copying from the installed Colosseum.
+  foreach(target audiobook_transport_test audiobook_recording_match_test)
+    add_custom_command(TARGET ${target} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+              $<TARGET_RUNTIME_DLLS:${target}> $<TARGET_FILE_DIR:${target}>
+      COMMAND_EXPAND_LISTS)
+  endforeach()
+endif()
+
 option(AUDIOBOOK_LOOPBACK_FIXTURE "Build isolated real libtorrent fixture with installed host dependencies" OFF)
 if(AUDIOBOOK_LOOPBACK_FIXTURE)
  find_package(LibtorrentRasterbar CONFIG REQUIRED)

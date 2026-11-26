@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Window
 import QtTest
 import "../../qml/vinyl"
@@ -182,7 +183,7 @@ Item {
         }
         function test_collectionUsesCanonicalLabelAndNoTooltip() {
             const button=action("vinylSongAddToCollections");
-            compare(button.labelText,"Add to Collection");verify(!button.hoverDescriptionEnabled);
+            compare(button.labelText,"Add to Collection");verify(!button.ToolTip.visible);
             compare(button.iconOnly,true);compare(button.width,34);compare(button.height,34);
             const caption=findChild(button,"vinylSongAddToCollectionsCaption");
             verify(caption!==null);verify(!caption.visible);

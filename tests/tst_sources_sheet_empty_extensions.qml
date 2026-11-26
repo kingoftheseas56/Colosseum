@@ -46,6 +46,8 @@ Item {
             harness.lastBrowseMoreSources = false
             harness.sheet = sourcesComponent.createObject(surface)
             verify(harness.sheet !== null, "create the production SourcesSheet")
+            // These assertions cover the manual source sheet, independent of Smart Pick.
+            harness.sheet.smartPlayCancelled = true
         }
 
         function cleanup() {
@@ -59,6 +61,7 @@ Item {
 
         function test_noEnabledCompatibleProviderOffersExtensionsRoute() {
             harness.sheet.show("movie", "tt0063350", "Example film", ({}))
+            harness.sheet.smartPlayCancelled = true
             compare(harness.sheet.askedCount, 0)
             compare(harness.sheet.loading, false)
             verify(harness.sheet.open)
@@ -70,6 +73,7 @@ Item {
             verify(action.visible, "the action is visible only for this settled empty state")
             compare(action.accessibleName, "Find sources by adding extensions")
             compare(findChild(harness.sheet, "sourcesSheetExtensionsLabel").text, "Find sources by adding extensions")
+            waitForRendering(action)
             mouseClick(action, action.width / 2, action.height / 2, Qt.LeftButton)
             tryCompare(harness.sheet, "open", false)
             compare(harness.navigationRequests, 1)
@@ -79,12 +83,14 @@ Item {
 
         function test_askedProviderReturningNoSourcesOffersBrowseRoute() {
             harness.sheet.show("movie", "tt0063350", "Example film", ({}))
+            harness.sheet.smartPlayCancelled = true
             harness.sheet.askedNames = ["Example provider"]
             harness.sheet.loading = false
             var action = findChild(harness.sheet, "sourcesSheetExtensionsAction")
             var status = findChild(harness.sheet, "sourcesSheetEmptyText")
             compare(status.text, "No sources found.")
             verify(action.visible, "an empty response offers more stream extensions")
+            waitForRendering(action)
             mouseClick(action, action.width / 2, action.height / 2, Qt.LeftButton)
             compare(harness.navigationRequests, 1)
             compare(harness.sheetOpenAtNavigation, false)
@@ -93,6 +99,7 @@ Item {
 
         function test_loading_results_emptyReply_timeout_andOtherModesHideAction() {
             harness.sheet.show("movie", "tt0063350", "Example film", ({}))
+            harness.sheet.smartPlayCancelled = true
             var action = findChild(harness.sheet, "sourcesSheetExtensionsAction")
             verify(action !== null, "production action exists for visibility gating")
             var status = findChild(harness.sheet, "sourcesSheetEmptyText")
@@ -130,6 +137,7 @@ Item {
 
         function test_actionRemainsInsidePhoneAndDesktopSheet() {
             harness.sheet.show("movie", "tt0063350", "Example film", ({}))
+            harness.sheet.smartPlayCancelled = true
             var action = findChild(harness.sheet, "sourcesSheetExtensionsAction")
             verify(action !== null && action.visible)
 

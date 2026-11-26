@@ -3,6 +3,8 @@
 #include "BookTorrentFilePicker.h"
 #include "BookTorrentMagnet.h"
 #include "engine/TorrentEngine.h"
+#include "../engine/DownloadMediaPaths.h"
+#include "../engine/DownloadFileOps.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -14,7 +16,9 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QSaveFile>
 #include <QStandardPaths>
+#include <QUuid>
 #include <QtConcurrent>
 #include <QVector>
 
@@ -32,6 +36,20 @@ BookTorrentDownloader::BookTorrentDownloader(TorrentEngine* engine, QObject* par
         connect(m_engine, &TorrentEngine::torrentFinished, this, &BookTorrentDownloader::onEngineFinished);
         connect(m_engine, &TorrentEngine::torrentError,     this, &BookTorrentDownloader::onEngineFailed);
         connect(m_engine, &TorrentEngine::torrentAddFailed, this, &BookTorrentDownloader::onEngineFailed);
+        connect(m_engine, &TorrentEngine::ownedRemovalSettled, this,
+                [this](const QString &token, bool success, int error) {
+            for (Job *job : m_active) {
+                if (job->settlementToken != token)
+                    continue;
+                if (success) {
+                    job->released = true;
+                    publishReleasedJob(job);
+                } else {
+                    failJob(job, tr("Could not release the ebook download (error %1).").arg(error));
+                }
+                return;
+            }
+        }, Qt::QueuedConnection);
     }
 }
 
@@ -58,6 +76,10 @@ BookTorrentDownloader::Job* BookTorrentDownloader::jobForHash(const QString& inf
 void BookTorrentDownloader::download(const QString& infoHashIn, const QString& title, const QString& author)
 {
     const QString infoHash = infoHashIn.trimmed().toLower();
+    if (DownloadMediaPaths::moving()) {
+        emit failed(infoHash, tr("Downloads are moving. Try again when the move finishes."));
+        return;
+    }
     if (infoHash.size() != 40) { emit failed(infoHash, QStringLiteral("bad infoHash")); return; }
     if (m_deleting.contains(infoHash)) {
         // The old hash directory is still being removed on the worker. Retain
@@ -146,7 +168,7 @@ void BookTorrentDownloader::onEngineProgress(const QString& infoHash, float prog
 void BookTorrentDownloader::onEngineFinished(const QString& infoHash)
 {
     Job* job = jobForHash(infoHash);
-    if (!alive(job) || !job->picked) return;   // pre-pick "finished" cannot happen; guard anyway
+    if (!alive(job) || !job->picked || !job->settlementToken.isEmpty()) return;
     finalizeJob(job);
 }
 
@@ -169,15 +191,86 @@ void BookTorrentDownloader::finalizeJob(Job* job)
         failJob(job, QStringLiteral("finished but file missing: %1").arg(job->fileName));
         return;
     }
+    if (DownloadMediaPaths::enabled()) {
+        const QString stagingDir = QFileInfo(dirFor(job->infoHash)).canonicalFilePath();
+        if (!DownloadMediaPaths::destinationParentsSafe(stagingDir, onDisk)) {
+            failJob(job, tr("The ebook torrent returned an invalid storage path."));
+            return;
+        }
+        job->settlementToken = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        if (!m_engine->requestOwnedRemoval(job->settlementToken, job->infoHash, stagingDir, false))
+            failJob(job, tr("Could not confirm that this ebook owns the torrent storage."));
+        return;
+    }
     m_engine->removeTorrent(job->infoHash, /*deleteFiles=*/false);   // stop tracking, keep bytes
-    Entry e{ onDisk, job->title, job->author, job->totalBytes, QDateTime::currentMSecsSinceEpoch() };
-    m_index.insert(job->infoHash, e);
-    saveIndex();
+    indexFinishedJob(job, onDisk);
+}
+
+void BookTorrentDownloader::publishReleasedJob(Job *job)
+{
+    if (!alive(job) || !job->released || job->copying)
+        return;
+    const QString source = QDir(dirFor(job->infoHash)).filePath(job->fileName);
+    if (job->destinationPath.isEmpty()) {
+        job->destinationPath = DownloadMediaPaths::allocate(DownloadMediaPaths::bookPath(
+            job->title, job->author, QFileInfo(source).suffix()), false, {}, QStringLiteral("book-torrent:") + job->infoHash);
+    }
+    const QString target = job->destinationPath;
+    if (target.isEmpty() || DownloadMediaPaths::waitingForDrive(target)) {
+        emit progress(job->infoHash, static_cast<double>(job->received), static_cast<double>(job->totalBytes));
+        return;
+    }
+    if (!QDir().mkpath(QFileInfo(target).absolutePath())) {
+        failJob(job, tr("Colosseum could not create the ebook download folder."));
+        return;
+    }
+    job->copying = true;
+    const QString token = job->settlementToken;
     const QString hash = job->infoHash;
-    qInfo() << "[BookTorrentDownloader] complete" << hash << "→" << onDisk;
+    auto *watcher = new QFutureWatcher<bool>(this);
+    connect(watcher, &QFutureWatcher<bool>::finished, this, [this, watcher, source, target, token, hash] {
+        const bool copied = watcher->result();
+        watcher->deleteLater();
+        Job *live = jobForHash(hash);
+        if (!live || live->settlementToken != token) {
+            if (copied)
+                QFile::remove(target);
+            return;
+        }
+        if (!copied) {
+            failJob(live, tr("Colosseum could not verify the ebook copy. Its source is still in place."));
+            return;
+        }
+        indexFinishedJob(live, target);
+        if (m_index.value(hash).path == target)
+            QFile::remove(source);
+    });
+    watcher->setFuture(QtConcurrent::run([source, target] {
+        return !DownloadMediaPaths::waitingForDrive(target) && DownloadMediaPaths::copyVerified(source, target);
+    }));
+}
+
+void BookTorrentDownloader::downloadLocationAvailable()
+{
+    const auto jobs = m_active.values();
+    for (Job *job : jobs)
+        publishReleasedJob(job);
+}
+
+void BookTorrentDownloader::indexFinishedJob(Job *job, const QString &path)
+{
+    Entry e{ path, job->title, job->author, job->totalBytes, QDateTime::currentMSecsSinceEpoch() };
+    m_index.insert(job->infoHash, e);
+    if (!saveIndex()) {
+        m_index.remove(job->infoHash);
+        failJob(job, tr("Colosseum could not record the completed ebook."));
+        return;
+    }
+    const QString hash = job->infoHash;
+    qInfo() << "[BookTorrentDownloader] complete" << hash << "→" << path;
     m_active.remove(hash);
     delete job;
-    emit finished(hash, onDisk);
+    emit finished(hash, path);
 }
 
 void BookTorrentDownloader::failJob(Job* job, const QString& reason)
@@ -193,7 +286,7 @@ void BookTorrentDownloader::cancelDownload(const QString& infoHash)
 {
     const QString h = infoHash.toLower();
     if (Job* j = m_active.take(h)) {
-        if (m_engine) m_engine->removeTorrent(h, /*deleteFiles=*/true);
+        if (m_engine && j->settlementToken.isEmpty()) m_engine->removeTorrent(h, /*deleteFiles=*/true);
         delete j;
         emit failed(h, QStringLiteral("cancelled by user"));
     }
@@ -204,12 +297,14 @@ void BookTorrentDownloader::cancelDownload(const QString& infoHash)
 void BookTorrentDownloader::deleteDownload(const QString& infoHash)
 {
     const QString h = infoHash.toLower();
-    if (m_deleting.contains(h)) return;
+    if (m_deleting.contains(h) || DownloadMediaPaths::moving()) return;
+    const QString file = m_index.value(h).path;
+    if (DownloadMediaPaths::waitingForDrive(file))
+        return;
     if (Job* j = m_active.take(h)) {           // still downloading → stop + drop engine files
-        if (m_engine) m_engine->removeTorrent(h, /*deleteFiles=*/true);
+        if (m_engine && j->settlementToken.isEmpty()) m_engine->removeTorrent(h, /*deleteFiles=*/true);
         delete j;
     }
-    if (m_index.remove(h)) saveIndex();        // drop from the completed index
     const QString path = dirFor(h);
     m_deleting.insert(h);
     auto* watcher = new QFutureWatcher<bool>(this);
@@ -218,15 +313,21 @@ void BookTorrentDownloader::deleteDownload(const QString& infoHash)
         const bool deleted = watcher->result();
         watcher->deleteLater();
         m_deleting.remove(h);
-        if (!deleted)
+        if (!deleted) {
             qWarning() << "[BookTorrentDownloader] delete failed" << h;
+            emit failed(h, tr("Colosseum could not delete the ebook."));
+            return;
+        }
+        if (m_index.remove(h)) saveIndex();
         emit removed(h);
         const bool hasDeferred = m_deferredDownloads.contains(h);
         const auto deferred = m_deferredDownloads.take(h);
         if (hasDeferred)
             download(h, deferred.title, deferred.author);
     });
-    watcher->setFuture(QtConcurrent::run([path]() {
+    watcher->setFuture(QtConcurrent::run([path, file]() {
+        if (!file.isEmpty() && !DownloadMediaPaths::isWithin(path, file))
+            return !QFileInfo::exists(file) || QFile::remove(file);
         if (path.isEmpty() || !QDir(path).exists()) return true;
         return QDir(path).removeRecursively() && !QDir(path).exists();
     }));
@@ -247,7 +348,8 @@ QString BookTorrentDownloader::dirFor(const QString& infoHash) const
 QString BookTorrentDownloader::localFile(const QString& infoHash) const
 {
     auto it = m_index.constFind(infoHash.toLower());
-    if (it == m_index.constEnd() || it.value().path.isEmpty() || !QFileInfo::exists(it.value().path)) return {};
+    if (it == m_index.constEnd() || it.value().path.isEmpty() || DownloadMediaPaths::waitingForDrive(it->path)
+        || !QFileInfo::exists(it.value().path)) return {};
     return it.value().path;
 }
 
@@ -268,6 +370,8 @@ QVariantMap BookTorrentDownloader::statusOf(const QString& infoHash) const
     }
     if (Job* j = m_active.value(h, nullptr)) {
         s[QStringLiteral("state")] = j->picked ? QStringLiteral("downloading") : QStringLiteral("resolving");
+        if (j->released && !j->copying)
+            s[QStringLiteral("error")] = tr("Waiting for the download drive.");
         s[QStringLiteral("received")] = static_cast<double>(j->received);
         s[QStringLiteral("total")]    = static_cast<double>(j->totalBytes);
         return s;
@@ -285,17 +389,17 @@ void BookTorrentDownloader::loadIndex()
     for (auto it = root.begin(); it != root.end(); ++it) {
         const QJsonObject o = it.value().toObject();
         Entry e;
-        e.path    = o.value(QStringLiteral("path")).toString();
+        e.path    = DownloadMediaPaths::resolved(o.value(QStringLiteral("path")).toString());
         e.title   = o.value(QStringLiteral("title")).toString();
         e.author  = o.value(QStringLiteral("author")).toString();
         e.bytes   = static_cast<qint64>(o.value(QStringLiteral("bytes")).toDouble());
         e.addedAt = static_cast<qint64>(o.value(QStringLiteral("addedAt")).toDouble());
-        if (!e.path.isEmpty() && QFileInfo::exists(e.path))   // prune ghosts
+        if (!e.path.isEmpty() && (QFileInfo::exists(e.path) || DownloadMediaPaths::waitingForDrive(e.path)))
             m_index.insert(it.key().toLower(), e);
     }
 }
 
-void BookTorrentDownloader::saveIndex() const
+bool BookTorrentDownloader::saveIndex() const
 {
     QDir().mkpath(baseDir());
     QJsonObject root;
@@ -308,9 +412,69 @@ void BookTorrentDownloader::saveIndex() const
         o[QStringLiteral("addedAt")] = static_cast<double>(it.value().addedAt);
         root[it.key()] = o;
     }
-    QFile f(baseDir() + QStringLiteral("/index.json"));
-    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        f.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
+    QSaveFile f(baseDir() + QStringLiteral("/index.json"));
+    const QByteArray contents = QJsonDocument(root).toJson(QJsonDocument::Compact);
+    return f.open(QIODevice::WriteOnly) && f.write(contents) == contents.size() && f.commit();
+}
+
+QList<DownloadLocation::Item> BookTorrentDownloader::managedDownloadItems() const
+{
+    QList<DownloadLocation::Item> items;
+    for (const Entry &entry : m_index) {
+        items.append({entry.path, DownloadMediaPaths::bookPath(entry.title, entry.author,
+            QFileInfo(entry.path).suffix()), {}});
+    }
+    return items;
+}
+
+void BookTorrentDownloader::refreshDownloadPaths()
+{
+    for (Entry &entry : m_index)
+        entry.path = DownloadMediaPaths::resolved(entry.path);
+    saveIndex();
+}
+
+QVariantList BookTorrentDownloader::downloadedBooks() const
+{
+    QVariantList rows;
+    for (auto it = m_index.cbegin(); it != m_index.cend(); ++it) {
+        rows.append(QVariantMap{
+            {QStringLiteral("id"), it.key()}, {QStringLiteral("title"), it->title},
+            {QStringLiteral("author"), it->author}, {QStringLiteral("path"), it->path},
+            {QStringLiteral("bytes"), it->bytes}, {QStringLiteral("addedAt"), it->addedAt},
+            {QStringLiteral("missing"), localFile(it.key()).isEmpty()}});
+    }
+    return rows;
+}
+
+QVariantList BookTorrentDownloader::activeBookJobs() const
+{
+    QVariantList rows;
+    for (const Job *job : m_active) {
+        QVariantMap row = statusOf(job->infoHash);
+        row.insert(QStringLiteral("id"), job->infoHash);
+        row.insert(QStringLiteral("title"), job->title);
+        row.insert(QStringLiteral("done"), row.value(QStringLiteral("received")));
+        rows.append(row);
+    }
+    return rows;
+}
+
+QVariantMap BookTorrentDownloader::removeCompletedBook(const QString &infoHash)
+{
+    const QString hash = infoHash.toLower();
+    const auto it = m_index.constFind(hash);
+    if (it == m_index.constEnd())
+        return DownloadFileOps::toMap({true, {}});
+    if (DownloadMediaPaths::moving() || DownloadMediaPaths::waitingForDrive(it->path))
+        return DownloadFileOps::toMap({false, tr("The download location is unavailable.")});
+    const auto result = DownloadFileOps::removeFile(it->path);
+    if (result.success) {
+        m_index.remove(hash);
+        saveIndex();
+        emit removed(hash);
+    }
+    return DownloadFileOps::toMap(result);
 }
 
 // ── dev smoke — env COLOSSEUM_TORRENT_DLTEST="<infoHash>|<title>" ────────────────

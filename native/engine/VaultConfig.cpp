@@ -95,6 +95,108 @@ bool VaultConfig::isRootConfirmed(const QString& path) const
     return o.value(QStringLiteral("confirmed")).toBool();
 }
 
+VaultLocation::PersonalPaths VaultConfig::personalPaths() const
+{
+    VaultLocation::PersonalPaths paths;
+    const auto stored = m_doc.value(QStringLiteral("personal")).toObject();
+    for (const auto& value : stored.value(QStringLiteral("files")).toArray())
+        if (value.isString() && QDir::isAbsolutePath(value.toString()))
+            paths.files.insert(norm(value.toString()));
+    for (const auto& value : stored.value(QStringLiteral("directories")).toArray())
+        if (value.isString() && QDir::isAbsolutePath(value.toString()))
+            paths.directories.insert(norm(value.toString()));
+    return paths;
+}
+
+bool VaultConfig::applyFolderSelection(const QString& root, const VaultLocation::PersonalPaths& selection)
+{
+    const QString path = norm(root);
+    if (!QDir::isAbsolutePath(path) || VaultLocation::isContentUri(path) || isSyntheticRoot(path))
+        return false;
+
+    const auto previous = personalPaths();
+    auto next = previous;
+    auto replaceWithinRoot = [&](QSet<QString>& paths, const QSet<QString>& choices) {
+        for (auto it = paths.begin(); it != paths.end();) {
+            if (*it != path && VaultLocation::containsPath(path, *it))
+                it = paths.erase(it);
+            else
+                ++it;
+        }
+        for (const QString& choice : choices) {
+            const QString normalized = norm(choice);
+            if (normalized != path && VaultLocation::containsPath(path, normalized))
+                paths.insert(normalized);
+        }
+    };
+    replaceWithinRoot(next.files, selection.files);
+    replaceWithinRoot(next.directories, selection.directories);
+
+    QJsonObject document = m_doc;
+    document.insert(QStringLiteral("firstFolderIndexed"), hasCompletedFolderImport());
+    QJsonArray roots = document.value(QStringLiteral("roots")).toArray();
+    const int i = rootIndex(path);
+    QJsonObject entry = i < 0 ? QJsonObject{} : roots.at(i).toObject();
+    entry.insert(QStringLiteral("path"), path);
+    entry.insert(QStringLiteral("confirmed"), true);
+    if (i < 0) {
+        entry.insert(QStringLiteral("addedAtMs"), 0);
+        roots.append(entry);
+    } else {
+        roots.replace(i, entry);
+    }
+    auto pathArray = [](const QSet<QString>& paths) {
+        QStringList sorted = paths.values();
+        sorted.sort();
+        return QJsonArray::fromStringList(sorted);
+    };
+    document.insert(QStringLiteral("roots"), roots);
+    document.insert(QStringLiteral("personal"), QJsonObject{
+        {QStringLiteral("files"), pathArray(next.files)},
+        {QStringLiteral("directories"), pathArray(next.directories)}});
+    if (!VaultStoreIo::save(m_dir, QStringLiteral("config.json"), document))
+        return false;
+    m_doc = std::move(document);
+    ++m_revision;
+    if (next != previous)
+        emit personalPathsChanged();
+    emit changed();
+    return true;
+}
+
+bool VaultConfig::hasCompletedFolderImport() const
+{
+    const auto value = m_doc.value(QStringLiteral("firstFolderIndexed"));
+    if (value.isBool())
+        return value.toBool();
+
+    // Existing profiles did not record completion separately from confirmation.
+    const auto roots = m_doc.value(QStringLiteral("roots")).toArray();
+    for (const auto& value : roots) {
+        const auto entry = value.toObject();
+        const auto path = entry.value(QStringLiteral("path")).toString();
+        if (entry.value(QStringLiteral("confirmed")).toBool()
+            && !entry.value(QStringLiteral("synthetic")).toBool()
+            && !VaultLocation::isContentUri(path) && QDir::isAbsolutePath(path))
+            return true;
+    }
+    return false;
+}
+
+bool VaultConfig::markFolderImportComplete()
+{
+    if (hasCompletedFolderImport())
+        return true;
+    QJsonObject document = m_doc;
+    document.insert(QStringLiteral("firstFolderIndexed"), true);
+    if (!VaultStoreIo::save(m_dir, QStringLiteral("config.json"), document))
+        return false;
+    m_doc = std::move(document);
+    ++m_revision;
+    emit changed();
+    return true;
+}
+
 void VaultConfig::addRoot(const QString& path, qint64 addedAtMs)
 {
     const QString n = norm(path);
@@ -229,6 +331,62 @@ QVariantMap VaultConfig::kindOverrides() const
     return m_doc.value(QStringLiteral("kinds")).toObject().toVariantMap();
 }
 
+QString VaultConfig::extrasParent(const QString& fileId) const
+{
+    return m_doc.value(QStringLiteral("extrasParents")).toObject().value(fileId).toString();
+}
+
+static QString declinedKey() { return QStringLiteral("extrasDeclined"); }
+
+bool VaultConfig::extrasDeclined(const QString& fileId) const
+{
+    return m_doc.value(declinedKey()).toObject().value(fileId).toBool();
+}
+
+bool VaultConfig::declineExtras(const QStringList& fileIds)
+{
+    if (fileIds.isEmpty()) return false;
+    auto next = m_doc;
+    auto parents = next.value(QStringLiteral("extrasParents")).toObject();
+    auto declined = next.value(declinedKey()).toObject();
+    for (const auto& id : fileIds) {
+        if (id.isEmpty()) return false;
+        parents.remove(id);
+        declined.insert(id, true);
+    }
+    next.insert(QStringLiteral("extrasParents"), parents);
+    next.insert(declinedKey(), declined);
+    if (!VaultStoreIo::save(m_dir, QStringLiteral("config.json"), next)) return false;
+    m_doc = next;
+    ++m_revision;
+    emit changed();
+    return true;
+}
+
+bool VaultConfig::setExtrasParent(const QStringList& fileIds, const QString& parentIdentityId)
+{
+    if (fileIds.isEmpty()) return false;
+    auto next = m_doc;
+    auto parents = next.value(QStringLiteral("extrasParents")).toObject();
+    auto declined = next.value(declinedKey()).toObject();
+    for (const auto& id : fileIds) {
+        if (id.isEmpty()) return false;
+        if (parentIdentityId.isEmpty()) parents.remove(id);
+        else {
+            parents.insert(id, parentIdentityId);
+            declined.remove(id); // an explicit attach overrides an earlier decline
+        }
+    }
+    next.insert(QStringLiteral("extrasParents"), parents);
+    if (declined.isEmpty()) next.remove(declinedKey());
+    else next.insert(declinedKey(), declined);
+    if (!VaultStoreIo::save(m_dir, QStringLiteral("config.json"), next)) return false;
+    m_doc = next;
+    ++m_revision;
+    emit changed();
+    return true;
+}
+
 QStringList VaultConfig::scanIgnore() const
 {
     QStringList out;
@@ -264,6 +422,10 @@ void VaultConfig::setHidden(const QString& fileId, bool hidden)
             if (!hidden) {
                 a.removeAt(i);
                 m_doc.insert(QStringLiteral("hidden"), a);
+                // An explicit unhide is also a refusal of automatic junk filing.
+                auto declined = m_doc.value(declinedKey()).toObject();
+                declined.insert(fileId, true);
+                m_doc.insert(declinedKey(), declined);
                 persist();
             }
             return;

@@ -1,0 +1,581 @@
+import QtQuick
+import QtQuick.Controls
+import ".."
+import "AudiobookBookPageData.js" as BookData
+
+FocusScope {
+    id: root
+    objectName: "audiobookBookPage"
+    property real backdropBottomInset: 0
+    property bool androidHost: Qt.platform.os === "android"
+    property var work: ({})
+    // Enriched catalogue recordings may supply canonical recordingKey/local state.
+    property var recordings: work.recordings || []
+    // Catalogue series(id).works for the first membership in work.series.
+    property var seriesWorks: []
+    property var local: ({})
+    // {recordingKey (or workId): "none"|"done"|"failed"|{state, progress: 0..1}}
+    property var downloadState: ({})
+    property bool sourceEnabled: true
+    property bool lookupPending: false
+    property bool smartRecoveryPending: false
+    property bool smartRecoveryRequired: false
+    property string lookupError: ""
+    property string lookupMessage: ""
+    property bool canSave: false
+    property bool saved: false
+    property string selectedDownloadKey: ""
+    signal downloadRequested(string workId)
+    signal enableSourceRequested()
+    signal cancelLookupRequested()
+    signal listenRequested(string recordingKey)
+    signal seriesBookRequested(string workId)
+    signal authorRequested(string personId, string name)
+    signal saveRequested()
+    signal backRequested()
+    signal minimizeRequested()
+    signal fullscreenRequested()
+    signal quitRequested()
+
+    readonly property var built: BookData.build(work, seriesWorks, recordings)
+    readonly property var shownRecording: BookData.recording(built, local, downloadState)
+    readonly property string coverUrl: built.cover || shownRecording.cover || ""
+    readonly property var coverSources: {
+        const seriesCover = built.seriesBooks.find(book => book.current)?.cover || ""
+        return [coverUrl, seriesCover === coverUrl ? "" : seriesCover].filter(Boolean)
+    }
+    readonly property var actionRecording: selectedDownloadKey
+        ? { key: selectedDownloadKey, local: false } : shownRecording
+    readonly property var primary: {
+        if (lookupPending)
+            return { kind: "lookup", label: qsTr("Finding downloads…"), enabled: false, progress: -1 }
+        if (smartRecoveryPending)
+            return { kind: "lookup", label: qsTr("Finding another release…"), enabled: false, progress: -1 }
+        const action = BookData.primaryAction(built, actionRecording, local, downloadState)
+        if (action.kind !== "download" || !action.enabled) return action
+        if (!sourceEnabled)
+            return { kind: "extensions", label: qsTr("Enable AudioBookBay in Extensions"), enabled: true, progress: -1 }
+        if (smartRecoveryRequired)
+            return { kind: "download", label: qsTr("Choose another release"), enabled: true, progress: -1 }
+        if (lookupError)
+            return { kind: "download", label: qsTr("Retry"), enabled: true, progress: -1 }
+        return action
+    }
+    readonly property bool hasSeries: built.seriesBooks.length > 0
+    readonly property bool compact: width < 760
+    readonly property real desktopScale: Math.min(1, width / 1280)
+    readonly property real inset: Math.max(0, (width - 1280) / 2)
+    function focusBackControl() { back.focusControl(Qt.TabFocusReason); }
+    Keys.onEscapePressed: root.backRequested()
+    onWorkChanged: scroll.contentY = 0
+
+    Theme { id: theme }
+
+    MediaArtworkBackdrop {
+        objectName: "audiobookDetailBackdrop"
+        width: root.width
+        height: root.height + root.backdropBottomInset
+        source: coverArtwork.ready ? coverArtwork.activeSource : ""
+        wordsShown: true
+        wallpaperFallbackEnabled: false
+    }
+
+    Rectangle {
+        id: header
+        objectName: "audiobookDetailHeader"
+        x: root.compact ? 16 : root.inset + Math.round(32 * root.desktopScale)
+        y: 14
+        width: root.width - 2 * x
+        height: 61
+        radius: 16
+        color: "#ab141720"
+        border.color: "#2bffffff"
+
+        Row {
+            anchors.left: parent.left
+            anchors.leftMargin: root.compact ? 12 : 21
+            anchors.right: chrome.left
+            anchors.rightMargin: 12
+            anchors.verticalCenter: parent.verticalCenter
+            height: parent.height
+            spacing: root.compact ? 10 : 20
+            clip: true
+
+            BackAction {
+                id: back
+                objectName: "audiobookBack"
+                anchors.verticalCenter: parent.verticalCenter
+                label: qsTr("Back")
+                labelSize: theme.fontSize(13)
+                tip: qsTr("Back to Audiobooks")
+                idleColor: theme.inkDim
+                onTriggered: root.backRequested()
+            }
+            Rectangle {
+                anchors.verticalCenter: parent.verticalCenter
+                width: 1; height: 21
+                color: theme.edge
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("Biblio")
+                color: theme.ink
+                font.family: theme.display
+                font.pixelSize: theme.fontSize(25)
+            }
+            Row {
+                objectName: "audiobookDetailBreadcrumb"
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 9
+                visible: root.width >= (root.androidHost ? 360 : 500)
+                Repeater {
+                    model: ["/", qsTr("Audiobooks"), "/", qsTr("Details")]
+                    delegate: Text {
+                        required property string modelData
+                        required property int index
+                        text: modelData
+                        color: index === 3 ? theme.inkDim : theme.inkDimmer
+                        font.family: theme.ui
+                        font.pixelSize: theme.fontSize(13)
+                    }
+                }
+            }
+        }
+        HouseWindowControls {
+            id: chrome
+            anchors.right: parent.right
+            anchors.rightMargin: root.compact ? 12 : 21
+            anchors.verticalCenter: parent.verticalCenter
+            objectPrefix: "audiobookDetailWindow"
+            androidHost: root.androidHost
+            spacing: 10
+            onMinimizeRequested: root.minimizeRequested()
+            onFullscreenRequested: root.fullscreenRequested()
+            onQuitRequested: root.quitRequested()
+        }
+    }
+    Flickable {
+        id: scroll
+        objectName: "audiobookScroll"
+        x: 0; y: 88
+        width: root.width; height: Math.max(0, root.height - y)
+        contentWidth: width
+        contentHeight: Math.max(height, Math.max(artColumn.y + artColumn.height,
+            root.hasSeries ? shelf.y + shelf.height : details.y + details.height) + (root.compact ? 100 : 24))
+        boundsBehavior: Flickable.StopAtBounds
+        clip: true
+        ScrollBar.vertical: ScrollBar {}
+        Column {
+            id: artColumn
+            x: root.compact ? 24 : root.inset + Math.round((root.hasSeries ? 78 : 82) * root.desktopScale)
+            y: root.compact ? 24 : Math.max(16, Math.round((root.hasSeries ? 125 : 153) * root.desktopScale) - scroll.y)
+            width: root.compact ? Math.max(0, Math.min(298, root.width - 48))
+                                : Math.max(210, Math.round((root.hasSeries ? 298 : 319) * root.desktopScale))
+            spacing: 23
+            Item {
+                objectName: "audiobookCover"
+                width: artColumn.width; height: width
+                RoundedPosterImage {
+                    id: coverArtwork
+                    anchors.fill: parent
+                    sources: root.coverSources
+                    placeholderTitle: root.built.title
+                    radius: 13
+                }
+                Rectangle { anchors.fill: parent; radius: 13; color: "transparent"; border.color: theme.edge }
+                Rectangle {
+                    anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 11
+                    width: 36; height: 36; radius: 10
+                    color: "#d607090d"; border.color: theme.edge
+                    Image {
+                        anchors.centerIn: parent
+                        width: 18; height: 18
+                        source: "../../assets/icons/reader2/headphones.svg"
+                        sourceSize: Qt.size(width, height)
+                    }
+                }
+            }
+            Column {
+                width: artColumn.width
+                spacing: 9
+                Item {
+                    id: actions
+                    width: parent.width
+                    height: primaryAction.height
+                    KeyboardAction {
+                        id: primaryAction
+                        objectName: "audiobookPrimaryAction"
+                        width: actions.width
+                        height: Math.max(50, primaryLabel.implicitHeight + 16)
+                        accessibleName: root.primary.label
+                        enabled: root.primary.enabled
+                        focusPrimary: true
+                        onTriggered: {
+                            if (root.primary.kind === "listen") root.listenRequested(root.actionRecording.key)
+                            else if (root.primary.kind === "download") root.downloadRequested(root.built.workId)
+                            else if (root.primary.kind === "extensions") root.enableSourceRequested()
+                        }
+                        Rectangle {
+                            anchors.fill: parent; radius: 11
+                            color: primaryAction.interactionActive ? "#f6d16c" : theme.gold
+                            border.color: "#f6d776"
+                        }
+                        Row {
+                            anchors.centerIn: parent
+                            readonly property int iconSpace:
+                                root.primary.kind === "listen" || root.primary.kind === "download" ? 28 : 0
+                            width: Math.min(primaryLabel.implicitWidth + iconSpace, parent.width - 16)
+                            spacing: 10
+                            MediaControlIcon {
+                                width: 18; height: 18; anchors.verticalCenter: parent.verticalCenter
+                                visible: root.primary.kind === "listen"
+                                symbol: "play"; color: "#181408"
+                            }
+                            Image {
+                                width: 18; height: 18; anchors.verticalCenter: parent.verticalCenter
+                                visible: root.primary.kind === "download"
+                                source: "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#181408" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg>')
+                                sourceSize: Qt.size(width, height)
+                            }
+                            Text {
+                                id: primaryLabel
+                                width: Math.max(0, parent.width - parent.iconSpace)
+                                text: root.primary.label
+                                color: "#181408"
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
+                                wrapMode: Text.WordWrap
+                                horizontalAlignment: Text.AlignHCenter
+                            }
+                        }
+                    }
+                }
+                ProgressBar {
+                    id: downloadProgress
+                    objectName: "audiobookDownloadProgress"
+                    width: parent.width; height: visible ? 4 : 0
+                    visible: root.primary.kind === "progress" && root.primary.progress >= 0
+                    padding: 0
+                    value: Math.max(0, root.primary.progress)
+                    background: Rectangle { radius: 2; color: theme.edge }
+                    contentItem: Item {
+                        Rectangle {
+                            width: parent.width * downloadProgress.position
+                            height: parent.height
+                            radius: 2
+                            color: theme.gold
+                        }
+                    }
+                }
+                ExtensionsActionButton {
+                    objectName: "audiobookCancelLookup"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    visible: root.lookupPending
+                    text: qsTr("Cancel")
+                    onClicked: root.cancelLookupRequested()
+                }
+                Text {
+                    width: parent.width
+                    objectName: "audiobookLocalStatus"
+                    topPadding: theme.fontSize(10)
+                    visible: text.length > 0
+                    text: root.primary.kind === "listen" ? qsTr("Downloaded · Ready to listen")
+                        : root.primary.kind === "progress" || root.primary.kind === "lookup" ? ""
+                        : root.smartRecoveryRequired ? qsTr("The download stalled.")
+                        : root.lookupError || root.lookupMessage || qsTr("Not downloaded")
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    color: theme.inkDim
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(12)
+                }
+                KeyboardAction {
+                    id: saveAction
+                    objectName: "audiobookSave"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    visible: root.canSave
+                    width: Math.min(parent.width, saveLabel.implicitWidth + 20)
+                    height: 30
+                    accessibleName: root.saved ? qsTr("Remove from Library") : qsTr("Save to Library")
+                    focusRadius: 6
+                    onTriggered: root.saveRequested()
+                    Text {
+                        id: saveLabel
+                        anchors.centerIn: parent
+                        text: root.saved ? qsTr("Saved to Library") : saveAction.accessibleName
+                        color: saveAction.interactionActive || root.saved ? theme.gold : theme.inkDimmer
+                        font.family: theme.ui
+                        font.pixelSize: theme.fontSize(12)
+                    }
+                }
+            }
+        }
+        Column {
+            id: details
+            x: root.compact ? 24
+                            : artColumn.x + artColumn.width + Math.round((root.hasSeries ? 55 : 65) * root.desktopScale)
+            y: root.compact ? artColumn.y + artColumn.height + 32
+                            : Math.max(16, Math.round((root.hasSeries ? 120 : 157) * root.desktopScale) - scroll.y)
+            width: Math.max(0, root.width - x - (root.compact ? 24 : root.inset + Math.round(67 * root.desktopScale)))
+            spacing: 0
+            Text {
+                width: parent.width
+                text: root.built.seriesName ? (root.built.seriesNumber
+                    ? qsTr("%1 · Book %2").arg(root.built.seriesName).arg(root.built.seriesNumber)
+                    : root.built.seriesName).toUpperCase() : qsTr("STANDALONE AUDIOBOOK")
+                color: theme.gold
+                font.family: theme.ui; font.pixelSize: theme.fontSize(11)
+                font.weight: Font.DemiBold; font.letterSpacing: 2.75
+                elide: Text.ElideRight
+                bottomPadding: 8
+            }
+            Text {
+                objectName: "audiobookTitle"
+                width: parent.width
+                text: root.built.title
+                color: theme.ink
+                font.family: theme.display
+                font.pixelSize: theme.fontSize(root.compact ? 40
+                    : Math.max(39, Math.round((root.hasSeries ? 57 : 60) * root.desktopScale)))
+                lineHeightMode: Text.FixedHeight
+                lineHeight: Math.ceil(font.pixelSize * 1.13)
+                font.letterSpacing: -1.7
+                wrapMode: Text.Wrap
+                bottomPadding: 9
+            }
+            Text {
+                id: author
+                objectName: "audiobookAuthor"
+                width: parent.width
+                visible: root.built.authors !== ""
+                readonly property var linkedAuthors: root.built.authorPeople.filter(person => person.id)
+                textFormat: linkedAuthors.length ? Text.RichText : Text.PlainText
+                text: !visible ? "" : qsTr("By %1").arg(linkedAuthors.length
+                    ? BookData.authorMarkup(root.built.authorPeople, String(theme.ink)) : root.built.authors)
+                color: theme.ink
+                font.family: theme.ui; font.pixelSize: theme.fontSize(20); font.weight: Font.Medium
+                wrapMode: Text.WordWrap
+                onLinkActivated: (link) => {
+                    const person = linkedAuthors.find(entry => encodeURIComponent(entry.id) === link)
+                    if (person) root.authorRequested(person.id, person.name)
+                }
+                HoverHandler { cursorShape: author.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor }
+            }
+            Row {
+                objectName: "audiobookNarratorRow"
+                visible: root.shownRecording.narrators !== ""
+                topPadding: root.hasSeries ? 19 : 33
+                spacing: 14
+                width: parent.width
+                Rectangle {
+                    y: 3
+                    width: 35; height: 35; radius: 12
+                    color: "#12ffffff"; border.color: theme.edge
+                    Image {
+                        anchors.centerIn: parent
+                        width: 18; height: 18
+                        source: "../../assets/icons/reader2/headphones.svg"
+                        sourceSize: Qt.size(width, height)
+                    }
+                }
+                Column {
+                    width: parent.width - 49
+                    spacing: 3
+                    Text {
+                        objectName: "audiobookNarratorLabel"
+                        text: qsTr("NARRATED BY")
+                        color: theme.inkDimmer
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.letterSpacing: 1.14
+                    }
+                    Text {
+                        objectName: "audiobookNarrator"
+                        width: parent.width
+                        text: root.shownRecording.narrators
+                        color: theme.ink
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(19)
+                        wrapMode: Text.WordWrap
+                    }
+                }
+            }
+            Column {
+                objectName: "audiobookStory"
+                visible: root.built.synopsis !== ""
+                topPadding: root.hasSeries ? 18 : 35
+                width: parent.width
+                spacing: 9
+                Text {
+                    text: qsTr("The story")
+                    color: theme.ink
+                    font.family: theme.display; font.pixelSize: theme.fontSize(23)
+                }
+                Text {
+                    width: parent.width
+                    text: root.built.synopsis
+                    color: "#d1d0d5"
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(root.hasSeries ? 15 : 16)
+                    lineHeightMode: Text.FixedHeight
+                    lineHeight: font.pixelSize * (root.hasSeries ? 1.56 : 1.67)
+                    wrapMode: Text.WordWrap
+                }
+            }
+            Column {
+                id: facts
+                objectName: "audiobookFacts"
+                visible: root.shownRecording.facts.length > 0
+                width: Math.min(parent.width, 747)
+                topPadding: root.hasSeries ? 18 : 37
+                spacing: 15
+                Rectangle { width: parent.width; height: 1; color: theme.edge }
+                Flow {
+                    width: parent.width
+                    spacing: 31
+                    Repeater {
+                        model: root.shownRecording.facts
+                        delegate: Column {
+                            required property var modelData
+                            width: Math.max(124, factValue.implicitWidth)
+                            spacing: 5
+                            Text {
+                                text: parent.modelData.label.toUpperCase()
+                                color: theme.inkDimmer
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 0.88
+                            }
+                            Text {
+                                id: factValue
+                                objectName: "audiobookFact_" + parent.modelData.key
+                                text: parent.modelData.text
+                                color: theme.ink
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(14)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Rectangle {
+            id: shelf
+            objectName: "audiobookSeriesShelf"
+            visible: root.hasSeries
+            x: root.compact ? 24 : details.x - Math.round(15 * root.desktopScale)
+            y: Math.max(root.compact ? 0 : Math.round(506 * root.desktopScale) - scroll.y,
+                        details.y + details.height + 19)
+            width: Math.max(0, root.width - x - (root.compact ? 24 : root.inset + Math.round(49 * root.desktopScale)))
+            height: seriesScroll.y + seriesScroll.height + 4
+            radius: 17
+            color: "#7a141822"; border.color: "#21ffffff"
+            Row {
+                id: shelfHeading
+                x: 18; y: 11
+                width: Math.max(0, parent.width - 36)
+                spacing: 15
+                Text {
+                    id: seriesName
+                    width: Math.min(implicitWidth, shelfHeading.width)
+                    text: root.built.seriesName
+                    color: theme.ink
+                    font.family: theme.display; font.pixelSize: theme.fontSize(20)
+                    elide: Text.ElideRight
+                }
+                Text {
+                    visible: !root.compact && seriesName.width + shelfHeading.spacing + implicitWidth <= shelfHeading.width
+                    anchors.baseline: seriesName.baseline
+                    text: qsTr("In reading order · select a cover to open its audiobook page")
+                    color: theme.inkDimmer
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(11)
+                }
+            }
+            Flickable {
+                id: seriesScroll
+                objectName: "audiobookSeriesScroll"
+                x: 18; y: shelfHeading.y + shelfHeading.height + 4
+                width: parent.width - 36
+                height: seriesRow.height + (contentWidth > width ? 10 : 0)
+                contentWidth: seriesRow.width
+                contentHeight: height
+                flickableDirection: Flickable.HorizontalFlick
+                boundsBehavior: Flickable.StopAtBounds
+                clip: true
+                ScrollBar.horizontal: ScrollBar {
+                    policy: seriesScroll.contentWidth > seriesScroll.width ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+                }
+                Row {
+                    id: seriesRow
+                    spacing: 11
+                    Repeater {
+                        model: root.built.seriesBooks
+                        delegate: KeyboardAction {
+                            id: card
+                            required property var modelData
+                            objectName: "audiobookSeries_" + modelData.workId
+                            width: root.compact ? 98 : Math.max(98, Math.floor((seriesScroll.width - 66) / 7))
+                            height: 115
+                            accessibleName: [modelData.number ? qsTr("Book %1").arg(modelData.number) : "",
+                                modelData.title, modelData.current ? qsTr("Current audiobook") : ""].filter(Boolean).join(", ")
+                            onTriggered: root.seriesBookRequested(modelData.workId)
+                            onActiveFocusChanged: {
+                                if (!activeFocus) return
+                                if (x < seriesScroll.contentX) seriesScroll.contentX = x
+                                else if (x + width > seriesScroll.contentX + seriesScroll.width)
+                                    seriesScroll.contentX = x + width - seriesScroll.width
+                            }
+                            RoundedPosterImage {
+                                x: (parent.width - width) / 2
+                                width: 86; height: 86
+                                readonly property string coverUrl: (card.modelData.current ? root.coverUrl : "")
+                                    || card.modelData.cover
+                                sources: coverUrl ? [coverUrl] : []
+                                placeholderTitle: card.modelData.title
+                                radius: 8
+                            }
+                            Rectangle {
+                                x: (parent.width - width) / 2
+                                width: 86; height: 86; radius: 8
+                                color: "transparent"
+                                border.color: card.modelData.current || card.interactionActive ? theme.gold : theme.edge
+                                border.width: card.modelData.current ? 2 : 1
+                            }
+                            Rectangle {
+                                x: (parent.width - 86) / 2 + 5; y: 5
+                                visible: card.modelData.number !== ""
+                                width: Math.max(22, numberText.implicitWidth + 10); height: 19; radius: 5
+                                color: card.modelData.current ? theme.gold : "#e006080e"
+                                Text {
+                                    id: numberText
+                                    objectName: "audiobookNumber_" + card.modelData.workId
+                                    anchors.centerIn: parent
+                                    text: card.modelData.number
+                                    color: card.modelData.current ? "#181406" : theme.ink
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.weight: Font.DemiBold
+                                }
+                            }
+                            Rectangle {
+                                objectName: "audiobookCurrent_" + card.modelData.workId
+                                x: (parent.width + 86) / 2 - width; y: 71
+                                visible: card.modelData.current
+                                width: currentLabel.implicitWidth + 8; height: 14; radius: 4
+                                color: theme.gold
+                                Text {
+                                    id: currentLabel
+                                    anchors.centerIn: parent
+                                    text: qsTr("CURRENT")
+                                    color: "#1d1608"
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(8); font.weight: Font.Bold
+                                }
+                            }
+                            Text {
+                                y: 91
+                                width: parent.width; height: 24
+                                text: card.modelData.title
+                                color: card.modelData.current ? "#f8d777" : "#dedde2"
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(11)
+                                font.weight: card.modelData.current ? Font.DemiBold : Font.Normal
+                                lineHeightMode: Text.FixedHeight
+                                lineHeight: font.pixelSize + 1
+                                horizontalAlignment: Text.AlignHCenter
+                                wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

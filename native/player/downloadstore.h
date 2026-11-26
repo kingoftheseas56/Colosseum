@@ -1,5 +1,7 @@
 #pragma once
 
+#include "engine/DownloadLocation.h"
+
 // DownloadStore — the shared video/music download queue.
 // v2 (2026-07-04): bounded job QUEUE with lazy per-job stream resolution — TB2's
 // proven gap-episode flow at Harbor's simplicity. A job's durable payload is the
@@ -71,6 +73,9 @@ public:
     Q_INVOKABLE QVariantList downloadedMusic(const QString &profileScope) const;
     Q_INVOKABLE QVariantMap musicResource(const QString &profileScope, const QString &videoId) const;
     QString musicDownloadDir(const QString &profileScope) const;
+    QList<DownloadLocation::Item> managedDownloadItems() const;
+    void refreshDownloadPaths();
+    void downloadLocationAvailable() { pump(); }
     Q_INVOKABLE QVariantMap removeVideo(const QString &id);
 
     // dev harness: COLOSSEUM_VIDEOQ_SELFTEST="exactrow" (later: "group"|"speed"|"pause")

@@ -1,0 +1,1 @@
+These are representative sanitized protocol replay fixtures authored from the pinned Harbor 8a70ea3 provider source and provider JSON contracts. They contain invented IDs, addresses, and tokens, and are not live server captures. The local QTcpServer replays them over real HTTP. Real Jellyfin, Emby, Plex account and server acceptance remains outstanding.

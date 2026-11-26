@@ -92,7 +92,7 @@ public:
     bool startBrowserAuthentication(QString *error = nullptr);
     bool startStagedAuthentication(QString *error = nullptr);
     bool confirmStagedAuthentication(std::function<void(bool)> completion);
-    void cancelAuthentication();
+    Q_INVOKABLE void cancelAuthentication();
     // Explicit user disconnect. Fences every old callback, clears this
     // device's vault entry and durably retires provider-only work while the
     // canonical Colosseum owners remain untouched.

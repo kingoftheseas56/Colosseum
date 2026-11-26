@@ -41,6 +41,7 @@ TestCase {
         shelveSpy.target = null; dismissSpy.target = null
         if (card) card.destroy()
         card = null
+        testWindow.height = 700
     }
 
     function test_seeded_model_renders_one_row_per_slice() {
@@ -78,6 +79,52 @@ TestCase {
         mouseClick(findChild(card, "vaultCardShelveAll"))
         compare(shelveSpy.count, 1)
         compare(dismissSpy.count, 0)
+        compare(Object.keys(shelveSpy.signalArguments[0][0]).length, 0)
+    }
+
+    function test_many_shelves_scroll_with_fixed_actions() {
+        testWindow.height = 520
+        let rows = []
+        for (let i = 0; i < 12; ++i)
+            rows.push({subtreePath:"C:/Media/Film" + i, groupTitle:"Film " + i,
+                       kind:"video", count:1, mixed:false, loose:false, leftoverCount:0})
+        card.model = rows
+        wait(40)
+        const button = findChild(card, "vaultCardShelveAll")
+        const initial = button.mapToItem(card, 0, 0)
+        verify(initial.y >= 0 && initial.y + button.height <= card.height,
+               "Shelving must remain visible with a long folder list")
+        const flick = findChild(card, "vaultCardScroll")
+        verify(flick !== null)
+        const bar = findChild(card, "vaultCardScrollBar")
+        verify(bar !== null && bar.visible)
+        verify(flick.contentHeight > flick.height)
+        mouseWheel(flick, flick.width / 2, flick.height / 2, 0, -360)
+        tryVerify(function() { return flick.contentY > 0 })
+        flick.cancelFlick()
+        testWindow.requestActivate()
+        wait(20)
+        flick.forceActiveFocus()
+        verify(flick.activeFocus)
+        keyClick(Qt.Key_End)
+        wait(20)
+        const last = findChild(card, "vaultCardRow_11")
+        const lastPos = last.mapToItem(flick, 0, 0)
+        verify(lastPos.y >= -0.5 && lastPos.y + last.height <= flick.height + 0.5,
+               "Last row at " + lastPos.y + ", height " + last.height + ", viewport " + flick.height
+               + ", contentY " + flick.contentY + ", contentHeight " + flick.contentHeight)
+        mouseClick(findChild(card, "vaultCardRow_11_chip"))
+        const correction = findChild(card, "vaultCardRow_11_pick_book")
+        const correctionPos = correction.mapToItem(card, 0, 0)
+        verify(correctionPos.y >= 0 && correctionPos.y + correction.height <= card.height)
+        mouseClick(correction)
+        compare(last.kind, "book")
+        // A correction is optional; the fixed action is still reachable after scrolling.
+        card.kindOverrides = ({})
+        compare(button.mapToItem(card, 0, 0).y, initial.y)
+        mouseClick(button)
+        compare(shelveSpy.count, 1)
+        compare(Object.keys(shelveSpy.signalArguments[0][0]).length, 0)
     }
 
     function test_not_now_emits_dismiss() {

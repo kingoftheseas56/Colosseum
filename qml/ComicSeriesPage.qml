@@ -16,6 +16,7 @@
 
 import QtQuick
 import QtQuick.Controls
+import "ExtensionsCatalog.js" as ExtensionCatalog
 import "ComicResolve.js" as Resolve
 import "LocgApi.js" as Locg
 import "ComicsApi.js" as GcApi
@@ -32,6 +33,10 @@ Item {
     property string cover: ""
 
     signal backRequested()
+    signal openExtensionsRequested()
+    property var extensionsRef: typeof Extensions !== "undefined" ? Extensions : null
+    readonly property bool getComicsEnabled:
+        ExtensionCatalog.sourceEnabled(page.extensionsRef, "colosseum.well.getcomics.issues")
     signal minimizeRequested()
     signal fullscreenRequested()
     signal closeRequested()
@@ -215,8 +220,6 @@ Item {
             MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: page.minimizeRequested() }
             KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Minimize window"
-                tooltipText: accessibleName
-                tooltipHovered: minMa.containsMouse
                 onTriggered: page.minimizeRequested() }
         }
         Item {
@@ -240,8 +243,6 @@ Item {
                 onClicked: page.fullscreenRequested()
             }
             KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Toggle fullscreen"
-                tooltipText: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")
-                tooltipHovered: fsMa.containsMouse
                 onTriggered: page.fullscreenRequested() }
         }
         Item {
@@ -252,8 +253,6 @@ Item {
             MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: page.closeRequested() }
             KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close series"
-                tooltipText: accessibleName
-                tooltipHovered: clMa.containsMouse
                 onTriggered: page.closeRequested() }
         }
     }
@@ -287,6 +286,7 @@ Item {
 
             // ===== DB-driven ledger (comics_db.json): hero + format-grouped editions =====
             ComicDbLedger {
+                onOpenExtensionsRequested: page.openExtensionsRequested()
                 id: ledger
                 visible: !!page.dbSeries
                 width: parent.width
@@ -311,6 +311,13 @@ Item {
             }
 
             // ===== hero (live-flow fallback when the series isn't in the DB) =====
+            SourceExtensionPrompt {
+                width: parent.width
+                visible: !page.dbSeries && !page.getComicsEnabled
+                namePrefix: "comicCatalogueSource"
+                message: qsTr("No comic download source is enabled for this title. Enable one in Extensions.")
+                onOpenExtensionsRequested: page.openExtensionsRequested()
+            }
             Row {
                 visible: !page.dbSeries
                 spacing: 34
@@ -473,6 +480,7 @@ Item {
                             }
                             function startDownload() {
                                 if (!row.dlStore || !row.chId.length) return
+                                if (!page.getComicsEnabled) { page.openExtensionsRequested(); return }
                                 row.dlState = "queued"
                                 // one archive post = the volume unit; C++ does resolve→stream→extract
                                 Comics.downloadIssue(row.chId, row.modelData.postUrl, "gc:" + page.gcTag,
@@ -648,6 +656,7 @@ Item {
                                     page.openChapterId = crow.chId
                                     page.openChapterLabel = String(crow.modelData.name || "")
                                 } else if (!crow.inFlight) {
+                                    if (!page.getComicsEnabled) { page.openExtensionsRequested(); return }
                                     crow.dlState = "queued"
                                     Comics.downloadIssue(crow.chId, crow.modelData.url, "gc:" + page.gcTag,
                                                          page.seriesTitle, String(crow.modelData.name || ""),

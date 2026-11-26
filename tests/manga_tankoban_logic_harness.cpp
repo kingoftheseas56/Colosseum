@@ -247,6 +247,14 @@ int main()
         require(ranked[0].uploader == "1r0n", "uploader preserved");
         require(queryVariants("Grand Blue Dreaming", "2").contains("Grand Blue Dreaming Vol 2"),
                 "Tankoban 2 query family retained");
+        {
+            // Nyaa treats "-Man" as "exclude Man": hyphenated titles must search as words.
+            const QStringList opm = queryVariants(QStringLiteral("One Punch-Man"), QStringLiteral("1"));
+            require(opm.contains(QStringLiteral("One Punch Man 01")),
+                    "hyphenated title searches with the hyphen as a space");
+            for (const QString& q : opm)
+                require(!q.contains(QLatin1Char('-')), "no Nyaa exclusion operator leaks into a query");
+        }
 
         // Extended contract — lock the tricky rejections/derivations.
         require(ranked[0].standalone && !ranked[1].standalone,

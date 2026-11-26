@@ -7,7 +7,8 @@
 // Signature: the genre is its OWN art — its top covers wash behind the title (GenreMosaic doctrine),
 // and the rank ordinal encodes the by-readers popularity sort (real info, not decoration).
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls as Controls
+import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import "GenreApi.js" as Api
 
@@ -19,6 +20,19 @@ Item {
     property Item backdrop: null
     property string genreName: "Adventure"
     property string sortMode: "readers"          // "readers" (MAL members) | "score"
+    property Component resultDelegate: null
+    property real resultHeight: 174
+    property real bottomInset: 0
+    property var siblingGenres: Api.siblings()
+    property string genreContext: "TANKOBAN · MANGA · "
+    property string genreKind: "GENRE"
+    property string genreTitle: genreName
+    property string catalogSummary: ""
+    property string filterPlaceholder: ""
+    property alias filterText: filterField.text
+    signal genreRequested(string name)
+    readonly property bool suppliedResults: resultDelegate !== null
+
     property bool compact: false                  // view toggle: false = detailed cards, true = covers
     // Task 9: global Explicit Content preference (Main.qml binds it on this standalone layer).
     // Sexually-explicit ONLY — Berserk (R+), Ecchi, horror, violent work stay visible; only
@@ -39,8 +53,10 @@ Item {
 
     property var genreData: ({ count: 0, desc: "", cards: [], montage: [] })
     property bool loading: true
+    property bool ready: false
 
     function reload() {
+        if (!root.ready || root.suppliedResults) return
         root.loading = true
         // MalCatalog passed IN: the API is a .pragma library and can't see context
         // properties — the page has context access, so it hands the object down.
@@ -49,8 +65,28 @@ Item {
             root.loading = false
         }, typeof MalCatalog !== "undefined" ? MalCatalog : null, root.showExplicitContent)
     }
-    Component.onCompleted: reload()
-    onGenreNameChanged: reload()
+    Component.onCompleted: { root.ready = true; reload() }
+    onGenreNameChanged: {
+        if (!root.ready) return
+        if (root.suppliedResults) {
+            filterField.clear()
+            page.contentY = 0
+        } else {
+            reload()
+        }
+    }
+
+    function takeKeyboardFocus() { backAction.focusControl() }
+    function openGenre(name) {
+        if (root.suppliedResults) root.genreRequested(name)
+        else root.genreName = name
+    }
+    function focusFilter() {
+        const y = filterField.mapToItem(page.contentItem, 0, 0).y
+        if (y < page.contentY + 52 || y + filterField.height > page.contentY + page.height)
+            page.contentY = Math.max(0, Math.min(page.contentHeight - page.height, y - 62))
+        filterField.forceActiveFocus()
+    }
     onSortModeChanged: reload()
     onShowExplicitContentChanged: reload()
 
@@ -76,11 +112,12 @@ Item {
     Flickable {
         id: page
         anchors.fill: parent
+        anchors.bottomMargin: root.bottomInset
         contentWidth: width
         contentHeight: col.implicitHeight + 44
         clip: true
         boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: HouseScrollBar { flick: page }
+        Controls.ScrollBar.vertical: HouseScrollBar { flick: page }
 
         Column {
             id: col
@@ -91,7 +128,7 @@ Item {
             Item {
                 id: hero
                 width: parent.width
-                height: 300
+                height: root.suppliedResults && width < 700 ? 218 : 300
 
                 // montage: the genre's own top covers, washed behind the title
                 Row {
@@ -106,8 +143,8 @@ Item {
                             clip: true
                             Image {
                                 anchors.fill: parent; source: modelData
-                                fillMode: Image.PreserveAspectCrop
-                                verticalAlignment: Image.AlignTop
+                                fillMode: root.suppliedResults ? Image.PreserveAspectFit : Image.PreserveAspectCrop
+                                verticalAlignment: root.suppliedResults ? Image.AlignVCenter : Image.AlignTop
                                 cache: true; asynchronous: true
                             }
                         }
@@ -141,14 +178,18 @@ Item {
 
                     Row {
                         spacing: 7
-                        Text { text: "TANKOBAN · MANGA · "; color: theme.inkDimmer
+                        Text { text: root.genreContext; color: theme.inkDimmer
                                font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 2.4; font.weight: Font.DemiBold }
-                        Text { text: "GENRE"; color: theme.gold
+                        Text { text: root.genreKind; color: theme.gold
                                font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 2.4; font.bold: true }
                     }
                     Text {
-                        text: root.genreName; color: theme.ink
+                        width: parent.width
+                        text: root.genreTitle; color: theme.ink
+                        textFormat: Text.PlainText
                         font.family: theme.display; font.pixelSize: 72; font.letterSpacing: -1
+                        fontSizeMode: root.suppliedResults ? Text.HorizontalFit : Text.FixedSize
+                        minimumPixelSize: 26
                         topPadding: 8
                     }
                     Text {
@@ -168,7 +209,7 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             textFormat: Text.StyledText
                             font.family: theme.ui; font.pixelSize: 14
-                            text: root.loading
+                            text: root.suppliedResults ? root.catalogSummary : root.loading
                                   ? "<font color='#9a99a5'>Loading…</font>"
                                   : "<b><font color='#f7f7f5'>" + root.genreData.count.toLocaleString()
                                     + "</font></b> <font color='#c9c8d0'>titles · sorted by "
@@ -180,14 +221,15 @@ Item {
 
             // ===== body =====
             Column {
-                x: theme.margin; width: parent.width - theme.margin * 2
+                id: catalogueBody
+                x: theme.margin; width: Math.max(0, parent.width - theme.margin * 2)
                 spacing: 0; topPadding: 20
 
                 // ---- sibling-genre hop ----
                 Flow {
                     width: parent.width; spacing: 9
                     Repeater {
-                        model: Api.siblings()
+                        model: root.siblingGenres
                         delegate: Rectangle {
                             required property string modelData
                             readonly property bool selected: modelData === root.genreName
@@ -206,17 +248,18 @@ Item {
                             MouseArea {
                                 id: gpMa; anchors.fill: parent; hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: if (!parent.selected) root.genreName = modelData
+                                onClicked: if (!parent.selected) root.openGenre(modelData)
                             }
                             KeyboardAction {
                                 anchors.fill: parent; pointerEnabled: false
                                 accessibleName: "Open " + modelData + " genre"
                                 focusRadius: 17
-                                onTriggered: if (!parent.selected) root.genreName = modelData
+                                onTriggered: if (!parent.selected) root.openGenre(modelData)
                             }
                         }
                     }
                     Rectangle {
+                        visible: !root.suppliedResults
                         height: 34; radius: 17
                         width: exploreLabel.implicitWidth + 30
                         color: exploreMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.18) : theme.glassTint
@@ -244,8 +287,30 @@ Item {
 
                 Item { width: 1; height: 24 }
 
+                Basic.TextField {
+                    id: filterField
+                    objectName: "genreCategorySearch"
+                    visible: root.filterPlaceholder.length > 0
+                    width: Math.min(parent.width, 420)
+                    height: 44
+                    placeholderText: root.filterPlaceholder
+                    Accessible.name: placeholderText
+                    color: theme.ink
+                    placeholderTextColor: theme.inkDim
+                    font.family: theme.ui
+                    font.pixelSize: 14
+                    background: Rectangle {
+                        radius: 10
+                        color: theme.glassTint
+                        border.color: filterField.activeFocus ? theme.gold : theme.edge
+                    }
+                    Keys.onDownPressed: if (grid.currentIndex >= 0) grid.forceActiveFocus()
+                    Keys.onEscapePressed: root.backRequested()
+                }
+
                 // ---- listing controls ----
                 Item {
+                    visible: !root.suppliedResults
                     width: parent.width; height: 40; y: 0
                     Item { height: 26 }
                     Text {
@@ -296,8 +361,6 @@ Item {
                                     KeyboardAction {
                                         anchors.fill: parent; pointerEnabled: false
                                         accessibleName: modelData.c ? "Cover grid view" : "Detailed grid view"
-                                        tooltipText: accessibleName
-                                        tooltipHovered: gridModeHover.containsMouse
                                         focusRadius: 4; onTriggered: root.compact = modelData.c
                                     }
                                 }
@@ -323,7 +386,7 @@ Item {
                         orientation: "grid"
                         columns: Math.max(1, grid.columns)
                         count: root.genreData.cards.length
-                        contextEnabled: !root.compact
+                        contextEnabled: !root.compact && !root.suppliedResults
                         positionIndexFn: function(index) {
                             const host = cardRepeater.itemAt(index)
                             if (!host) return
@@ -332,7 +395,12 @@ Item {
                             else if (p.y + host.height > page.contentY + page.height - 24)
                                 page.contentY = Math.min(Math.max(0, page.contentHeight - page.height), p.y + host.height - page.height + 24)
                         }
-                        onActivated: (index) => { const host = cardRepeater.itemAt(index); if (host && host.item) host.item.open(host.item.card.title) }
+                        onActivated: (index) => {
+                            const host = cardRepeater.itemAt(index)
+                            if (!host || !host.item) return
+                            if (root.suppliedResults) host.item.focusActions()
+                            else host.item.open(host.item.card.title)
+                        }
                         onContextRequested: (index) => { const host = cardRepeater.itemAt(index); if (host && host.item && host.item.toggleLibrary) host.item.toggleLibrary() }
                     }
                     columnSpacing: 18; rowSpacing: 18
@@ -342,11 +410,26 @@ Item {
                         id: cardRepeater
                         model: root.genreData.cards
                         delegate: Loader {
+                            id: resultHost
                             required property var modelData
                             required property int index
                             width: grid.cellW
-                            sourceComponent: root.compact ? coverTile : detailCard
-                            onLoaded: { item.card = modelData; item.rank = index + 1 }
+                            Binding on height {
+                                when: root.suppliedResults
+                                value: root.resultHeight
+                            }
+                            readonly property real viewportY: catalogueBody.y + grid.y + y - page.contentY
+                            active: !root.suppliedResults || (viewportY + height >= -page.height * 0.5
+                                                            && viewportY <= page.height * 1.5)
+                            sourceComponent: root.resultDelegate || (root.compact ? coverTile : detailCard)
+                            onLoaded: {
+                                item.card = modelData
+                                if (root.suppliedResults)
+                                    item.selected = Qt.binding(() => grid.activeFocus && grid.currentIndex === resultHost.index)
+                                else
+                                    item.rank = index + 1
+                            }
+                            onModelDataChanged: if (item) item.card = modelData
                             Connections {
                                 target: item
                                 ignoreUnknownSignals: true
@@ -359,7 +442,7 @@ Item {
                 // ---- empty / loading states ----
                 Text {
                     visible: !root.loading && root.genreData.cards.length === 0
-                    text: "Nothing in this genre yet — try another."
+                    text: root.suppliedResults ? qsTr("No matching add-ons") : "Nothing in this genre yet — try another."
                     color: theme.inkDimmer; font.family: theme.display; font.italic: true; font.pixelSize: 16
                     topPadding: 30
                 }
@@ -382,6 +465,7 @@ Item {
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
         height: 52; z: 30
         BackAction {
+            id: backAction
             variant: "capsule"; tip: "Back"
             anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; anchors.leftMargin: 22
             onTriggered: root.backRequested()
@@ -394,20 +478,14 @@ Item {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        ToolTip.text: qsTr("Search")
-                        ToolTip.delay: 350
-                        ToolTip.visible: containsMouse
-                        onClicked: root.searchClicked()
+                        onClicked: root.suppliedResults ? root.focusFilter() : root.searchClicked()
                     }
-                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Search"; onTriggered: root.searchClicked() } }
+                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: qsTr("Search"); onTriggered: root.suppliedResults ? root.focusFilter() : root.searchClicked() } }
             Image { visible: Qt.platform.os !== "android"; source: "../assets/icons/minimize.svg"; width: 17; height: 17; opacity: 0.7
                     MouseArea {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        ToolTip.text: qsTr("Minimize")
-                        ToolTip.delay: 350
-                        ToolTip.visible: containsMouse
                         onClicked: root.minimizeRequested()
                     }
                     KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Minimize"; onTriggered: root.minimizeRequested() } }
@@ -416,10 +494,6 @@ Item {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        ToolTip.text: typeof WindowMode !== "undefined" && WindowMode.shellWindowed
-                                      ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")
-                        ToolTip.delay: 350
-                        ToolTip.visible: containsMouse
                         onClicked: root.fullscreenRequested()
                     }
                     KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Toggle fullscreen"; onTriggered: root.fullscreenRequested() } }
@@ -428,9 +502,6 @@ Item {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        ToolTip.text: qsTr("Close Colosseum")
-                        ToolTip.delay: 350
-                        ToolTip.visible: containsMouse
                         onClicked: root.closeRequested()
                     }
                     KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close"; onTriggered: root.closeRequested() } }
@@ -442,6 +513,7 @@ Item {
         id: detailCard
         Rectangle {
             id: dc
+            objectName: "genreDetailCard_" + rank
             property var card: ({})
             property int rank: 0
             readonly property bool keyboardSelected: grid.activeFocus && grid.currentIndex === dc.rank - 1

@@ -10,6 +10,8 @@ const fold=(s:string)=>s.replace(/[A-Z]/g,c=>c.toLowerCase());
 const lexical=(a:string,b:string)=>a<b?-1:a>b?1:0;
 const descending=(a:any,b:any)=>a==null?(b==null?0:1):b==null?-1:Number(b)-Number(a);
 export async function prebuiltCatalogue(assets:Fetcher,revision:string,dataset:string,method:string,args:any[]):Promise<{result:any}|null>{
+  // Audiobooks is D1-only: legacy prebuilt `series` lookup would fabricate an empty result.
+  if(dataset==='audiobooks')return null;
  const prefix='/internal/prebuilt/'+revision+'/';let reads=0,publicPrefix='';
  async function get(path:string):Promise<any>{
   const publicPath=publicPrefix&&path.startsWith(publicPrefix)&&/^shared\/[a-f0-9]{64}\.json$/.test(path.slice(publicPrefix.length));

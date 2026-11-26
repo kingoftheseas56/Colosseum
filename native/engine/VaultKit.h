@@ -20,12 +20,16 @@
 // dependencies — so a Qt Test links it standalone and the production scanners
 // (Slice 4+) #include it the same way. QML paints, C++ decides.
 
+#include "VaultLocation.h"
+
 #include <QString>
 #include <QStringList>
 #include <QMap>
 #include <QList>
 #include <atomic>
 #include <functional>
+
+class QFileInfo;
 
 namespace VaultKit {
 
@@ -47,6 +51,8 @@ constexpr int kMaxWalkDepth = 32;
 // ── Ignore layers ─────────────────────────────────────────────────────
 // Layer 1 (hard-coded): hidden dirs (leading '.') + the system/junk set.
 bool isIgnoredDir(const QString& dirName);
+// Root selection and scanning consistently treat symlinks and junctions as aliases.
+bool isDirectDirectory(const QFileInfo& info);
 
 // Layer 2 (user, Groundworks contract): `scanIgnore` NEEDLES — a
 // case-insensitive SUBSTRING test against a full path, NOT a glob and NOT a
@@ -57,14 +63,16 @@ bool pathHitsNeedle(const QString& path, const QStringList& needles);
 
 // List immediate subdirectories of rootPath, skipping ignored / needle-hit dirs.
 QStringList listImmediateSubdirs(const QString& rootPath,
-                                 const QStringList& needles = {});
+                                 const QStringList& needles = {},
+                                 const VaultLocation::PersonalPaths& personal = {});
 
 // Recursively collect files under dirPath matching nameFilters (e.g. "*.cbz"),
 // skipping ignored / needle-hit dirs and needle-hit files. Depth-bounded and
 // symlink-loop-safe (canonical paths tracked). Returns absolute paths.
 QStringList walkFiles(const QString& dirPath, const QStringList& nameFilters,
                       const CancellationToken* cancel = nullptr,
-                      const QStringList& needles = {});
+                      const QStringList& needles = {},
+                      const VaultLocation::PersonalPaths& personal = {});
 
 // Group discovered files by first-level subdirectory of each root. Key =
 // absolute series/show folder path; loose files directly in a root land under
@@ -75,7 +83,9 @@ QMap<QString, QStringList> groupByFirstLevelSubdir(
     const QStringList& rootFolders, const QStringList& nameFilters,
     const CancellationToken* cancel = nullptr,
     const QStringList& needles = {},
-    const std::function<void(int, int, const QString&)>& onProgress = {});
+    const std::function<void(int, int, const QString&)>& onProgress = {},
+    const VaultLocation::PersonalPaths& personal = {},
+    const std::function<void(bool mediaFound)>& onEntry = {});
 
 // Clean a media folder name for display (underscores/dots → space, bracket
 // noise + quality/release markers stripped, trailing group/year removed,
@@ -83,11 +93,9 @@ QMap<QString, QStringList> groupByFirstLevelSubdir(
 // went too far (< 2 chars). Port of TB2 ScannerUtils::cleanMediaFolderTitle.
 QString cleanMediaFolderTitle(const QString& rawName);
 
-// Vault ux uplift S16 — the year the cleaner finds: the FIRST four-digit 19xx/20xx token in
-// the raw name (the same token class cleanMediaFolderTitle strips, and what the cleaner
-// does NOT expose — hence this sibling, so the census year survives to the identifier).
-// 0 when the name carries no such token. "Vol 2" is 0 (2-digit); "Dune (2021)" is 2021;
-// "2049 Blade Runner" is 2049 even though the year leads.
+// Qualified release year from brackets or an adjacent technical release suffix.
+// Bare numeric title words (1917, Blade Runner 2049, Horizon 2077) remain title
+// words; 0 means the filename supplied no qualified release-year fact.
 int parsedTitleYear(const QString& rawName);
 
 // Fold a cleaned title for offline catalogue identity lookups. This is the
@@ -105,6 +113,11 @@ MediaKind kindFromName(const QString& name); // inverse of kindName; Unknown for
 const QStringList& comicFilters();          // *.cbz *.cbr
 const QStringList& bookFilters();           // *.epub *.pdf *.mobi *.fb2 *.azw3 *.djvu (NOT .txt — release junk)
 const QStringList& videoFilters();          // mp4 mkv avi webm mov wmv flv m4v ts mpg mpeg ogv
+// Deterministic physical ownership among configured user roots; never follows links.
+QString ownerRootForPath(const QStringList& roots, const QString& path);
+QString standaloneVideoTitle(const QString& fileName);
+// Explicit sample names/containers are physical clips, never feature candidates.
+bool isSampleVideo(const QString& filePath);
 QStringList allMediaFilters();              // the union, for a single-pass walk
 MediaKind kindForFile(const QString& path); // by extension
 
@@ -145,6 +158,16 @@ struct SeasonEpisode {
     // fansub "- NNN" convention, e.g. Gintama), never from SxxExx.
     bool absolute = false;
 };
+
+// One shared filename/folder/sibling interpretation for census, arrivals,
+// browse and identification. No disk walk; callers supply immediate siblings.
+struct VideoEpisodeContext {
+    SeasonEpisode number;
+    QString title;
+    QString root;
+};
+VideoEpisodeContext videoEpisodeContext(const QString& filePath,
+                                       const QStringList& siblingFiles = {});
 
 // Filename SxxExx grammar ONLY (no size/extension gate — the caller owns
 // those). Ported from TB2 BulkPackVerifier::matchEpisodeFileForSeason's regex.
@@ -243,7 +266,8 @@ struct BrowseNode {
 // alphabetical within each band; a leaf level (episodes/clips) sorts by natural filename order.
 QList<BrowseNode> planBrowseLevel(const QString& levelPath,
                                   const QStringList& scanIgnore = {},
-                                  const CancellationToken* cancel = nullptr);
+                                  const CancellationToken* cancel = nullptr,
+                                  const VaultLocation::PersonalPaths& personal = {});
 
 // ── Film physical facts (Vault browse-face execution plan, Slice 7) ─────────────────────────
 // The detail sheet's structural half: what sits BESIDE a film's one media file in its own
@@ -275,6 +299,7 @@ struct FilmPhysicalFacts {
 // (excluded from companion classification). Honors the same user `scanIgnore` needle layer
 // every other walk does.
 FilmPhysicalFacts describeFilmFolder(const QString& folderPath, const QString& primaryFilePath,
-                                     const QStringList& scanIgnore = {});
+                                     const QStringList& scanIgnore = {},
+                                     const VaultLocation::PersonalPaths& personal = {});
 
 } // namespace VaultKit

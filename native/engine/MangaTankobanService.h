@@ -196,6 +196,8 @@ public:
     // ── Downloads-page surface (LocalDownloads composes these) ──────────────
     // Every published (ready) volume as a normalized row incl. first-page art.
     Q_INVOKABLE QVariantList downloadedVolumes() const;
+    QList<DownloadLocation::Item> managedDownloadItems() const;
+    void refreshDownloadPaths();
     // Every acquisition currently in flight: {id, seriesTitle, label, state
     // ("resolving"|"downloading"|"ingesting"|"packing"), done, total}.
     Q_INVOKABLE QVariantList activeVolumeJobs() const;

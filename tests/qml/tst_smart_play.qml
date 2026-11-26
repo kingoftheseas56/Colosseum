@@ -7,7 +7,12 @@ import "../../qml/EpisodeBrowser.js" as EpisodeBrowser
 
 Item {
     id: fixture
-    width: 1280; height: 900
+    width: 1280; height: 700
+    // The production loader face, driven by the same start/pick/failure signals
+    // that Main connects to PlayerPage. No playback is started by this fixture.
+    property bool fakePlayerOpen: false
+    property string fakeLoaderStatus: ""
+    property string fakeLoaderTitle: ""
     Settings {
         id: prefs
         location: typeof SmartPlayTestSettingsUrl !== "undefined" ? SmartPlayTestSettingsUrl
@@ -30,9 +35,33 @@ Item {
         function resolve() { return ++lastId }
         function cancel() {}
     }
-    SourcesSheet { id: sheet; extensionsService: stremio; loadStremioStreams: stremio.load; nuvioSourceService: nuvio }
-    SmartPickToggle { id: frontToggle; sourcePicker: sheet; y: 750 }
-    SmartPickToggle { id: mirroredToggle; sourcePicker: sheet; x: 300; y: 750 }
+    SourcesSheet {
+        id: sheet
+        extensionsService: stremio
+        loadStremioStreams: stremio.load
+        nuvioSourceService: nuvio
+        onSmartPickStarted: (title, backdrop, type, id, context) => {
+            fixture.fakeLoaderTitle = title
+            fixture.fakeLoaderStatus = "Finding the best stream"
+            fixture.fakePlayerOpen = true
+        }
+        onSmartPickFailed: fixture.fakePlayerOpen = false
+        onPlayRequested: fixture.fakeLoaderStatus = "Connecting to peers..."
+    }
+    PlayerLoadingScreen {
+        id: playerLoader
+        anchors.fill: parent
+        z: 90
+        active: fixture.fakePlayerOpen
+        enabled: fixture.fakePlayerOpen && sheet.smartPicking
+        title: fixture.fakeLoaderTitle
+        statusText: fixture.fakeLoaderStatus
+        allowManual: sheet.smartPicking
+        onManualRequested: { sheet.chooseSourceManually(); fixture.fakePlayerOpen = false }
+        onCancelRequested: { sheet.hide(); fixture.fakePlayerOpen = false }
+    }
+    SmartPickToggle { id: frontToggle; sourcePicker: sheet; y: 560 }
+    SmartPickToggle { id: mirroredToggle; sourcePicker: sheet; x: 300; y: 560 }
     SignalSpy { id: playSpy; target: sheet; signalName: "playRequested" }
     SignalSpy { id: downloadSpy; target: sheet; signalName: "downloadRequested" }
     SignalSpy { id: seasonSpy; target: sheet; signalName: "seasonNoPacks" }
@@ -50,10 +79,14 @@ Item {
             var settings = findChild(sheet, "smartPlaySettings")
             if (settings) settings.location = prefs.location
             sheet.refreshSmartPlayQuality()
+            fixture.fakePlayerOpen = false
+            fixture.fakeLoaderStatus = ""
+            fixture.fakeLoaderTitle = ""
             stremio.requests = []; stremio.enabled = true
             playSpy.clear(); downloadSpy.clear(); seasonSpy.clear()
         }
         function cleanup() {
+            fixture.fakePlayerOpen = false
             sheet.hide()
             fixture.Window.window.width = 1280
             fixture.width = 1280
@@ -67,7 +100,14 @@ Item {
                 behaviorHints: { filename: "Fixture.2020." + (episode || "") + quality + "." + (source || "WEB-DL") + ".mkv" }
             }, "Torrentio", 0, "fixture")
         }
-        function show(mode) { sheet.show("movie", "tt12345", "Fixture", { title: "Fixture", year: 2020 }, mode) }
+        function show(mode) {
+            fixture.fakePlayerOpen = false
+            sheet.show("movie", "tt12345", "Fixture", { title: "Fixture", year: 2020 }, mode)
+            console.log("SMART_PICK_DEBUG", "quality", sheet.smartPlayQuality, "enabled", sheet.smartPlayEnabled,
+                        "cancelled", sheet.smartPlayCancelled, "settled", sheet.smartPlaySettled,
+                        "inPlayer", sheet.smartPickInPlayer, "open", sheet.open,
+                        "vaultRows", sheet.vaultLocalRows.length, "fixture", fixture.fakePlayerOpen)
+        }
         function finish(rows) { stremio.requests[0].done(rows); nuvio.finished(nuvio.lastId) }
 
         function test_play_activatesPick_withoutReordering() {
@@ -76,55 +116,98 @@ Item {
             tryCompare(playSpy, "count", 1)
             compare(playSpy.signalArguments[0][0], "2".repeat(40))
             compare(sheet.visibleRows.map(r => r.infoHash), ["1".repeat(40), "2".repeat(40)])
-            compare(sheet.smartPlayRow.infoHash, "2".repeat(40))
-            tryVerify(() => findChild(sheet, "sourceBestMatch_1") !== null)
-            compare(findChild(sheet, "sourceBestMatch_1").visible, false)
-            compare(sheet.smartPicking, true)
+            compare(sheet.smartPicking, false)
+            compare(sheet.open, false)
+            compare(fixture.fakePlayerOpen, true)
+            compare(playerLoader.active, true)
+            compare(playerLoader.statusText, "Connecting to peers...")
         }
         function test_noPick_keepsSheetOpen() {
             show(); finish([row(0, "1080p", "CAM")])
             wait(0); compare(playSpy.count, 0); compare(sheet.open, true)
+            compare(fixture.fakePlayerOpen, false)
+            compare(sheet.smartPickInPlayer, false)
             compare(sheet.smartPlayStatus, "No source passed the quality check. Choose one below.")
+        }
+        function test_slowProvider_doesNotHoldPick_afterGrace() {
+            sheet.smartPickGraceMs = 300; sheet.smartPickCapMs = 5000
+            // one provider answered with a passing row; another provider and Nuvio never answer
+            show(); stremio.requests[0].partial([row(0, "720p"), row(1, "1080p")])
+            compare(playSpy.count, 0)
+            tryCompare(playSpy, "count", 1, 2000)
+            compare(playSpy.signalArguments[0][0], "2".repeat(40))
+            compare(sheet.loading, true); compare(sheet.nuvioPending, true)
+            compare(sheet.open, false)
+            // a late answer after the pick is ignored
+            stremio.requests[0].done([row(5, "1080p")])
+            wait(50); compare(playSpy.count, 1)
+            sheet.smartPickGraceMs = 4000; sheet.smartPickCapMs = 11000
+        }
+        function test_hardCap_noPassingCandidate_fallsBackToSheet() {
+            sheet.smartPickGraceMs = 200; sheet.smartPickCapMs = 700
+            show(); stremio.requests[0].partial([row(0, "1080p", "CAM")])
+            wait(400); compare(playSpy.count, 0); compare(sheet.smartPlaySettled, false)
+            tryCompare(sheet, "smartPlaySettled", true, 2000)
+            compare(playSpy.count, 0); compare(sheet.open, true)
+            compare(sheet.smartPlayStatus, "No source passed the quality check. Choose one below.")
+            sheet.smartPickGraceMs = 4000; sheet.smartPickCapMs = 11000
+        }
+        function test_hardCap_picksBestSoFar_whenPassingRowArrivesLate() {
+            sheet.smartPickGraceMs = 200; sheet.smartPickCapMs = 700
+            show(); stremio.requests[0].partial([row(0, "1080p", "CAM")])
+            wait(300)
+            stremio.requests[0].partial([row(0, "1080p", "CAM"), row(1, "1080p")])
+            tryCompare(playSpy, "count", 1, 2000)
+            compare(playSpy.signalArguments[0][0], "2".repeat(40))
+            sheet.smartPickGraceMs = 4000; sheet.smartPickCapMs = 11000
         }
         function test_manualTap_duringLoading_wins() {
             var rows = [row(0, "720p"), row(1, "1080p")]
             show(); stremio.requests[0].partial(rows)
-            var manual = findChild(sheet, "smartPickingManualAction")
-            verify(manual !== null, "Pending screen must offer a manual escape")
-            mouseClick(manual, 60, 24)
+            var manual = findChild(playerLoader, "playerChooseSourceAction")
+            verify(manual !== null, "Player loader must offer manual choice")
+            tryVerify(() => manual.visible, 2000, "Player loader must offer manual choice")
+            tryCompare(playerLoader, "opacity", 1); waitForRendering(playerLoader)
+            mouseClick(manual, 60, 18)
+            compare(fixture.fakePlayerOpen, false)
+            compare(sheet.smartPlayCancelled, true)
             tryVerify(() => findChild(sheet, "sourceRow_0") !== null)
             mouseClick(findChild(sheet, "sourceRow_0"), 160, 60)
             compare(playSpy.count, 1); compare(playSpy.signalArguments[0][0], "1".repeat(40))
             finish(rows); wait(0); compare(playSpy.count, 1)
         }
-        function test_pendingScreen_hidesInteractiveSources_untilHandoff() {
+        function test_playerOpensBeforePick_andOneLoaderStaysThroughHandoff() {
             show()
+            compare(playSpy.count, 0)
+            compare(fixture.fakePlayerOpen, true)
+            compare(playerLoader.active, true)
+            compare(sheet.open, true)
+            compare(sheet.smartPickInPlayer, true)
+            tryCompare(sheet, "opacity", 0)
+            compare(findChild(playerLoader, "playerLoadingStatus").text, "FINDING THE BEST STREAM")
+            compare(findChild(playerLoader, "playerChooseSourceAction").visible, true)
             var rows = [row(0, "720p"), row(1, "1080p")]
             stremio.requests[0].partial(rows)
-            var list = findChild(sheet, "sourcesSheetList")
-            compare(list.visible, false); compare(list.enabled, false)
-            compare(sheet.smartPicking, true)
-            var screen = findChild(sheet, "smartPickingScreen")
-            verify(screen !== null); compare(screen.visible, true)
-            compare(findChild(sheet, "sourcesSheetTable").visible, false)
-            compare(findChild(sheet, "extPickerTrigger").visible, false)
-            compare(findChild(sheet, "sourceQuality_all").visible, false)
-            verify(!list.activeFocus)
+            compare(findChild(sheet, "sourcesSheetList").visible, false)
             compare(sheet.visibleRows.map(r => r.infoHash), rows.map(r => r.infoHash))
-            pickingSpy.clear()
             finish(rows); tryCompare(playSpy, "count", 1)
-            compare(pickingSpy.count, 0, "Picking screen must remain continuously visible through playback handoff")
-            compare(sheet.smartPicking, true)
-            compare(list.visible, false)
-            compare(screen.allowManual, false)
-            sheet.hide(); compare(screen.visible, false)
+            compare(fixture.fakePlayerOpen, true)
+            compare(playerLoader.active, true)
+            compare(playerLoader.statusText, "Connecting to peers...")
+            compare(findChild(playerLoader, "playerChooseSourceAction").visible, false)
+            compare(sheet.open, false)
+            compare(sheet.smartPicking, false)
         }
         function test_manualEscape_cancelsLateCompletionAndTimeout_onlyThisVisit() {
             show()
             var request = stremio.requests[0]
-            var manual = findChild(sheet, "smartPickingManualAction")
-            verify(manual !== null, "Pending screen must offer a manual escape")
-            manual.forceActiveFocus(); keyClick(Qt.Key_Space)
+            var manual = findChild(playerLoader, "playerChooseSourceAction")
+            verify(manual !== null)
+            tryVerify(() => manual.visible)
+            tryCompare(playerLoader, "opacity", 1); waitForRendering(playerLoader)
+            mouseClick(manual, 60, 18)
+            compare(fixture.fakePlayerOpen, false)
+            compare(sheet.open, true)
             compare(sheet.smartPicking, false)
             compare(sheet.smartPlayCancelled, true)
             compare(sheet.loading, true)
@@ -147,7 +230,8 @@ Item {
         function test_pendingBack_cancelsLateReply_andReopenStartsFresh() {
             show()
             var stale = stremio.requests[0]
-            verify(sheet.requestEscape())
+            playerLoader.cancelRequested()
+            compare(fixture.fakePlayerOpen, false)
             compare(sheet.open, false); compare(sheet.smartPicking, false)
             compare(sheet.smartPlayCancelled, true)
             stale.done([row(0, "1080p")]); nuvio.finished(nuvio.lastId)
@@ -156,29 +240,31 @@ Item {
             stremio.requests[1].done([row(1, "1080p")]); nuvio.finished(nuvio.lastId)
             tryCompare(playSpy, "count", 1)
         }
-        function test_pendingScreen_narrowBounds_andManualFallback() {
+        function test_playerLoader_narrowBounds_andNoPickReturnsSheet() {
             fixture.Window.window.width = 320
             fixture.width = 320
             show(); wait(0)
-            var manual = findChild(sheet, "smartPickingManualAction")
-            var screen = findChild(sheet, "smartPickingScreen")
-            verify(screen !== null, "Automatic picking must replace the browser with its pending screen")
-            compare(screen.width, 320)
-            verify(manual.width >= 44); verify(manual.height >= 44)
-            var position = manual.mapToItem(screen, 0, 0)
-            verify(position.x >= 0); verify(position.x + manual.width <= screen.width)
+            var manual = findChild(playerLoader, "playerChooseSourceAction")
+            verify(manual !== null && manual.visible)
+            compare(playerLoader.width, 320)
+            verify(manual.width >= 44); verify(manual.height >= 36)
+            var position = manual.mapToItem(playerLoader, 0, 0)
+            verify(position.x >= 0); verify(position.x + manual.width <= playerLoader.width)
             finish([row(0, "1080p", "CAM")]); wait(0)
-            compare(screen.visible, false); compare(playSpy.count, 0)
+            compare(fixture.fakePlayerOpen, false)
+            compare(sheet.smartPickInPlayer, false)
+            compare(sheet.open, true)
+            compare(playSpy.count, 0)
             compare(findChild(sheet, "sourcesSheetTable").visible, true)
             compare(sheet.smartPlayStatus, "No source passed the quality check. Choose one below.")
         }
         function test_pendingScreen_doesNotReplaceOffDownloadOrSeason() {
             prefs.setValue("smartPlayQuality", "off"); prefs.sync()
-            show(); compare(sheet.smartPicking, false); sheet.hide()
+            show(); compare(sheet.smartPicking, false); compare(fixture.fakePlayerOpen, false); sheet.hide()
             prefs.setValue("smartPlayQuality", "1080p"); prefs.sync()
-            show("download"); compare(sheet.smartPicking, false); sheet.hide()
+            show("download"); compare(sheet.smartPicking, false); compare(fixture.fakePlayerOpen, false); sheet.hide()
             sheet.show("series", "tt12345:1:1", "Fixture", { season: 1 }, "season")
-            compare(sheet.smartPicking, false)
+            compare(sheet.smartPicking, false); compare(fixture.fakePlayerOpen, false)
         }
         function test_off_preservesManualSelection() {
             prefs.setValue("smartPlayQuality", "off"); prefs.sync()
@@ -241,17 +327,6 @@ Item {
             wait(0)
             findChild(frontToggle, "smartPickSwitch").forceActiveFocus()
             mouseMove(info, 22, 22)
-            var tooltip = findChild(frontToggle, "smartPickHoverExplanation")
-            verify(tooltip !== null)
-            tryCompare(tooltip, "visible", true)
-            verify(tooltip.width <= 296)
-            verify(tooltip.x >= 0)
-            verify(tooltip.x + tooltip.width <= tooltip.parent.width)
-            for (var i = 0; i < 5; ++i) {
-                compare(info.hovered, true)
-                compare(tooltip.visible, true)
-                wait(100)
-            }
             mouseClick(info, 22, 22)
             tryCompare(explanation, "visible", true)
             compare(frontToggle.checked, true)
@@ -278,16 +353,9 @@ Item {
             tryCompare(info, "hovered", true)
             wait(450)
             compare(popover.visible, false, "Hover must not open the interactive popover")
-            var tooltip = findChild(frontToggle, "smartPickHoverExplanation")
-            verify(tooltip !== null)
-            for (var i = 0; i < 10; ++i) {
-                compare(info.hovered, true)
-                compare(tooltip.visible, true)
-                compare(popover.visible, false)
-                wait(100)
-            }
+            compare(findChild(frontToggle, "smartPickHoverExplanation"), null)
             mouseMove(fixture, 10, 650)
-            tryCompare(tooltip, "visible", false)
+            tryCompare(info, "hovered", false)
         }
         function test_control_clickedExplanation_survivesPointerLeaving() {
             var info = findChild(frontToggle, "smartPickInfo")
@@ -304,24 +372,17 @@ Item {
         function test_control_keyboardExplanation_staysSeparateFromHover() {
             var info = findChild(frontToggle, "smartPickInfo")
             var popover = findChild(frontToggle, "smartPickExplanation")
-            var tooltip = findChild(frontToggle, "smartPickHoverExplanation")
             mouseMove(fixture, 10, 650)
             info.forceActiveFocus()
-            wait(450)
             compare(info.hovered, false)
-            compare(tooltip.visible, false)
             keyClick(Qt.Key_Return)
             tryCompare(popover, "visible", true)
             keyClick(Qt.Key_Escape)
             tryCompare(popover, "visible", false)
-            wait(450)
-            compare(tooltip.visible, false)
             keyClick(Qt.Key_Return)
             tryCompare(popover, "visible", true)
             mouseClick(fixture, 10, 650)
             tryCompare(popover, "visible", false)
-            wait(450)
-            compare(tooltip.visible, false)
         }
         function test_titlePages_compileWithControl() {
             for (var name of ["TheatreSeries.qml", "TheatreSeriesView.qml"]) {

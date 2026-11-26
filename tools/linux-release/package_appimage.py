@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Wrap the checksum-pinned, checked 1.3.0 AppDir without rebuilding its payload."""
+"""Wrap the checksum-pinned, checked AppDir without rebuilding its payload."""
 import argparse
 import hashlib
 import json
@@ -63,7 +63,7 @@ def audit(root, report_path, baseline):
 
 
 def download(pin, target):
-    headers = {'User-Agent': 'Colosseum-AppImage-packager/1.3.0', 'Accept': 'application/octet-stream'}
+    headers = {'User-Agent': f'Colosseum-AppImage-packager/{PINS["version"]}', 'Accept': 'application/octet-stream'}
     if pin['url'].startswith('https://api.github.com/') and os.environ.get('GH_TOKEN'):
         headers['Authorization'] = 'Bearer ' + os.environ['GH_TOKEN']
     with urlopen(Request(pin['url'], headers=headers), timeout=60) as response, target.open('wb') as output:
@@ -94,7 +94,8 @@ def main():
         subprocess.run(['tar', '-xf', str(args.archive), '-C', str(work)], check=True)
         root = work / 'AppDir'
         identity = json.loads((root / 'BUILD-IDENTITY.json').read_text())
-        if identity['source_commit'] != PINS['application_source_commit'] or identity['version'] != '1.3.0':
+        version = PINS['version']
+        if identity['source_commit'] != PINS['application_source_commit'] or identity['version'] != version:
             raise RuntimeError('AppDir application identity mismatch')
         original = inventory(root)
         audit(root, output / 'appdir-before-package-check.json', baseline)
@@ -118,9 +119,9 @@ def main():
             subprocess.run([str(tool), '--appimage-extract'], cwd=tool_dir, stdout=log, stderr=subprocess.STDOUT, check=True)
         command = tool_dir / 'squashfs-root/AppRun'
         tool_version = subprocess.check_output([str(command), '--version'], stderr=subprocess.STDOUT, text=True).strip()
-        image = output / 'Colosseum-1.3.0-x86_64.AppImage'
+        image = output / f'Colosseum-{version}-x86_64.AppImage'
         env = os.environ.copy()
-        env.update(ARCH='x86_64', VERSION='1.3.0')
+        env.update(ARCH='x86_64', VERSION=version)
         with (output / 'appimagetool.log').open('w') as log:
             subprocess.run([str(command), '--no-appstream', '--comp', 'zstd', '--runtime-file', str(runtime), str(root), str(image)], env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
         image.chmod(0o755)

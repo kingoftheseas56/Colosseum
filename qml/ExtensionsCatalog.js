@@ -8,6 +8,20 @@
 // spec: docs/superpowers/specs/2026-07-05-colosseum-extensions-store-design.md.
 .pragma library
 
+function houseInstallUrl(id) {
+    if (id === "colosseum.well.indexers")
+        return "https://colosseum-tankorent.colosseum-watchparty-relay.workers.dev/manifest.json";
+    if (id === "colosseum.well.getcomics.issues") return "colosseum://well/getcomics.issues";
+    if (id === "colosseum.well.audiobookbay") return "colosseum://well/audiobookbay";
+    return "";
+}
+
+function sourceEnabled(owner, id) {
+    if (!owner || !owner.installed) return false;
+    var rows = (owner.revision, owner.installed()) || [];
+    return rows.some(function(row) { return row.id === id && row.enabled === true; });
+}
+
 var COMMUNITY_API = "https://stremio-addons.net/api/v0";
 var OFFICIAL_COLLECTION = "https://api.strem.io/addonsofficialcollection.json";
 
@@ -306,9 +320,7 @@ var JOB = {
     "colosseum.well.tankoyomi":          "chapter pages",
     "colosseum.well.getcomics.issues":  "issue downloads",
     "colosseum.well.libgen":            "book files",
-    // Three indexers, not four (Knaben is off in TankorentSearchService), and the search
-    // is only ever asked for books and comics — never audiobooks. 2026-07-26 ground-truth.
-    "colosseum.well.indexers":          "comic and book torrents",
+    "colosseum.well.indexers":          "comic, book and audiobook torrents",
     "colosseum.well.audiobookbay":      "audiobook torrents"
 };
 

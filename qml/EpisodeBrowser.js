@@ -14,6 +14,10 @@ function seriesRootId(id) {
     var parts = s.split(":");
     if (parts.length < 3)
         return s;
+    if (parts[0] === "tmdb" && parts[1] === "movie")
+        return s;
+    if ((parts[0] === "tmdb" || parts[0] === "tvdb") && parts[1] === "tv")
+        return parts.slice(0, 3).join(":");
     if (s.indexOf("tt") === 0)
         return parts[0];
     return parts[0] + ":" + parts[1];

@@ -1,13 +1,20 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
+import QtQuick.Window
 import "collections" as CollectionsUi
 import "CollectionsReferences.js" as CollectionsReferences
 
 Item {
     id: root
     objectName: "mangaSeriesSharedHeader"
-    readonly property bool phoneNarrow: win.androidHost && win.width < 840
+    AdaptiveLayout {
+        id: adaptive
+        androidHost: Qt.platform.os === "android" || !!(root.Window.window && root.Window.window.androidHost === true)
+        viewportWidth: root.Window.window ? root.Window.window.width : root.width
+        viewportHeight: root.Window.window ? root.Window.window.height : root.height
+    }
+    readonly property bool phoneNarrow: adaptive.androidHost && adaptive.viewportWidth < 840
     height: root.phoneNarrow ? chrome.height + hero.height : 263
 
     property bool tankobanMode: true
@@ -91,9 +98,6 @@ Item {
                 width: 36; height: 36; activeFocusOnTab: true
                 Accessible.role: Accessible.Button; Accessible.name: "Minimize window"
                 Image { anchors.centerIn: parent; width: 20; height: 20; source: "../assets/icons/minimize.svg"; opacity: minMa.containsMouse ? 1 : .72 }
-                ToolTip.visible: minMa.containsMouse
-                ToolTip.text: qsTr('Minimize window')
-                ToolTip.delay: 350
                 MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
                 Keys.onReturnPressed: root.minimizeRequested(); Keys.onEnterPressed: root.minimizeRequested()
             }
@@ -106,9 +110,6 @@ Item {
                         ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"
                     opacity: fullMa.containsMouse ? 1 : .72
                 }
-                ToolTip.visible: fullMa.containsMouse
-                ToolTip.text: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")
-                ToolTip.delay: 350
                 MouseArea { id: fullMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() }
                 Keys.onReturnPressed: root.fullscreenRequested(); Keys.onEnterPressed: root.fullscreenRequested()
             }
@@ -116,9 +117,6 @@ Item {
                 width: 36; height: 36; activeFocusOnTab: true
                 Accessible.role: Accessible.Button; Accessible.name: "Close series view"
                 Image { anchors.centerIn: parent; width: 20; height: 20; source: "../assets/icons/power.svg"; opacity: closeMa.containsMouse ? 1 : .72 }
-                ToolTip.visible: closeMa.containsMouse
-                ToolTip.text: qsTr('Close series view')
-                ToolTip.delay: 350
                 MouseArea { id: closeMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
                 Keys.onReturnPressed: root.closeRequested(); Keys.onEnterPressed: root.closeRequested()
             }
@@ -152,7 +150,8 @@ Item {
             anchors.top: parent.top
             anchors.topMargin: 12
             anchors.horizontalCenter: parent.horizontalCenter
-            width: 112; height: 164
+            height: adaptive.mangaHeaderCoverHeight
+            width: adaptive.shortAndroid ? height * 112 / 164 : 112
             radius: 9
             color: "#15171f"
             border.width: 1; border.color: theme.edge
@@ -169,9 +168,12 @@ Item {
                 anchors.fill: parent
                 anchors.margins: 8
                 visible: phoneCoverImage.status !== Image.Ready
+                objectName: "mangaHeaderCoverFallback"
                 text: root.seriesTitle
                 color: theme.inkDim
                 font.family: theme.display; font.pixelSize: 17
+                fontSizeMode: adaptive.shortAndroid ? Text.Fit : Text.FixedSize
+                minimumPixelSize: adaptive.mangaHeaderCoverTitleMinimum
                 wrapMode: Text.Wrap
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
@@ -209,9 +211,6 @@ Item {
                     activeFocusOnTab: visible
                     Accessible.role: Accessible.Button
                     Accessible.name: root.librarySaved ? "Remove from Library" : "Add to Library"
-                    ToolTip.visible: libraryMa.containsMouse
-                    ToolTip.text: root.librarySaved ? "Remove from Library" : "Add to Library"
-                    ToolTip.delay: 350
                     y: Math.round((titleRow.height - height) / 2)
                     Rectangle {
                         anchors.fill: parent; radius: 9
@@ -343,9 +342,6 @@ Item {
                 enabled: root.tankobanMode; hoverEnabled: true
                 cursorShape: Qt.ForbiddenCursor
             }
-            ToolTip.visible: root.tankobanMode && lockedLanguageMa.containsMouse
-            ToolTip.text: "Available in Chapter Mode"
-            ToolTip.delay: 350
         }
 
         Button {

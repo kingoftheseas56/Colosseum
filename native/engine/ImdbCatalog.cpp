@@ -243,50 +243,217 @@ QVariantList ImdbCatalog::titleCatalog(const QVariantMap& query, int offset, int
     return out;
 }
 
-QVariantList ImdbCatalog::matchByTitle(const QString& title, int year) const
+namespace {
+
+QVariantMap titleRowToMap(QSqlQuery& q)
 {
-    if (!m_ok) return m_remote->read(QStringLiteral("matchByTitle"), QVariantList{MediaTitleNormalization::normalizedTitle(title), year}, QVariantList{}).toList();
-    QVariantList out;
+    QVariantMap m;
+    m.insert(QStringLiteral("tt"), q.value(0).toString());
+    m.insert(QStringLiteral("type"), q.value(1).toString());
+    m.insert(QStringLiteral("title"), q.value(2).toString());
+    m.insert(QStringLiteral("year"), q.value(3).toInt());
+    m.insert(QStringLiteral("endYear"), q.value(4).toInt());
+    m.insert(QStringLiteral("runtimeMin"), q.value(5).toInt());
+    QVariantList genres;
+    const QJsonArray arr = QJsonDocument::fromJson(q.value(6).toString().toUtf8()).array();
+    for (const auto& v : arr)
+        genres.append(v.toString());
+    m.insert(QStringLiteral("genres"), genres);
+    m.insert(QStringLiteral("rating"), q.value(7).toDouble());
+    m.insert(QStringLiteral("votes"), q.value(8).toInt());
+    m.insert(QStringLiteral("episodes"), q.value(9).toInt());
+    m.insert(QStringLiteral("origLang"), q.value(10).toString());
+    m.insert(QStringLiteral("isAnime"), q.value(11).toInt() != 0);
+    // IMDb's public title/ratings/basics bake contains no synopsis field.
+    m.insert(QStringLiteral("synopsis"), QString());
+    return m;
+}
+
+const QStringList& romanNumerals()
+{
+    static const QStringList romans = {QStringLiteral("i"), QStringLiteral("ii"), QStringLiteral("iii"),
+                                       QStringLiteral("iv"), QStringLiteral("v"), QStringLiteral("vi"),
+                                       QStringLiteral("vii"), QStringLiteral("viii"), QStringLiteral("ix"),
+                                       QStringLiteral("x")};
+    return romans;
+}
+
+// Numerals 1-10 written the other way round in a trailing position or after "part": "godfather
+// part 3" <-> "godfather part iii". A bare trailing "i" is an ordinary word, so it only converts
+// after "part". Empty when the title has no such numeral. Query side only; the catalogue is
+// never rewritten.
+QString numeralVariantImpl(const QString& norm)
+{
+    QStringList tokens = norm.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    if (tokens.size() < 2)
+        return {};
+    QList<int> positions;
+    positions.append(tokens.size() - 1);
+    for (int i = 1; i + 1 < tokens.size(); ++i)
+        if (tokens.at(i) == QLatin1String("part"))
+            positions.append(i + 1);
+    for (const int pos : positions) {
+        const QString token = tokens.at(pos);
+        const bool afterPart = tokens.at(pos - 1) == QLatin1String("part");
+        bool isNumber = false;
+        const int number = token.toInt(&isNumber);
+        if (isNumber && token == QString::number(number) && number >= 1 && number <= 10) {
+            tokens[pos] = romanNumerals().at(number - 1);
+            return tokens.join(QLatin1Char(' '));
+        }
+        const int roman = romanNumerals().indexOf(token) + 1;
+        if (roman > 0 && (roman > 1 || afterPart)) {
+            tokens[pos] = QString::number(roman);
+            return tokens.join(QLatin1Char(' '));
+        }
+    }
+    return {};
+}
+
+// The catalogue title's text before its first ':' (or before " or:"), normalized the same way as
+// the query. "Rogue One: A Star Wars Story" -> "rogue one"; "Dr. Strangelove or: How I ..." ->
+// "dr strangelove".
+QStringList subtitleHeadsImpl(const QString& title)
+{
+    const int colon = title.indexOf(QLatin1Char(':'));
+    if (colon <= 0)
+        return {};
+    const QString head = title.left(colon).trimmed();
+    QStringList out{MediaTitleNormalization::normalizedTitle(head)};
+    static const QRegularExpression trailingOr(QStringLiteral("(?i)\\s+or$"));
+    if (trailingOr.match(head).hasMatch())
+        out.append(MediaTitleNormalization::normalizedTitle(
+            head.left(head.size() - trailingOr.match(head).capturedLength())));
+    return out;
+}
+
+} // namespace
+
+QString ImdbCatalog::numeralVariant(const QString& normalizedTitle)
+{
+    return numeralVariantImpl(normalizedTitle);
+}
+
+QStringList ImdbCatalog::subtitleHeads(const QString& catalogueTitle)
+{
+    return subtitleHeadsImpl(catalogueTitle);
+}
+
+// The exact and prefix reads, local or remote. One flow (matchByTitle below) uses these for both,
+// so a build with a local db and a build behind the content API behave the same.
+QVariant ImdbCatalog::remoteRead(const QString& method, const QVariantList& args) const
+{
+    if (m_remoteReaderForTest)
+        return m_remoteReaderForTest(method, args);
+    return m_remote->read(method, args, QVariantList{});
+}
+
+QVariantList ImdbCatalog::exactMatches(const QString& key, int year) const
+{
     if (!m_ok)
-        return out;
+        return remoteRead(QStringLiteral("matchByTitle"), QVariantList{key, year}).toList();
+    QVariantList rows;
+    static const QString columns = QStringLiteral(
+        "SELECT tt, type, title, year, endYear, runtimeMin, genres, rating, votes, "
+        "episodes, origLang, isAnime FROM title ");
+    const bool aliases = m_db.tables().contains(QStringLiteral("title_alias"));
+    const QString titlePredicate = aliases
+        ? QStringLiteral("(norm_title = ? OR EXISTS (SELECT 1 FROM title_alias a WHERE a.tt = title.tt AND a.norm_title = ?))")
+        : QStringLiteral("norm_title = ?");
+    QSqlQuery q(m_db);
+    q.prepare(columns + QStringLiteral(
+        "WHERE %1 AND (? = 0 OR year = ?) "
+        "ORDER BY year DESC, rating DESC, votes DESC, tt ASC").arg(titlePredicate));
+    q.addBindValue(key);
+    if (aliases) q.addBindValue(key);
+    q.addBindValue(year);
+    q.addBindValue(year);
+    if (!q.exec())
+        return rows;
+    while (q.next())
+        rows.append(titleRowToMap(q));
+    return rows;
+}
 
-    const QString norm = MediaTitleNormalization::normalizedTitle(title);
-    if (norm.isEmpty())
-        return out;
-
+// Titles whose normalized form starts with `key`, in the same order and with the same limit as the
+// content API's `search` method (exact first, then newest). Local rides the norm_title index with
+// a range scan instead of LIKE.
+QVariantList ImdbCatalog::prefixMatches(const QString& key, int limit) const
+{
+    if (!m_ok)
+        return remoteRead(QStringLiteral("search"), QVariantList{key, limit}).toList();
+    QVariantList rows;
     QSqlQuery q(m_db);
     q.prepare(QStringLiteral(
         "SELECT tt, type, title, year, endYear, runtimeMin, genres, rating, votes, "
         "episodes, origLang, isAnime FROM title "
-        "WHERE norm_title = ? AND (? = 0 OR year = ?) "
-        "ORDER BY year DESC, rating DESC, votes DESC, tt ASC"));
-    q.addBindValue(norm);
-    q.addBindValue(year);
-    q.addBindValue(year);
+        "WHERE norm_title >= ? AND norm_title < ? "
+        "ORDER BY CASE WHEN norm_title = ? THEN 0 ELSE 1 END, year DESC, rating DESC, votes DESC, tt ASC LIMIT ?"));
+    q.addBindValue(key);
+    q.addBindValue(key + QChar(0xFFFF));
+    q.addBindValue(key);
+    q.addBindValue(limit);
     if (!q.exec())
+        return rows;
+    while (q.next())
+        rows.append(titleRowToMap(q));
+    return rows;
+}
+
+QVariantList ImdbCatalog::matchByTitle(const QString& title, int year) const
+{
+    QVariantList out;
+    const QString norm = MediaTitleNormalization::normalizedTitle(title);
+    if (norm.isEmpty())
         return out;
-    while (q.next()) {
-        QVariantMap m;
-        m.insert(QStringLiteral("tt"), q.value(0).toString());
-        m.insert(QStringLiteral("type"), q.value(1).toString());
-        m.insert(QStringLiteral("title"), q.value(2).toString());
-        m.insert(QStringLiteral("year"), q.value(3).toInt());
-        m.insert(QStringLiteral("endYear"), q.value(4).toInt());
-        m.insert(QStringLiteral("runtimeMin"), q.value(5).toInt());
-        QVariantList genres;
-        const QJsonArray arr = QJsonDocument::fromJson(q.value(6).toString().toUtf8()).array();
-        for (const auto& v : arr)
-            genres.append(v.toString());
-        m.insert(QStringLiteral("genres"), genres);
-        m.insert(QStringLiteral("rating"), q.value(7).toDouble());
-        m.insert(QStringLiteral("votes"), q.value(8).toInt());
-        m.insert(QStringLiteral("episodes"), q.value(9).toInt());
-        m.insert(QStringLiteral("origLang"), q.value(10).toString());
-        m.insert(QStringLiteral("isAnime"), q.value(11).toInt() != 0);
-        // IMDb's public title/ratings/basics bake contains no synopsis field.
-        m.insert(QStringLiteral("synopsis"), QString());
-        out.append(m);
+    // A remote answer still in flight is "not yet", never "zero": stop and let the caller retry
+    // when the revision changes, instead of firing the later steps speculatively.
+    auto waiting = [this] { return !m_ok && !m_remoteReaderForTest && m_remote->waiting(); };
+
+    out = exactMatches(norm, year);
+    if (!out.isEmpty() || waiting())
+        return out;
+
+    // 3 <-> III: one more exact query with the numeral written the other way.
+    const QString variant = numeralVariantImpl(norm);
+    if (!variant.isEmpty()) {
+        out = exactMatches(variant, year);
+        if (!out.isEmpty() || waiting())
+            return out;
     }
+
+    // Exact subtitle match. Only with a parsed year, only to a catalogue title whose part before
+    // the first ':' (or ' or:') equals the query, only with the same year, and only when exactly
+    // one title qualifies. A prefix answer that fills the limit is not provable and counts as zero.
+    if (year <= 0)
+        return out;
+    constexpr int kPrefixLimit = 50;
+    QStringList keys{norm};
+    if (!variant.isEmpty())
+        keys.append(variant);
+    QVariantList qualifying;
+    QSet<QString> seen;
+    for (const QString& key : keys) {
+        const QVariantList rows = prefixMatches(key, kPrefixLimit);
+        if (waiting())
+            return {};
+        if (rows.size() >= kPrefixLimit)
+            continue;
+        for (const QVariant& value : rows) {
+            const QVariantMap row = value.toMap();
+            const QString tt = row.value(QStringLiteral("tt")).toString();
+            if (tt.isEmpty() || seen.contains(tt) || row.value(QStringLiteral("year")).toInt() != year
+                || !subtitleHeadsImpl(row.value(QStringLiteral("title")).toString()).contains(key))
+                continue;
+            seen.insert(tt);
+            QVariantMap copy = row;
+            if (!copy.contains(QStringLiteral("synopsis")))
+                copy.insert(QStringLiteral("synopsis"), QString());
+            qualifying.append(copy);
+        }
+    }
+    if (qualifying.size() == 1)
+        out = qualifying;
     return out;
 }
 

@@ -5,6 +5,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Window
+import "ExtensionsStoreApi.js" as StoreApi
 
 Item {
     id: page
@@ -17,37 +18,24 @@ Item {
     property var disabledFn: function(addon) { return false }
     property var busy: ({})
     property int revision: 0
+    property real bottomInset: 24
     readonly property bool phoneLayout: {
         const w = page.Window.window
         return !!(w && w.androidHost && w.width < 840)
     }
     readonly property real sideMargin: phoneLayout ? 16 : theme.margin
     signal addonActivated(var addon)
+    signal addonConfigured(var addon)
+    signal addonRemoved(var addon)
+    signal catalogueRequested(var addon)
     signal backRequested()
 
-    readonly property var items: {
-        if (!page.searching) return page.row ? (page.row.all || page.row.items || []) : []
-        var words = page.query.toLowerCase().split(/\s+/).filter(function(w) { return w.length > 0 })
-        if (!words.length) return []
-        // Every word must appear somewhere; a hit in the name outranks a category, which
-        // outranks the description. Stars break ties.
-        var hits = []
-        for (var j = 0; j < page.pool.length; j++) {
-            var a = page.pool[j]
-            var name = a.name.toLowerCase(), cats = a.categories.join(" "), desc = a.description.toLowerCase()
-            var score = 0, all = true
-            for (var i = 0; i < words.length && all; i++) {
-                var w = words[i]
-                if (name.indexOf(w) >= 0) score += 100
-                else if (cats.indexOf(w) >= 0) score += 10
-                else if (desc.indexOf(w) >= 0) score += 1
-                else all = false
-            }
-            if (all) hits.push({ a: a, score: score })
-        }
-        hits.sort(function(x, y) { return (y.score - x.score) || (y.a.stars - x.a.stars) })
-        return hits.map(function(h) { return h.a })
+    function activateCard(index, card) {
+        if (index >= 0 && card) card.focusActions()
     }
+
+    readonly property var items: page.searching ? StoreApi.search(page.pool, page.query)
+        : page.row ? (page.row.all || page.row.items || []) : []
     visible: page.row !== null || page.searching
     onSearchingChanged: if (page.searching) { page.query = ""; box.text = "" }
 
@@ -62,7 +50,7 @@ Item {
         id: back
         anchors.left: parent.left; anchors.leftMargin: page.sideMargin
         anchors.top: parent.top; anchors.topMargin: 44
-        label: "Store"
+        label: qsTr("Extensions")
         labelSize: 15
         onTriggered: page.backRequested()
     }
@@ -101,16 +89,6 @@ Item {
             color: theme.ink
             font.family: theme.display; font.pixelSize: page.phoneLayout ? 28 : 40; font.weight: Font.DemiBold
         }
-        Text {
-            width: page.phoneLayout ? parent.width : implicitWidth
-            wrapMode: page.phoneLayout ? Text.WordWrap : Text.NoWrap
-            text: page.searching
-                  ? (page.query.trim().length ? page.items.length + (page.items.length === 1 ? " add-on" : " add-ons")
-                                                 + " match." : "Names, what they do, or a category: anime, subtitles, debrid, Hindi…")
-                  : page.row ? (page.row.sub + "  " + page.items.length + " add-ons.") : ""
-            color: theme.inkDimmer
-            font.family: theme.ui; font.pixelSize: 15
-        }
     }
 
     GridView {
@@ -119,35 +97,32 @@ Item {
         objectName: "extensionsSeeAllGrid"
         anchors.top: head.bottom; anchors.topMargin: 30
         anchors.bottom: parent.bottom
+        anchors.bottomMargin: page.bottomInset
         anchors.left: parent.left; anchors.leftMargin: page.sideMargin
         anchors.right: parent.right; anchors.rightMargin: page.phoneLayout ? page.sideMargin : theme.margin - 22
         readonly property int columns: Math.max(1, Math.floor((width + 14) / (theme.extensionCardWidth + 14)))
         readonly property real cardWidth: Math.max(0, cellWidth - 14)
         cellWidth: Math.floor(width / columns)
-        cellHeight: theme.extensionCardHeight + 18
+        cellHeight: 190
         clip: true
         focus: page.visible
         keyNavigationEnabled: true
         boundsBehavior: Flickable.StopAtBounds
         model: page.items
         ScrollBar.vertical: HouseScrollBar { flick: grid; glassStyle: true }
-        Keys.onReturnPressed: page.addonActivated(page.items[grid.currentIndex])
+        Keys.onReturnPressed: page.activateCard(grid.currentIndex, grid.currentItem)
         Keys.onUpPressed: (event) => {
             if (page.searching && grid.currentIndex < grid.columns) box.forceActiveFocus()
             else event.accepted = false
         }
-        Keys.onEnterPressed: page.addonActivated(page.items[grid.currentIndex])
+        Keys.onEnterPressed: page.activateCard(grid.currentIndex, grid.currentItem)
         Keys.onEscapePressed: page.backRequested()
-        delegate: ExtensionsStoreCard {
+        delegate: ResultCard {
             required property var modelData
             required property int index
             width: grid.cardWidth
             addon: modelData
-            installed: { page.revision; return page.installedFn(modelData) }
-            disabled: { page.revision; return page.disabledFn(modelData) }
-            busy: page.busy[modelData.slug] === true
             selected: grid.activeFocus && grid.currentIndex === index
-            onActivated: page.addonActivated(modelData)
         }
     }
     ScrollGlide { flick: grid }
@@ -157,6 +132,7 @@ Item {
         visible: page.phoneLayout
         anchors.top: head.bottom; anchors.topMargin: 22
         anchors.bottom: parent.bottom
+        anchors.bottomMargin: page.bottomInset
         anchors.left: parent.left; anchors.leftMargin: page.sideMargin
         anchors.right: parent.right; anchors.rightMargin: page.sideMargin
         spacing: 18
@@ -165,24 +141,31 @@ Item {
         model: page.phoneLayout ? page.items : []
         focus: page.visible && page.phoneLayout
         ScrollBar.vertical: HouseScrollBar { flick: phoneList; glassStyle: true }
-        Keys.onReturnPressed: if (currentIndex >= 0) page.addonActivated(page.items[currentIndex])
-        Keys.onEnterPressed: if (currentIndex >= 0) page.addonActivated(page.items[currentIndex])
+        Keys.onReturnPressed: page.activateCard(currentIndex, currentItem)
+        Keys.onEnterPressed: page.activateCard(currentIndex, currentItem)
         Keys.onEscapePressed: page.backRequested()
-        delegate: ExtensionsStoreCard {
+        delegate: ResultCard {
             required property var modelData
             required property int index
             width: phoneList.width
             phoneLayout: true
             addon: modelData
-            installed: { page.revision; return page.installedFn(modelData) }
-            disabled: { page.revision; return page.disabledFn(modelData) }
-            busy: page.busy[modelData.slug] === true
             selected: phoneList.activeFocus && phoneList.currentIndex === index
-            onActivated: page.addonActivated(modelData)
         }
     }
     ScrollGlide { flick: phoneList }
 
+
+    component ResultCard: ExtensionsStoreCard {
+        essentialsLayout: true
+        installed: { page.revision; return page.installedFn(addon) }
+        disabled: { page.revision; return page.disabledFn(addon) }
+        busy: page.busy[addon.slug] === true
+        onActivated: page.addonActivated(addon)
+        onConfigureRequested: page.addonConfigured(addon)
+        onRemoveRequested: page.addonRemoved(addon)
+        onBrowseRequested: page.catalogueRequested(addon)
+    }
 
     Text {
         visible: page.searching && page.query.trim().length > 0 && page.items.length === 0
@@ -190,7 +173,7 @@ Item {
         anchors.top: head.bottom; anchors.topMargin: 40
         width: page.phoneLayout ? parent.width - 2 * page.sideMargin : implicitWidth
         wrapMode: page.phoneLayout ? Text.WordWrap : Text.NoWrap
-        text: "No add-on matches that. Try a site name, a language or a genre."
+        text: qsTr("No matching add-ons")
         color: theme.inkDim
         font.family: theme.ui; font.pixelSize: 15
     }

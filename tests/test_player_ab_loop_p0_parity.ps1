@@ -50,7 +50,7 @@ Assert-Contains $player "root.seekTo(root.abLoopA)" `
     "PlayerPage must use the normal seek path when looping back to A."
 Assert-Contains $player "A-B loop" `
     "PlayerPage must render a visible A-B loop chip."
-Assert-Contains $player "tooltip: `"Clear A-B loop`"" `
+Assert-Contains $player "actionLabel: `"Clear A-B loop`"" `
     "PlayerPage must expose a clear action on the A-B loop chip."
 
 Write-Host "Player A-B loop P0 parity contract checks passed."

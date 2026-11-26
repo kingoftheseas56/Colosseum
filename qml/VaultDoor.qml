@@ -13,7 +13,11 @@ import QtQuick.Controls
 
 Item {
     id: door
-    property bool available: Qt.platform.os !== "android"
+    AdaptiveLayout {
+        id: touchMetrics
+        androidHost: Qt.platform.os === "android" || !!(door.Window.window && door.Window.window.androidHost === true)
+    }
+    property bool available: typeof VaultLibrary !== "undefined" && VaultLibrary !== null
     objectName: "taskbarVaultDoor"
 
     // ── inputs (wired by Taskbar from VaultLibrary; seeded by tests) ──
@@ -54,7 +58,7 @@ Item {
     Image {
         anchors.centerIn: parent
         width: 28; height: 28
-        source: "../assets/icons/vault-app.png"
+        source: "../assets/icons/vault-door.svg"
         sourceSize.width: 56
         sourceSize.height: 56
         fillMode: Image.PreserveAspectFit
@@ -83,6 +87,10 @@ Item {
     MouseArea {
         id: doorMa
         anchors.fill: parent
+        anchors.leftMargin: -touchMetrics.targetInset(parent.width)
+        anchors.rightMargin: -touchMetrics.targetInset(parent.width)
+        anchors.topMargin: -touchMetrics.targetInset(parent.height)
+        anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
         hoverEnabled: true
         cursorShape: door.available ? Qt.PointingHandCursor : Qt.ArrowCursor
         onClicked: if (door.available) door.clicked()
@@ -92,17 +100,14 @@ Item {
         enabled: door.available
         objectName: "vaultDoorKeyboardAction"
         anchors.fill: parent
+        anchors.leftMargin: -touchMetrics.targetInset(parent.width)
+        anchors.rightMargin: -touchMetrics.targetInset(parent.width)
+        anchors.topMargin: -touchMetrics.targetInset(parent.height)
+        anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
         pointerEnabled: false
         accessibleName: door.available ? qsTr("Open Vault") : qsTr("Vault unavailable")
-        tooltipText: !door.available ? ""
-            : door.arrivalPulse ? qsTr("Open Vault · New media arrived")
-            : door.scanning ? qsTr("Open Vault · Scanning") : accessibleName
-        tooltipHovered: doorMa.containsMouse
         accessibleDescription: door.available ? "" : qsTr("Vault is unavailable on Android.")
         onTriggered: door.clicked()
     }
-    ToolTip.visible: !door.available && doorMa.containsMouse
-    ToolTip.text: qsTr("Vault is unavailable on Android.")
-    ToolTip.delay: 350
 
 }

@@ -32,6 +32,36 @@ constexpr int kSlimVersion = 2;
 constexpr int kMaxExtraOptions = 1000;
 constexpr int kMaxProfileTheatreRows = 64;
 constexpr int kMaxProfileTransportUrlLength = 2048;
+constexpr auto kRetiredLibriVoxId = "colosseum.well.librivox";
+constexpr auto kRetiredLibriVoxUrl = "colosseum://well/librivox";
+
+QVariantMap optionalNativeSourceManifest(const QString &url)
+{
+    QString id, name, type;
+    if (url == QLatin1String("colosseum://well/getcomics.issues")) {
+        id = QStringLiteral("colosseum.well.getcomics.issues");
+        name = QStringLiteral("GetComics");
+        type = QStringLiteral("comic");
+    } else if (url == QLatin1String("colosseum://well/audiobookbay")) {
+        id = QStringLiteral("colosseum.well.audiobookbay");
+        name = QStringLiteral("AudioBookBay");
+        type = QStringLiteral("audiobook");
+    } else if (url == QLatin1String("colosseum://well/nyaa")) {
+        id = QStringLiteral("colosseum.well.nyaa");
+        name = QStringLiteral("Nyaa");
+        type = QStringLiteral("manga");
+    } else if (url == QLatin1String("colosseum://well/libgen")) {
+        id = QStringLiteral("colosseum.well.libgen");
+        name = QStringLiteral("LibGen");
+        type = QStringLiteral("book");
+    } else {
+        return {};
+    }
+    return {{QStringLiteral("id"), id}, {QStringLiteral("name"), name},
+            {QStringLiteral("description"), QString()},
+            {QStringLiteral("resources"), QStringList{QStringLiteral("stream")}},
+            {QStringLiteral("types"), QStringList{type}}};
+}
 
 QStringList stringListValue(const QVariant &value)
 {
@@ -88,10 +118,17 @@ ExtensionsStore::ExtensionsStore(QNetworkAccessManager* nam, QObject* parent)
     : QObject(parent), m_nam(nam)
 {
     loadIndex();
+    const auto retired = m_items.removeIf([](const QVariantMap &row) {
+        return row.value(QStringLiteral("id")).toString() == QLatin1String(kRetiredLibriVoxId)
+            || row.value(QStringLiteral("transportUrl")).toString()
+                   .compare(QLatin1String(kRetiredLibriVoxUrl), Qt::CaseInsensitive) == 0;
+    });
     if (m_items.isEmpty())
         seed();
     else if (m_defaultsVersion < kHouseDefaultsVersion)
         migrateDefaults();
+    else if (retired)
+        saveIndex();
 
     m_globalItems = m_items;
     // A migrated index must never re-publish its old Theatre rows while the
@@ -257,10 +294,8 @@ bool ExtensionsStore::isSafeTheatreDefault(const QVariantMap& item)
 {
     static const QSet<QString> safeUrls{
         QStringLiteral("https://v3-cinemeta.strem.io/manifest.json"),
-        QStringLiteral("https://torrentio.strem.fun/manifest.json"),
         QStringLiteral("https://addon.notorrent2.workers.dev/manifest.json"),
-        QStringLiteral("https://anime-kitsu.strem.fun/manifest.json"),
-        QStringLiteral("https://opensubtitles-v3.strem.io/manifest.json")};
+        QStringLiteral("https://anime-kitsu.strem.fun/manifest.json")};
     return isTheatreCompatible(item)
         && safeUrls.contains(item.value(QStringLiteral("transportUrl")).toString().toLower());
 }
@@ -551,9 +586,8 @@ void ExtensionsStore::bump()
 
 // -------------------------------------------------------------------- seeding
 
-// The four the house already runs on. Manifests are embedded (no network at
-// boot); the real, richer manifest replaces the seed copy if the extension is
-// ever re-installed by link.
+// The house roster's embedded manifests seed defaults and refresh metadata for
+// previously installed house add-ons. Optional Essentials require installation.
 // Returns true if anything was actually added or refreshed — the caller cannot infer
 // that from the row COUNT, because a generation can add as many rows as it retires and
 // a manifest refresh changes no count at all.
@@ -568,12 +602,8 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
         e.insert(QStringLiteral("id"), QString::fromLatin1(id));
         e.insert(QStringLiteral("transportUrl"), QString::fromLatin1(url));
         e.insert(QStringLiteral("installedAt"), now);
-        // First-run source consent (locked product rule, the Stremio model): a removable acquisition/
-        // playback WELL — a non-core extension that provides `stream` sources — is seeded INSTALLED but
-        // DISABLED until the user turns it on. Core catalogues and non-fetching capabilities
-        // (catalog/meta/subtitles/universe) stay enabled. Derived from the manifest's resources + core,
-        // never from string-matching a name. `add` preserves an existing profile's own enabled choice;
-        // this default reaches only rows a profile does not already carry.
+        // A removable stream provider included in the defaults starts disabled.
+        // Other seeded capabilities start enabled. Metadata refreshes keep the saved switch.
         const bool removableWell = !core
             && manifest.value(QStringLiteral("resources")).toStringList().contains(QStringLiteral("stream"));
         e.insert(QStringLiteral("enabled"), !removableWell);
@@ -612,7 +642,8 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
     // and "Colosseum Data" stayed after it was renamed. Remote add-ons are never touched
     // here — their manifest belongs to their author and arrives over the wire.
     auto add = [this, onlyMissing, &entry, &touched](const char* id, const char* url,
-                                                     bool core, const QVariantMap& m) {
+                                                     bool core, const QVariantMap& m,
+                                                     bool installByDefault = true) {
         const int at = indexOfId(QString::fromLatin1(id));
         if (at >= 0) {
             if (onlyMissing
@@ -622,6 +653,8 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
             }
             return;
         }
+        if (!installByDefault)
+            return;
         m_items.append(entry(id, url, core, m));
         touched = true;
     };
@@ -638,11 +671,9 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
                  "Play sources from twelve indexers, sorted by quality and health.",
                  { QStringLiteral("stream") },
                  { QStringLiteral("movie"), QStringLiteral("series"), QStringLiteral("anime") },
-                 { QStringLiteral("tt"), QStringLiteral("kitsu") }, true));
-    // NoTorrent — direct HTTP streams that play instantly, no torrent, no seeding. Seeded enabled
-    // as Theatre's HTTP source ALONGSIDE Torrentio (not instead of it). Measured 2026-08-07 to
-    // cover 18/18 Discover-catalog titles (House HTTP Source slice 3); its URLs are self-authed on
-    // its own worker, so it needs no proxy headers. Generation 9.
+                 { QStringLiteral("tt"), QStringLiteral("kitsu") }, true),
+        /*installByDefault=*/false);
+    // NoTorrent is Theatre's seeded HTTP source and starts disabled.
     add("com.notorrent.addon", "https://addon.notorrent2.workers.dev/manifest.json", false,
         manifest("com.notorrent.addon", "NoTorrent",
                  "Direct HTTP streams — movies and shows that play instantly, no torrent, no seeding.",
@@ -660,7 +691,8 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
                  "Subtitles in every language, matched to the exact episode playing.",
                  { QStringLiteral("subtitles") },
                  { QStringLiteral("movie"), QStringLiteral("series") },
-                 {}, false));
+                 {}, false),
+        /*installByDefault=*/false);
 
     // ---- Catalogues: what fills the shelves. Locked (core), never ranked ----
     // Hemanth's ruling 2026-07-26: WeebCentral and GetComics are NOT our catalogues —
@@ -690,17 +722,20 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
     // with the one shared Torrent Indexers row landing 4th in Tankoban and 2nd in Biblio.
     add("colosseum.well.nyaa", "colosseum://well/nyaa", false,
         manifest("colosseum.well.nyaa", "Nyaa", "",
-                 { QStringLiteral("stream") }, { QStringLiteral("manga") }, {}, false));
+                 { QStringLiteral("stream") }, { QStringLiteral("manga") }, {}, false),
+        /*installByDefault=*/false);
     add("colosseum.well.tankoyomi", "https://colosseum-tankoyomi.colosseum-watchparty-relay.workers.dev/manifest.json", false,
         manifest("colosseum.well.tankoyomi", "Tankoyomi",
                   "Language-aware chapter sources for Tankoban Chapter Mode.",
-                  { QStringLiteral("stream") }, { QStringLiteral("manga") }, {}, true));
-    add("colosseum.well.getcomics.issues", "colosseum://well/getcomics.issues", false,
-        manifest("colosseum.well.getcomics.issues", "GetComics", "",
-                 { QStringLiteral("stream") }, { QStringLiteral("comic") }, {}, false));
+                  { QStringLiteral("stream") }, { QStringLiteral("manga") }, {}, true),
+        /*installByDefault=*/false);
+    if (indexOfId(QStringLiteral("colosseum.well.getcomics.issues")) >= 0)
+        add("colosseum.well.getcomics.issues", "colosseum://well/getcomics.issues", false,
+            optionalNativeSourceManifest(QStringLiteral("colosseum://well/getcomics.issues")));
     add("colosseum.well.libgen", "colosseum://well/libgen", false,
         manifest("colosseum.well.libgen", "LibGen", "",
-                 { QStringLiteral("stream") }, { QStringLiteral("book") }, {}, false));
+                 { QStringLiteral("stream") }, { QStringLiteral("book") }, {}, false),
+        /*installByDefault=*/false);
     // One well, two worlds. Hemanth overrode the four-separate-extensions recommendation,
     // so it carries a Configure sheet (stage 4). Named "Tankorent" on his word 2026-07-26 —
     // which is what the engine has called it all along (native/torrent/TankorentSearchService).
@@ -708,14 +743,18 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
     // OPEN, awaiting his ruling: the `audiobook` type below is a dead claim — the federated
     // search is only ever asked for "books" and "comics", never audiobooks. Left in place
     // rather than silently changed, because dropping it changes Biblio's roster.
-    add("colosseum.well.indexers", "https://colosseum-tankorent.colosseum-watchparty-relay.workers.dev/manifest.json", false,
-        manifest("colosseum.well.indexers", "Tankorent", "",
-                 { QStringLiteral("stream") },
-                 { QStringLiteral("comic"), QStringLiteral("book"), QStringLiteral("audiobook") },
-                 {}, true));
-    add("colosseum.well.audiobookbay", "colosseum://well/audiobookbay", false,
-        manifest("colosseum.well.audiobookbay", "AudioBookBay", "",
-                 { QStringLiteral("stream") }, { QStringLiteral("audiobook") }, {}, false));
+    // Tankorent requires an explicit installation. Refresh an existing row
+    // without changing its switch, but never seed or resurrect it. No version
+    // bump: existing installations and their choices need no migration.
+    if (indexOfId(QStringLiteral("colosseum.well.indexers")) >= 0)
+        add("colosseum.well.indexers", "https://colosseum-tankorent.colosseum-watchparty-relay.workers.dev/manifest.json", false,
+            manifest("colosseum.well.indexers", "Tankorent", "",
+                     { QStringLiteral("stream") },
+                     { QStringLiteral("comic"), QStringLiteral("book"), QStringLiteral("audiobook") },
+                     {}, true));
+    if (indexOfId(QStringLiteral("colosseum.well.audiobookbay")) >= 0)
+        add("colosseum.well.audiobookbay", "colosseum://well/audiobookbay", false,
+            optionalNativeSourceManifest(QStringLiteral("colosseum://well/audiobookbay")));
 
     // ---- Universes: an IP gathered across every medium it lives in ---------
     // A universe is classified by ROLE, not content: the `universe` resource is checked
@@ -889,6 +928,13 @@ int ExtensionsStore::indexOfId(const QString& id) const
 
 int ExtensionsStore::indexOfTransportUrl(const QString& transportUrl) const
 {
+    if (transportUrl.startsWith(QLatin1String("colosseum://"))) {
+        for (int i = 0; i < m_items.size(); ++i) {
+            if (m_items.at(i).value(QStringLiteral("transportUrl")).toString() == transportUrl)
+                return i;
+        }
+        return -1;
+    }
     const QString identity = transportIdentity(transportUrl);
     if (identity.isEmpty())
         return -1;
@@ -1242,6 +1288,10 @@ void ExtensionsStore::fetchManifest(const QString& transportUrl, bool thenInstal
             fail(QStringLiteral("The manifest is missing its id or name."));
             return;
         }
+        if (slim.value(QStringLiteral("id")).toString() == QLatin1String(kRetiredLibriVoxId)) {
+            fail(tr("This extension is no longer available."));
+            return;
+        }
         // Follows the global Explicit Content preference (ContentPreferences.showExplicit,
         // bound in Main.qml) rather than refusing outright: with the setting on, the user
         // installs whatever they point at. The message names the switch so the refusal is
@@ -1262,8 +1312,17 @@ void ExtensionsStore::fetchManifest(const QString& transportUrl, bool thenInstal
 void ExtensionsStore::preview(const QString& rawUrl)
 {
     const QString url = normalizeUrl(rawUrl);
+    if (url.compare(QLatin1String(kRetiredLibriVoxUrl), Qt::CaseInsensitive) == 0) {
+        emit previewFailed(url, tr("This extension is no longer available."));
+        return;
+    }
     if (url.isEmpty()) {
         emit previewFailed(rawUrl, QStringLiteral("Paste an extension address first."));
+        return;
+    }
+    const auto nativeManifest = optionalNativeSourceManifest(url);
+    if (!nativeManifest.isEmpty()) {
+        emit previewReady(url, nativeManifest);
         return;
     }
     fetchManifest(url, /*thenInstall=*/false);
@@ -1272,8 +1331,17 @@ void ExtensionsStore::preview(const QString& rawUrl)
 void ExtensionsStore::install(const QString& rawUrl)
 {
     const QString url = normalizeUrl(rawUrl);
+    if (url.compare(QLatin1String(kRetiredLibriVoxUrl), Qt::CaseInsensitive) == 0) {
+        emit installFailed(url, tr("This extension is no longer available."));
+        return;
+    }
     if (url.isEmpty()) {
         emit installFailed(rawUrl, QStringLiteral("Paste an extension address first."));
+        return;
+    }
+    const auto nativeManifest = optionalNativeSourceManifest(url);
+    if (!nativeManifest.isEmpty()) {
+        finishInstall(url, nativeManifest);
         return;
     }
     if (m_previewCache.contains(url)) {

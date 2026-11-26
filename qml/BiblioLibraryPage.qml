@@ -1,15 +1,5 @@
-// BiblioLibraryPage — Biblio's Library tab (the Theatre-parity Library page, plan
-// 2026-08-06-biblio-library-tab-theatre-parity.md, Slice 2). The book-domain mirror of
-// LibraryPage.qml MINUS Theatre's video concepts: no watched/airing/finale/new-episode
-// ledger — just search, a small filter (All | In Progress), sort (Recently added | Last read |
-// A–Z), a wall of saved Collection entries, empty/no-match states, and a per-card ⋮ menu.
-//
-// One Collection entry → one card. Conservative Progress matching: a reliable match enables
-// Resume; no match → the card's primary action is Details. Remove affects Collection
-// membership only (never Progress, never files) — handled inline by the owner (BiblioWorld),
-// not here. All derivations are BiblioLibraryApi (headless-proven in Slice 1); this page only
-// paints and wires. Context properties (Collection/Progress) are typeof-guarded so it
-// constructs offscreen for the harness.
+// Biblio's Library renders saved books, saved audiobooks and downloaded recordings.
+// BiblioLibraryApi derives the cards. BiblioWorld owns navigation and membership changes.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
@@ -55,15 +45,20 @@ Item {
     // ── page state ──
     property string sortMode: "added"          // added | lastRead | az
     property string stateFilter: ""            // "" | inProgress
+    property string mediumFilter: ""           // "" | book | audiobook
     property string query: ""
 
-    // ── reactive data (recompute on Collection / Progress change) ──
-    property int collRev: (typeof Collection !== "undefined" ? Collection.revision : 0)
-    property int progRev: (typeof Progress !== "undefined" ? Progress.revision : 0)
-    property var allRows: computeRows(collRev, progRev, active)
+    property var collectionStore: typeof Collection !== "undefined" ? Collection : null
+    property var progressStore: typeof Progress !== "undefined" ? Progress : null
+    property var downloads: typeof Audiobooks !== "undefined" ? Audiobooks : null
+    property int collRev: collectionStore ? collectionStore.revision : 0
+    property int progRev: progressStore ? progressStore.revision : 0
+    property int downloadRev: 0
+    readonly property var localDownloads: active && downloads ? (downloadRev, downloads.downloadedAudiobooks()) : []
+    property var allRows: computeRows(collRev, progRev, localDownloads, active)
     property int rowCount: allRows.length
     property var visibleRows: Api.sortBiblioRows(
-        Api.applyBiblioFilters(allRows, { stateFilter: stateFilter, query: query }),
+        Api.applyBiblioFilters(allRows, { stateFilter: stateFilter, mediumFilter: mediumFilter, query: query }),
         sortMode)
     property int visibleCount: visibleRows.length
     readonly property Item _keyboardWallForTest: wall
@@ -157,15 +152,25 @@ Item {
     // detailRequested + removeRequested carry the original Collection entry.
     signal resumeRequested(var entry)
     signal detailRequested(var entry)
+    signal audiobookRequested(var item)
     signal removeRequested(var entry)
 
     Theme { id: theme }
 
-    function computeRows(cr, pr, isActive) {
-        if (!isActive || typeof Collection === "undefined" || typeof Progress === "undefined") return []
-        var entries = Collection.items("biblio")
-        var plist = Progress.recent("book", 200)
-        return Api.buildBiblioRows(entries, plist)
+    Connections {
+        target: root.downloads && root.downloads.finished !== undefined ? root.downloads : null
+        ignoreUnknownSignals: true
+        function onDownloadPathsChanged() { root.downloadRev++ }
+        function onFinished() { root.downloadRev++ }
+        function onRemoved() { root.downloadRev++ }
+    }
+
+    function computeRows(cr, pr, local, isActive) {
+        if (!isActive) return []
+        var entries = collectionStore ? collectionStore.items("biblio") : []
+        var plist = progressStore ? progressStore.recent("book", 200) : []
+        return Api.buildBiblioRows(entries, plist, local, progressStore
+            ? function(key) { return root.progressStore.get("audiobook", key) } : null)
     }
 
     function keyboardIdentityAt(index) {
@@ -222,10 +227,18 @@ Item {
     function handleCardAction(row, action) {
         if (!row) return
         if (action === "resume" && row.canResume) { resumeRequested(row.progressRecord); return }
-        if (action === "remove") { removeRequested(row.entry); return }
-        detailRequested(row.entry)
+        if (action === "remove") {
+            if (row.canRemove !== false) removeRequested(row.entry)
+            return
+        }
+        if (row.medium === "audiobook") audiobookRequested(row.audiobook)
+        else detailRequested(row.entry)
     }
-    function menuActions() { return menuRow && menuRow.canResume ? ["resume", "detail", "remove"] : ["detail", "remove"] }
+    function menuActions() {
+        const actions = menuRow && menuRow.canResume ? ["resume", "detail"] : ["detail"]
+        if (menuRow && menuRow.canRemove !== false) actions.push("remove")
+        return actions
+    }
     function menuActionIndex(action) { return menuActions().indexOf(action) }
     function triggerMenuAction(action) {
         if (!menuRow) return
@@ -266,7 +279,7 @@ Item {
     Item {
         id: filterBar
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: header.bottom
-        height: 54; z: 19
+        height: filters.implicitHeight + 20; z: 19
 
         component BiblioFilterPill: Rectangle {
             property string label: ""
@@ -287,28 +300,48 @@ Item {
                 onTriggered: parent.picked() }
         }
 
-        Row {
-            anchors.left: parent.left; anchors.leftMargin: Math.max(64, theme.margin)
+        Flow {
+            id: filters
+            anchors.left: parent.left; anchors.right: parent.right
+            anchors.margins: root.width < 640 ? 16 : Math.max(64, theme.margin)
             anchors.verticalCenter: parent.verticalCenter; spacing: 8
 
-            // sort
-            Repeater {
-                model: [ { key: "added", label: "Recently added" }, { key: "lastRead", label: "Last read" },
-                         { key: "az", label: "A–Z" } ]
-                delegate: BiblioFilterPill {
-                    required property var modelData
-                    label: modelData.label; active: root.sortMode === modelData.key
-                    onPicked: root.sortMode = modelData.key
+            Row {
+                spacing: filters.spacing
+                Repeater {
+                    model: [ { key: "added", label: "Recently added" }, { key: "lastRead", label: "Last read" },
+                             { key: "az", label: "A–Z" } ]
+                    delegate: BiblioFilterPill {
+                        required property var modelData
+                        label: modelData.label; active: root.sortMode === modelData.key
+                        onPicked: root.sortMode = modelData.key
+                    }
                 }
             }
-            Rectangle { width: 1; height: 22; anchors.verticalCenter: parent.verticalCenter; color: theme.edge }
-            // state filter (All | In Progress). "Downloaded" omitted in v1 — no honest availability source.
-            Repeater {
-                model: [ { key: "", label: "All" }, { key: "inProgress", label: "In Progress" } ]
-                delegate: BiblioFilterPill {
-                    required property var modelData
-                    label: modelData.label; active: root.stateFilter === modelData.key
-                    onPicked: root.toggleStateFilter(modelData.key)
+            Row {
+                spacing: filters.spacing
+                Rectangle { width: 1; height: 22; anchors.verticalCenter: parent.verticalCenter; color: theme.edge }
+                Repeater {
+                    model: [ { key: "", label: "All" }, { key: "inProgress", label: "In Progress" } ]
+                    delegate: BiblioFilterPill {
+                        required property var modelData
+                        label: modelData.label; active: root.stateFilter === modelData.key
+                        onPicked: root.toggleStateFilter(modelData.key)
+                    }
+                }
+            }
+            Row {
+                spacing: filters.spacing
+                Rectangle { width: 1; height: 22; anchors.verticalCenter: parent.verticalCenter; color: theme.edge }
+                Repeater {
+                    model: [ { key: "book", label: qsTr("Books") },
+                             { key: "audiobook", label: qsTr("Audiobooks") } ]
+                    delegate: BiblioFilterPill {
+                        required property var modelData
+                        objectName: "biblioLibraryMedium_" + modelData.key
+                        label: modelData.label; active: root.mediumFilter === modelData.key
+                        onPicked: root.mediumFilter = root.mediumFilter === modelData.key ? "" : modelData.key
+                    }
                 }
             }
         }
@@ -392,7 +425,7 @@ Item {
         readonly property int posterH: 222   // posterW × gallery.posterRatio (1.5)
         readonly property int columnCount: Math.max(2, Math.floor((width + 20) / (posterW + 20)))
         cellWidth: Math.floor(width / columnCount)
-        cellHeight: posterH + 72     // +72: title + author lines
+        cellHeight: posterH + 72
         cacheBuffer: cellHeight * 2
         ScrollBar.vertical: HouseScrollBar { flick: wall; visible: !root.pageFlow }
         Binding {
@@ -411,7 +444,7 @@ Item {
             count: root.visibleRows.length; contextEnabled: true
             identityForIndex: root.keyboardIdentityAt
             indexForIdentity: root.keyboardIndexForIdentity
-            modelRevision: root.collRev * 100000 + root.progRev
+            modelRevision: root.collRev * 100000 + root.progRev + root.downloadRev
             onActivated: (index) => root.handleCardAction(root.visibleRows[index], root.visibleRows[index].canResume ? "resume" : "detail")
             onContextRequested: (index) => {
                 const card = wall.currentItem
@@ -428,6 +461,7 @@ Item {
             required property int index
             width: wall.posterW; height: wall.cellHeight - 18
             x: (wall.cellWidth - width) / 2
+            readonly property bool audiobook: modelData.medium === "audiobook"
             readonly property real coverH: wall.posterH
             readonly property bool hovered: cardHover.hovered || root.menuRowId === card.modelData.entry.id
             readonly property bool keyboardSelected: wall.activeFocus && wall.currentIndex === card.index
@@ -451,30 +485,21 @@ Item {
                 id: worldContent
                 anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
                 height: card.coverH
-                layer.enabled: true
+                layer.enabled: worldContent.GraphicsInfo.api !== GraphicsInfo.Software
                 layer.effect: MultiEffect { maskEnabled: true; maskSource: worldMask; maskThresholdMin: 0.5 }
 
                 // placeholder (title text) under any art — keeps the card legible before cover decodes
-                Rectangle {
+                BiblioCoverPlaceholder {
                     anchors.fill: parent
-                    gradient: Gradient {
-                        GradientStop { position: 0; color: "#33405c" }
-                        GradientStop { position: 1; color: "#12161f" }
-                    }
-                    Text {
-                        anchors.centerIn: parent; width: parent.width - 24
-                        text: card.modelData.entry.title || "Untitled"
-                        color: Qt.rgba(1, 1, 1, 0.8); font.family: theme.display
-                        font.pixelSize: 17; font.weight: Font.DemiBold
-                        horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
-                        maximumLineCount: 4; elide: Text.ElideRight
-                    }
+                    title: card.modelData.entry.title || qsTr("Untitled")
+                    radius: 12
                 }
                 // cover art via the shared fallback-stack primitive — never a raw page-local Image
                 Image {
                     anchors.fill: parent
                     source: card.modelData.cover || ""
-                    fillMode: Image.PreserveAspectCrop; verticalAlignment: Image.AlignTop
+                    fillMode: card.audiobook ? Image.PreserveAspectFit : Image.PreserveAspectCrop
+                    verticalAlignment: card.audiobook ? Image.AlignVCenter : Image.AlignTop
                     asynchronous: true; cache: true
                     opacity: status === Image.Ready ? 1 : 0
                     Behavior on opacity { NumberAnimation { duration: 180 } }
@@ -487,6 +512,7 @@ Item {
                     height: 3; color: Qt.rgba(1, 1, 1, 0.16)
                     Rectangle {
                         anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
+                        objectName: "biblioLibraryProgress_" + card.modelData.entry.id
                         width: parent.width * Math.max(0, Math.min(1, card.modelData.progress)); color: theme.gold
                     }
                 }
@@ -496,7 +522,7 @@ Item {
                 id: worldMask
                 visible: false
                 anchors.fill: worldContent
-                layer.enabled: true
+                layer.enabled: worldContent.layer.enabled
                 Rectangle { anchors.fill: parent; radius: 12; color: "black" }
             }
 
@@ -528,10 +554,6 @@ Item {
                 opacity: card.hovered ? 1 : 0
                 Behavior on opacity { NumberAnimation { duration: 150 } }
                 Text { anchors.centerIn: parent; text: "⋮"; color: theme.ink; font.pixelSize: 15 }
-                ToolTip.text: qsTr("Book actions")
-                ToolTip.visible: bookMenuHover.hovered
-                ToolTip.delay: 350
-                HoverHandler { id: bookMenuHover }
                 MouseArea {
                     anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                     onClicked: {
@@ -558,6 +580,17 @@ Item {
                 text: card.modelData.author || ""
                 color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                 elide: Text.ElideRight; maximumLineCount: 1
+            }
+
+            Text {
+                objectName: "abLibraryState_" + card.modelData.entry.id
+                visible: card.audiobook
+                anchors.left: parent.left; anchors.right: parent.right
+                anchors.top: worldContent.bottom; anchors.topMargin: 47
+                text: !card.audiobook ? "" : (card.modelData.listeningState === "finished" ? qsTr("Finished")
+                      : card.modelData.listeningState === "started" ? qsTr("Started") : qsTr("New"))
+                color: theme.inkDim
+                font.family: theme.ui; font.pixelSize: 12
             }
 
             HoverHandler { id: cardHover }
@@ -624,7 +657,7 @@ Item {
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "Save a book with + Library — it lands here."
+            text: qsTr("Save a book or audiobook, or download an audiobook.")
             color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
         }
     }
@@ -710,10 +743,15 @@ Item {
                 actionId: "detail"; label: "Details"
                 onPicked: root.triggerMenuAction("detail")
             }
-            Rectangle { width: parent.width - 16; x: 8; height: 1; color: theme.edge }
+            Rectangle {
+                width: parent.width - 16; x: 8; height: visible ? 1 : 0; color: theme.edge
+                visible: root.menuRow !== null && root.menuRow.canRemove !== false
+            }
             BiblioMenuItem {
                 objectName: "biblioLibraryMenuItem_remove"
                 actionId: "remove"; label: "Remove from Library"; warn: true
+                visible: root.menuRow !== null && root.menuRow.canRemove !== false
+                height: visible ? 38 : 0
                 onPicked: root.triggerMenuAction("remove")
             }
         }

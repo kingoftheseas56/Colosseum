@@ -6,6 +6,41 @@ This file is a practical inventory, not legal advice and not yet a complete bina
 
 ## Principal components
 
+### Harbor home-server integration
+
+The native home-server integration in `native/homeserver/` and its focused
+tests adapt the authentication, provider protocol, discovery, indexing,
+matching, playback and progress behavior of Harbor's `src/lib/media-server/`
+at commit `8a70ea3207c97e29cc5c735391977b417130d1c5`:
+<https://github.com/Harborofficial/Harbor/tree/8a70ea3207c97e29cc5c735391977b417130d1c5>.
+Colosseum's profile fencing, secure storage, installation identity and UI
+integration are local adaptations. GPL Kodi add-ons were consulted for
+behavior only; their code is not included or translated.
+
+MIT License
+
+Copyright (c) 2026 Harbor
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+### Other principal components
+
 | Component | Licensing boundary |
 |---|---|
 | Qt 6, including Qt Quick, QML, WebEngine, WebChannel, SQL, Network, WebSockets, and Concurrent | Available under Qt's commercial or applicable open-source terms. Open-source distribution generally relies on LGPL components plus separately licensed third-party code. Preserve the license texts and satisfy the source, notice, replacement, and relinking obligations for the exact Qt build shipped. |
@@ -134,6 +169,13 @@ WHATWG URL and browser polyfills. Exact versions and license notices are in
 
 This product uses the TMDB API but is not endorsed or certified by TMDB.
 [TMDB API attribution](https://developer.themoviedb.org/docs/faq)
+
+## Home server service marks
+
+Jellyfin, Emby and Plex SVG paths come from Simple Icons 16.37.0 (CC0-1.0 repository),
+with their listed brand colors. Trademark rights remain with their owners; source
+links and brand guidelines are recorded in `assets/icons/servers/SOURCE.md`.
+Plex and the Plex logo are trademarks of Plex and used under a license.
 
 ## Harbor stream parser, trust filter and scoring
 

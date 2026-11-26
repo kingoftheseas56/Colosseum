@@ -215,6 +215,10 @@ Item {
         // question first (~36k geometry checks per key press on Tankoban Comics before).
         var focusable = item.focusPolicy !== undefined ? item.focusPolicy !== Qt.NoFocus
                                                        : item.activeFocusOnTab === true
+        // Collection owners hold keyboard focus, but their non-Tab action faces
+        // still supply the per-item geometry for a spatial landing in that owner.
+        if (!focusable && item.focusEnabled === false)
+            focusable = nav._collectionFocusOwner(item) !== null
         if (!focusable)
             return false
         return includeOffscreen ? nav._eligible(item) : nav._landingEligible(item)

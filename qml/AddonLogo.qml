@@ -18,6 +18,7 @@ Item {
     property string addonName: ""
     property string manifestLogo: ""       // remote URL (e.g. installed rows' manifest.logo)
     property bool preferManifestLogo: false
+    property bool showPlate: true
     property bool waitForArtworkResolution: false
     property int artworkResolutionTimeoutMs: 3000
     property int size: 44
@@ -85,6 +86,7 @@ Item {
     //      gradient + letter when we have no logo ----
     Rectangle {
         anchors.fill: parent
+        visible: root.showPlate || !root._showImage
         radius: root.radius
         border.width: 1
         border.color: root._showImage ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.14)
@@ -106,7 +108,7 @@ Item {
     Image {
         id: logo
         anchors.fill: parent
-        anchors.margins: Math.max(1, Math.round(root.size * 0.06))
+        anchors.margins: root.showPlate ? Math.max(1, Math.round(root.size * 0.06)) : 0
         source: root._src
         visible: root._showImage
         fillMode: Image.PreserveAspectFit

@@ -3,25 +3,21 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
-Rectangle {
+Item {
     id: bar
     required property var store
-    signal focusRequested(Item item)
-    readonly property color accent: theme.nuvioAccent
+    signal closeRequested()
     property string expandedRepo: ""
     property int countBeforeAdd: -1
     width: parent ? parent.width : 800
     implicitHeight: body.implicitHeight + 32
     height: implicitHeight
-    radius: 15
-    color: "#88202a42"
-    border.color: "#656e97d0"
 
+    function focusAddress() { address.forceActiveFocus() }
     function offerLink(link: string) {
         address.text = link
-        address.forceActiveFocus()
+        bar.focusAddress()
         address.selectAll()
-        bar.focusRequested(address)
     }
 
     function submit() {
@@ -61,38 +57,27 @@ Rectangle {
 
             Text {
                 Layout.fillWidth: true
-                text: qsTr("Nuvio Plugins")
+                text: qsTr("Nuvio repositories")
                 color: theme.ink
                 font.family: theme.display
                 font.pixelSize: 23
                 font.weight: Font.DemiBold
             }
-            Rectangle {
-                implicitWidth: brand.implicitWidth + 18
-                implicitHeight: brand.implicitHeight + 8
-                color: "#333f5f"
-                border.color: bar.accent
-                radius: 8
-
-                Text {
-                    id: brand
+            KeyboardAction {
+                id: closeAction
+                objectName: "closeNuvioRepositories"
+                Layout.preferredWidth: 44
+                Layout.preferredHeight: 44
+                accessibleName: qsTr("Close Nuvio repositories")
+                onTriggered: bar.closeRequested()
+                Image {
                     anchors.centerIn: parent
-                    text: qsTr("Nuvio")
-                    color: bar.accent
-                    font.family: theme.ui
-                    font.pixelSize: 12
-                    font.weight: Font.DemiBold
+                    width: 18; height: 18
+                    source: "../assets/icons/reader2/close.svg"
+                    sourceSize.width: 36; sourceSize.height: 36
+                    opacity: closeAction.interactionActive ? 1 : 0.76
                 }
             }
-        }
-
-        Text {
-            Layout.fillWidth: true
-            text: qsTr("Add a repository link you trust, then turn on the plugins you want to run for Theatre sources. Repository settings are stored on this device.")
-            color: theme.inkDim
-            font.family: theme.ui
-            font.pixelSize: 13
-            wrapMode: Text.WordWrap
         }
 
         RowLayout {
@@ -118,7 +103,7 @@ Rectangle {
                 background: Rectangle {
                     radius: 9
                     color: "#66141820"
-                    border.color: address.activeFocus ? bar.accent : theme.edge
+                    border.color: address.activeFocus ? theme.gold : theme.edge
                 }
                 onAccepted: bar.submit()
             }

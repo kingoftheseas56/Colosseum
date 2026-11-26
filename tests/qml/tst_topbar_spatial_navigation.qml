@@ -132,6 +132,7 @@ TestCase {
         mediumSpy.clear()
         bar.activeMedium = ""
         bar.lifecycleActive = true
+        bar.utilityActionsInPicker = false
         testWindow.feriaComingSoon = true
         wait(20)
     }
@@ -199,14 +200,30 @@ TestCase {
         compare(feriaPill.active, false)
     }
 
+    function test_desktop_picker_owns_moved_utilities() {
+        bar.trackersEnabled = true
+        bar.accountController = localAccount
+        const updates = findChild(bar, "colosseumTopbarUpdateButton")
+        const sync = findChild(bar, "topBarTrackersButton")
+        const account = findChild(bar, "colosseumTopbarAccountButton")
+        verify(updates.visible && sync.visible)
+        bar.utilityActionsInPicker = true
+        verify(updates.visible && !sync.visible)
+        verify(account.visible)
+        verify(findChild(account, "colosseumTopbarAccountGlyph").visible)
+        compare(findChild(account, "colosseumTopbarAccountInput").accessibleName, "Account Centre")
+        bar.activeMedium = "Theatre"
+        verify(findChild(bar, "topBarSearch").visible)
+        bar.accountController = null
+    }
+
     function test_wallpaper_and_compact_browser_chrome_flags() {
         var wall = findChild(bar, "topBarWallpaperButton")
         verify(wall !== null)
-        compare(wall.visible, true)
-        bar.wallpaperEnabled = false
         compare(wall.visible, false)
         bar.wallpaperEnabled = true
         compare(wall.visible, true)
+        bar.wallpaperEnabled = false
         bar.width = 1240
         compare(bar.compactChrome, false)
         bar.compactBrowserChrome = true

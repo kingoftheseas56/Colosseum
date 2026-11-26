@@ -70,6 +70,18 @@ Assert-Contains $main 'source: "TrackerSyncCenterPage.qml"' `
     "The Sync Center route must load the production page, not a test surface."
 Assert-Contains $main 'item.mainSyncRequested.connect(win.openStremioSyncPanel)' `
     "The distinct Main Sync row must open the existing Stremio panel."
+Assert-Contains $main 'function openStremioSyncPanel(nuvio)' `
+    "The Sync Center route must receive its requested sync service."
+Assert-Contains $main 'stremioPanel.openForProvider(nuvio === true ? "nuvio" : "stremio", win.activeFocusItem)' `
+    "The Sync Center route must explicitly open only the requested service and retain its invoker."
+Assert-Contains $main 'syncCenterLayer.item.openExternalServices()' `
+    "Generic account Theatre-sync management must use the existing provider cards destination."
+$servicePanel = Read-File "qml/StremioSyncPanel.qml"
+Assert-Lacks $servicePanel 'objectName: "syncNuvioService"' `
+    "A provider popup must not offer another provider as a selectable tab."
+$homePanel = Read-File "qml/HomeServerConnectPanel.qml"
+Assert-Lacks $homePanel 'objectName: "homeServerProviderTiles"' `
+    "Home-server provider selection belongs to the existing cards, outside authentication."
 Assert-Contains $main 'onTrackersClicked: win.toggleSyncCenterPage()' `
     "The home trackers door must toggle only the Sync Center route."
 Assert-Contains $main 'item.trackersClicked.connect(win.toggleSyncCenterPage)' `

@@ -7,10 +7,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ReleaseInstallerSmokeContract(unittest.TestCase):
-    def test_release_metadata_targets_1_3_0(self):
+    def test_1_4_development_version_keeps_published_1_3_metadata(self):
         cmake = (ROOT / 'native/CMakeLists.txt').read_text(encoding='utf-8')
         workflow = (ROOT / '.github/workflows/release-installer-smoke.yml').read_text(encoding='utf-8')
-        self.assertIn('project(colosseum VERSION 1.3.0 ', cmake)
+        self.assertIn('project(colosseum VERSION 1.4.0 ', cmake)
+        # Published installer qualification still defaults to the approved 1.3.0;
+        # development candidates do not publish or rewrite that release record.
         self.assertIn("default: \"1.3.0\"", workflow)
         for relative in ('native/update/UpdateReleaseClient.cpp', 'native/update/UpdateDownload.cpp', 'native/main.cpp'):
             source = (ROOT / relative).read_text(encoding='utf-8')

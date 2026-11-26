@@ -42,7 +42,10 @@ Column {
     readonly property var _m: Metrics.profile(rail.visualProfile)
     readonly property bool _gallery: rail.visualProfile === "gallery"
     readonly property int posterWidth: rail._m.posterWidth
-    readonly property int posterHeight: Math.floor(rail.posterWidth * rail._m.posterRatio)
+    property bool squareArtwork: false
+    property bool fitArtwork: false
+    readonly property int posterHeight: rail.squareArtwork ? rail.posterWidth
+                                                           : Math.floor(rail.posterWidth * rail._m.posterRatio)
     readonly property int cardGap: rail.ranked ? 30 : rail._m.cardGap
     // reserved space below the poster: the title top gap + the (one- or two-line) title measure.
     readonly property int titleReserve: (rail._gallery ? 10 : 8) + rail._m.titleMinHeight
@@ -173,8 +176,10 @@ Column {
                 width: rail.posterWidth
                 height: list.height
                 visualProfile: rail.visualProfile
-                // Theatre poster ratings all derive from IMDb; surface that on gallery hover only.
-                hoverSourceText: rail._gallery ? "IMDb" : ""
+                squareArtwork: rail.squareArtwork
+                fitArtwork: rail.fitArtwork
+                hoverSourceText: !rail._gallery ? ""
+                    : cell.modelData && typeof cell.modelData.ratingSource === "string" ? cell.modelData.ratingSource : "IMDb"
                 keyboardFocused: rail.railFocused && cell.index === rail.currentIndex
                 anchors.left: rail.ranked ? rankNum.right : parent.left
                 anchors.leftMargin: rail.ranked ? -32 : 0

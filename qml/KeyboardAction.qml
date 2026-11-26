@@ -2,7 +2,6 @@
 // Atomic controls route pointer, keyboard and accessibility through `triggered()`.
 // Complex controls may set pointerEnabled=false and keep specialized pointer handlers.
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Window
 
 Item {
@@ -10,15 +9,15 @@ Item {
 
     property string accessibleName: ""
     property string accessibleDescription: ""
-    property string tooltipText: ""
-    property bool tooltipHovered: action.hovered
     property bool focusEnabled: visible && enabled
     property bool pointerEnabled: true
     property bool focusOnPointer: true
+    property int activationFocusReason: Qt.OtherFocusReason
     // PlayStation-style map: Enter is the universal primary action. Space remains
     // opt-in for controls whose native/scoped convention actually owns it.
     property bool spaceActivates: false
     property bool contextEnabled: false
+    property bool longPressEnabled: false
     property QtObject command: null
     property bool showFocusFrame: true
     readonly property bool televisionMode: {
@@ -37,18 +36,15 @@ Item {
     readonly property bool pressed: primaryTap.pressed
     readonly property bool interactionActive: hovered || pressed || activeFocus
 
-    ToolTip.delay: 350
-    ToolTip.text: action.tooltipText
-    ToolTip.visible: action.visible && action.enabled && action.tooltipHovered && action.tooltipText.length > 0
-
     signal triggered()
     signal contextRequested()
+    signal longPressed()
 
-    // Keep the focus policy stable while a focused action is being hidden or disabled.
-    // Qt warns when an active item changes its policy to NoFocus during that transition;
-    // the focus engine already excludes invisible/disabled items, while focusEnabled still
-    // controls activation and accessibility eligibility.
-    focusPolicy: Qt.TabFocus
+    // Some visible delegates are clipped offscreen or are pointer-only faces.
+    // Their explicit focusEnabled contract must also govern the native Tab chain.
+    // Qt cannot revoke Tab focus on the active item. Keep it until focus moves,
+    // then re-evaluate so an excluded face cannot re-enter the next traversal.
+    focusPolicy: (action.focusEnabled || action.activeFocus) ? Qt.TabFocus : Qt.NoFocus
 
     function activate(focusReason) {
         if (!action.enabled || !action.visible)
@@ -58,6 +54,7 @@ Item {
             action.forceActiveFocus(focusReason)
         if (action.command && action.command.invoke)
             return action.command.invoke(action)
+        action.activationFocusReason = focusReason === undefined ? Qt.OtherFocusReason : focusReason
         action.triggered()
         return true
     }
@@ -98,6 +95,9 @@ Item {
         acceptedButtons: Qt.LeftButton
         gesturePolicy: TapHandler.ReleaseWithinBounds
         onTapped: action.activate(Qt.MouseFocusReason)
+        // A press held past the long-press threshold never emits tapped, so a
+        // long press never also triggers.
+        onLongPressed: if (action.longPressEnabled) action.longPressed()
     }
     TapHandler {
         enabled: action.pointerEnabled && action.contextEnabled && action.enabled

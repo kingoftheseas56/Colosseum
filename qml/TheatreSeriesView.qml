@@ -22,6 +22,10 @@ import "CollectionsReferences.js" as CollectionsReferences
 
 Item {
     id: page
+    AdaptiveLayout {
+        id: touchMetrics
+        androidHost: Qt.platform.os === "android" || !!(page.Window.window && page.Window.window.androidHost === true)
+    }
     readonly property bool phoneNarrow: !!(page.Window.window && page.Window.window.androidHost && page.Window.window.desktopPresentation !== true
                                             && page.Window.window.width < 840)
     readonly property int bodyInset: page.phoneNarrow ? 20 : theme.margin
@@ -30,11 +34,25 @@ Item {
     objectName: "theatreSeriesPage"
     property Item backdrop
     property var itemData: ({})
+    function homeServerMetadataFallback(meta, type, id) {
+        if (meta) return meta
+        if (typeof HomeServers === "undefined" || !HomeServers.titleMetadata) return null
+        var identity = { "id": id, "type": type }
+        if (itemData && Number(itemData.tmdbId) > 0) identity.tmdbId = Number(itemData.tmdbId)
+        if (itemData && Number(itemData.tvdbId) > 0) identity.tvdbId = Number(itemData.tvdbId)
+        var fallback = HomeServers.titleMetadata(identity)
+        return fallback && fallback.id ? fallback : null
+    }
     signal backRequested()
     signal minimizeRequested()
     signal fullscreenRequested()
     signal closeRequested()
+    signal localMediaRequested(string path)
     signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl, string subType, string subId, var streamCandidates, var playbackContext)
+    signal smartPickStarted(string title, string backdropUrl, string subType, string subId, var playbackContext)
+    signal smartPickFailed()
+    function cancelSmartPick() { if (sources.smartPickInPlayer) sources.hide() }
+    function chooseSmartPickSourceManually() { sources.chooseSourceManually() }
     signal playLocalRequested(var payload)   // downloaded copy on disk → openLocalVideoSession, no sources sheet
     signal playArrivingRequested(var job)    // still-downloading copy → routeArrivingPlay (disk-first .part play)
     signal openItemRequested(var item)
@@ -912,6 +930,7 @@ Item {
         var expectedCanonicalId = String((itemData && itemData.canonicalSourceId) || "")
         // PF-06: the exact catalogue record is a movie-only fallback after provider misses.
         TheatreApi.loadMeta(mediaType, id, function(meta) {
+            meta = page.homeServerMetadataFallback(meta, mediaType, id)
             if (!meta) {
                 errorMsg = "Couldn't load details.";
                 loading = false;
@@ -1094,10 +1113,11 @@ Item {
         objectName: "theatreSeriesScroll"
         anchors.fill: parent
         contentWidth: width
-        contentHeight: pageCol.height
+        contentHeight: pageCol.height + (touchMetrics.androidHost && page.Window.window
+            ? (page.Window.window.browseBottomInset || 0) : 0)
         clip: true
         boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: HouseScrollBar { flick: flick }
+        ScrollBar.vertical: HouseScrollBar { flick: flick; showTrack: !touchMetrics.androidHost }
         opacity: page.loading ? 0.0 : 1.0
         Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
 
@@ -1335,6 +1355,10 @@ Item {
                             KeyboardAction {
                                 id: heroWatchKeyboard
                                 anchors.fill: parent
+                                anchors.leftMargin: -touchMetrics.targetInset(parent.width)
+                                anchors.rightMargin: -touchMetrics.targetInset(parent.width)
+                                anchors.topMargin: -touchMetrics.targetInset(parent.height)
+                                anchors.bottomMargin: -touchMetrics.targetInset(parent.height)
                                 accessibleName: "Watch " + page.title
                                 focusRadius: parent.radius
                                 showFocusFrame: false
@@ -1696,9 +1720,6 @@ Item {
                                         // Automation identity (Lanista): keyed by the episode's stream id,
                                         // stable while the virtual window recreates rows.
                                         objectName: "theatreEpisodePlay_" + String(ep.sid)
-                                        ToolTip.visible: playMa.containsMouse
-                                        ToolTip.text: qsTr("Play episode")
-                                        ToolTip.delay: 350
                                         width: 40; height: 40; radius: 20
                                         color: playMa.containsMouse ? theme.ink : Qt.rgba(1, 1, 1, 0.07)
                                         border.width: 1
@@ -1727,10 +1748,6 @@ Item {
                                     }
                                     Rectangle {
                                         visible: typeof Download !== "undefined"
-                                        ToolTip.visible: dlMa.containsMouse
-                                        ToolTip.text: ep.onDisk ? qsTr("Downloaded")
-                                                      : ep.inQueue ? qsTr("Download queued") : qsTr("Download episode")
-                                        ToolTip.delay: 350
                                         width: 40; height: 40; radius: 20
                                         color: dlMa.containsMouse && !ep.onDisk && !ep.inQueue
                                                ? Qt.rgba(1, 1, 1, 0.11) : Qt.rgba(1, 1, 1, 0.05)
@@ -1796,6 +1813,8 @@ Item {
     // ---- the ledger's sticky bar: order · season · Download season · Next · Go to ----
     Item {
         id: ledgerBarFloat
+        // Keep touch drags on the sticky controls in the page Flickable.
+        parent: touchMetrics.androidHost ? flick.contentItem : page
         objectName: "theatreLedgerBar"
         z: 30
         width: page.width
@@ -1807,6 +1826,7 @@ Item {
         readonly property real placeholderContentY: episodesSection.y + episodesCol.y + ledgerPlaceholder.y
         readonly property bool pinned: flick.contentY > (placeholderContentY - titleBar.height)
         y: Math.max(titleBar.height, placeholderContentY - flick.contentY)
+            + (touchMetrics.androidHost ? flick.contentY : 0)
 
         Rectangle {
             anchors.fill: parent
@@ -2180,11 +2200,8 @@ Item {
     Item {
         id: rangeStrip
         objectName: "theatreLedgerRangeStrip"
-        ToolTip.visible: stripMa.containsMouse && rangeStrip.rangeCount > 0
-        ToolTip.text: qsTr("Jump to episode %1").arg(rangeStrip.rangeAt(stripMa.mouseY) * page.episodeRangeSize + 1)
-        ToolTip.delay: 350
         z: 29
-        visible: page.longRun && ledgerBarFloat.visible && ledgerBarFloat.pinned
+        visible: !touchMetrics.androidHost && page.longRun && ledgerBarFloat.visible && ledgerBarFloat.pinned
         x: page.width - theme.margin + 8
         y: titleBar.height + page.ledgerBarHeight + 10
         width: Math.max(34, theme.margin - 16)
@@ -2336,11 +2353,18 @@ Item {
 
     SourcesSheet {
         id: sources
+        // The Android page already fills the window; don't extend the sheet past it.
+        anchors.bottomMargin: !touchMetrics.androidHost && page.Window.window
+            ? -(page.Window.window.browseBottomInset || 0) : 0
         mediaMetadata: page.sourceMetadata
         z: 60
         backdrop: page.backdrop
         onOpenExtensionsRequested: (browseMoreSources) => page.openExtensionsRequested(browseMoreSources)
+        onLocalMediaRequested: (path) => page.localMediaRequested(path)
         onPlayRequested: (infoHash, fileIdx, title, backdropUrl, subType, subId, streamCandidates, playbackContext) => page.playRequested(infoHash, fileIdx, title, backdropUrl, subType, subId, streamCandidates, playbackContext)
+        onSmartPickStarted: (title, backdropUrl, subType, subId, playbackContext) =>
+            page.smartPickStarted(title, backdropUrl, subType, subId, playbackContext)
+        onSmartPickFailed: page.smartPickFailed()
         onDownloadRequested: (row) => {
             if (page.pendingSeasonPick) {
                 page.queueSeasonDownload(row)

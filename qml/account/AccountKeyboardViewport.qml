@@ -55,6 +55,8 @@ Item {
         // A short landscape viewport may fit the control but not the usual margins.
         if (focused.height <= flick.height)
             target = Math.max(position.y + focused.height - flick.height, Math.min(target, position.y))
+        else // A phone keyboard can leave less room than one field: keep its top (and its text) in view.
+            target = position.y
         flick.contentY = Math.max(0, Math.min(target, flick.contentHeight - flick.height))
     }
     onFocusedTextControlChanged: Qt.callLater(root.revealFocusedControl)

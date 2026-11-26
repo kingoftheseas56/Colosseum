@@ -1,7 +1,5 @@
-// SearchSurface — the reusable search overlay for the non-Biblio worlds (Tankoban, Theatre). Same
-// Harbor-adapted shape as Biblio's search (field leads, Top Match hero, results grid, recent), but
-// source-agnostic: it asks WorldSearch.searchFor(searchMode, …) and emits itemRequested(data) for the
-// host to route to that world's detail. (Biblio keeps its own richer BiblioSearch with series + libgen.)
+// SearchSurface — shared search overlay with Top Match, grouped results and recents.
+// Hosts can supply a catalogue adapter or use the dispatchers in WorldSearch.
 
 import QtQuick
 import QtQuick.Controls
@@ -13,7 +11,9 @@ Item {
     objectName: searchMode.length ? searchMode.toLowerCase() + "SearchSurface" : "searchSurface"
     property Item backdrop
     property bool androidHost: Qt.platform.os === "android"
-    property string searchMode: ""                   // "Tankoban" | "Theatre"
+    property string searchMode: ""
+    property string chromeObjectNamePrefix: "worldSearch"
+    property string searchInputObjectName: "searchSurfaceInput"
     property string placeholder: "Search…"
     property string primaryLabel: "Open"
     // Optional paged catalogue adapter. The shared layout stays the owner of
@@ -27,11 +27,14 @@ Item {
     property real coverAspect: 2 / 3
     property url primaryIcon: ""
     property bool keepOpenOnActivation: false
+    property bool activateTopOnEnter: !searchProvider
+    property bool showSearchErrorSummary: true
     property bool commitOnDestruction: true
     property real bottomInset: 0
     property alias query: queryInput.text
     property alias contentY: scroll.contentY
     property var results: searchProvider ? searchProvider.results : []
+    property var topResult: results.length ? results[0] : null
     property bool _searching: false
     readonly property bool searching: searchProvider ? searchProvider.loading : _searching
     property bool searched: false
@@ -69,7 +72,8 @@ Item {
     readonly property bool phoneNarrow: surf.androidHost && width < 840
 
     // Harbor's empty-state "Try a genre": chips open an inline, popularity-ranked browse grid in place.
-    readonly property var genres: searchProvider ? [] : WorldSearch.genresFor(searchMode)
+    property var genres: searchProvider ? [] : WorldSearch.genresFor(searchMode)
+    property var genreSearchQuery: null
     property string browseGenre: ""            // "" = the default empty view; set = inline genre grid
     property var browseItems: []
     property bool browseLoading: false
@@ -93,7 +97,8 @@ Item {
             Rectangle {
                 width: 66; height: width / surf.coverAspect; radius: 7; clip: true; color: "#14131a"
                 Image { anchors.fill: parent; source: phoneRow.entry.cover || ""
-                    fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true }
+                    fillMode: phoneRow.entry.squareCover ? Image.PreserveAspectFit : Image.PreserveAspectCrop
+                    asynchronous: true; cache: true }
             }
             Column {
                 id: phoneDetails
@@ -120,7 +125,7 @@ Item {
     MouseArea { anchors.fill: parent }
     Component.onCompleted: {
         surf.loadRecent()
-        queryInput.forceActiveFocus()
+        surf.focusQuery()
     }
     Component.onDestruction: {
         surf.cancelAllRequests()
@@ -216,11 +221,13 @@ Item {
     }
     function fillAndSearch(q) { queryInput.text = q; debounce.stop(); runSearch(); commitCurrentQuery() }
     function restoreQuery(q) { queryInput.text = q; debounce.stop(); lastDispatchedQuery = q.length >= 2 ? q : "" }
+    function focusQuery() { queryInput.forceActiveFocus() }
     function openItem(data) {
+        debounce.stop()
         if (!surf.keepOpenOnActivation) surf.cancelAllRequests()
         surf.commitCurrentQuery(); surf.itemRequested(data)
     }
-    function openTop() { if (surf.results.length > 0) surf.openItem(surf.results[0].data) }
+    function openTop() { if (surf.topResult) surf.openItem(surf.topResult.data) }
     function removeRecent(q) { if (surf.historyStore) surf.recent = surf.historyStore.remove(surf.historyScope(), q) }
     function keepSearchDelegateVisible(item) {
         if (!item || !scroll) return
@@ -233,6 +240,10 @@ Item {
     // Harbor's genre-browse: open a genre into an inline grid (guarded so a slow reply for a genre
     // you've since left doesn't paint over the new one).
     function openGenre(g) {
+        if (surf.genreSearchQuery) {
+            surf.fillAndSearch(surf.genreSearchQuery(g))
+            return
+        }
         surf.cancelBrowse()
         surf.browseGenre = g
         surf.browseItems = []
@@ -264,12 +275,18 @@ Item {
     // Theatre, a single Manga group for Tankoban (Harbor-style grouped discovery).
     function groupedResults() {
         if (surf.searchProvider) {
-            var first = surf.results.length ? surf.results[0] : null
+            var first = surf.topResult
             return surf.searchProvider.groups.map(function(group) {
-                return Object.assign({}, group, {items: group.items.filter(function(item) {
-                    return !first || item.data.id !== first.data.id || item.data.kind !== first.data.kind
-                })})
-            }).filter(function(group) { return group.items.length || group.loading || group.error || group.hasMore })
+                return Object.assign({}, group, {
+                    items: group.items.filter(function(item) {
+                        return !first || item.data.id !== first.data.id || item.data.kind !== first.data.kind
+                    }),
+                    showEmpty: !!group.emptyText && !group.items.length && !group.loading
+                        && !group.error && !group.hasMore && surf.results.length > 0
+                })
+            }).filter(function(group) {
+                return group.items.length || group.loading || group.error || group.hasMore || group.showEmpty
+            })
         }
         var rest = surf.results.length > 1 ? surf.results.slice(1) : []
         var order = [], map = ({})
@@ -283,19 +300,34 @@ Item {
 
     Timer { id: debounce; interval: 220; onTriggered: surf.runSearch() }
 
-    Shortcut { enabled: surf.visible && surf.enabled; sequences: ["Return", "Enter"]; onActivated: { debounce.stop(); surf.runSearch(); surf.commitCurrentQuery(); if (!surf.searchProvider) surf.openTop() } }
+    Shortcut {
+        enabled: !surf.androidHost && surf.visible && surf.enabled
+            && (!surf.searchProvider || !surf.activateTopOnEnter || queryInput.activeFocus)
+        sequences: ["Return", "Enter"]
+        onActivated: {
+            if (surf.searchProvider && surf.activateTopOnEnter
+                    && queryInput.text.trim() === surf.lastDispatchedQuery && surf.searched) {
+                if (surf.topResult) surf.openTop()
+                else surf.commitCurrentQuery()
+                return
+            }
+            debounce.stop()
+            surf.runSearch()
+            surf.commitCurrentQuery()
+            if (!surf.searchProvider && surf.activateTopOnEnter) surf.openTop()
+        }
+    }
 
     // ── visible exit (audit fix: Esc was the only door out) + the search field ──
     BackAction {
         id: searchBack
         x: surf.phoneNarrow ? 16 : theme.margin
-        y: surf.phoneNarrow ? 14 : 0
-        anchors.verticalCenter: surf.phoneNarrow ? undefined : field.verticalCenter
+        y: surf.phoneNarrow ? 14 : field.y + (field.height - height) / 2
         onTriggered: { surf.cancelAllRequests(); surf.commitCurrentQuery(); surf.backRequested() }
     }
     Rectangle {
         id: field
-        objectName: "worldSearchField"
+        objectName: surf.chromeObjectNamePrefix + "Field"
         // The field stops short of the window-chrome cluster instead of running under it: both were
         // anchored to the same right margin, and their vertical bands overlapped by 12px, so the
         // minimize/fullscreen/power buttons sat on the field's top-right corner. Derived from the
@@ -319,13 +351,22 @@ Item {
         }
         TextInput {
             id: queryInput
-            objectName: "searchSurfaceInput"
+            objectName: surf.searchInputObjectName
             anchors.left: glass.right; anchors.leftMargin: surf.phoneNarrow ? 10 : 15
             anchors.right: rightCluster.left; anchors.rightMargin: surf.phoneNarrow ? 4 : 14
             anchors.verticalCenter: parent.verticalCenter
             color: theme.ink; font.family: theme.display; font.pixelSize: surf.phoneNarrow ? 18 : 22
             clip: true; focus: true; selectByMouse: true
             onTextChanged: { surf.cancelSearch(); debounce.restart() }
+            onAccepted: {
+                if (!surf.androidHost) return
+                Qt.inputMethod.commit()
+                debounce.stop()
+                surf.runSearch()
+                surf.commitCurrentQuery()
+                Qt.inputMethod.hide()
+                queryInput.focus = false
+            }
             Keys.onEscapePressed: { surf.cancelAllRequests(); surf.commitCurrentQuery(); surf.backRequested() }
         }
         Text {
@@ -345,12 +386,10 @@ Item {
                 width: surf.phoneNarrow ? 44 : 26; height: width; radius: height / 2
                 anchors.verticalCenter: parent.verticalCenter
                 color: clearMa.containsMouse ? Qt.rgba(1,1,1,0.14) : Qt.rgba(1,1,1,0.06)
-                Text { anchors.centerIn: parent; text: Qt.platform.os === "android" ? "×" : "✕"; color: theme.inkDimmer; font.pixelSize: 12 }
+                Text { anchors.centerIn: parent; text: "×"; color: theme.inkDimmer; font.pixelSize: 14 }
                 MouseArea { id: clearMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                     onClicked: { queryInput.text = ""; queryInput.forceActiveFocus() } }
                 KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Clear search"; focusRadius: 13
-                    tooltipText: accessibleName
-                    tooltipHovered: clearMa.containsMouse
                     onTriggered: { queryInput.text = ""; queryInput.forceActiveFocus() } }
             }
             Rectangle {
@@ -524,7 +563,7 @@ Item {
                                 radius: 999; width: surf.phoneNarrow ? recentFlow.width : rcRow.width + 30
                                 color: rcMa.containsMouse || keyboardSelected ? Qt.rgba(1,1,1,0.10) : theme.glassTint
                                 border.width: keyboardSelected ? 2 : 1; border.color: keyboardSelected ? theme.gold : theme.edge
-                                MouseArea { id: rcMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                MouseArea { id: rcMa; objectName: "searchRecentBody"; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                     onClicked: surf.fillAndSearch(modelData) }
                                 Row { id: rcRow; anchors.centerIn: parent; spacing: 8
                                     Text { id: rcLabel; text: modelData; color: theme.ink; font.family: theme.ui; font.pixelSize: 13
@@ -535,7 +574,7 @@ Item {
                                         anchors.verticalCenter: parent.verticalCenter
                                         color: xMa.containsMouse ? Qt.rgba(1,1,1,0.18) : "transparent"
                                         Text { anchors.centerIn: parent; text: Qt.platform.os === "android" ? "×" : "✕"; color: theme.inkDimmer; font.pixelSize: 10 }
-                                        MouseArea { id: xMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                        MouseArea { id: xMa; objectName: "searchRecentRemove"; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                             onClicked: surf.removeRecent(modelData) } }
                                 }
                             }
@@ -545,14 +584,14 @@ Item {
 
                     // TRY A GENRE — a chip opens the inline browse grid above
                     Text {
-                        visible: !surf.searchProvider
+                        visible: surf.genres.length > 0
                         text: "TRY A GENRE"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                         font.weight: Font.DemiBold; font.letterSpacing: 1.8
                     }
-                    Item { visible: !surf.searchProvider; width: 1; height: 16 }
+                    Item { visible: surf.genres.length > 0; width: 1; height: 16 }
                     Flow {
                         id: genreFlow
-                        visible: !surf.searchProvider
+                        visible: surf.genres.length > 0
                         width: parent.width; spacing: 10
                         property int currentIndex: surf.genres.length > 0 ? 0 : -1
                         focusPolicy: surf.genres.length > 0 ? Qt.TabFocus : Qt.NoFocus
@@ -612,11 +651,11 @@ Item {
                 visible: !surf.isEmpty
 
                 Text {
-                    visible: surf.results.length > 0
+                    visible: !!surf.topResult
                     text: "TOP MATCH"; color: theme.gold; font.family: theme.ui; font.pixelSize: 12
                     font.weight: Font.DemiBold; font.letterSpacing: 1.8
                 }
-                Item { visible: surf.results.length > 0; width: 1; height: 14 }
+                Item { visible: !!surf.topResult; width: 1; height: 14 }
                 Rectangle {
                     id: topCard
                     // Automation identity (Lanista), same DiscoverBrowser.qml:727 precedent: keyed by
@@ -624,8 +663,9 @@ Item {
                     objectName: (topCard.m && topCard.m.title)
                                 ? ("searchResult_" + String(topCard.m.data && topCard.m.data.id ? topCard.m.data.id : topCard.m.title))
                                 : ""
-                    visible: surf.results.length > 0 && !surf.phoneNarrow
-                    property var m: surf.results.length > 0 ? surf.results[0] : ({})
+                    visible: !!surf.topResult && !surf.phoneNarrow
+                    property var m: surf.topResult || ({})
+                    readonly property real artworkAspect: m.squareCover ? 1 : surf.coverAspect
                     width: parent.width; height: Math.max(210, topPresentation.active ? topPresentation.height + 56 : 0); radius: 18
                     color: theme.glassTint; border.width: 1; border.color: theme.edge
 
@@ -633,8 +673,8 @@ Item {
                         id: tmCover
                         anchors.left: parent.left; anchors.leftMargin: 28
                         anchors.verticalCenter: parent.verticalCenter
-                        width: topPresentation.active ? 196 : surf.coverAspect === 1 ? 154 : 110
-                        height: topPresentation.active ? topPresentation.height : width / surf.coverAspect
+                        width: topPresentation.active ? 196 : topCard.artworkAspect === 1 ? 154 : 110
+                        height: topPresentation.active ? topPresentation.height : width / topCard.artworkAspect
                         Loader {
                             id: topPresentation
                             objectName: "searchTopPresentation"
@@ -648,11 +688,11 @@ Item {
                             id: tmImg; visible: !topPresentation.active; anchors.fill: parent
                             source: topCard.m && topCard.m.cover ? topCard.m.cover : ""
                             fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true
-                            layer.enabled: true
+                            layer.enabled: surf.GraphicsInfo.api !== GraphicsInfo.Software
                             layer.effect: MultiEffect { shadowEnabled: true; shadowColor: Qt.rgba(0,0,0,0.7)
                                 shadowBlur: 1.0; shadowVerticalOffset: 16; autoPaddingEnabled: true }
                         }
-                        Rectangle { visible: !topPresentation.active && surf.coverAspect !== 1; anchors.left: parent.left; width: 8; height: parent.height; radius: 2
+                        Rectangle { visible: !topPresentation.active && topCard.artworkAspect !== 1; anchors.left: parent.left; width: 8; height: parent.height; radius: 2
                             gradient: Gradient { orientation: Gradient.Horizontal
                                 GradientStop { position: 0; color: Qt.rgba(0,0,0,0.5) }
                                 GradientStop { position: 0.6; color: Qt.rgba(0,0,0,0.05) }
@@ -695,7 +735,7 @@ Item {
                 }
                 Rectangle {
                     id: phoneTopCard
-                    visible: surf.phoneNarrow && surf.results.length > 0
+                    visible: surf.phoneNarrow && !!surf.topResult
                     width: parent.width
                     height: phoneTopContents.implicitHeight + 28
                     radius: 16; color: theme.glassTint
@@ -709,7 +749,7 @@ Item {
                             Row {
                                 anchors.fill: parent; spacing: 14
                                 Rectangle {
-                                    width: 84; height: width / surf.coverAspect; radius: 8; clip: true; color: "#14131a"
+                                    width: 84; height: width / topCard.artworkAspect; radius: 8; clip: true; color: "#14131a"
                                     Image { anchors.fill: parent; source: topCard.m.cover || ""
                                         fillMode: Image.PreserveAspectCrop; asynchronous: true }
                                 }
@@ -741,7 +781,7 @@ Item {
                         }
                     }
                 }
-                Item { visible: surf.results.length > 0; width: 1; height: 38 }
+                Item { visible: !!surf.topResult; width: 1; height: 38 }
 
                 // grouped sections (Movies / Series / Manga) — capped at one row until "See more"
                 Repeater {
@@ -771,6 +811,7 @@ Item {
                         Item { width: 1; height: 16 }
                         Grid {
                             id: secGrid
+                            objectName: "searchGroup_" + (section.modelData.key || section.modelData.group)
                             width: parent.width; columns: surf.phoneNarrow ? 1 : 6
                             columnSpacing: surf.phoneNarrow ? 0 : 22; rowSpacing: surf.phoneNarrow ? 12 : 26
                             property real cellW: surf.phoneNarrow ? width : surf.desktopResultCardWidth
@@ -822,7 +863,8 @@ Item {
                                         width: parent.width; height: width / surf.coverAspect; radius: 8; clip: true; color: "#14131a"
                                         border.width: resultCard.keyboardSelected ? 2 : 0; border.color: theme.gold
                                         Image { anchors.fill: parent; source: modelData.cover ? modelData.cover : ""
-                                            fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true }
+                                            fillMode: modelData.squareCover ? Image.PreserveAspectFit : Image.PreserveAspectCrop
+                                            asynchronous: true; cache: true }
                                         Image { visible: !!modelData.selected; anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 10; width: 24; height: 24; source: "../assets/icons/lucide/circle-check.svg" }
                                         scale: cardMa.containsMouse ? 1.03 : 1.0
                                         Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
@@ -895,9 +937,12 @@ Item {
                         }
                         Item { width: 1; height: surf.resultLoadingPresentation && !surf.phoneNarrow ? 24 : 34 }
                         Text {
-                            visible: (!!section.modelData.loading && !section.usingCustomLoading) || !!section.modelData.error
+                            objectName: "searchGroupStatus_" + (section.modelData.key || "")
+                            visible: (!!section.modelData.loading && !section.usingCustomLoading)
+                                || !!section.modelData.error || !!section.modelData.showEmpty
                             width: parent.width; wrapMode: Text.Wrap
-                            text: section.modelData.error || "Searching…"
+                            text: section.modelData.error || (section.modelData.showEmpty
+                                ? section.modelData.emptyText : qsTr("Searching…"))
                             color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 14
                         }
                         KeyboardAction {
@@ -916,7 +961,7 @@ Item {
                 }
 
                 Text {
-                    visible: surf.searchError.length > 0 && !surf.searching
+                    visible: surf.showSearchErrorSummary && surf.showingProviderError
                     text: surf.searchError
                     width: parent.width; wrapMode: Text.Wrap
                     color: theme.inkDimmer; font.family: theme.display
@@ -940,7 +985,7 @@ Item {
     // minimize · fullscreen-toggle · power cluster every page carries.
     Row {
         id: winChrome
-        objectName: "worldSearchWindowControls"
+        objectName: surf.chromeObjectNamePrefix + "WindowControls"
         width: visible ? implicitWidth : 0
         z: 30
         visible: !surf.androidHost && !surf.phoneNarrow
@@ -967,8 +1012,6 @@ Item {
                 onClicked: surf.minimizeRequested()
             }
             KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Minimize"; focusRadius: 4
-                tooltipText: accessibleName
-                tooltipHovered: chromeMinMa.containsMouse
                 onTriggered: surf.minimizeRequested() }
         }
         Item {
@@ -985,9 +1028,6 @@ Item {
                 opacity: fsMa.containsMouse ? 1.0 : 0.72
             }
             KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Toggle fullscreen"; focusRadius: 4
-                tooltipText: typeof WindowMode !== "undefined" && WindowMode.shellWindowed
-                             ? qsTr("Enter fullscreen") : qsTr("Exit fullscreen")
-                tooltipHovered: fsMa.containsMouse
                 onTriggered: surf.fullscreenRequested() }
             MouseArea {
                 id: fsMa
@@ -1009,8 +1049,6 @@ Item {
                 opacity: chromePowMa.containsMouse ? 1.0 : 0.72
             }
             KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close Colosseum"; focusRadius: 4
-                tooltipText: accessibleName
-                tooltipHovered: chromePowMa.containsMouse
                 onTriggered: { surf.cancelAllRequests(); surf.closeRequested() } }
             MouseArea {
                 id: chromePowMa

@@ -19,11 +19,12 @@ Item {
     property var pickerOpener: null
     property var deleteOpener: null
     property string pendingDestination: ""
+    property bool pendingCloseRestoresDockFocus: true
     property string message: ""
     property int profileGeneration: 0
     property bool initialized: false
     readonly property bool pendingChanges: !!(detailPage() && detailPage().editing)
-    signal closed()
+    signal closed(bool restoreDockFocus)
     signal minimizeRequested()
     signal fullscreenRequested()
     signal quitRequested()
@@ -48,7 +49,7 @@ Item {
         panel.showing = true
         panel.forceActiveFocus(Qt.OtherFocusReason)
     }
-    function finishClose() {
+    function finishClose(restoreDockFocus = true) {
         panel.pickerOpener = null
         panel.deleteOpener = null
         if (pickerLoader.status === Loader.Ready) pickerLoader.item.close()
@@ -56,16 +57,17 @@ Item {
         panel.pendingDestination = ""
         panel.showing = false
         panel.collectionId = ""
-        panel.closed()
+        panel.closed(restoreDockFocus)
     }
-    function requestClose() {
+    function requestClose(restoreDockFocus = true) {
         if (!panel.showing && !panel.pickerActive && !panel.deleteActive) return true
         if (panel.pendingChanges) {
             panel.pendingDestination = "close"
+            panel.pendingCloseRestoresDockFocus = restoreDockFocus
             panel.detailPage().requestBack()
             return false
         }
-        panel.finishClose()
+        panel.finishClose(restoreDockFocus)
         return true
     }
     function requestEscape() {
@@ -237,7 +239,7 @@ Item {
                 wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                 Accessible.role: Accessible.AlertMessage
             }
-            CollectionActionButton { iconName: "close"; compact: true; emphasis: "ghost"; Accessible.name: qsTr("Dismiss message"); tooltipText: qsTr("Dismiss message"); onClicked: panel.message = "" }
+            CollectionActionButton { iconName: "close"; compact: true; emphasis: "ghost"; Accessible.name: qsTr("Dismiss message"); onClicked: panel.message = "" }
         }
     }
     Component {
@@ -255,7 +257,7 @@ Item {
             store: adapter
             collectionId: panel.collectionId
             onBackRequested: {
-                if (panel.pendingDestination === "close") panel.finishClose()
+                if (panel.pendingDestination === "close") panel.finishClose(panel.pendingCloseRestoresDockFocus)
                 else { panel.pendingDestination = ""; panel.collectionId = "" }
             }
             onNavigationCanceled: { panel.pendingDestination = ""; panel.navigationCanceled() }

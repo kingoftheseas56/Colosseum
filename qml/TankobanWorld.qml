@@ -344,7 +344,9 @@ WorldPage {
     // reactively, so switching tabs never re-runs GcApi.explore / the shelf compute.
     Loader {
         id: tabContent
-        width: parent ? parent.width : 0
+        objectName: "tankobanBrowseLoader"
+        // Loader sizes its item explicitly, so reserve the item's existing rail offset here.
+        width: parent ? Math.max(0, parent.width - (tanko.androidHost ? tanko.rowIndexContentLeft : 0)) : 0
         height: item ? item.implicitHeight : 0
         source: tanko.activeTab === "comics" ? "TankobanComicsTab.qml"
               : tanko.activeTab === "manga" ? "TankobanMangaTab.qml"

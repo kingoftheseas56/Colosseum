@@ -65,15 +65,17 @@ void AudiobookTorrentTransport::engineLost() {
     m_poll.stop();auto retired=std::move(m_attempt);
     emit failed(retired->generation,retired->ending
         ? QStringLiteral("Audiobook engine stopped before cleanup was confirmed; removal outcome is unknown.")
-        : QStringLiteral("Audiobook torrent engine is unavailable."));
+        : QStringLiteral("Audiobook torrent engine is unavailable."), StallPhase::None);
 }
 void AudiobookTorrentTransport::cancel(quint64 g) {
     if(!current(g) || m_attempt->ending) return; // a requested KEEP may finish normally
     end(g,{},true);
 }
-void AudiobookTorrentTransport::end(quint64 g,const QString& failure,bool cancel,const QStringList& result) {
+void AudiobookTorrentTransport::end(quint64 g,const QString& failure,bool cancel,const QStringList& result,
+                                    StallPhase stallPhase) {
     if(!current(g) || m_attempt->ending) return;
     m_attempt->ending=true;m_attempt->failure=failure;m_attempt->cancelRequested=cancel;m_attempt->resultFiles=result;
+    m_attempt->stallPhase = stallPhase;
     m_attempt->settling.start();
     if(!setPhase(g,result.isEmpty()?QStringLiteral("stopping"):QStringLiteral("finishing"))) return;
     if(m_attempt->inAdd)return; // the captured late admission must return before we can retire it
@@ -106,8 +108,8 @@ void AudiobookTorrentTransport::requestSettlement(quint64 g) {
 void AudiobookTorrentTransport::finish(bool success,int error) {
     if(!m_attempt)return;
     m_poll.stop();auto retired=std::move(m_attempt);
-    if(!success) {emit failed(retired->generation,QStringLiteral("Audiobook file cleanup failed (error %1).").arg(error));return;}
-    if(!retired->failure.isEmpty()){emit failed(retired->generation,retired->failure);return;}
+    if(!success) {emit failed(retired->generation,QStringLiteral("Audiobook file cleanup failed (error %1).").arg(error),StallPhase::None);return;}
+    if(!retired->failure.isEmpty()){emit failed(retired->generation,retired->failure,retired->stallPhase);return;}
     if(retired->cancelRequested){emit cancelled(retired->generation);return;}
     emit completed(retired->generation,retired->path,retired->resultFiles,retired->total);
 }
@@ -182,7 +184,11 @@ void AudiobookTorrentTransport::poll(quint64 g) {
     if(!m_attempt->admitted) {
         const QString hash=m_attempt->hash;const auto files=engine->files(hash);
         if(!self || !current(g) || m_attempt->ending)return;
-        if(files.isEmpty()){if(m_attempt->age.elapsed()>=m_timeouts.metadataMs)end(g,"Audiobook torrent metadata timed out.");return;}
+        if (files.isEmpty()) {
+            if (m_attempt->age.elapsed() >= m_timeouts.metadataMs)
+                end(g, QStringLiteral("Audiobook torrent metadata timed out."), false, {}, StallPhase::FileList);
+            return;
+        }
         admit(g,files);if(!self || !current(g) || m_attempt->ending || !m_attempt->admitted)return;
     }
     const QString hash=m_attempt->hash;const auto counts=engine->verifiedBytes(hash);
@@ -196,5 +202,8 @@ void AudiobookTorrentTransport::poll(quint64 g) {
         const Attempt snapshot=*m_attempt;QStringList paths;
         for(const auto& f:snapshot.selected){const QFileInfo info(f.path);if(!contained(snapshot.path,QDir(snapshot.path).relativeFilePath(f.path)) || !info.isFile() || info.isSymLink() || info.size()!=f.bytes || !info.canonicalFilePath().startsWith(snapshot.path+'/')){end(g,"Verified audiobook files are missing, incomplete, or outside private storage.");return;}paths.append(info.absoluteFilePath());}
         end(g,{},false,paths);
-    } else if(m_attempt->activity.elapsed()>=m_timeouts.inactivityMs)end(g,"Audiobook download timed out without new verified file bytes.");
+    } else if (m_attempt->activity.elapsed() >= m_timeouts.inactivityMs) {
+        end(g, QStringLiteral("Audiobook download timed out without new verified file bytes."),
+            false, {}, StallPhase::AudioData);
+    }
 }

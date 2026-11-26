@@ -98,7 +98,8 @@ QString runtimeTextFromSec(double durationSec)
 
 namespace VaultBrowseDetail {
 
-QVariantMap detailFor(VaultIndex* index, const QString& key, const QStringList& scanIgnore)
+static QVariantMap composeDetail(VaultIndex* index, const QString& key,
+                                 const QStringList& scanIgnore, bool physical)
 {
     QVariantMap out;
     out.insert(QStringLiteral("found"), false);
@@ -146,7 +147,7 @@ QVariantMap detailFor(VaultIndex* index, const QString& key, const QStringList& 
     bool playable = true; // preserve the established group-shaped film contract
     if (isFileDetail) {
         const QFileInfo file(primary.path);
-        const bool available = !primary.away && file.isFile() && file.isReadable();
+        const bool available = !primary.away && (!physical || (file.isFile() && file.isReadable()));
         // LocalLaunch still probes at launch. This read-only view may advertise Play only
         // after the index has recorded decoded-frame admission, never for an unprobed file.
         playable = available && primary.kind == QLatin1String("video")
@@ -217,18 +218,18 @@ QVariantMap detailFor(VaultIndex* index, const QString& key, const QStringList& 
     // identified film may hold different companions per copy; this slice surfaces the one the
     // user actually opened, honestly, rather than merging facts across drives.
     // A show folder's subtitles/extras are not proven companions of an individual episode.
-    const VaultKit::FilmPhysicalFacts physical = isFileDetail ? VaultKit::FilmPhysicalFacts{}
-        : VaultKit::describeFilmFolder(primary.subtreePath, primary.path, scanIgnore);
-    out.insert(QStringLiteral("companions"), QVariant(physical.companions));
+    const VaultKit::FilmPhysicalFacts physicalFacts = isFileDetail || !physical ? VaultKit::FilmPhysicalFacts{}
+        : VaultKit::describeFilmFolder(primary.subtreePath, primary.path, scanIgnore, index->personalPaths());
+    out.insert(QStringLiteral("companions"), QVariant(physicalFacts.companions));
     QVariantList extras;
-    for (const VaultKit::FilmExtra& ex : physical.extras) {
+    for (const VaultKit::FilmExtra& ex : physicalFacts.extras) {
         QVariantMap e;
         e.insert(QStringLiteral("title"), ex.title);
         e.insert(QStringLiteral("path"), ex.path);
         extras.append(e);
     }
     out.insert(QStringLiteral("extras"), extras);
-    out.insert(QStringLiteral("ignoredCount"), physical.ignoredCount);
+    out.insert(QStringLiteral("ignoredCount"), physicalFacts.ignoredCount);
 
     QString evidence;
     if (isFileDetail) {
@@ -265,6 +266,16 @@ QVariantMap detailFor(VaultIndex* index, const QString& key, const QStringList& 
     out.insert(QStringLiteral("playPath"), playable ? primary.path : QString());
 
     return out;
+}
+
+QVariantMap detailFor(VaultIndex* index, const QString& key, const QStringList& scanIgnore)
+{
+    return composeDetail(index, key, scanIgnore, true);
+}
+
+QVariantMap presentationFor(VaultIndex* index, const QString& key)
+{
+    return composeDetail(index, key, {}, false);
 }
 
 } // namespace VaultBrowseDetail

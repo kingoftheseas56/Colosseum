@@ -4,22 +4,22 @@ This directory is the source for the `colosseum` Chocolatey package. It does **n
 installer; it downloads the official GitHub release asset at install time and verifies it by
 SHA-256 checksum.
 
-## Package facts (v1.3.0)
+## Package facts (v1.4.0)
 
 | Field | Value |
 |---|---|
 | Package ID | `colosseum` |
-| Version | `1.3.0` |
-| Installer URL | `https://github.com/kingoftheseas56/Colosseum/releases/download/v1.3.0/Colosseum-1.3.0-setup.exe` |
-| Size | 231,444,357 bytes |
-| SHA-256 | `665fdcc923f6ab70f32377a77082a2821af2ef5bd0d8c055c529df9b69675013` |
+| Version | `1.4.0` |
+| Installer URL | `https://github.com/kingoftheseas56/Colosseum/releases/download/v1.4.0/Colosseum-1.4.0-setup.exe` |
+| Size | 233,684,944 bytes |
+| SHA-256 | `d8a374ab89818e2e68af53c8d10ca5ffbec7f748e0ee9804ab28504db92b5685` |
 | Installer type | NSIS (MUI2) |
 | Silent install | `/S` |
 | Silent uninstall | `/S` (via `uninstall.exe`) |
 | Install scope | Per-user, `%LOCALAPPDATA%\Programs\Colosseum`, **no admin** (`RequestExecutionLevel user`) |
 | Uninstall registry | `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Colosseum` |
 | License | MIT |
-| Icon | jsDelivr CDN, pinned to tag `v1.3.0` → `assets/icons/colosseum.svg` |
+| Icon | jsDelivr CDN, pinned to tag `v1.4.0` → `assets/icons/colosseum.svg` |
 
 ## Files
 
@@ -52,6 +52,8 @@ Uninstalling removes the application's install folder, including any media store
   231,444,357-byte CI installer. Release CI run 43221859124 passed fresh install, boot, uninstall,
   and the 1.2.0-to-1.3.0 upgrade with preserved state. Package source was inspected and parsed;
   `choco pack` and Chocolatey install/submission were not run (Chocolatey is not installed here).
+- v1.4.0: release CI run 45015067538 passed fresh install, boot, uninstall, and the
+  1.3.0-to-1.4.0 upgrade. The package metadata points to that exact published installer.
 
 ## How to build the package
 
@@ -60,7 +62,7 @@ cd packaging\chocolatey
 choco pack
 ```
 
-Produces `colosseum.1.3.0.nupkg` in this directory.
+Produces `colosseum.1.4.0.nupkg` in this directory.
 
 ## How to submit to the Chocolatey Community Repository (Hemanth)
 
@@ -74,7 +76,7 @@ Produces `colosseum.1.3.0.nupkg` in this directory.
    ```
 4. Push (this is the publish step — do not run until you intend to submit):
    ```powershell
-   choco push colosseum.1.3.0.nupkg --source https://push.chocolatey.org/
+   choco push colosseum.1.4.0.nupkg --source https://push.chocolatey.org/
    ```
 5. The package then enters Chocolatey moderation. Expect automated validation/verification checks;
    the `VERIFICATION.txt` and pinned checksum are there to satisfy them.

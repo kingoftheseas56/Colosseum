@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 const source = readFileSync(process.argv[2] || new URL('../qml/Main.qml', import.meta.url), 'utf8');
-const names = ['detailContinue', 'resumeContinue', 'openVaultComic', 'openBookSession'];
+const names = ['detailContinue', 'resumeContinue', 'openVaultComic', 'resolvedDownloadPath', 'openBookSession'];
 const functions = names.map(name => {
     const match = source.match(new RegExp('    function ' + name + '\\([^]*?\\n    }'));
     assert.ok(match, name);

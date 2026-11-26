@@ -69,7 +69,9 @@ function collectionContext(reused = false) {
     const ctx = context();
     // Execute the actual destination as well as the Collection router. Merely
     // checking a mocked openSeries call misses the profile reset on entry.
-    vm.runInContext(extract(main, 'openSeries'), ctx);
+    ctx.Loader = { Error: 3 };
+    for (const name of ['openSeries', 'prepareDockPickDetail', 'attachDockPickDetail'])
+        vm.runInContext(extract(main, name), ctx);
     ctx.seriesLayer.malId = '42';
     ctx.seriesLayer.active = reused;
     if (reused) ctx.seriesLayer.item = {malId: '42'};

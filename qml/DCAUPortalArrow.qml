@@ -1,18 +1,15 @@
 import QtQuick
-import QtQuick.Controls
 
 FocusScope {
     id: root
     property string glyph: "›"
-    property string tooltipText: ""
-    ToolTip.visible: root.tooltipText.length > 0 && hover.hovered
-    ToolTip.text: root.tooltipText
-    ToolTip.delay: 350
     signal triggered()
 
     width: 44
     height: 44
     activeFocusOnTab: true
+    Accessible.role: Accessible.Button
+    Accessible.onPressAction: root.triggered()
 
     Theme { id: theme }
 

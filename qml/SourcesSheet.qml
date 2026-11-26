@@ -16,10 +16,15 @@ import "AddonClient.js" as AddonClient
 import "Magnet.js" as Magnet
 import "TrackLanguage.js" as TrackLanguage
 import "SmartPlayPreferences.js" as SmartPlayPreferences
+import "LocalLibrarySources.js" as LocalLibrarySources
 
 Item {
     id: sheet
     anchors.fill: parent
+    // Android title pages stop above the phone dock (Main.qml browseBottomInset), which left the
+    // page's own content showing below the sheet. The sheet covers the whole window instead; the
+    // list's dock scroll padding keeps the last row clear of the dock.
+    anchors.bottomMargin: sheet.Window.window ? -(sheet.Window.window.browseBottomInset || 0) : 0
     // Slice-2 automation surface (no visual effect): names the sheet root so the Lanista bridge can
     // read its state (`qml-get sourcesSheet.loading/rowCount/httpRowCount`) and prove the source-sheet
     // slices (5–7) in the running app instead of by eye. dump-ui sees named items only.
@@ -46,11 +51,11 @@ Item {
     readonly property real sourceRowHeight: 150
     readonly property real minResultBudget: sheet.sourceRowHeight + 40
     readonly property real desktopChromeReserve: (topBar.visible ? 20 + 64 : 0)
-        + (pills.visible ? 14 + pills.height : 0) + 16 + Math.max(26, sheet.dockClearance) + (tableHead.visible ? 52 : 0) + 12
-    readonly property bool compactHeight: !sheet.phoneLayout && sheet.androidDesktopPresentation
+        + (pills.visible ? 14 + pills.height : 0) + 16 + 26 + (tableHead.visible ? 52 : 0) + 12
+    readonly property bool compactHeight: !sheet.phoneLayout
         && sheet.height - 300 - sheet.desktopChromeReserve < sheet.minResultBudget
     readonly property real compactChromeReserve: (topBar.visible ? 10 + 52 : 0)
-        + (pills.visible ? 8 + pills.height : 0) + 10 + Math.max(12, sheet.dockClearance) + (tableHead.visible ? 44 : 0) + 12
+        + (pills.visible ? 8 + pills.height : 0) + 10 + 12 + (tableHead.visible ? 44 : 0) + 12
     readonly property real compactBannerMin: 76
     readonly property real dockClearance: sheet.dockBottomInset > 0 ? sheet.dockBottomInset + 8 : 0
     // Keep space for two direct rows on short desktop windows while Nuvio is in use.
@@ -61,8 +66,10 @@ Item {
     readonly property bool compactControls: sheet.compactHeight
         || (!sheet.phoneLayout && sheet.nuvioAsked
             && sheet.height - sheet.bannerHeight - sheet.desktopChromeReserve < 2 * sheet.sourceRowHeight + 2)
-    readonly property real tableBottomMargin: Math.max(
-        sheet.phoneLayout ? 16 : (sheet.compactControls ? 12 : 26), sheet.dockClearance)
+    // The dock floats over the bottom-left corner only, so the table runs to the window
+    // bottom; the list keeps dockClearance as scroll padding (list.bottomMargin) so the last
+    // row can scroll clear of the dock instead of the table stopping above it.
+    readonly property real tableBottomMargin: sheet.phoneLayout ? 16 : (sheet.compactControls ? 12 : 26)
 
     property Item backdrop
     property string label: ""
@@ -105,10 +112,15 @@ Item {
     property bool smartPlayCancelled: false
     property bool smartPlaySettled: false
     property var smartPlayRow: null
+    // Keep the search alive while the player owns the visible loading face.
+    property bool smartPickInPlayer: false
     readonly property bool smartPicking: sheet.open && sheet.smartPlayEnabled
-        && ((!sheet.smartPlaySettled && !sheet.smartPlayCancelled) || sheet.smartPlayRow !== null)
+        && !sheet.smartPlaySettled && !sheet.smartPlayCancelled
+    signal smartPickStarted(string title, string backdropUrl, string subType, string subId, var playbackContext)
+    signal smartPickFailed()
     function chooseSourceManually() {
         if (!sheet.smartPicking || sheet.smartPlaySettled) return
+        sheet.smartPickInPlayer = false
         sheet.smartPlayCancelled = true
         sheet.smartPlayRow = null
         sheet.closeSourceContext(false)
@@ -123,25 +135,53 @@ Item {
     readonly property string smartPlayStatus: !sheet.smartPlayEnabled || sheet.smartPlayCancelled ? ""
         : !sheet.smartPlaySettled ? qsTr("Finding the best source…")
         : !sheet.smartPlayRow ? qsTr("No source passed the quality check. Choose one below.") : ""
-    function finishSmartPlay(atTimeout) {
+    // Smart Pick never waits for the slowest provider. After the first answer carrying
+    // sources a short grace window collects more, then the best passing candidate among
+    // what has arrived is picked; a hard cap picks (or falls back to the list) regardless.
+    property int smartPickGraceMs: 4000
+    property int smartPickCapMs: 11000
+    property bool smartPickGraceElapsed: false
+    function smartPickAnswered() {
+        if (!sheet.open || !sheet.smartPlayEnabled || sheet.smartPlayCancelled || sheet.smartPlaySettled) return
+        if (sheet.smartPickGraceElapsed) { sheet.finishSmartPlay(true, true); return }
+        if (!smartGraceTimer.running && sheet.baseRows().length > 0) smartGraceTimer.start()
+    }
+    function finishSmartPlay(atTimeout, earlyOnly) {
         if (!sheet.open || !sheet.smartPlayEnabled || sheet.smartPlayCancelled || sheet.smartPlaySettled
                 || (!atTimeout && (sheet.loading || sheet.nuvioPending))) return
-        timeout.stop()
         var allRows = sheet.baseRows()
         var pick = SmartPlay.pick(allRows, sheet.smartPlayQuality,
             Object.assign({}, sheet.playbackContext, { type: sheet.subType, id: sheet.subId,
                 preferredLanguages: TrackLanguage.parseLanguageList(
                     smartPlaySettings.value("preferredAudioLanguages", "eng,jpn"), ["eng", "jpn"]) }))
+        if (earlyOnly && pick.index < 0) return   // nothing passing yet: keep waiting for the cap
+        timeout.stop()
+        smartGraceTimer.stop()
+        smartCapTimer.stop()
         sheet.smartPlayRow = pick.index >= 0 ? allRows[pick.index] : null
         sheet.smartPlaySettled = true
         sheet.warmTopRow()
-        if (pick.index >= 0) sheet.activateSource(pick.index, allRows)
+        if (pick.index >= 0) {
+            sheet.activateSource(pick.index, allRows)
+            // The player has already received the chosen source. Invalidate late
+            // replies without restoring focus behind the newly opened player.
+            sheet.focusReturnItem = null
+            sheet.hide()
+        } else if (sheet.smartPickInPlayer) {
+            sheet.smartPickInPlayer = false
+            sheet.smartPickFailed()
+        }
     }
     onLoadingChanged: if (!sheet.loading) sheet.finishSmartPlay(false)
     onNuvioPendingChanged: if (!sheet.nuvioPending) sheet.finishSmartPlay(false)
     property var extensionsService: typeof Extensions !== "undefined" ? Extensions : null
     property var loadStremioStreams: AddonClient.loadStreams
     property var nuvioSourceService: typeof NuvioSources !== "undefined" ? NuvioSources : null
+    property var homeServerSourceService: typeof HomeServers !== "undefined" ? HomeServers : null
+    property var homeServerRows: []
+    property var vaultLibraryService: typeof VaultLibrary !== "undefined" ? VaultLibrary : null
+    property var vaultLocalRows: []
+    property var homeServerProfileGeneration: -1
     property int nuvioRequestId: 0
     readonly property bool nuvioPending: nuvioRequestId !== 0
     property bool nuvioAsked: false
@@ -199,9 +239,21 @@ Item {
         if (index < 0 || index >= available.length) return
         sheet.smartPlayCancelled = true
         var row=available[index]
-        if (sheet.mode !== "play") { sheet.downloadRequested(row); sheet.hide() }
+        if (row.vaultLocal) {
+            if (sheet.mode !== "play") return
+            // Revalidate current native truth before opening, not the old sheet snapshot.
+            var current = LocalLibrarySources.sources(sheet.vaultLibraryService, sheet.subType, sheet.subId, sheet.playbackContext)
+            if (!current.some(function(candidate) { return candidate.localPath === row.localPath && candidate.vaultId === row.vaultId })) {
+                sheet.refreshVaultLocalRows(); return
+            }
+            var path = row.localPath
+            sheet.hide()
+            sheet.localMediaRequested(path)
+            return
+        }
+        if (sheet.mode !== "play") { if (row.homeServer) return; sheet.downloadRequested(row); sheet.hide() }
         else {
-            var candidates = sheet.baseRows()
+            var candidates = sheet.baseRows().filter(function(candidate) { return !candidate.vaultLocal })
             if (row.nuvio) {
                 // Players look up a direct stream by its URL. Keep the chosen provider's headers.
                 var rowIndex = candidates.indexOf(row)
@@ -218,12 +270,14 @@ Item {
     }
     function copySource(index) {
         if (index < 0 || index >= sheet.visibleRows.length) return
+        if (sheet.visibleRows[index].vaultLocal || sheet.visibleRows[index].homeServer || String(sheet.visibleRows[index].infoHash || "").indexOf("home-server:") === 0) return
         var link=Magnet.linkFor(sheet.visibleRows[index]); if(!link.length) return
         Clipboard.copy(link)
         if (list.itemAtIndex) { var item=list.itemAtIndex(index); if(item && item.markCopied) item.markCopied() }
     }
     function downloadSource(index) {
         if (sheet.mode !== "play" || sheet.titleQueued || index < 0 || index >= sheet.visibleRows.length) return
+        if (sheet.visibleRows[index].vaultLocal || sheet.visibleRows[index].homeServer || String(sheet.visibleRows[index].infoHash || "").indexOf("home-server:") === 0) return
         sheet.downloadRequested(sheet.visibleRows[index]); sheet.titleQueued=true
     }
     function activateSourceContext(choice) {
@@ -247,13 +301,14 @@ Item {
     signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl, string subType, string subId, var streamCandidates, var playbackContext)
     // download/season mode's row action: the full chosen row (infoHash/fileIdx/url/…)
     signal downloadRequested(var row)
+    signal localMediaRequested(string path)
     // season mode only: the ask came back with no full-season torrent
     signal seasonNoPacks()
     readonly property bool androidHost: !!(sheet.Window.window && sheet.Window.window.androidHost)
     signal openExtensionsRequested(bool browseMoreSources)
 
-    visible: sheet.open || sheet.opacity > 0.01
-    opacity: sheet.open ? 1 : 0
+    visible: sheet.opacity > 0.01 || (sheet.open && !sheet.smartPickInPlayer)
+    opacity: sheet.open && !sheet.smartPickInPlayer ? 1 : 0
     Behavior on opacity { NumberAnimation { duration: 180 } }
 
     Theme { id: theme }
@@ -279,6 +334,7 @@ Item {
         sheet.closeExtMenu(true)
     }
     function sourceContextOptions() {
+        if (sheet.sourceContextRow && (sheet.sourceContextRow.homeServer || sheet.sourceContextRow.vaultLocal)) return [qsTr("Play")]
         var out=[sheet.mode === "play" ? "Play" : "Choose source", "Copy link"]
         if (sheet.mode === "play" && typeof Download !== "undefined") out.push("Download")
         return out
@@ -294,9 +350,13 @@ Item {
     }
 
     function show(type, id, lbl, context, pickMode) {
+        sheet.vaultLocalRows = [];
+        sheet.homeServerProfileGeneration = -1;
+        sheet.homeServerRows = [];
         sheet.smartPlayCancelled = true;
         sheet.smartPlayRow = null;
         sheet.smartPlaySettled = false;
+        sheet.smartPickInPlayer = false;
         sheet.refreshSmartPlayQuality();
         sheet.cancelNuvio();
         sheet.closeSourceContext(false);
@@ -323,11 +383,22 @@ Item {
         sheet.refreshTitleQueued();
         sheet.loading = true;
         sheet.smartPlayCancelled = false;
+        sheet.smartPickInPlayer = sheet.smartPlayEnabled;
         sheet.open = true;
         sheet.gen += 1;
-        Qt.callLater(function(){ sourcesBack.forceActiveFocus(Qt.PopupFocusReason) });
+        sheet.homeServerProfileGeneration = sheet.homeServerSourceService ? sheet.homeServerSourceService.profileGeneration : -1;
+        sheet.refreshHomeServerRows();
+        sheet.refreshVaultLocalRows();
+        // Local copies retain their existing explicit-choice protection.
+        if (sheet.smartPlayCancelled) sheet.smartPickInPlayer = false;
+        if (sheet.smartPickInPlayer)
+            sheet.smartPickStarted(sheet.title, sheet.backdropUrl, sheet.subType, sheet.subId, sheet.playbackContext);
+        Qt.callLater(function(){ if (sheet.open && !sheet.smartPickInPlayer) sourcesBack.forceActiveFocus(Qt.PopupFocusReason) });
         var myGen = sheet.gen;
         timeout.restart();
+        smartGraceTimer.stop();
+        sheet.smartPickGraceElapsed = false;
+        if (sheet.smartPlayEnabled) smartCapTimer.restart(); else smartCapTimer.stop();
 
         var installedList = sheet.extensionsService ? sheet.extensionsService.installed() : [];
 
@@ -360,6 +431,7 @@ Item {
         var selected = sheet.nuvioRows.length ? sheet.visibleRows[list.currentIndex] : null;
         sheet.rows = rows;
         if (selected && selected.nuvio) list.currentIndex = sheet.visibleRows.indexOf(selected);
+        sheet.smartPickAnswered();
     }
 
     function startNuvio(type, id, context) {
@@ -400,13 +472,65 @@ Item {
                 batch.push(row);
             }
             sheet.nuvioRows = sheet.nuvioRows.concat(batch);
+            if (batch.length) sheet.smartPickAnswered();
         }
         function onFinished(requestId) {
             if (requestId === sheet.nuvioRequestId) sheet.nuvioRequestId = 0;
         }
     }
 
-    onOpenChanged: if (!sheet.open) sheet.cancelNuvio()
+    function refreshVaultLocalRows() {
+        sheet.vaultLocalRows = sheet.open && sheet.mode === "play"
+            ? LocalLibrarySources.sources(sheet.vaultLibraryService, sheet.subType, sheet.subId, sheet.playbackContext) : []
+        // Keep copies selectable and never auto-launch a remote source over them.
+        if (sheet.vaultLocalRows.length) {
+            sheet.smartPlayCancelled = true
+            sheet.smartPlayRow = null
+        }
+        if (sheet.extFilter === "vault-local" && !sheet.vaultLocalRows.length) sheet.extFilter = "all"
+        if (sheet.sourceContextRow && sheet.sourceContextRow.vaultLocal) sheet.closeSourceContext(false)
+    }
+    onVaultLibraryServiceChanged: sheet.refreshVaultLocalRows()
+    Connections {
+        target: sheet.vaultLibraryService
+        ignoreUnknownSignals: true
+        function onChanged() { sheet.refreshVaultLocalRows() }
+    }
+    function refreshHomeServerRows() {
+        if (!sheet.open || sheet.mode !== "play" || !sheet.homeServerSourceService
+                || sheet.homeServerProfileGeneration !== sheet.homeServerSourceService.profileGeneration) {
+            sheet.homeServerRows = [];
+            return;
+        }
+        var identity = Object.assign({}, sheet.playbackContext || ({}));
+        identity.type = sheet.subType;
+        identity.id = sheet.subId;
+        sheet.homeServerRows = sheet.homeServerSourceService.sources(identity) || [];
+        if (sheet.extFilter.indexOf("home-server:") === 0
+                && !sheet.homeServerRows.some(row => sheet.providerKey(row) === sheet.extFilter))
+            sheet.extFilter = "all";
+    }
+    onHomeServerSourceServiceChanged: { sheet.homeServerRows = []; sheet.homeServerProfileGeneration = -1 }
+    onSubTypeChanged: { sheet.refreshHomeServerRows(); sheet.refreshVaultLocalRows() }
+    onSubIdChanged: { sheet.refreshHomeServerRows(); sheet.refreshVaultLocalRows() }
+    onPlaybackContextChanged: { sheet.refreshHomeServerRows(); sheet.refreshVaultLocalRows() }
+    onModeChanged: { sheet.refreshHomeServerRows(); sheet.refreshVaultLocalRows() }
+    Connections {
+        target: sheet.homeServerSourceService
+        function onChanged() { sheet.refreshHomeServerRows() }
+        function onProfileChanged() {
+            sheet.homeServerProfileGeneration = -1;
+            sheet.homeServerRows = [];
+            if (sheet.extFilter.indexOf("home-server:") === 0) sheet.extFilter = "all";
+            sheet.closeSourceContext(false);
+        }
+    }
+    onOpenChanged: if (!sheet.open) {
+        sheet.vaultLocalRows = [];
+        sheet.cancelNuvio();
+        sheet.homeServerRows = [];
+        sheet.homeServerProfileGeneration = -1;
+    }
     Component.onDestruction: sheet.cancelNuvio()
 
     // Torrent warm-up (2026-07-31). The 2026-07-30 server warm-up starts the ENGINE
@@ -419,6 +543,8 @@ Item {
     // Bounded to ONE row on purpose — warming all of them would open a swarm per row.
     property string warmedHash: ""
     function warmTopRow() {
+        if (!sheet.open) return;
+        if (sheet.mode === "play" && sheet.vaultLocalRows.length && (sheet.extFilter === "all" || sheet.extFilter === "vault-local")) return;
         if (typeof Stream === "undefined" || sheet.mode === "download") return;
         var rows = sheet.smartPlayRow ? [sheet.smartPlayRow] : sheet.filteredRows();
         for (var i = 0; i < rows.length; ++i) {
@@ -460,12 +586,16 @@ Item {
 
     function hide() {
         sheet.gen += 1;
+        if (sheet.smartPickInPlayer) sheet.cancelNuvio();
         sheet.closeSourceContext(false);
         sheet.extMenuOpen = false;
+        sheet.smartPickInPlayer = false;
         sheet.open = false;
         sheet.smartPlayCancelled = true;
         sheet.smartPlayRow = null;
         timeout.stop();
+        smartGraceTimer.stop();
+        smartCapTimer.stop();
         var target=sheet.focusReturnItem; sheet.focusReturnItem=null
         if(target) Qt.callLater(function(){ if(target.visible&&target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
     }
@@ -473,7 +603,10 @@ Item {
     // the mode's row universe: season mode sees only full-season torrents,
     // everything else sees the raw answer. Quality pills filter on top of this.
     function baseRows() {
-        if (sheet.mode !== "season") return sheet.nuvioRows.length ? sheet.rows.concat(sheet.nuvioRows) : sheet.rows;
+        if (sheet.mode !== "season") {
+            var providers = sheet.nuvioRows.length ? sheet.rows.concat(sheet.nuvioRows) : sheet.rows;
+            return sheet.mode === "play" ? sheet.vaultLocalRows.concat(sheet.homeServerRows, providers) : providers;
+        }
         var out = [];
         for (var i = 0; i < sheet.rows.length; ++i)
             if (AddonClient.isSeasonPack(sheet.rows[i], sheet.pickSeason)) out.push(sheet.rows[i]);
@@ -491,6 +624,8 @@ Item {
     }
 
     function providerKey(row) {
+        if (row.vaultLocal) return "vault-local";
+        if (row.homeServer) return "home-server:" + row.connectionId;
         return row.nuvio ? "nuvio" : "stremio:" + (row.addonName || "?");
     }
 
@@ -501,19 +636,23 @@ Item {
         var nuvio = { key: "nuvio", label: qsTr("Nuvio"), count: 0 };
         var byKey = ({ nuvio: nuvio });
         var stremio = [];
+        var homeServers = [];
+        var localCopies = [];
         for (var i = 0; i < base.length; ++i) {
             var row = base[i];
             var key = providerKey(row);
             if (!byKey[key]) {
                 var option = { key: key, label: row.addonName || "?", count: 0 };
                 byKey[key] = option;
-                stremio.push(option);
+                if (row.vaultLocal) localCopies.push(option);
+                else if (row.homeServer) homeServers.push(option);
+                else stremio.push(option);
             }
             ++byKey[key].count;
         }
         if (nuvio.count && byKey["stremio:Nuvio"])
             byKey["stremio:Nuvio"].label = qsTr("Nuvio (Stremio)");
-        return (nuvio.count ? [all, nuvio] : [all]).concat(stremio);
+        return [all].concat(localCopies, homeServers, nuvio.count ? [nuvio] : [], stremio);
     }
 
     function filteredRows() {
@@ -537,6 +676,7 @@ Item {
     function chipText(q) { return q === "all" ? "All" : q; }
 
     function streamTypeText(row) {
+        if (row.vaultLocal) return "Local · Your copy";
         return (row.streamKind || "Torrent") + " · " + (row.streamLabel || "P2P stream");
     }
 
@@ -591,6 +731,20 @@ Item {
         return p.join("   ·   ");
     }
 
+    Timer {
+        id: smartGraceTimer
+        objectName: "smartPickGraceTimer"
+        interval: sheet.smartPickGraceMs
+        repeat: false
+        onTriggered: { sheet.smartPickGraceElapsed = true; sheet.finishSmartPlay(true, true) }
+    }
+    Timer {
+        id: smartCapTimer
+        objectName: "smartPickCapTimer"
+        interval: sheet.smartPickCapMs
+        repeat: false
+        onTriggered: sheet.finishSmartPlay(true)
+    }
     Timer {
         id: timeout
         objectName: "sourcesTimeout"
@@ -652,16 +806,6 @@ Item {
         x: sheet.phoneLayout ? 16 : sheet.headerOuterMargin
         y: sheet.compactHeight ? 12 : (bannerStrip.compact ? 20 : 30); z: 20
         onTriggered: sheet.hide()
-    }
-
-    SmartPickingScreen {
-        objectName: "smartPickingScreen"
-        anchors.fill: parent
-        z: 10
-        visible: sheet.smartPicking
-        enabled: visible
-        allowManual: !sheet.smartPlaySettled
-        onManualRequested: sheet.chooseSourceManually()
     }
 
     // ---- title block, pinned to the bottom of the banner ----
@@ -740,6 +884,7 @@ Item {
             width: sheet.phoneLayout ? Math.max(0, topBar.width - x - 48) : implicitWidth
             elide: sheet.phoneLayout ? Text.ElideRight : Text.ElideNone
             text: sheet.providerOptions.find(option => option.key === sheet.extFilter)?.label ?? qsTr("All")
+            textFormat: sheet.extFilter.indexOf("home-server:") === 0 ? Text.PlainText : Text.AutoText
             color: sheet.extFilter === "all" ? theme.ink : theme.gold
             font.family: theme.ui; font.pixelSize: sheet.phoneLayout ? 18 : 22
         }
@@ -866,16 +1011,14 @@ Item {
             Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.edge }
         }
 
-        Text {
-            id: emptyText
-            objectName: "sourcesSheetEmptyText"
+        SourceExtensionPrompt {
             anchors.centerIn: parent
-            anchors.verticalCenterOffset: extensionsAction.visible ? -((extensionsAction.height + 12) / 2) : 0
             visible: sheet.visibleRows.length === 0
             width: Math.max(0, table.width - 36)
-            wrapMode: Text.WordWrap
-            horizontalAlignment: Text.AlignHCenter
-            text: sheet.smartPlayStatus || (sheet.loading ? "Finding sources…"
+            namePrefix: "sourcesSheet"
+            androidHost: sheet.androidHost
+            phoneLayout: sheet.phoneLayout
+            message: sheet.smartPlayStatus || (sheet.loading ? "Finding sources…"
                   : sheet.nuvioPending ? qsTr("Finding Nuvio sources…")
                   : (sheet.timedOut ? "Sources timed out. Try again."
                      : (sheet.askedCount === 0 && !sheet.nuvioAsked
@@ -883,46 +1026,13 @@ Item {
                             ? "No stream extension carries this title — add one on the Extensions page."
                             : "No stream source is enabled for this title. Enable one in Extensions.")
                         : "No sources found.")))
-            color: sheet.timedOut ? "#e6a3a3" : theme.inkDim
-            font.family: theme.ui; font.pixelSize: sheet.phoneLayout ? 15 : 16
-        }
-
-        Rectangle {
-            id: extensionsAction
-            objectName: "sourcesSheetExtensionsRoute"
-            visible: sheet.open && sheet.mode === "play" && !sheet.loading && !sheet.nuvioPending && !sheet.timedOut
+            messageColor: sheet.timedOut ? "#e6a3a3" : theme.inkDim
+            actionVisible: sheet.open && sheet.mode === "play" && !sheet.loading && !sheet.nuvioPending && !sheet.timedOut
                      && sheet.rowCount === 0 && (!sheet.androidHost || sheet.askedCount === 0)
-            anchors.top: emptyText.bottom
-            anchors.topMargin: 12
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: Math.max(112, extensionsActionLabel.implicitWidth + 32)
-            height: sheet.phoneLayout ? 48 : 44
-            radius: height / 2
-            color: extensionsActionKeyboard.interactionActive ? theme.glassHi : "transparent"
-            border.width: 1
-            border.color: theme.gold
-            Text {
-                id: extensionsActionLabel
-                objectName: "sourcesSheetExtensionsLabel"
-                anchors.centerIn: parent
-                text: sheet.androidHost ? "Extensions" : "Find sources by adding extensions"
-                color: theme.gold
-                font.family: theme.ui
-                font.pixelSize: 13
-                font.weight: Font.DemiBold
-            }
-            KeyboardAction {
-                id: extensionsActionKeyboard
-                objectName: "sourcesSheetExtensionsAction"
-                anchors.fill: parent
-                visible: extensionsAction.visible
-                accessibleName: extensionsActionLabel.text
-                focusRadius: parent.radius
-                onTriggered: {
-                    var browseMoreSources = sheet.askedCount > 0 || sheet.nuvioAsked
-                    sheet.hide()
-                    sheet.openExtensionsRequested(browseMoreSources)
-                }
+            onOpenExtensionsRequested: {
+                var browseMoreSources = sheet.askedCount > 0 || sheet.nuvioAsked
+                sheet.hide()
+                sheet.openExtensionsRequested(browseMoreSources)
             }
         }
 
@@ -932,6 +1042,7 @@ Item {
             anchors.left: parent.left; anchors.right: parent.right
             anchors.top: tableHead.bottom; anchors.bottom: parent.bottom
             anchors.topMargin: 4; anchors.bottomMargin: 8
+            bottomMargin: Math.max(0, sheet.dockClearance - sheet.tableBottomMargin - 8)
             clip: true
             visible: !sheet.smartPicking && sheet.visibleRows.length > 0
             enabled: !sheet.smartPicking
@@ -1019,7 +1130,7 @@ Item {
                     id: desktopContent
                     visible: !sheet.phoneLayout
                     anchors.left: logo.right; anchors.leftMargin: 24
-                    anchors.right: dlBtn.visible ? dlBtn.left : copyBtn.left
+                    anchors.right: dlBtn.visible ? dlBtn.left : copyBtn.visible ? copyBtn.left : play.left
                     anchors.rightMargin: 20
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: row.modelData.nuvio ? 5 : 7
@@ -1028,6 +1139,8 @@ Item {
                         visible: !row.modelData.nuvio
                         spacing: 12
                         Text { text: row.modelData.addonName; color: theme.ink
+                            objectName: "sourceProviderWide_" + row.index
+                            textFormat: (row.modelData.homeServer || row.modelData.vaultLocal) ? Text.PlainText : Text.AutoText
                             font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
                             anchors.verticalCenter: parent.verticalCenter }
                         Text { text: row.modelData.qualityLine || row.modelData.quality
@@ -1046,6 +1159,8 @@ Item {
                     Text {
                         width: parent.width
                         text: row.modelData.release
+                        objectName: "sourceReleaseWide_" + row.index
+                        textFormat: (row.modelData.homeServer || row.modelData.vaultLocal) ? Text.PlainText : Text.AutoText
                         color: theme.ink; font.family: theme.ui; font.pixelSize: 14; elide: Text.ElideRight
                     }
                     Text {
@@ -1063,7 +1178,7 @@ Item {
                     Row {
                         spacing: 8
                         visible: row.modelData.audio !== undefined
-                        Text { text: row.modelData.audio; color: theme.ink
+                        Text { text: row.modelData.audio || ""; color: theme.ink
                             font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
                             anchors.verticalCenter: parent.verticalCenter }
                         Repeater {
@@ -1119,9 +1234,6 @@ Item {
 
                 MouseArea {
                     id: rowMa; anchors.fill: parent; hoverEnabled: true
-                    ToolTip.text: sheet.mode === "play" ? qsTr("Play source") : qsTr("Download source")
-                    ToolTip.visible: containsMouse && mouseX >= play.x && mouseX < play.x + play.width && mouseY >= play.y && mouseY < play.y + play.height
-                    ToolTip.delay: 350
                     visible: !sheet.phoneLayout
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
@@ -1137,7 +1249,8 @@ Item {
                 // it stacks ABOVE it — copy clicks never fall through into playback.
                 Rectangle {
                     id: copyBtn
-                    visible: !sheet.phoneLayout
+                    objectName: "sourceCopyWide_" + row.index
+                    visible: !sheet.phoneLayout && !row.modelData.homeServer && !row.modelData.vaultLocal
                     anchors.right: play.left; anchors.rightMargin: 14
                     anchors.verticalCenter: parent.verticalCenter
                     width: 40; height: 40; radius: 20
@@ -1151,9 +1264,6 @@ Item {
                     }
                     MouseArea {
                         id: copyMa; anchors.fill: parent; hoverEnabled: true
-                        ToolTip.text: row.copiedTick ? qsTr("Source link copied") : qsTr("Copy source link")
-                        ToolTip.visible: containsMouse
-                        ToolTip.delay: 350
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
                             list.currentIndex = row.index
@@ -1170,7 +1280,8 @@ Item {
                 // the sheet; the tick is per-TITLE, not per-row — see titleQueued above.
                 Rectangle {
                     id: dlBtn
-                    visible: !sheet.phoneLayout && sheet.mode === "play" && typeof Download !== "undefined"
+                    objectName: "sourceDownloadWide_" + row.index
+                    visible: !sheet.phoneLayout && !row.modelData.homeServer && !row.modelData.vaultLocal && sheet.mode === "play" && typeof Download !== "undefined"
                     anchors.right: copyBtn.left; anchors.rightMargin: 14
                     anchors.verticalCenter: parent.verticalCenter
                     width: 40; height: 40; radius: 20
@@ -1184,9 +1295,6 @@ Item {
                     }
                     MouseArea {
                         id: dlMa; anchors.fill: parent; hoverEnabled: true
-                        ToolTip.text: sheet.titleQueued ? qsTr("Download queued") : qsTr("Download source")
-                        ToolTip.visible: containsMouse
-                        ToolTip.delay: 350
                         cursorShape: sheet.titleQueued ? Qt.ArrowCursor : Qt.PointingHandCursor
                         onClicked: {
                             list.currentIndex = row.index
@@ -1235,6 +1343,8 @@ Item {
                             Text {
                                 width: parent.width
                                 text: row.modelData.addonName || ""
+                                objectName: "sourceProviderPhone_" + row.index
+                                textFormat: (row.modelData.homeServer || row.modelData.vaultLocal) ? Text.PlainText : Text.AutoText
                                 color: theme.ink; font.family: theme.ui
                                 font.pixelSize: 15; font.weight: Font.DemiBold
                                 wrapMode: Text.WrapAnywhere
@@ -1261,6 +1371,8 @@ Item {
                     Text {
                         width: parent.width
                         text: row.modelData.release || ""
+                        objectName: "sourceReleasePhone_" + row.index
+                        textFormat: (row.modelData.homeServer || row.modelData.vaultLocal) ? Text.PlainText : Text.AutoText
                         color: theme.ink; font.family: theme.ui; font.pixelSize: 14
                         wrapMode: Text.WrapAnywhere
                         maximumLineCount: 2; elide: Text.ElideRight
@@ -1338,10 +1450,6 @@ Item {
                             MouseArea {
                                 objectName: "sourcePlay_" + row.index
                                 anchors.fill: parent
-                                ToolTip.text: sheet.mode === "play" ? qsTr("Play source") : qsTr("Download source")
-                                ToolTip.visible: mobilePlayHover.hovered
-                                ToolTip.delay: 350
-                                HoverHandler { id: mobilePlayHover }
                                 onClicked: {
                                     list.currentIndex = row.index
                                     list.forceActiveFocus(Qt.MouseFocusReason)
@@ -1350,6 +1458,7 @@ Item {
                             }
                         }
                         Rectangle {
+                            visible: !row.modelData.homeServer && !row.modelData.vaultLocal
                             width: 48; height: 48; radius: 24
                             color: Qt.rgba(1, 1, 1, 0.05)
                             border.width: 1; border.color: theme.edge
@@ -1362,10 +1471,6 @@ Item {
                             MouseArea {
                                 objectName: "sourceCopy_" + row.index
                                 anchors.fill: parent
-                                ToolTip.text: row.copiedTick ? qsTr("Source link copied") : qsTr("Copy source link")
-                                ToolTip.visible: mobileCopyHover.hovered
-                                ToolTip.delay: 350
-                                HoverHandler { id: mobileCopyHover }
                                 onClicked: {
                                     list.currentIndex = row.index
                                     list.forceActiveFocus(Qt.MouseFocusReason)
@@ -1374,7 +1479,7 @@ Item {
                             }
                         }
                         Rectangle {
-                            visible: sheet.mode === "play" && typeof Download !== "undefined"
+                            visible: !row.modelData.homeServer && !row.modelData.vaultLocal && sheet.mode === "play" && typeof Download !== "undefined"
                             width: 48; height: 48; radius: 24
                             color: Qt.rgba(1, 1, 1, 0.05)
                             border.width: 1; border.color: theme.edge
@@ -1387,10 +1492,6 @@ Item {
                             MouseArea {
                                 objectName: "sourceDownload_" + row.index
                                 anchors.fill: parent
-                                ToolTip.text: sheet.titleQueued ? qsTr("Download queued") : qsTr("Download source")
-                                ToolTip.visible: mobileDownloadHover.hovered
-                                ToolTip.delay: 350
-                                HoverHandler { id: mobileDownloadHover }
                                 onClicked: {
                                     list.currentIndex = row.index
                                     list.forceActiveFocus(Qt.MouseFocusReason)
@@ -1530,6 +1631,8 @@ Item {
                             anchors.left: parent.left; anchors.leftMargin: 28
                             anchors.verticalCenter: parent.verticalCenter
                             text: extOpt.modelData.label
+                            objectName: "extPickLabel_" + extOpt.index
+                            textFormat: extOpt.modelData.key.indexOf("home-server:") === 0 ? Text.PlainText : Text.AutoText
                             color: extOpt.on ? theme.gold : theme.ink
                             font.family: theme.ui; font.pixelSize: 16
                             font.weight: extOpt.on ? Font.DemiBold : Font.Normal

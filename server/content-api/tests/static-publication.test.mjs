@@ -61,6 +61,35 @@ test('public graph is hash-addressed, preserves old Worker results and shares on
  const doc=JSON.parse(docRaw);assert.equal(doc.data.image,'https://provider.example/cover.jpg');
  const headers=readFileSync(join(f.output,'_headers'),'utf8');assert.match(headers,/max-age=31536000, immutable/);assert.match(headers,/max-age=60, must-revalidate/);
 });
+test('AudioSilo contributes only verified reachable shards and keeps old clients on the same source', t => {
+ const f = fixture(t), audio = join(f.root,'audio'), entries = [];
+ const shard = value => {
+  const raw = JSON.stringify(value), path = '/internal/audiobooks/' + hash(raw) + '.json';
+  entries.push({path,bytes:Buffer.byteLength(raw)});
+  f.write(audio,path,raw);
+  return path;
+ };
+ const work = {'dune':{id:'dune',title:'Dune'}};
+ const leaf = shard(work), layout = shard({records:{work:leaf}});
+ const original = buildPublicCatalogue({...f,previous:f.content});
+ const output = join(f.root,'with-audio');
+ f.write(audio,'audiobook-static-report.json',JSON.stringify({
+  contract:'audiosilo-static-v1',date:'2026-10-15',layout,entries,
+  provenance:{sha256:'4'.repeat(64),snapshot:'fixture',rows:{works:1}}
+ }));
+ const combined = buildPublicCatalogue({...f,output,previous:f.content,audiobooks:audio});
+ const index = JSON.parse(readFileSync(join(output,combined.index.path)));
+ assert.equal(combined.sourceRevision,original.sourceRevision);
+ assert.notEqual(combined.revision,original.revision);
+ assert.equal(combined.files,original.files+entries.length);
+ assert.equal(index.audiobooks.version,1);
+ const publicLayout = JSON.parse(readFileSync(join(output,index.audiobooks.path)));
+ assert.deepEqual(JSON.parse(readFileSync(join(output,publicLayout.records.work))),work);
+ assert.ok(publicLayout.records.work.startsWith('/catalogue/' + combined.revision + '/shared/'));
+ f.write(audio,leaf,'corrupted');
+ assert.throws(() => buildPublicCatalogue({...f,output:join(f.root,'damaged'),previous:f.content,
+  audiobooks:audio}), /AUDIOBOOK_STATIC_HASH/);
+});
 test('deterministic generation; changed content yields a new immutable publication revision',t=>{
  const f=fixture(t),one=buildPublicCatalogue({source:f.source,content:f.content,previous:f.content,output:f.output});
  const two=buildPublicCatalogue({source:f.source,content:f.content,previous:f.content,output:join(f.root,'second')});assert.equal(one.revision,two.revision);assert.equal(one.index.sha256,two.index.sha256);

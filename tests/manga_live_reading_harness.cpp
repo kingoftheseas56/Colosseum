@@ -1,5 +1,7 @@
 // Real MangaDownloader with deterministic network replies; no live providers or user data.
 #include "engine/MangaDownloader.h"
+#include "engine/CbzArchive.h"
+#include "engine/DownloadMediaPaths.h"
 #include <QBuffer>
 #include <QCoreApplication>
 #include <QImage>
@@ -14,6 +16,7 @@
 #include <QPointer>
 #include <QStandardPaths>
 #include <QTimer>
+#include <QTemporaryDir>
 #include <QThreadPool>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -354,12 +357,90 @@ int main(int argc, char** argv) {
                   "permanent Download copies existing live pages instead of fetching them again");
             CHECK(d.localPages(id).size() == 18, "permanent completion contains every page");
             CHECK(waitFor([&] { return QFile::exists(data + "/manga/index.json"); }), "only explicit Download publishes the permanent index");
+            const QVariantMap first = d.localPages(id).value(0).toMap();
+            const QString archive = first.value("archive").toString();
+            CHECK(archive.endsWith(".cbz") && QFileInfo(archive).isFile(), "completed chapter is a single CBZ");
+            CHECK(first.value("entry").toString() == "page_000.png", "reader receives the first archive entry");
+            CHECK(MangaTankoban::CbzArchive::readEntry(archive, "page_000.png") == image(),
+                  "the first archived page matches the original image bytes");
+            CHECK(first.value("url").toString().startsWith("image://comiccover/"),
+                  "chapter thumbnails can still read the first page");
+            const auto managed = d.managedDownloadItems();
+            CHECK(managed.size() == 1 && managed.value(0).source == archive
+                      && managed.value(0).members.isEmpty()
+                      && managed.value(0).relativeDestination == "Manga/Fixture/Chapter 1.cbz",
+                  "move preview treats a chapter as one readable CBZ file");
+            MangaDownloader reopened(&nam);
+            CHECK(reopened.localPages(id) == d.localPages(id), "relaunch preserves the CBZ reader manifest");
+            CHECK(reopened.deleteChapter(id).value("success").toBool() && !QFileInfo::exists(archive),
+                  "deleting a chapter removes the CBZ");
         }
     }
     failureAndRetry();
     cancellationAndArbitration();
     QThreadPool::globalInstance()->waitForDone();
     cacheLifecycle(cache);
+    QThreadPool::globalInstance()->waitForDone();
+    {
+        QTemporaryDir sandbox;
+        CHECK(sandbox.isValid(), "managed chapter uses an isolated download root");
+        const QString root = sandbox.filePath("Colosseum");
+        const QString archive = root + "/Manga/Fixture/Chapter 2.cbz";
+        DownloadMediaPaths::install(root, {}, {});
+        Nam nam;
+        MangaDownloader downloader(&nam, nullptr, [](const QString&, MangaImageHostResolver::LookupDone done) {
+            done(QStringLiteral("203.0.113.10"));
+        });
+        const QString id = "managed-chapter";
+        downloader.downloadChapter(id, "series", "Fixture", "Chapter 2");
+        CHECK(waitFor([&] { return nam.active > 0; }), "managed chapter starts its page downloads");
+        for (int turn = 0; turn < 10 && !downloader.isDownloaded(id); ++turn) {
+            nam.finishImages();
+            waitFor([&] { return nam.active > 0 || downloader.isDownloaded(id); }, 3000);
+        }
+        CHECK(downloader.localPages(id).value(0).toMap().value("archive") == archive,
+              "managed chapter publishes a readable CBZ path under the selected root");
+        const auto entries = MangaTankoban::CbzArchive::imageEntries(archive);
+        CHECK(entries.size() == 18 && entries.value(17).name == "page_017.png",
+              "managed archive contains every page in order");
+        CHECK(waitFor([&] { return !QFileInfo::exists(root + "/Manga/Fixture/Chapter 2"); }),
+              "finished chapter cleans up its staging folder after saving the index");
+
+        const QString movedRoot = sandbox.filePath("Moved/Colosseum");
+        const QString movedArchive = movedRoot + "/Manga/Fixture/Chapter 2.cbz";
+        CHECK(QDir().mkpath(QFileInfo(movedArchive).absolutePath()) && QFile::rename(archive, movedArchive),
+              "relocation fixture moves the archive");
+        DownloadMediaPaths::install(movedRoot, {}, {{DownloadMediaPaths::pathKey(archive), movedArchive}});
+        downloader.refreshDownloadPaths();
+        CHECK(downloader.localPages(id).value(0).toMap().value("archive") == movedArchive,
+              "the reader follows the moved archive");
+        CHECK(downloader.deleteChapter(id).value("success").toBool() && !QFileInfo::exists(movedArchive),
+              "deletion follows the moved archive");
+        CHECK(waitFor([&] {
+            QFile index(data + "/manga/index.json");
+            return index.open(QIODevice::ReadOnly)
+                && !QJsonDocument::fromJson(index.readAll()).object().value("entries").toObject().contains(id);
+        }), "deletion persists in the chapter index");
+
+        const QString indexPath = data + "/manga/index.json";
+        CHECK(QFile::remove(indexPath) && QDir().mkdir(indexPath),
+              "index failure fixture prevents an atomic file commit");
+        const QString failedId = "unindexed-chapter";
+        bool failed = false;
+        QObject::connect(&downloader, &MangaDownloader::failed, &downloader,
+                         [&](const QString& chapterId, const QString&) { failed |= chapterId == failedId; });
+        downloader.downloadChapter(failedId, "series", "Fixture", "Chapter 3");
+        CHECK(waitFor([&] { return nam.active > 0; }), "index failure fixture starts downloading");
+        for (int turn = 0; turn < 10 && !failed; ++turn) {
+            nam.finishImages();
+            waitFor([&] { return nam.active > 0 || failed; }, 3000);
+        }
+        const QString failedPath = movedRoot + "/Manga/Fixture/Chapter 3";
+        CHECK(failed && !downloader.isDownloaded(failedId) && !QFileInfo::exists(failedPath + ".cbz"),
+              "failed index write rolls back the archive and completed state");
+        CHECK(QDir(failedPath).entryList({"*.png"}, QDir::Files).size() == 18,
+              "failed index write keeps all the staged pages");
+    }
     QThreadPool::globalInstance()->waitForDone();
     QDir(cache).removeRecursively(); QDir(data).removeRecursively();
     if (!failures) std::puts("MANGA_LIVE_READING_OK");

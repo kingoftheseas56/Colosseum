@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Window
 import QtTest
 import "../../qml/vinyl" as Vinyl
@@ -489,7 +490,7 @@ TestCase {
         verify(item("vinylBarNotes").iconSource.toString().endsWith("genius.png"));
         var collection=item("vinylSongAddToCollections");
         compare(collection.labelText,"Add to Collection");
-        verify(!collection.hoverDescriptionEnabled);
+        verify(!collection.ToolTip.visible);
         compare(collection.objectName,"vinylSongAddToCollections");
     }
 }

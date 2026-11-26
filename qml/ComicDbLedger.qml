@@ -12,6 +12,7 @@
 import QtQuick
 import QtQuick.Controls
 import "ComicResolve.js" as Resolve
+import "ExtensionsCatalog.js" as ExtensionCatalog
 import "collections" as CollectionsUi
 import "CollectionsReferences.js" as CollectionsReferences
 
@@ -20,6 +21,10 @@ Item {
     objectName: "comicDbLedger"
     // Canonical comic downloader facade (injectable for host fixtures).
     property var comicsApi: typeof Comics !== "undefined" ? Comics : null
+    property var extensionsRef: typeof Extensions !== "undefined" ? Extensions : null
+    readonly property bool getComicsEnabled:
+        ExtensionCatalog.sourceEnabled(ledger.extensionsRef, "colosseum.well.getcomics.issues")
+    signal openExtensionsRequested()
 
     property var    theme                       // injected from ComicSeriesPage
     property var    dbSeries: null              // ComicsDb series record { title, publisher, cover, editions[] }
@@ -112,6 +117,7 @@ Item {
     }
     Column {
         id: col
+
         width: ledger.contentWidth
         spacing: 0
 
@@ -171,6 +177,13 @@ Item {
             }
         }
         Rectangle { width: parent.width; height: 1; color: theme.edge }
+        SourceExtensionPrompt {
+            width: ledger.width
+            visible: !ledger.getComicsEnabled
+            namePrefix: "comicLedgerSource"
+            message: qsTr("No comic download source is enabled for this title. Enable one in Extensions.")
+            onOpenExtensionsRequested: ledger.openExtensionsRequested()
+        }
 
         // ================= FORMAT GROUPS =================
         Repeater {
@@ -243,6 +256,10 @@ Item {
                             if (dlState === "dead") return
                             if (dlState === "done") { ledger.readRequested(chId, String(ed.modelData.display_title || ed.modelData.title || "")); return }
                             if (inFlight) return
+                            if (!ledger.getComicsEnabled) {
+                                ledger.openExtensionsRequested()
+                                return
+                            }
                             ed.dlState = "queued"
                             var editionTitle = String(ed.modelData.display_title || ed.modelData.title || "")
                             ledger.comicsApi.downloadIssue(chId, postUrl, ledger.gcTag, ledger.seriesTitle,
@@ -457,9 +474,6 @@ Item {
                                 id: altMa; anchors.fill: parent; enabled: ed.canAlternate
                                 hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                 onClicked: ledger.alternateSourcesRequested(ed.modelData, ed.chId)
-                                ToolTip.visible: containsMouse
-                                ToolTip.text: "Find alternate sources"
-                                ToolTip.delay: 350
                             }
                             KeyboardAction {
                                 id: alternateSourcesKeyboard

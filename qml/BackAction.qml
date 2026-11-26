@@ -28,6 +28,7 @@ Item {
     // component at all, which is why its back control was hand-built and out of law.
     property bool raisedLabel: false
     readonly property bool iconOnly: variant !== "plain"
+    readonly property bool hasLabel: !iconOnly && label.length > 0
     readonly property bool hovered: input.hovered
     property alias focusOnPointer: input.focusOnPointer
     function focusControl(reason) { input.forceActiveFocus(reason === undefined ? Qt.TabFocusReason : reason); }
@@ -41,8 +42,8 @@ Item {
 
     implicitWidth: variant === "capsule" ? 42
                  : variant === "immersive" ? 34
-                 : chevron.width + (labelText.visible ? 9 + labelText.implicitWidth : 0) + 8
-    implicitHeight: Math.max(34, labelText.visible ? labelText.implicitHeight + 8 : 0)
+                 : chevron.width + (root.hasLabel ? 9 + labelText.implicitWidth : 0) + 8
+    implicitHeight: Math.max(34, root.hasLabel ? labelText.implicitHeight + 8 : 0)
     width: implicitWidth
     height: implicitHeight
 
@@ -113,7 +114,7 @@ Item {
 
         Text {
             id: labelText
-            visible: !root.iconOnly && root.label.length > 0
+            visible: root.hasLabel
             text: root.label
             color: root._c
             font.family: theme.ui
@@ -131,8 +132,6 @@ Item {
         // stretch the interactive target to ≥44px in both axes without moving the visuals
         anchors.margins: -Math.max(0, Math.ceil((44 - Math.min(root.width, root.height)) / 2))
         accessibleName: root.tip.length > 0 ? root.tip : root.label
-        tooltipText: root.tip.length > 0 || root.iconOnly || root.label.length === 0
-                     ? (accessibleName || qsTr("Back")) : ""
         focusRadius: root.variant === "capsule" ? root.height / 2 : 7
         onTriggered: root.triggered()
     }

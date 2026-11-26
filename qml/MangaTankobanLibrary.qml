@@ -46,11 +46,19 @@
 // inert-cursor status they carried in the pre-v2.3 vertical grid.
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Window
 import "MangaVolumes.js" as Vol
 
 Item {
     id: root
     objectName: "volumeShelf"
+    // The reading room may host these same actions outside its scrolling body.
+    property Item actionBarHost: null
+    AdaptiveLayout {
+        id: adaptive
+        objectName: "mangaShelfLayout"
+        androidHost: Qt.platform.os === "android" || !!(root.Window.window && root.Window.window.androidHost === true)
+    }
     property bool touchInput: Qt.platform.os === "android"
 
     property string seriesId: ""
@@ -546,7 +554,7 @@ Item {
     // ------------------------------------------------------------------
 
     readonly property int laneHeaderHeight: 44
-    readonly property int actionBarHeight: root.showVolumes ? 52 : 0
+    readonly property int actionBarHeight: root.showVolumes ? adaptive.mangaFooterHeight : 0
     readonly property int captionHeight: 54
     // The Cover-Flow current-item scale. Named so bookHeight's own budget and
     // scaleForIndex's centre case read from one source instead of restating 1.10 twice.
@@ -557,8 +565,10 @@ Item {
     // caption block and a small breathing margin; the current-item scale divides the whole
     // budget so the DRAWN size (height * currentItemScale) - not the base height - is what
     // actually has to fit.
-    readonly property int bookHeight: Math.max(190, Math.min(276,
-        Math.floor((flowViewport.height - root.captionHeight - 16) / root.currentItemScale)))
+    readonly property int bookHeight: root.actionBarHost
+        ? adaptive.mangaCoverHeight(flowViewport.height, root.captionHeight, root.currentItemScale)
+        : Math.max(190, Math.min(276,
+            Math.floor((flowViewport.height - root.captionHeight - 16) / root.currentItemScale)))
     readonly property int bookWidth: Math.round(root.bookHeight * 2 / 3)
     readonly property var currentRow:
         root.focusIndex >= 0 && root.focusIndex < root.volumeRows.length ? root.volumeRows[root.focusIndex] : null
@@ -701,7 +711,7 @@ Item {
         anchors.top: flowHead.bottom
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.bottom: actionBar.top
+        anchors.bottom: root.actionBarHost ? parent.bottom : actionBar.top
         visible: root.showVolumes
         clip: true
 
@@ -942,6 +952,8 @@ Item {
 
     Rectangle {
         id: actionBar
+        parent: root.actionBarHost ? root.actionBarHost : root
+        Keys.forwardTo: root.actionBarHost ? [root] : []
         anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
         height: root.actionBarHeight
         visible: height > 0
@@ -998,12 +1010,16 @@ Item {
                 MouseArea {
                     anchors.fill: parent
                     enabled: root.currentDownloadEnabled
+                    anchors.topMargin: -adaptive.targetInset(parent.height)
+                    anchors.bottomMargin: -adaptive.targetInset(parent.height)
                     hoverEnabled: true
                     cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onClicked: root.downloadAction(root.currentRow)
                 }
                 KeyboardAction {
                     id: actionDownloadKeyboard; anchors.fill: parent; pointerEnabled: false
+                    anchors.topMargin: -adaptive.targetInset(parent.height)
+                    anchors.bottomMargin: -adaptive.targetInset(parent.height)
                     focusEnabled: root.currentDownloadEnabled; accessibleName: "Download current volume"
                     focusRadius: parent.radius; onTriggered: root.downloadAction(root.currentRow)
                 }
@@ -1023,11 +1039,15 @@ Item {
                 MouseArea {
                     anchors.fill: parent
                     enabled: root.currentRow !== null
+                    anchors.topMargin: -adaptive.targetInset(parent.height)
+                    anchors.bottomMargin: -adaptive.targetInset(parent.height)
                     cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onClicked: root.activateCurrent()
                 }
                 KeyboardAction {
                     id: actionReadKeyboard; anchors.fill: parent; pointerEnabled: false
+                    anchors.topMargin: -adaptive.targetInset(parent.height)
+                    anchors.bottomMargin: -adaptive.targetInset(parent.height)
                     focusEnabled: root.currentRow !== null; accessibleName: root.currentActionLabel
                     focusRadius: parent.radius; onTriggered: root.activateCurrent()
                 }
