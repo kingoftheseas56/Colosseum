@@ -166,6 +166,7 @@ Item {
     property real headerTopInset: adaptive.topInset
     // Host-owned chrome can reserve the bottom of the viewport without changing desktop layout.
     property real contentBottomInset: 0
+    property real contentEndPadding: 0       // Extra scroll room for floating chrome, without clipping the viewport.
     property bool prominentScrollBar: false
     property bool glassScrollBar: false
 
@@ -299,7 +300,7 @@ Item {
         y: topbar.y + topbar.height + (world.televisionMode ? 18 : (adaptive.compactChrome ? 8 : 10))
         height: Math.max(0, world.height - y - world.contentBottomInset)
         contentWidth: width
-        contentHeight: board.implicitHeight + 50
+        contentHeight: board.implicitHeight + 50 + world.contentEndPadding
         clip: true
         pixelAligned: false
         flickableDirection: Flickable.VerticalFlick

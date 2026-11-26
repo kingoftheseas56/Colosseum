@@ -21,6 +21,10 @@ Item {
     readonly property real transportCenter: narrow ? width - 18 - transport.width / 2 : width / 2
     readonly property bool busy: pageData.sourceState === "finding" || pageData.sourceState === "retrying" || pageData.sourceState === "resolving"
     readonly property bool narrow: width < 900
+    readonly property real songHeight: narrow ? 164 : 104
+    readonly property bool compact: !narrow && page !== "song"
+    readonly property real identityTop: compact ? 8 : 13
+    readonly property real identitySize: compact ? 40 : 44
     readonly property bool torrentBusy: pageData.torrentBusy === true
     readonly property bool videoBusy: pageData.videoBusy === true
     readonly property bool videoShown: pageData.videoShown === true
@@ -32,7 +36,7 @@ Item {
     readonly property bool sourceSelectionEnabled: hasPlayingSong && !localSong && !videoShown && !videoBusy && (sourceReady || torrentBusy)
     readonly property bool showDismiss: allowDismiss && page !== "song" && hasPlayingSong
     readonly property real toolsLeft: width - 281 - (showDismiss ? 32 : 0)
-    readonly property real toolsTop: narrow ? 74 : 14
+    readonly property real toolsTop: narrow ? 74 : compact ? identityTop : 14
     property bool scrubbing: false
     property real previewPosition: 0
     property string scrubTrackKey: ""
@@ -56,7 +60,7 @@ Item {
     Theme {
         id: theme
     }
-    height: narrow ? 164 : 104
+    height: compact ? 76 : songHeight
     Glass {
         anchors.fill: parent
         backdrop: root.backdrop
@@ -161,9 +165,9 @@ Item {
         objectName: "vinylBarOpenSong"
         focusOnPointer: false
         x: 18
-        y: 13
-        width: 44
-        height: 44
+        y: root.identityTop
+        width: root.identitySize
+        height: width
         focusRadius: 6
         enabled: root.hasPlayingSong
         accessibleName: "Open playing song"
@@ -180,10 +184,10 @@ Item {
         readonly property string accessibleName: qsTr("Now playing: %1").arg(root.displayedSong.playingTrack.title)
         Accessible.role: Accessible.StaticText
         Accessible.name: accessibleName
-        x: 74
-        y: 13
+        x: 18 + root.identitySize + 12
+        y: root.identityTop
         width: Math.max(0, root.transportCenter - transport.width / 2 - 16 - x)
-        height: 44
+        height: root.identitySize
         Column {
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width
@@ -211,7 +215,7 @@ Item {
         id: transport
         objectName: "vinylBarTransport"
         x: root.transportCenter - width / 2
-        y: 15.5
+        y: root.identityTop + (root.identitySize - height) / 2
         spacing: 12
         KeyboardAction {
             objectName: "vinylBarPrev"
@@ -296,8 +300,10 @@ Item {
         }
         FocusRing { anchors.fill: parent; shown: seek.activeFocus; radius: 5 }
         x: 18 + Math.max(26, elapsedLabel.implicitWidth) + 11
-        y: root.narrow ? 128 : 69
-        width: Math.max(0, root.width - x - 18 - Math.max(26, totalTimeLabel.implicitWidth) - 11)
+        y: root.narrow ? 128 : root.compact ? 50 : 69
+        // A compact source notice shares this row; keep the duration to its left.
+        width: Math.max(0, (root.compact && sourceError.text.length ? sourceError.x - 12 : root.width - 18)
+            - x - Math.max(26, totalTimeLabel.implicitWidth) - 11)
         height: 22
         Rectangle {
             anchors.verticalCenter: parent.verticalCenter
@@ -486,9 +492,10 @@ Item {
         onTriggered: root.closeRequested()
     }
     Text {
+        id: sourceError
         objectName: "vinylBarSourceError"
         x: root.toolsLeft
-        y: root.toolsTop + 42
+        y: root.compact ? seek.y + (seek.height - height) / 2 : root.toolsTop + 42
         width: 263; height: 12
         text: root.pageData.torrentError || root.pageData.videoError || root.pageData.skippedNotice || ""
         color: theme.inkDim

@@ -24,7 +24,8 @@ Flickable {
     signal actionRequested(var ref, string action, int generation)
     clip: true
     contentWidth: width
-    contentHeight: Math.max(height, content.y + content.height + 40)
+    property real contentEndPadding: 0
+    contentHeight: Math.max(height, content.y + content.height + Math.max(40, contentEndPadding))
     boundsBehavior: Flickable.StopAtBounds
     Theme {
         id: theme

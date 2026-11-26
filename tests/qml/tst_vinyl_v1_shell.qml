@@ -89,6 +89,32 @@ TestCase {
             function openList(key,home){listRequested(key,home);}
         }
     }
+    Component {
+        id: floatingFooterFactory
+        Item {
+            id: footerHost
+            anchors.fill: parent
+            required property var shell
+            property real hostBottomInset: 80
+            property real dockBottomExtent: 80
+            property alias playerBar: player
+            Vinyl.VinylPageData { id: playback; frozen: true }
+            Vinyl.VinylPlayerBar {
+                id: player
+                x: 260; y: footerHost.height - height - 18
+                width: footerHost.width - x - 54
+                page: "home"; pageData: playback; backdrop: wallpaper
+                Component.onCompleted: playback.setFixture("thriller")
+            }
+            Vinyl.VinylScrollInsets {
+                viewportHeight: footerHost.height
+                hostBottomInset: footerHost.hostBottomInset
+                dockBottomExtent: footerHost.dockBottomExtent
+                playerBar: player
+                browseShell: footerHost.shell
+            }
+        }
+    }
     function card(kind,index){
         var id=kind+"-"+index;
         return {id:id,kind:kind,title:"Fixture "+index,artist:"Fixture artist",
@@ -150,6 +176,27 @@ TestCase {
         for(i=0;i<8;++i)verify(fits(findChild(crate,"vinylCrateTile_"+i)),"First-row Crate tile "+i+" including captions must fit");
         compare(tiles[0].y,tiles[7].y);compare(tiles[8].y,tiles[15].y);verify(tiles[8].y>tiles[0].y);
         verify(tiles[8].y>tiles[0].y,"Second Crate row sits below the first");
+    }
+    function test_homeScrollsUnderFloatingFooterAndEndsClearOfPlayer() {
+        var footer = createTemporaryObject(floatingFooterFactory, test, {shell:view});
+        verify(footer !== null);
+        var bar = footer.playerBar, flick = view.pageFlickable;
+        var lastRow = findChild(view, "vinylHomeRow_albums-for-you");
+        verify(lastRow && lastRow.visible);
+        verify(bar.visible && bar.hasPlayingSong);
+        compare(bar.height, 76);
+        compare(bar.y, 606);
+        compare(bounds(flick).bottom, height, "The player and desktop dock must not clip Home");
+        compare(view.contentEndPadding, height - bar.y + 14);
+        verify(flick.contentHeight > flick.height);
+        flick.contentY = flick.contentHeight - flick.height;
+        tryCompare(flick, "atYEnd", true);
+        verify(bounds(lastRow).bottom <= bar.y - 14, "The last Home row must scroll fully clear of the player");
+
+        footer.dockBottomExtent = 0;
+        footer.hostBottomInset = 56;
+        compare(bounds(flick).bottom, height - 56, "Non-floating host navigation still reserves space");
+        compare(view.contentEndPadding, height - 56 - bar.y + 14);
     }
     function test_02_heroThenTabsThenTabContent(){
         var hero=findChild(view,"vinylHero"),crate=findChild(view,"vinylCrate"),spin=findChild(view,"vinylSpin");

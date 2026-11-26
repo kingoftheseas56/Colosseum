@@ -33,7 +33,9 @@ Flickable {
     readonly property real mediaCardWidth: (bodyWidth - (mediaGridColumns - 1) * 23) / mediaGridColumns
 
     contentWidth: width
-    contentHeight: (selectedCategory === "" ? mainFlow.height : (body.y + fullCategory.height)) + 120
+    property real contentEndPadding: 0
+    contentHeight: (selectedCategory === "" ? mainFlow.height : (body.y + fullCategory.height))
+        + Math.max(120, contentEndPadding)
     clip: true
     boundsBehavior: Flickable.StopAtBounds
 

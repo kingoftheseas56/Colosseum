@@ -92,7 +92,8 @@ Flickable {
     }
     clip: true
     contentWidth: width
-    contentHeight: sections.y + sections.height + height * 0.85
+    property real contentEndPadding: 0
+    contentHeight: sections.y + sections.height + Math.max(height * 0.85, contentEndPadding)
     boundsBehavior: Flickable.StopAtBounds
     Keys.onPressed: event => {
         var target = contentY;

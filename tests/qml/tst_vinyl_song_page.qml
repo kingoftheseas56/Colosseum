@@ -108,7 +108,7 @@ TestCase {
         verify(!item('vinylBarVideo').enabled);
         verify(!item('vinylBarNotes').enabled);
         host.page = 'album';
-        compare(item('vinylPlayerBar').height, 104);
+        compare(item('vinylPlayerBar').height, 76);
     }
     function test_lyricsGeometryAndSeek() {
         var poster = item('vinylSongPoster');

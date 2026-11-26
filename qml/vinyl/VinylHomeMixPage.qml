@@ -21,7 +21,9 @@ Flickable {
     signal retryRequested()
     clip: true
     contentWidth: width
-    contentHeight: Math.max(height, tracks.y+tracks.height+48, info.y+info.height+48)
+    property real contentEndPadding: 0
+    contentHeight: Math.max(height, Math.max(tracks.y + tracks.height, info.y + info.height)
+        + Math.max(48, contentEndPadding))
     boundsBehavior: Flickable.StopAtBounds
     Theme { id: theme }
     ScrollGlide { flick: root }

@@ -81,12 +81,13 @@ Item {
     readonly property var searchPage: searchLayer.item
     readonly property real footerLeft: Math.max(theme.margin, shellDockRight > 0 ? shellDockRight + 12 : 0)
     property real contentBottomInset: 0
-    // Hold the status line's space only while it has something to say; an empty
-    // reserve showed as a black band between the page and the player bar.
+    // The song/video viewport and status row still reserve space above the player.
     readonly property bool statusRowShown: statusText.text.length > 0 || cancelImport.visible
         || retry.visible || catalogueRetry.visible || radioRetry.visible
+    readonly property real playerBottomMargin: 18
+    readonly property real playerContentGap: videoDisplayed || !statusRowShown ? 14 : 54
     readonly property real contentBottom: bar.visible
-        ? bar.y - (videoDisplayed || !statusRowShown ? 14 : 54)
+        ? bar.y - playerContentGap
         : height - Math.max(62, shellDockBottomExtent)
     readonly property bool worldVisible: canEnterVinyl
         ? ["home","songs","albums","artists","discover","library"].indexOf(page)>=0 : worldData.tastePickerOpen===true
@@ -963,7 +964,14 @@ Item {
     Binding { target: root.browseShell; property: "medium"; value: root.medium; when: root.browseShell !== null }
     Binding { target: root.browseShell; property: "backdrop"; value: root.chromeBackdrop; when: root.browseShell !== null }
     Binding { target: root.browseShell; property: "topBarObjectName"; value: root.browsingShell ? "vinylTopBar" : ""; when: root.browseShell !== null }
-    Binding { target: root.browseShell; property: "contentBottomInset"; value: bar.visible ? Math.max(root.contentBottomInset, root.height - root.contentBottom) : root.contentBottomInset; when: root.browseShell !== null }
+    VinylScrollInsets {
+        id: scrollInsets
+        viewportHeight: root.height
+        hostBottomInset: root.contentBottomInset
+        dockBottomExtent: root.shellDockBottomExtent
+        playerBar: bar
+        browseShell: root.browseShell
+    }
     Binding { target: root.browseShell; property: "topBarTrackersEnabled"; value: false; when: root.browseShell !== null }
     Binding { target: root.browseShell; property: "navigationEnabled"; value: root.canEnterVinyl; when: root.browseShell !== null }
     Binding { target: root.browseShell; property: "contentVisible"; value: root.worldVisible; when: root.browseShell !== null }
@@ -1003,11 +1011,12 @@ Item {
     }
     Loader {
         id:feedbackLayer
-        x:0;y:top.y+top.height+24;width:parent.width;height:Math.max(0,root.contentBottom-y)
+        x:0;y:top.y+top.height+24;width:parent.width;height:Math.max(0,scrollInsets.viewportBottom-y)
         active:root.canEnterVinyl && root.page==="feedback" && !!root.feedbackRequest
         visible:active
         sourceComponent: VinylRecommendationPage {
             request:root.feedbackRequest;worldData:root.worldData;backdrop:root.chromeBackdrop;error:root.feedbackError
+            contentEndPadding:scrollInsets.endPadding
             onBackRequested:root.goBack()
             onActionRequested:(ref,action,generation)=>root.applyRecommendationAction(ref,action,generation)
         }
@@ -1016,12 +1025,14 @@ Item {
         focusOnPointer: false
         id:albumBack;objectName:"vinylAlbumBack";x:theme.margin;y:top.y+top.height+24;height:44;label:"Back";visible:root.canEnterVinyl && root.page==="album";onTriggered:root.goBack();Keys.onReturnPressed:root.goBack();Keys.onEnterPressed:root.goBack()}
     VinylAlbumPage {
-        id:album;x:0;y:albumBack.y+albumBack.height+8;width:parent.width;height:Math.max(0,root.contentBottom-y)
+        id:album;x:0;y:albumBack.y+albumBack.height+8;width:parent.width;height:Math.max(0,scrollInsets.viewportBottom-y)
+        contentEndPadding:scrollInsets.endPadding
         visible:root.canEnterVinyl && root.page==="album";pageData:session;backdrop:root.chromeBackdrop;artistNavigationEnabled:true;shuffleEnabled:true;saveEnabled:true;scrollbarVisible:false;songNavigationEnabled:true;queueActionsEnabled:true
         onSongRequested: index => {var record=session.shownEdition.sourceAlbum;var flat=index;for(var d=0;d<session.shownDisc;d++)flat+=session.shownEdition.discs[d].length;if(flat>=0)root.showBrowseSong(record,flat,session.shownEditionId);}
     }
     VinylArtistPage {
-        id:artist;x:0;y:top.y+top.height+24;width:parent.width;height:Math.max(0,root.contentBottom-y)
+        id:artist;x:0;y:top.y+top.height+24;width:parent.width;height:Math.max(0,scrollInsets.viewportBottom-y)
+        contentEndPadding:scrollInsets.endPadding
         visible:root.canEnterVinyl && root.page==="artist";artistData:artistData;worldData:worldData;backdrop:root.chromeBackdrop
         onBackRequested:root.goBack();onArtistRequested:name=>root.showArtist(name)
         onAlbumRequested:record=>root.openAlbum(record.id)
@@ -1034,7 +1045,8 @@ Item {
     }
     VinylSongPage {
         id:song;x:0;y:root.videoFullscreen ? 0 : top.y+top.height+24;width:parent.width
-        height:root.videoFullscreen ? root.height : Math.max(0,root.contentBottom-y)
+        // Do not resize the hidden song reader when the browsing HUD compacts.
+        height:root.videoFullscreen ? root.height : Math.max(0,root.height-root.playerBottomMargin-bar.songHeight-root.playerContentGap-y)
         visible:root.canEnterVinyl && root.page==="song";pageData:root.browsingSong && !browseSong.isCurrent ? browseSong : session;browseMode:root.browsingSong && !browseSong.isCurrent;artistNavigationEnabled:true
         videoFullscreen: root.videoFullscreen
         videoControlsVisible: !root.videoFullscreen || root.videoHudVisible
@@ -1045,7 +1057,8 @@ Item {
         onAlbumRequested:{if(!root.canEnterVinyl){root.enforceTasteGate();return;}if(root.browsingSong)root.openAlbum(browseSong.album.id);else {root.pushRoute();session.showPlayingAlbum();root.page="album";root.parkFocus();}}
     }
     VinylHomeMixPage {
-        id:homeMix;x:0;y:top.y+top.height+24;width:parent.width;height:Math.max(0,root.contentBottom-y)
+        id:homeMix;x:0;y:top.y+top.height+24;width:parent.width;height:Math.max(0,scrollInsets.viewportBottom-y)
+        contentEndPadding:scrollInsets.endPadding
         visible:root.canEnterVinyl && root.page==="mix";session:session;backdrop:root.chromeBackdrop
         mixView:session.plainData(recommendations.homeMixView)
         onBackRequested:root.goBack()
@@ -1085,7 +1098,7 @@ Item {
     Connections {target:session;function onProfileGenerationChanged(){playlistPicker.close();}}
     VinylQueuePanel {id:queuePanel;pageData:session;actionData:root.page==="song" ? song.pageData : session;backdrop:root.chromeBackdrop;onSongRequested:root.showSong()}
     VinylPlayerBar {
-        id:bar;x:root.footerLeft;y:root.height-height-18;width:root.width-x-theme.margin
+        id:bar;x:root.footerLeft;y:root.height-height-root.playerBottomMargin;width:root.width-x-theme.margin
         visible:root.canEnterVinyl && (session.playingIndex>=0 || root.page==="song") && opacity>0.01
         opacity:root.videoFullscreen && root.videoDisplayed && !root.videoHudVisible ? 0 : 1
         enabled:visible

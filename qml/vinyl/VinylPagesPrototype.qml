@@ -13,6 +13,7 @@ Window {
     visible: true
     property string page: "album"
     property bool videoFullscreen: false
+    readonly property real playerBottomMargin: 18
     onPageChanged: if (page !== "song") videoFullscreen = false
     property bool ready: false
     property var contentStore: typeof Content !== "undefined" ? Content : null
@@ -316,6 +317,11 @@ Window {
             root.page = "song";
         }
     }
+    // The compact browsing bar must not resize the hidden song reader.
+    Item {
+        id: songBarTop
+        y: root.height - root.playerBottomMargin - bar.songHeight
+    }
     VinylSongPage {
         videoFullscreen: root.videoFullscreen
         onVideoFullscreenRequested: root.videoFullscreen = !root.videoFullscreen
@@ -324,7 +330,7 @@ Window {
             right: parent.right
             top: parent.top
             topMargin: root.videoFullscreen ? 0 : 108
-            bottom: root.videoFullscreen ? parent.bottom : bar.top
+            bottom: root.videoFullscreen ? parent.bottom : songBarTop.top
             bottomMargin: root.videoFullscreen ? 0 : 42
         }
         visible: root.page === "song"
@@ -390,7 +396,7 @@ Window {
         onVideoFullscreenRequested: root.videoFullscreen = !root.videoFullscreen
         visible: root.page !== "artist"
         x: theme.margin
-        y: root.height - height - 18
+        y: root.height - height - root.playerBottomMargin
         width: root.width - theme.margin * 2
         pageData: pageData
         backdrop: backdrop
