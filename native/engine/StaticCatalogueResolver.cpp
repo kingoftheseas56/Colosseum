@@ -510,6 +510,9 @@ std::optional<QJsonValue> evaluate(const QJsonObject &index, const QString &ds,
     const auto fixedPath = fixed.value(selection(ds, method, fixedArgs)).toString();
     if (!fixedPath.isEmpty())
         return read(fixedPath);
+    // Audiobook queries without a fixed static response use the semantic Worker.
+    if (ds == "audiobooks")
+        return std::nullopt;
     if (ds == "comics" && method == "curatedGenreShelves") {
         const auto path = fixed.value(selection(ds, method, {-1})).toString();
         if (path.isEmpty())

@@ -430,10 +430,14 @@ int main(int argc, char **argv) {
                         body = json({{"token", "fixture"}, {"expiresAt", "2099-01-01T00:00:00Z"}});
                     else {
                         const auto req = QJsonDocument::fromJson(data->mid(split + 4)).object();
+                        const auto method = path.mid(path.lastIndexOf('/') + 1);
+                        const QJsonValue result = path == "/v1/catalogue/audiobooks/series"
+                            ? QJsonValue(QJsonObject{{"id", req.value("args").toArray().first()}})
+                            : QJsonValue(QJsonArray{QJsonObject{{"title", "worker"}}});
                         body = json({{"apiVersion", 1},
                                      {"revision", source},
-                                     {"method", path.mid(path.lastIndexOf('/') + 1)},
-                                     {"result", QJsonArray{QJsonObject{{"title", "worker"}}}}});
+                                     {"method", method},
+                                     {"result", result}});
                     }
                 } else {
                     ++gets;
@@ -1587,6 +1591,20 @@ int main(int argc, char **argv) {
                 switched401.result.toArray().at(0).toObject().value("title") ==
                     "publication-hot-update-401",
             "retired shard answered 401 also refreshes the entry and completes");
+    CatalogRemote audiobooks("audiobooks");
+    audiobooks.configure(&nam, origin, temp.filePath("audiobooks/remote.json"));
+    const QVariantList audiobookSearchArgs{"The Sleeper Awakes", 20};
+    audiobooks.read("search", audiobookSearchArgs, QVariantList());
+    until([&] { return !audiobooks.pending(); });
+    require(audiobooks.read("search", audiobookSearchArgs, QVariantList())
+                .toList().value(0).toMap().value("title") == "worker",
+            "audiobook search without a static index reaches the semantic Worker");
+    const QVariantList audiobookSeriesArgs{"the-stormlight-archive"};
+    audiobooks.read("series", audiobookSeriesArgs, QVariantMap());
+    until([&] { return !audiobooks.pending(); });
+    require(audiobooks.read("series", audiobookSeriesArgs, QVariantMap())
+                .toMap().value("id") == audiobookSeriesArgs.first(),
+            "audiobook series keeps its string identity through the semantic Worker");
     require(QJsonDocument::fromVariant(measured).isArray(), "measurement rows available");
     if (argc > 1) {
         QFile report(QString::fromLocal8Bit(argv[1]));
