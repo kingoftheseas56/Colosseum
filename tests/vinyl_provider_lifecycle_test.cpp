@@ -75,6 +75,26 @@ private slots:
             else QVERIFY(data(replies,i).value("pid")!=foregroundPid);
         }
     }
+    void lyricsReuseAnIndependentWorker(){
+        VinylProvider provider(VINYL_LIFECYCLE_HELPER,nullptr,4096,{},cache());
+        QSignalSpy replies(&provider,&VinylProvider::completed);
+        QVERIFY(provider.request("lyrics","lyrics","first")>0);
+        QTRY_COMPARE(replies.size(),1);
+        QVERIFY(error(replies).isEmpty());
+        const auto lyricsPid=data(replies).value("pid");
+        QVERIFY(provider.request("lyrics","lyrics","delay")>0);
+        QVERIFY(provider.request("play","resolve","song")>0);
+        QTRY_COMPARE(replies.size(),3);
+        for(int i=1;i<3;++i){
+            QVERIFY(error(replies,i).isEmpty());
+            if(replies[i][0].toString()=="lyrics"){
+                QCOMPARE(data(replies,i).value("pid"),lyricsPid);
+                QCOMPARE(data(replies,i).value("sequence").toInt(),2);
+            }else{
+                QVERIFY(data(replies,i).value("pid")!=lyricsPid);
+            }
+        }
+    }
     void warmupIsIdempotentReadyAndUncacheable(){
         const auto path=cache();VinylProvider provider(VINYL_LIFECYCLE_HELPER,nullptr,4096,{},path);
         QSignalSpy replies(&provider,&VinylProvider::completed);

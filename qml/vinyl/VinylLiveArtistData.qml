@@ -178,7 +178,12 @@ Item {
     readonly property var localMedia: ({portrait:{cover:artist.cover || ""}, videos:mediaCards("video"),
         livePerformances:mediaCards("live"), relatedArtists:[], popularSongs:[], featuredPlaylists:[], artistPlaylists:[], provider:"", sourceUrl:""})
     function providerMedia(rows,kind) {
-        return (rows || []).map(function(row){return {id:row.videoId,title:row.title,cover:row.thumbnail || "",subtitle:kind === "live" ? "Live performance · catalogue" : "Video · catalogue",provider:"YouTube Music",sourceUrl:"https://music.youtube.com/watch?v="+row.videoId,kind:kind,playable:false};});
+        return (rows || []).map(function(row) {
+            return {id:row.videoId, videoId:row.videoId, title:row.title, cover:row.thumbnail || "",
+                seconds:row.seconds, subtitle:kind === "live" ? "Live performance · catalogue" : "Video · catalogue",
+                provider:"YouTube Music", sourceUrl:"https://music.youtube.com/watch?v="+row.videoId,
+                kind:kind, playable:false};
+        });
     }
     readonly property var media: online && catalogueService ? ({portrait:{cover:""}, videos:providerMedia(catalogueService.artistMedia.videos,"video"),livePerformances:providerMedia(catalogueService.artistMedia.livePerformances,"live"), relatedArtists:(onlineArtist.relatedArtists || []).map(function(a){return {id:"ytm:artist:"+a.id,title:a.name,name:a.name,artistRef:{id:"ytm:artist:"+a.id,name:a.name},cover:a.thumbnail || ""};}),popularSongs:[],featuredPlaylists:[],artistPlaylists:[],provider:"YouTube Music",sourceUrl:"https://music.youtube.com/channel/"+(onlineArtist.channelId || "")}) : localMedia
     readonly property var liveCards: media.livePerformances

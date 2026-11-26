@@ -221,6 +221,7 @@ private:
     QVariantMap m_videoCandidate,m_audioResource;
     QString m_videoError,m_videoAudioUrl,m_videoOccurrence;
     bool m_videoActive=false,m_videoBusy=false,m_targetVideo=false,m_resumeListeningFacts=false;
+    bool m_startingExactVideo=false;
     int m_videoMatchRequest=-1,m_videoRequest=-1;
     int m_playerVolume=100;
     bool m_playerMute=false;

@@ -384,10 +384,12 @@ class VideoTransportTests(unittest.TestCase):
 
     def test_existing_resolve_contract_unchanged(self):
         audio = {"id": VIDEO_ID, "url": gv_url(), "acodec": "opus", "abr": 128.3,
-                 "http_headers": dict(COMMON_HEADERS)}
+                 "ext": "webm", "vcodec": "none", "http_headers": dict(COMMON_HEADERS)}
         factory = self.install_yt_dlp(audio)
         resolved = provider.resolve(VIDEO_ID)
-        self.assertEqual(set(resolved), {"videoId", "url", "headers", "qualityLabel"})
+        self.assertEqual(set(resolved), {"videoId", "url", "headers", "qualityLabel", "extension", "audioOnly"})
+        self.assertEqual(resolved["extension"], "webm")
+        self.assertIs(resolved["audioOnly"], True)
         self.assertEqual(resolved["videoId"], VIDEO_ID)
         self.assertEqual(resolved["url"], audio["url"])
         self.assertEqual(resolved["headers"], COMMON_HEADERS)

@@ -185,9 +185,10 @@ Item {
     function cancelPendingVideoOpen(cancelLookup) {
         const pending=pendingVideoOpen;
         pendingVideoOpen=null;
-        if(cancelLookup && pending && pending.context===videoOpenContextKey
-                && session.videoBusy && session.videoSwitchCancellable && !session.videoShown)
-            session.toggleVideo();
+        if(!cancelLookup || !pending || pending.context!==videoOpenContextKey
+                || !session.videoBusy || session.videoShown) return;
+        if(pending.startsPlayback) session.suspendPlayback();
+        else if(session.videoSwitchCancellable) session.toggleVideo();
     }
     function finishPendingVideoOpen() {
         const pending=pendingVideoOpen;
@@ -268,6 +269,10 @@ Item {
         target: session
         function onVideoShownChanged(){root.finishPendingVideoOpen();if(!session.videoShown)root.exitVideoFullscreen();}
         function onVideoBusyChanged(){root.finishPendingVideoOpen();}
+        function onErrorChanged(){
+            if(session.error && root.pendingVideoOpen && root.pendingVideoOpen.startsPlayback)
+                root.cancelPendingVideoOpen(false);
+        }
         function onPausedChanged(){if(root.videoDisplayed)root.revealVideoHud();}
         function onProfileGenerationChanged(){root.cancelPendingVideoOpen(false);root.exitVideoFullscreen();}
     }
@@ -809,7 +814,12 @@ Item {
             if(!root.restoringRoute)root.routeStack=root.routeStack.concat([root.pendingAlbumRoute || root.captureRoute()]);
             root.pendingAlbumRoute=null;root.searchSnapshot=null;root.searchOriginCatalogue=null;root.searchOpen=false;root.artistSearchOpen=false;root.page="album";Qt.callLater(root.parkFocus);
         }
-        onPlaybackRequested: root.playbackRequested()
+        onPlaybackRequested: {
+            if(root.canEnterVinyl && root.visible && root.lifecycleActive && !root.searchOpen
+                    && !root.artistSearchOpen && session.activeQueueRow && session.activeQueueRow.startWithVideo === true)
+                root.pendingVideoOpen={context:root.videoOpenContextKey, startsPlayback:true};
+            root.playbackRequested();
+        }
         onArtistRequested: name => root.showRecordArtist(name,session.shownEdition.sourceAlbum || {})
         onQueueRequested: if(root.canEnterVinyl)queuePanel.open()
         onProfileGenerationChanged: {
@@ -1017,6 +1027,10 @@ Item {
         onAlbumRequested:record=>root.openAlbum(record.id)
         onSongRequested:value=>root.showBrowseSong(value.album,value.index)
         onPlaySongRequested:value=>session.playSongs([value],false)
+        onPlayVideoRequested: record => {
+            root.cancelDiscoverItem();
+            session.playArtistVideo(record,artistData.name,artistData.canonicalArtistId);
+        }
     }
     VinylSongPage {
         id:song;x:0;y:root.videoFullscreen ? 0 : top.y+top.height+24;width:parent.width

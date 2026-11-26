@@ -19,6 +19,7 @@
 #include <QSet>
 #include <QRegularExpression>
 #include <QElapsedTimer>
+#include <QUuid>
 #include <QDebug>
 #include <QMutex>
 #include <QMutexLocker>
@@ -249,6 +250,7 @@ public:
         const auto path=m_cacheRoot+"/"+key+".json";
         WarmSlot *warm=nullptr;
         if(warming||operation=="resolve"||operation=="resolveVideo")warm=&m_mediaWarm;
+        else if(operation=="lyrics")warm=&m_lyricsWarm;
         else if(home)warm=homeWorker();
         else if(lane.startsWith("home-listening-"))warm=&m_homeListeningWarm;
         else if(QStringList{"search","catalogueSearch","artist","artistReleases","artistVideos","artistArtwork"}.contains(operation))
@@ -274,7 +276,13 @@ public:
             process->setProcessEnvironment(environment);
         }
         m_active.insert(lane,process);auto output=std::make_shared<QByteArray>();
-        auto elapsed=std::make_shared<QElapsedTimer>();elapsed->start();
+        struct Timing {
+            QElapsedTimer elapsed;
+            qint64 dispatch=-1, started=-1;
+            QJsonObject helper;
+        };
+        auto timing=std::make_shared<Timing>();
+        timing->elapsed.start();
         auto *deadline=new QTimer(process);deadline->setSingleShot(true);
         const bool reused=server&&process->state()==QProcess::Running;
         const bool traceEnabled=qEnvironmentVariableIntValue("COLOSSEUM_CATALOGUE_TRACE")==1;
@@ -283,12 +291,13 @@ public:
             qInfo().noquote()<<"[vinyl-provider]"<<QJsonDocument(QJsonObject{{"phase",phase},{"operation",operation},
                 {"lane",lane},{"requestId",id},{"reused",reused}}).toJson(QJsonDocument::Compact);
         };
-        auto finish=[guard=QPointer<VinylProvider>(this),this,process,lane,id,home,cacheable,path,key,operation,value,payload,elapsed,warm,server,deadline,reused,warming,traceEnabled](QVariant data,QString error,bool cleanReply=false){
+        auto finish=[guard=QPointer<VinylProvider>(this),this,process,lane,id,home,cacheable,path,key,operation,value,payload,timing,warm,server,deadline,reused,warming,traceEnabled](QVariant data,QString error,bool cleanReply=false){
             if(!guard||m_active.value(lane)!=process)return;
-            const bool ran=m_running.contains(process);
+            const auto received=timing->elapsed.elapsed();
+            const bool ran=timing->dispatch>=0;
             releaseMusicBrainz(process);
             deadline->stop();deadline->deleteLater();
-            m_active.remove(lane);m_running.remove(process);process->disconnect(this);
+            m_active.remove(lane);m_homeRunning.remove(process);process->disconnect(this);
             if(server){
                 warm->busy=false;++warm->idleGeneration;
                 if((cleanReply||error.isEmpty())&&process->state()==QProcess::Running){
@@ -345,12 +354,23 @@ public:
                 :result.value("items",result.value("tracks",result.value("albums"))).toList().size();
             QJsonObject replyTrace{{"operation",operation},{"lane",lane},
                 {"requestId",id},{"cacheHit",result.value("_cached").toBool()},{"stale",result.value("_stale").toBool()},
-                {"workerReused",reused},{"elapsedMs",elapsed->elapsed()},{"count",count},{"ok",error.isEmpty()&&result.value("status")!="unavailable"}};
-            if(traceEnabled&&home){
-                // Report the failure class before stale-cache fallback, never the upstream message or seed.
+                {"workerReused",reused},{"elapsedMs",timing->elapsed.elapsed()},{"count",count},{"ok",error.isEmpty()&&result.value("status")!="unavailable"}};
+            if(traceEnabled){
                 replyTrace["dispatched"]=ran;
-                replyTrace["invalidEnvelope"]=invalidEnvelope;
-                replyTrace["rateLimited"]=map.value("sourceStatus")=="rate_limited";
+                if(ran){
+                    replyTrace["queueMs"]=timing->dispatch;
+                    replyTrace["dispatchToReplyMs"]=received-timing->dispatch;
+                    if(timing->started>=0)replyTrace["processStartMs"]=timing->started-timing->dispatch;
+                    for(const auto &field:{"helperMs","httpMs","providerCallMs","musicBrainzSleepMs"}){
+                        const auto n=timing->helper.value(field).toInteger(-1);
+                        if(n>=0)replyTrace[field]=n;
+                    }
+                }
+                if(home){
+                    // Report the failure class before stale-cache fallback, never the upstream message or seed.
+                    replyTrace["invalidEnvelope"]=invalidEnvelope;
+                    replyTrace["rateLimited"]=map.value("sourceStatus")=="rate_limited";
+                }
             }
             qInfo().noquote()<<"[vinyl-provider]"<<QJsonDocument(replyTrace).toJson(QJsonDocument::Compact);
             emit completed(lane,id,data,error);
@@ -361,10 +381,11 @@ public:
             finish({},error==QProcess::FailedToStart?"The music catalogue runtime is unavailable. Local music is still available.":"The music catalogue helper failed.");
         });
         connect(process,&QProcess::readyReadStandardError,this,[process]{process->readAllStandardError();});
-        auto parseReply=[this,finish,operation](const QByteArray &bytes){
+        auto parseReply=[this,finish,operation,timing,traceEnabled](const QByteArray &bytes){
             QJsonParseError parse;
             const auto doc=QJsonDocument::fromJson(bytes,&parse);
             const auto object=doc.object();
+            if(traceEnabled)timing->helper=object.value("timing").toObject();
             if(parse.error!=QJsonParseError::NoError||!object.value("ok").isBool()
                 ||(object.value("ok").toBool()?!object.contains("data"):!object.value("error").isString()))
                 finish({},"The music catalogue helper failed.");
@@ -399,11 +420,17 @@ public:
                     else parseReply(output->left(newline));
                 }else parseReply(*output);
             });
-        connect(process,&QProcess::started,this,[trace]{trace("process-started");});
-        const bool catalogueObject=QStringList{"browseCategories","browseCatalogue","cataloguePage","catalogueSearch","artist","artistReleases","album","artistVideos"}.contains(operation);
+        connect(process,&QProcess::started,this,[trace,timing]{
+            timing->started=timing->elapsed.elapsed();
+            trace("process-started");
+        });
+        const bool catalogueObject=QStringList{"browseCategories","browseCatalogue","cataloguePage","catalogueSearch","artist","artistReleases","album","artistVideos","artistIdentity"}.contains(operation);
         if(cacheable&&(home||operation=="discover"||operation=="lyrics"||catalogueObject)&&!payload.value("refresh").toBool()){
             const auto cached=readCache(path,key,operation,value,payload,home,true);
-            if(!cached.isEmpty()){QTimer::singleShot(0,process,[finish,cached]{auto map=cached;map["_cached"]=true;finish(map,{});});return id;}
+            const bool usable=!cached.isEmpty()&&(operation!="artistIdentity"
+                ||(cached.value("source")=="musicbrainz"&&cached.value("complete").toBool()
+                    &&!QUuid(cached.value("mbid").toString()).isNull()));
+            if(usable){QTimer::singleShot(0,process,[finish,cached]{auto map=cached;map["_cached"]=true;finish(map,{});});return id;}
         }
         if(operation=="lyrics"&&m_deferred.value("lrclib")>m_clock()){
             QTimer::singleShot(0,process,[finish]{finish({},"Lyrics are temporarily rate limited. Retry later.");});return id;
@@ -420,14 +447,16 @@ public:
 #endif
         const auto python=qEnvironmentVariable("COLOSSEUM_VINYL_PYTHON",bundled);
         const bool musicBrainz=QStringList{"artistIdentity","recommendationIdentity","recommendationDiscography"}.contains(operation);
-        auto launch=[guard=QPointer<VinylProvider>(this),this,process,deadline,lane,python,requestBytes,operation,value,payload,home,musicBrainz,server,trace,finish]{
+        auto launch=[guard=QPointer<VinylProvider>(this),this,process,deadline,lane,python,requestBytes,operation,value,payload,home,server,trace,finish,timing,reused]{
             if(!guard||m_active.value(lane)!=process)return;
             // A source may enter backoff while this accepted request waits for
             // a worker slot. Recheck at the point of actual dispatch as well.
             const auto deferred=home?deferredHome(operation,value,payload):QVariantMap();
             if(!deferred.isEmpty()){finish(deferred,{});return;}
+            timing->dispatch=timing->elapsed.elapsed();
+            if(reused)timing->started=timing->dispatch;
             trace("dispatch");
-            if(home||musicBrainz)m_running.insert(process);
+            if(home)m_homeRunning.insert(process);
             if(home)deadline->start(operation=="artistCandidates"?8000:operation=="recommendationDiscography"?30000
                 :operation=="recommendationIdentity"||operation=="songCandidates"?20000:12000);
             else deadline->start(operation=="lyrics"?12000:operation=="discover"?18000:operation=="artistIdentity"?180000:90000);
@@ -440,7 +469,7 @@ public:
             }
         };
         if(home||musicBrainz){
-            QueuedWork job{QPointer<QProcess>(process),launch,musicBrainz};
+            QueuedWork job{QPointer<QProcess>(process),launch,musicBrainz,home};
             // Foreground artist identity shares the MusicBrainz gate, but gets
             // the next eligible slot ahead of queued Home enrichment.
             if(home)m_waiting.enqueue(std::move(job));
@@ -450,7 +479,7 @@ public:
         return id;
     }
     Q_INVOKABLE void cancel(const QString &lane){
-        auto *process=m_active.take(lane);if(!process)return;m_running.remove(process);releaseMusicBrainz(process);
+        auto *process=m_active.take(lane);if(!process)return;m_homeRunning.remove(process);releaseMusicBrainz(process);
         for(auto *slot:warmSlots()){
             if(slot->process==process){
                 slot->process=nullptr;
@@ -495,8 +524,8 @@ private:
         bool busy=false;
         quint64 idleGeneration=0;
     };
-    std::array<WarmSlot*,6> warmSlots(){
-        return {&m_mediaWarm,&m_catalogueWarm,&m_browseWarm,&m_homeListeningWarm,&m_homeWarm[0],&m_homeWarm[1]};
+    std::array<WarmSlot*,7> warmSlots(){
+        return {&m_mediaWarm,&m_lyricsWarm,&m_catalogueWarm,&m_browseWarm,&m_homeListeningWarm,&m_homeWarm[0],&m_homeWarm[1]};
     }
     WarmSlot *homeWorker(){
         for(auto &slot:m_homeWarm)
@@ -589,7 +618,7 @@ private:
         qint64 total=0;for(const auto &file:files)total+=file.size();int remaining=files.size();
         for(const auto &file:files){if(total<=m_cacheBudget&&remaining<=4096)break;if(QFile::remove(file.absoluteFilePath())){total-=file.size();--remaining;}}
     }
-    struct QueuedWork {QPointer<QProcess> process;std::function<void()> launch;bool musicBrainz=false;};
+    struct QueuedWork {QPointer<QProcess> process;std::function<void()> launch;bool musicBrainz;bool home;};
     struct MusicBrainzGate {QMutex mutex;QProcess *active=nullptr;qint64 notBefore=0;};
     static MusicBrainzGate &musicBrainzGate(){static MusicBrainzGate gate;return gate;}
     static qint64 monotonicMs(){return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();}
@@ -604,14 +633,17 @@ private:
     }
     void startWaiting(){
         QPointer<VinylProvider> guard(this);int retry=0;
-        for(qsizetype index=0;index<m_waiting.size()&&m_running.size()<2;){
+        for(qsizetype index=0;index<m_waiting.size();) {
             const auto &job=m_waiting.at(index);
             if(!job.process||!m_active.values().contains(job.process.data())){
                 m_waiting.removeAt(index);
                 continue;
             }
-            // Leave gated jobs in order. In particular, a pending foreground
-            // lookup keeps its place even while unrelated Home work can run.
+            // The two-job budget is for Home, not foreground artist identity.
+            // Foreground still waits for an in-flight MusicBrainz job and its
+            // cooldown; no queued Home identity can jump ahead of it.
+            if(job.home&&m_homeRunning.size()>=2)break; // Foreground is prepended.
+            // Leave gated jobs in order while unrelated Home work can run.
             if(job.musicBrainz&&(retry||!claimMusicBrainz(job.process.data(),&retry))){
                 ++index;
                 continue;
@@ -623,9 +655,9 @@ private:
     }
     QString m_helper;int m_serial=0;QHash<QString,QProcess*> m_active;
     qint64 m_cacheBudget;std::function<qint64()> m_clock;QString m_cacheRoot;
-    QSet<QProcess*> m_running;QQueue<QueuedWork> m_waiting;QHash<QString,qint64> m_deferred;
+    QSet<QProcess*> m_homeRunning;QQueue<QueuedWork> m_waiting;QHash<QString,qint64> m_deferred;
     QTimer *m_waitingWake=nullptr;
-    WarmSlot m_mediaWarm,m_catalogueWarm,m_browseWarm,m_homeListeningWarm;
+    WarmSlot m_mediaWarm,m_lyricsWarm,m_catalogueWarm,m_browseWarm,m_homeListeningWarm;
     std::array<WarmSlot,2> m_homeWarm;
     bool m_suppressReplacement=false;
     const int m_mediaIdleMs,m_catalogueIdleMs;

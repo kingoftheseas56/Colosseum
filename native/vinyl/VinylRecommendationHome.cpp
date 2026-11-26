@@ -568,7 +568,12 @@ void VinylRecommendationService::queueHomeEnrichment(){
         const auto age=fetched.isValid()?fetched.msecsTo(QDateTime::fromMSecsSinceEpoch(m_home->evaluatedAt,Qt::UTC)):-1;
         const bool completeIdentity=op!="recommendationIdentity"||checked.value("status")!="verified"
             ||!VinylSourcePool::artistNames(checked).isEmpty();
-        if(valid&&completeIdentity&&!m_home->forceMetadata&&!checked.value("_stale").toBool()&&age>=0&&age<86400000)return;
+        // Home retry/rotation is not a force-refresh of independent global feeds.
+        // Reuse good daily charts; still retry missing or stale feeds.
+        const bool freshChart=op=="chartCandidates"&&checked.value("status")=="ready"
+            &&checked.value("complete").toBool()&&!checked.value("items").toList().isEmpty();
+        if(valid&&completeIdentity&&(!m_home->forceMetadata||freshChart)
+            &&!checked.value("_stale").toBool()&&age>=0&&age<86400000)return;
         m_home->waiting.append({op,value,key,seed,m_home->forceMetadata,options,true});
     };
     for(const auto &value:m_home->seeds){const auto seed=value.toMap();if(seed.value("provider")!="youtube-music")continue;

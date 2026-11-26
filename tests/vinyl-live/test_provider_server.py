@@ -82,6 +82,23 @@ class WarmProviderTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 provider.handle({"operation":"mediaWarmup","value":"Zi_XLOBDo_Y"})
 
+    def test_trace_durations_are_opt_in_and_reset_per_reply(self):
+        from os import environ
+
+        raw = b'{"operation":"resolve","value":"Zi_XLOBDo_Y"}'
+        with mock.patch.dict(environ, {"COLOSSEUM_CATALOGUE_TRACE": "0"}):
+            plain = provider._wire_answer(raw)
+        with mock.patch.dict(environ, {"COLOSSEUM_CATALOGUE_TRACE": "1"}):
+            traced = provider._wire_answer(raw)
+            invalid = provider._wire_answer(b'{"operation":"resolve","value":"invalid"}')
+        timing = traced.pop("timing")
+        self.assertEqual(traced, plain)
+        self.assertEqual(set(timing), {"helperMs", "providerCallMs"})
+        self.assertGreaterEqual(timing["helperMs"], timing["providerCallMs"])
+        self.assertGreaterEqual(timing["providerCallMs"], 0)
+        self.assertEqual(set(invalid["timing"]), {"helperMs"})
+        self.assertFalse(invalid["ok"])
+
     def test_oneshot_still_constructs_new_extractor(self):
         provider._SERVER_MODE=False
         with mock.patch("yt_dlp.YoutubeDL", FakeYoutubeDL):

@@ -12,7 +12,10 @@ class DeferredSource : public QObject {
 public:
     int serial=0;
     QHash<QString,int> requests;
-    Q_INVOKABLE int request(const QString &lane,const QString &,const QString &) {
+    QString lastOperation,lastValue;
+    QVariantMap lastOptions;
+    Q_INVOKABLE int request(const QString &lane,const QString &operation,const QString &value,const QVariantMap &options) {
+        lastOperation=operation;lastValue=value;lastOptions=options;
         requests[lane]=++serial;
         return serial;
     }
@@ -298,6 +301,46 @@ private slots:
         QVERIFY(core.isNull());
         QVERIFY(!session.player());
         QVERIFY(session.findChildren<QObject *>("vinylMpvPlayer").isEmpty());
+    }
+    void exactArtistVideoStartsWithoutAnAudioOrRelatedLookup() {
+        DeferredSource source;
+        VinylBackendSession session;
+        session.setProfileScope("profile-a");session.setSource(&source);
+        const QString videoId="abcdefghijk",trackId="ytm:video:abcdefghijk";
+        auto videoRow=row(trackId);
+        auto track=videoRow.value("track").toMap();
+        track["videoId"]=videoId;videoRow["track"]=track;
+        auto edition=videoRow.value("edition").toMap();
+        edition["origin"]="youtube-music";videoRow["edition"]=edition;
+        videoRow["startWithVideo"]=true;
+
+        QVERIFY(session.replaceRows({videoRow},0,false));
+        QTRY_VERIFY(source.requests.contains("video-stream"));
+        QCOMPARE(source.lastOperation,QString("resolveVideo"));
+        QCOMPARE(source.lastValue,trackId);
+        QCOMPARE(source.lastOptions.value("videoId").toString(),videoId);
+        QCOMPARE(session.rows().first().toMap().value("trackId").toString(),trackId);
+        QVERIFY(session.videoBusy());
+        const auto reply=[&](const QString &resolvedId) {
+            emit source.completed("video-stream",source.requests.value("video-stream"),QVariantMap{
+                {"version",1},{"trackId",trackId},{"videoId",resolvedId},{"hasVideo",true},{"hasAudio",true},
+                {"url","https://test.googlevideo.com/video"},{"audioUrl","https://test.googlevideo.com/audio"}},{});
+        };
+        reply("ABCDEFGHIJK");
+        QTRY_COMPARE(session.error(),QString("This video could not be played."));
+        QVERIFY(!session.videoBusy());
+        QVERIFY(!session.videoActive());
+        QVERIFY(!session.player());
+
+        session.retry();
+        // The mock has no render surface; exercise the native video handoff
+        // without issuing a request to the fake stream URLs.
+        reply(videoId);
+        QTRY_VERIFY(session.videoActive());
+        QVERIFY(session.player());
+        QVERIFY(session.error().isEmpty());
+        QVERIFY(!source.requests.contains("play"));
+        QVERIFY(!source.requests.contains("video-match"));
     }
     void videoNeverReusesAudioCore() {
         DeferredSource source;

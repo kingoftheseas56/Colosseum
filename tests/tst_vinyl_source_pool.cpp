@@ -486,6 +486,53 @@ private slots:
         for (const auto &entry : log) { running += entry.toMap().value("event") == "start" ? 1 : -1; maximum = qMax(maximum,running); }
         QCOMPARE(maximum,2);
     }
+    void foregroundIdentityDoesNotWaitForBothHomeWorkers()
+    {
+        const QVariantMap options{{"seed",QVariantMap()}};
+        const QString us="apple:us:albums", gb="apple:gb:albums", name="Fixture Artist";
+        const QVariantMap resolved{{"source","musicbrainz"},{"complete",true},
+            {"mbid","b95ce3ff-3d05-4e87-9e01-c97b66af13d4"}};
+        const QVariantMap responses{{us,chart("us")},{gb,chart("gb")},{name,resolved}};
+        QVERIFY(state({{"responses",responses},{"delays",QVariantMap{{us,4000},{gb,4000}}}}));
+        VinylProvider provider(QFINDTESTDATA("fixtures/vinyl-source-pool/provider.py"),nullptr,1024*1024,{},transportRoot.filePath("foreground-queue"));
+        QSignalSpy done(&provider,&VinylProvider::completed);
+        QVERIFY(provider.requestPayload("home-metadata-0","chartCandidates",us,options)>0);
+        QVERIFY(provider.requestPayload("home-metadata-1","chartCandidates",gb,options)>0);
+        QTRY_COMPARE(events().size(),2);
+        QVERIFY(provider.request("artist-identity","artistIdentity",name)>0);
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),3,8000);
+        QCOMPARE(done.at(0).at(0).toString(),QString("artist-identity"));
+        QVERIFY(failure(done,0).isEmpty());
+    }
+    void foregroundIdentityReusesOnlyTheExactFreshRequest()
+    {
+        const QString name="Fixture Artist";
+        const QVariantMap resolved{{"source","musicbrainz"},{"complete",true},
+            {"mbid","b95ce3ff-3d05-4e87-9e01-c97b66af13d4"}};
+        QVERIFY(state({{"response",resolved}}));
+        VinylProvider provider(QFINDTESTDATA("fixtures/vinyl-source-pool/provider.py"),nullptr,1024*1024,{},transportRoot.filePath("artist-cache"));
+        QSignalSpy done(&provider,&VinylProvider::completed);
+        auto fetch=[&](const QVariantMap &payload){return provider.requestPayload("artist-identity","artistIdentity",name,payload);};
+        const QVariantMap original{{"channelId",artist(1).value("providerId")}};
+        QVERIFY(fetch(original)>0);
+        QTRY_COMPARE(done.size(),1);
+        QVERIFY(failure(done).isEmpty());
+        QCOMPARE(events().size(),2);
+        QVERIFY(fetch(original)>0);
+        QTRY_COMPARE(done.size(),2);
+        QVERIFY(reply(done).value("_cached").toBool());
+        QCOMPARE(events().size(),2);
+        auto changed=original;
+        changed["releases"]=QVariantMap{{"albums",QVariantList()}};
+        QVERIFY(fetch(changed)>0);
+        QTRY_COMPARE(done.size(),3);
+        QVERIFY(!reply(done).value("_cached").toBool());
+        changed["refresh"]=true;
+        QVERIFY(fetch(changed)>0);
+        QTRY_COMPARE(done.size(),4);
+        QVERIFY(!reply(done).value("_cached").toBool());
+        QCOMPARE(events().size(),6);
+    }
     void aQueuedRequestRechecksItsSourceCooldownBeforeStartingAProcess()
     {
         auto limited = chart();

@@ -235,6 +235,11 @@ bool VinylBackendSession::validRow(const QVariantMap &row) const {
     const auto discs=edition.value("discs").toList();
     bool discOk=false,trackOk=false;
     int disc=row.value("discIndex").toInt(&discOk),index=row.value("trackIndex").toInt(&trackOk);
+    if(row.value("startWithVideo").toBool()) {
+        static const QRegularExpression videoIdPattern("^[A-Za-z0-9_-]{11}$");
+        if(edition.value("origin")!="youtube-music"
+            ||!videoIdPattern.match(selectedTrack(row).value("videoId").toString()).hasMatch())return false;
+    }
     return !id.isEmpty()&&id.size()<=1024&&id.trimmed()==id&&track.value("id").toString()==id
         &&!edition.value("id").toString().isEmpty()&&discOk&&trackOk&&disc>=0&&disc<discs.size()
         &&index>=0&&index<discs[disc].toList().size()
@@ -355,8 +360,18 @@ void VinylBackendSession::beginActive(double seconds,bool play,bool fallback) {
     m_forceFallback=fallback;
     if(!fallback){m_fallbackAttempted=false;m_sourceKind.clear();m_fallbackReason.clear();}
     emit playbackRequested();
+    const auto row=activeRow();
+    m_startingExactVideo=row.value("startWithVideo").toBool();
     const auto result=m_backend->coordinator.awaitInput(*m_backend->queue.activeOccurrenceId(),play);
     if(!result.ok){fail("The queue could not start playback.");return;}
+    if(m_startingExactVideo) {
+        // Artist media already identifies the clip. Start this occurrence with
+        // its own audio/video resource; do not search for a related recording.
+        m_videoOccurrence=row.value("queueId").toString();
+        m_videoCandidate={{"videoId",selectedTrack(row).value("videoId")}};
+        resolveVideoMode(true);
+        return;
+    }
     inputFor(*m_backend->queue.activeOccurrence());discoverVideo();publishState();
 }
 std::optional<PlaybackLoadInput> VinylBackendSession::inputFor(const QueueOccurrence &item) {
@@ -593,6 +608,7 @@ void VinylBackendSession::updatePreparation() {
     if(!m_preparationRow.isEmpty())return; // one attempt per candidate; failure cannot spin/retry
     if(!m_loaded||m_paused||m_state!="playing"||seekPending()||!m_backend->preparationProgressed||position()<0.25)return;
     const auto edition=row.value("edition").toMap();
+    if(row.value("startWithVideo").toBool())return;
     if(row.value("track").toMap().value("available",true)==false||edition.value("origin","local")=="local"||!QRegularExpression("^[A-Za-z0-9_-]{11}$").match(selectedTrack(row).value("videoId").toString()).hasMatch())return;
     m_preparationRow=row;m_preparationSource=m_source;m_preparationProfile=m_profile;
     m_preparationGeneration=m_epoch;m_preparationStarted=monotonicMs();m_preparationElapsed=0;
@@ -609,6 +625,7 @@ void VinylBackendSession::resetVideo() {
     m_videoMatchRequest=-1;m_videoRequest=-1;m_videoOccurrence.clear();
     m_videoCandidate.clear();m_audioResource.clear();m_videoAudioUrl.clear();m_videoError.clear();
     m_videoActive=false;m_videoBusy=false;m_targetVideo=false;m_resumeListeningFacts=false;
+    m_startingExactVideo=false;
     if(m_source)for(const auto &lane:{QString("video-match"),QString("video-stream")})
         QMetaObject::invokeMethod(m_source,"cancel",Qt::DirectConnection,Q_ARG(QString,lane));
     attachVideoSurface();
@@ -658,6 +675,8 @@ void VinylBackendSession::videoCompleted(const QString &lane,int request,const Q
     if(request!=m_videoRequest)return;
     m_videoRequest=-1;
     if(!error.isEmpty()||data.value("trackId")!=activeRow().value("trackId")||!commitVideoMode(m_targetVideo,data)) {
+        if(m_startingExactVideo){fail({});return;}
+        if(m_state=="error")return;
         m_videoBusy=false;
         m_videoError=m_targetVideo?"The video is unavailable. Audio is still playing.":"Audio could not be restored. Try again.";
         publishState();
@@ -688,13 +707,17 @@ void VinylBackendSession::resolveVideoMode(bool video) {
     const auto value=activeRow().value("trackId").toString();
     m_videoRequest=requestSource("video-stream",video?"resolveVideo":"resolveFallback",value,
         video?QVariantMap{{"videoId",m_videoCandidate.value("videoId")}}:QVariantMap{});
-    if(m_videoRequest<0){m_videoBusy=false;m_videoError="This source cannot play the video.";}
-    else {
+    if(m_videoRequest<0) {
+        if(m_startingExactVideo){fail({});return;}
+        m_videoBusy=false;m_videoError="This source cannot play the video.";
+    }else {
         const auto generation=m_epoch;const auto request=m_videoRequest;
         QTimer::singleShot(95000,this,[this,generation,request] {
             if(generation!=m_epoch||request!=m_videoRequest)return;
             QMetaObject::invokeMethod(m_source,"cancel",Qt::DirectConnection,Q_ARG(QString,QString("video-stream")));
-            m_videoRequest=-1;m_videoBusy=false;m_videoError="The source did not respond. Try again.";publishState();
+            m_videoRequest=-1;
+            if(m_startingExactVideo){fail({});return;}
+            m_videoBusy=false;m_videoError="The source did not respond. Try again.";publishState();
         });
     }
     publishState();
@@ -806,6 +829,7 @@ void VinylBackendSession::loadFileWithHeaders(const PlaybackWorkToken &token,con
             if(!m_backend->coordinator.engineLoaded(token).ok)return;
             m_consecutiveUnavailable=0;
             m_loaded=true;m_state="playing";m_videoBusy=false;m_preparedAudioActive=false;
+            m_startingExactVideo=false;
             m_lastProgress=0;m_lastProgressMs=monotonicMs();
             if(std::isfinite(duration)&&duration>0){m_duration=duration;m_backend->callbacks.durationObserved(token,duration);}
             m_resume=std::clamp(m_resume,0.0,std::max(0.0,m_duration-0.1));
@@ -912,6 +936,7 @@ void VinylBackendSession::setPaused(const PlaybackWorkToken &,bool paused) {
     if(m_player)m_player->setPropertyAsync(QStringLiteral("pause"),paused);
 }
 bool VinylBackendSession::tryFallback(const QString &reason,std::optional<double> resume) {
+    if(m_startingExactVideo)return false;
     if(m_videoActive&&!m_shutdown&&m_profileActive&&activeIndex()>=0) {
         m_videoError="The video could not play. Returning to audio.";
         // Repeated errors must not replace an in-flight audio recovery.
@@ -1012,7 +1037,7 @@ void VinylBackendSession::failTrack(const QString &message) {
     const int size=m_backend->queue.size();
     int index=activeIndex()+m_failureDirection;
     const bool canAdvance=size>1&&((index>=0&&index<size)||m_repeat=="all");
-    if(!canAdvance||++m_consecutiveUnavailable>=3){fail(message);return;}
+    if(m_startingExactVideo||!canAdvance||++m_consecutiveUnavailable>=3){fail(message);return;}
     index=(index+size)%size;
     const bool play=!m_paused;
     const auto title=activeRow().value("title",activeRow().value("track").toMap().value("title")).toString();
@@ -1029,8 +1054,11 @@ void VinylBackendSession::failTrack(const QString &message) {
 }
 void VinylBackendSession::fail(const QString &message) {
     setSkippedNotice({});
-    endPlayback("failure");m_error=message;m_state="error";m_paused=true;
-    if(m_backend->session.activeWorkToken())m_backend->callbacks.failed(*m_backend->session.activeWorkToken(),"host_failure",message);
+    endPlayback("failure");
+    m_error=m_startingExactVideo?tr("This video could not be played."):message;
+    m_state="error";m_paused=true;
+    if(m_backend->session.activeWorkToken())m_backend->callbacks.failed(*m_backend->session.activeWorkToken(),"host_failure",m_error);
+    if(m_startingExactVideo){resetVideo();retirePlayer();}
     if(m_player)m_player->setPause(true);publishState();
 }
 void VinylBackendSession::retry() { if(activeIndex()>=0){m_consecutiveUnavailable=0;const auto at=position();cancelResolution();

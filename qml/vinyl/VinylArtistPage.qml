@@ -14,6 +14,7 @@ Flickable {
     signal albumRequested(var album)
     signal songRequested(var song)
     signal playSongRequested(var song)
+    signal playVideoRequested(var record)
     signal artistRequested(var artist)
     signal backRequested()
 
@@ -132,8 +133,12 @@ Flickable {
     }
 
     function showMedia(record, originItem) {
-        if (artistData.liveMode && record && record.playable && record.album) {
-            root.albumRequested(record.album);
+        if (!record) return;
+        if (artistData.liveMode) {
+            if (record.playable && record.album)
+                root.albumRequested(record.album);
+            else
+                root.playVideoRequested(record);
             return;
         }
         dialogReturnItem = originItem && originItem.activeFocus ? originItem : null;
@@ -1296,9 +1301,10 @@ Flickable {
         }
     }
 
-    // Existing Media Source Dialog
+    // Catalogue preview only; live media uses the player or status line.
     Dialog {
         id: mediaDialog
+        objectName: "vinylArtistMediaDialog"
         property var selection: ({title:"",cover:"",provider:"",sourceUrl:"",kind:"",snapshotAt:""})
         parent: Overlay.overlay
         anchors.centerIn: parent
@@ -1327,7 +1333,7 @@ Flickable {
             Label {
                 width: parent.width; textFormat: Text.PlainText; wrapMode: Text.WordWrap
                 color: theme.inkDim
-                text: root.artistData.liveMode ? "No playable local file is available for this media." : "Catalogue reference. Playback for this media is not connected in the artist preview. Opening the source leaves Colosseum."
+                text: "Catalogue reference. Playback for this media is not connected in the artist preview. Opening the source leaves Colosseum."
             }
             KeyboardAction {
                 focusOnPointer: false

@@ -69,6 +69,23 @@ _SERVER_VIDEO_DL = None
 _SERVER_MUSIC_CLIENT = None
 _SERVER_MUSIC_KEY = None
 
+# One request at a time (both one-shot and NDJSON). Diagnostic data contains
+# only durations, never URLs, lyrics, credentials, names or request options.
+_TIMING = None
+
+
+@contextlib.contextmanager
+def _measure(field):
+    timings = _TIMING
+    if timings is None:
+        yield
+        return
+    start = time.monotonic()
+    try:
+        yield
+    finally:
+        timings[field] = timings.get(field, 0.0) + time.monotonic() - start
+
 
 def _youtube_dl(kind):
     from yt_dlp import YoutubeDL
@@ -735,7 +752,7 @@ def fetch_playlist_page(client, request, key, region):
 def resolve(video):
     if not re.fullmatch(r"[A-Za-z0-9_-]{11}", video):
         raise ValueError("Invalid YouTube video ID")
-    with _youtube_dl("audio") as client:
+    with _youtube_dl("audio") as client, _measure("providerCallMs"):
         data = client.extract_info("https://music.youtube.com/watch?v=" + video, download=False)
     url = data.get("url", "")
     parsed = urlparse(url)
@@ -757,7 +774,7 @@ def resolve_video(video):
     """
     if not isinstance(video, str) or not re.fullmatch(r"[A-Za-z0-9_-]{11}", video):
         raise InvalidArgumentError("Invalid YouTube video ID")
-    with _youtube_dl("video") as client:
+    with _youtube_dl("video") as client, _measure("providerCallMs"):
         data = client.extract_info("https://www.youtube.com/watch?v=" + video, download=False)
     return _validated_video_resolution(video, data)
 
@@ -1006,7 +1023,8 @@ def _is_not_found_exception(exc):
 
 def _call_provider(fn, *args, not_found_on_error=False, **kwargs):
     try:
-        return fn(*args, **kwargs)
+        with _measure("providerCallMs"):
+            return fn(*args, **kwargs)
     except ProviderError:
         raise
     except Exception as exc:
@@ -1442,7 +1460,8 @@ class MusicBrainzClient:
             elapsed = self._clock() - self._last_request_time
             if elapsed < self.min_interval:
                 delay = self.min_interval - elapsed
-                self._sleep(delay)
+                with _measure("musicBrainzSleepMs"):
+                    self._sleep(delay)
 
     def get_json(self, url):
         last_error = None
@@ -1464,14 +1483,14 @@ class MusicBrainzClient:
                 "attempt": attempt + 1,
             })
             try:
-                with self._urlopen(req, timeout=self.timeout) as resp:
+                with _measure("httpMs"), self._urlopen(req, timeout=self.timeout) as resp:
                     status = getattr(resp, "status", 200)
                     if status == 503:
                         raise urllib.error.HTTPError(url, 503, "Service Unavailable", {}, None)
                     body = resp.read(4 * 1024 * 1024 + 1)
-                    if len(body) > 4 * 1024 * 1024:
-                        raise ProviderUnavailableError("MusicBrainz response exceeded its limit.")
-                    return json.loads(body)
+                if len(body) > 4 * 1024 * 1024:
+                    raise ProviderUnavailableError("MusicBrainz response exceeded its limit.")
+                return json.loads(body)
             except urllib.error.HTTPError as exc:
                 last_error = exc
                 if exc.code == 429:
@@ -1483,7 +1502,8 @@ class MusicBrainzClient:
                 if exc.code == 503:
                     if attempt + 1 >= self.max_retries:
                         raise RateLimitError("MusicBrainz service unavailable (HTTP 503) after backoff.") from exc
-                    self._sleep(self.backoff_base * (2 ** attempt))
+                    with _measure("musicBrainzSleepMs"):
+                        self._sleep(self.backoff_base * (2 ** attempt))
                     continue
                 if exc.code == 404:
                     raise ArtistNotFoundError("Artist not found in MusicBrainz.") from exc
@@ -1805,14 +1825,14 @@ def fetch_artist_artwork(mbid, get_json=None):
         def get_json(target):
             import requests
             try:
-                with requests.get(target, headers={'User-Agent': MB_USER_AGENT}, timeout=20, stream=True) as response:
+                with _measure("httpMs"), requests.get(target, headers={'User-Agent': MB_USER_AGENT}, timeout=20, stream=True) as response:
                     response.raise_for_status()
                     chunks = bytearray()
                     for chunk in response.iter_content(16384):
                         chunks.extend(chunk)
                         if len(chunks) > 1024 * 1024:
                             raise ProviderUnavailableError('Artist artwork response exceeded its limit')
-                    return json.loads(chunks)
+                return json.loads(chunks)
             except (requests.RequestException, ValueError):
                 raise ProviderUnavailableError('Artist artwork is temporarily unavailable') from None
     result = {'artistMbid':mbid, 'source':'theaudiodb', 'usage':'development',
@@ -2884,7 +2904,7 @@ def fetch_lyrics(request, opener=None):
     )
     open_url = urllib.request.urlopen if opener is None else opener
     try:
-        with open_url(request_object, timeout=LRCLIB_TIMEOUT_SECONDS) as response:
+        with _measure("httpMs"), open_url(request_object, timeout=LRCLIB_TIMEOUT_SECONDS) as response:
             status = getattr(response, "status", None)
             if status is None and hasattr(response, "getcode"):
                 status = response.getcode()
@@ -4150,9 +4170,23 @@ def _answer(raw):
         return {"ok": False, "error": "YouTube is unavailable for this request. Try again.", "errorCode": "unavailable"}
 
 
+def _wire_answer(raw):
+    if os.environ.get("COLOSSEUM_CATALOGUE_TRACE") != "1":
+        return _answer(raw)
+    global _TIMING
+    timings = _TIMING = {}
+    try:
+        with _measure("helperMs"):
+            result = _answer(raw)
+    finally:
+        _TIMING = None
+    result["timing"] = {name: round(seconds * 1000) for name, seconds in timings.items()}
+    return result
+
+
 def main():
     raw = sys.stdin.buffer.read(1024 * 1024 + 1)
-    sys.stdout.buffer.write(json.dumps(_answer(raw), ensure_ascii=True).encode("utf-8"))
+    sys.stdout.buffer.write(json.dumps(_wire_answer(raw), ensure_ascii=True).encode("utf-8"))
 
 
 def serve():
@@ -4164,8 +4198,8 @@ def serve():
         if not raw:
             break
         too_large = len(raw) > 1024 * 1024 + 1 or not raw.endswith(b"\n")
-        response = (_answer(b" " * (1024 * 1024 + 1)) if too_large
-                    else _answer(raw[:-1]))
+        response = (_wire_answer(b" " * (1024 * 1024 + 1)) if too_large
+                    else _wire_answer(raw[:-1]))
         sys.stdout.buffer.write(json.dumps(response, ensure_ascii=True).encode("utf-8") + b"\n")
         sys.stdout.buffer.flush()
         if too_large:

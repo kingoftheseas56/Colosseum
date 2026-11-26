@@ -888,6 +888,28 @@ Item {
         if(!rows.length){browseError="No available songs could be played.";return;}
         manualPlaybackStarted();snapshot();cancelQueueRequest();refreshSource(rows);browseError="";backend.replaceRows(rows,0,!!shuffleOrder);snapshot();
     }
+    function playArtistVideo(record, artistName, artistId) {
+        if(shuttingDown || !profileActive) return;
+        const videoId=String(record.videoId || "");
+        const unavailable=qsTr("This video could not be played.");
+        if(!/^[A-Za-z0-9_-]{11}$/.test(videoId)) {browseError=unavailable;return;}
+        // Keep the exact clip as a distinct queue recording. Register its audio
+        // identity too, so the existing player toggle can switch to audio only.
+        const id="ytm:video:"+videoId;
+        const title=record.title || qsTr("Untitled video");
+        const artists=artistName ? [artistName] : [];
+        const artistIds=artistId ? [artistId] : [];
+        const track={id:id, videoId:videoId, title:title, artists:artists, artistIds:artistIds,
+            seconds:Math.max(0,Number(record.seconds) || 0)};
+        const album={id:id, title:title, origin:"youtube-music", cover:record.cover || "",
+            artists:artists, artistIds:artistIds, tracks:[track]};
+        const row=albumTrackRow(album,0);
+        if(!row) {browseError=unavailable;return;}
+        row.startWithVideo=true;
+        manualPlaybackStarted();snapshot();cancelQueueRequest();refreshSource([row]);browseError="";
+        if(backend.replaceRows([row],0,false))snapshot();
+        else browseError=unavailable;
+    }
     function rowsForSongs(songs) {
         if(!Array.isArray(songs))return [];
         var rows=[], cache=new Map();

@@ -1876,6 +1876,7 @@ foreach(vinyl_suite IN ITEMS
     vinyl_artist_repair
     vinyl_artist_scrollbars
     vinyl_artist_shared_picker
+    vinyl_artist_video
     vinyl_home_mix_page
     vinyl_live_world_state
     vinyl_local_controls

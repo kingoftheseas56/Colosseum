@@ -4,6 +4,7 @@
 #include <QDate>
 #include <QDateTime>
 #include <QEventLoop>
+#include <QFile>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -156,6 +157,7 @@ public:
     QList<QString> cancelledLanes;
     QList<Request> requests;
     QSet<QString> freshCachedArtistIds;
+    QMap<QString,QVariantMap> cachedCharts;
     mutable QList<QString> cachedQueries;
 
     ~FakeSource() override
@@ -228,6 +230,8 @@ public:
     Q_INVOKABLE QVariantMap cachedRecommendation(const QString &operation, const QString &value,
                                                   const QVariantMap &options) const
     {
+        if (operation == QStringLiteral("chartCandidates"))
+            return cachedCharts.value(value);
         if (operation != QStringLiteral("artistCandidates"))
             return {};
         cachedQueries.append(value);
@@ -1177,6 +1181,26 @@ private slots:
         QTRY_COMPARE_WITH_TIMEOUT(fixture.service.homeStatus(),QString("ready"),1000);
         QVERIFY(fixture.service.homeError().isEmpty());
         QVERIFY(!fixture.source.cancelledLanes.contains("home-identity"));
+    }
+    void homeRetryReusesFreshChartsButRequestsMissingFeeds()
+    {
+        QFile file(QFINDTESTDATA("fixtures/vinyl-source-pool/transport-envelopes.json"));
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        const auto examples=QJsonDocument::fromJson(file.readAll()).object().value("examples").toArray();
+        QVERIFY(!examples.isEmpty());
+        auto chart=examples.first().toObject().value("response").toObject().toVariantMap();
+        chart["fetchedAt"]=QDateTime::fromMSecsSinceEpoch(kFixedNowMs-3600000,Qt::UTC).toString(Qt::ISODateWithMs);
+        chart["_cached"]=true;
+        HomeFixture fixture({},kFixedNowMs,false,false);
+        fixture.source.runtimeFixtures=true;
+        fixture.source.cachedCharts.insert("apple:us:albums",chart);
+        fixture.service.refreshHome(true);
+        QTRY_COMPARE_WITH_TIMEOUT(fixture.source.callsFor("chartCandidates").size(),21,10000);
+        QTRY_VERIFY_WITH_TIMEOUT(fixture.source.pendingRequests().isEmpty(),10000);
+        for(const auto &call:fixture.source.callsFor("chartCandidates")){
+            QVERIFY(call.value!="apple:us:albums");
+            QVERIFY(call.options.value("refresh").toBool());
+        }
     }
     void fiveSeedRuntimeFixturesReachTheActualMergedHomePool()
     {
