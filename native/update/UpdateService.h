@@ -7,6 +7,7 @@
 
 #include <QObject>
 #include <QHash>
+#include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
 
@@ -24,6 +25,7 @@ struct UpdateServiceHooks final {
     using CancelDownload = std::function<void()>;
     using Clock = std::function<qint64()>;
     using InstallLauncher = std::function<bool(const QString&, const Version&, QString*)>;
+    using OpenUrl = std::function<bool(const QUrl&)>;
     using RequestShutdown = std::function<void()>;
     using ArtworkCompleted = std::function<void(const QByteArray&)>;
     using ArtworkFailed = std::function<void(const QString&)>;
@@ -40,6 +42,8 @@ struct UpdateServiceHooks final {
     // 120s timeout. Unset is a no-op (null-checked before invoke).
     RequestShutdown requestShutdown;
     FetchArtwork fetchArtwork;
+    QStringList manualPackageKinds;
+    OpenUrl openUrl;
 
     // Installed-chronicle seed paths. Production main.cpp points these at the
     // bundled qrc-extracted manifest + signature + artwork dir so the gallery
@@ -64,6 +68,8 @@ class UpdateService final : public QObject {
     Q_PROPERTY(double progress READ progress NOTIFY changed)
     Q_PROPERTY(QVariantMap release READ release NOTIFY changed)
     Q_PROPERTY(QVariantList highlights READ highlights NOTIFY changed)
+    Q_PROPERTY(QStringList manualDownloadLabels READ manualDownloadLabels NOTIFY changed)
+    Q_PROPERTY(QString updateError READ updateError NOTIFY changed)
 
 public:
     enum State {
@@ -96,6 +102,10 @@ public:
     QVariantMap release() const { return m_release; }
     QVariantList highlights() const { return m_highlights; }
 
+    QStringList manualDownloadLabels() const;
+    QString updateError() const { return m_updateError; }
+
+    Q_INVOKABLE void openManualDownload(int index);
     Q_INVOKABLE void checkNow();
     Q_INVOKABLE void download();
     Q_INVOKABLE void cancelDownload();
@@ -121,6 +131,7 @@ signals:
     void offeredReleaseChanged();
 
 private:
+    QStringList availableManualPackages() const;
     void loadPersisted();
     void loadSeedState();
     bool restoreManifest(const QByteArray& manifestBytes, const QByteArray& signatureBytes,
@@ -141,9 +152,8 @@ private:
     static State stateFromName(const QString& name);
 
     // Offered-release selector: true when a verified newer release is active
-    // (Available/Downloading/Paused/Verifying/Ready with a chronicle), false at
-    // rest (Idle/Checking/UpToDate/VerificationFailure/ManualUpdateRequired, or
-    // no chronicle at all). When true, rebuildPresentation() renders the newer
+    // (including manual downloads with a compatible package), false at rest.
+    // When true, rebuildPresentation() renders the newer
     // release's chapters; when false, it renders the installed chronicle's.
     bool newerReleaseOffered() const;
     void loadInstalledChronicle();
@@ -155,6 +165,8 @@ private:
     QString m_cacheRoot;
     UpdateCache m_cache;
     UpdateServiceHooks m_hooks;
+    QTimer m_automaticTimer;
+    QString m_updateError;
     State m_state = Idle;
     State m_stateBeforeCheck = Idle;
     bool m_checkInFlight = false;

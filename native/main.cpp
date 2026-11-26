@@ -5,6 +5,7 @@
 #include "stream/SmartPlayBridge.h"
 
 #include <QDir>
+#include <QDesktopServices>
 #include <QGuiApplication>
 #include <QHash>
 #include <QHostAddress>
@@ -63,15 +64,15 @@
 #include "account/RatingsReviewsDelivery.h"
 #include "account/ProfilePreferencesStore.h"
 #include "homeserver/HomeServerService.h"
-#if !defined(Q_OS_ANDROID)
 #include "update/InstalledChronicle.h"
 #include "update/UpdateCache.h"
 #include "update/UpdateDownload.h"
+#ifdef Q_OS_WIN
 #include "update/UpdateInstallBridge.h"
+#endif
 #include "update/UpdateReleaseClient.h"
 #include "update/UpdateService.h"
 #include "update/UpdateTrust.h"
-#endif
 #include "update/UpdateUserAgent.h"
 #include "bootstrap/ApplicationShutdown.h"
 #include "work/BackgroundActivityRegistry.h"
@@ -552,25 +553,33 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(
         QStringLiteral("PlatformRuntime"), platformRuntime);
 
-    // Shared catalogue networking exists on every host. Desktop updater traffic
-    // may reuse it, but Android does not construct updater/installer services.
+    // The signed release check uses the same network manager on every host.
     auto *catalogNam = new QNetworkAccessManager(&app);
 
-#if !defined(Q_OS_ANDROID)
-    // Auto-update is a post-first-paint desktop service. It reuses the plain
-    // catalogue network manager but keeps its own cache and installer bridge.
+    const QString updateCacheRoot = Colosseum::Update::UpdateCache::productionRoot();
+#ifdef Q_OS_WIN
     auto updateCacheOwner = std::make_unique<Colosseum::Update::UpdateCache>(
-        Colosseum::Update::UpdateCache::productionRoot());
-    auto *updateCache = updateCacheOwner.get();
+        updateCacheRoot);
     auto *updateDownloader = new Colosseum::Update::UpdateDownload(
         catalogNam, std::move(updateCacheOwner), &app);
+#endif
     Colosseum::Update::ReleaseClientConfig updateConfig;
+#if defined(COLOSSEUM_UPDATE_TESTING) && defined(COLOSSEUM_UPDATE_TEST_FEED_URL)
+    updateConfig.latestReleaseUrl = QUrl(QStringLiteral(COLOSSEUM_UPDATE_TEST_FEED_URL));
+#else
     updateConfig.latestReleaseUrl = QUrl(
         QStringLiteral("https://getcolosseum.world/updates/stable.json"));
+#endif
     updateConfig.publicKey = QByteArray(Colosseum::Update::embeddedUpdatePublicKey().data(),
                                         Colosseum::Update::embeddedUpdatePublicKey().size());
     Colosseum::Update::UpdateReleaseClient updateClientStorage(catalogNam, updateConfig, &app);
     auto *updateClient = &updateClientStorage;
+    Colosseum::Update::UpdateServiceHooks updateHooks;
+    updateHooks.checkLatest = [updateClient](const QString& priorEtag,
+                                              Colosseum::Update::UpdateReleaseClient::Callback done) {
+        updateClient->checkLatest(priorEtag, std::move(done));
+    };
+#ifdef Q_OS_WIN
     Colosseum::Update::UpdateInstallBridge updateBridgeStorage(&app);
     auto *updateBridge = &updateBridgeStorage;
 
@@ -596,11 +605,6 @@ int main(int argc, char *argv[]) {
             updateCallbacks->failed(code, resumable);
     });
 
-    Colosseum::Update::UpdateServiceHooks updateHooks;
-    updateHooks.checkLatest = [updateClient](const QString& priorEtag,
-                                              Colosseum::Update::UpdateReleaseClient::Callback done) {
-        updateClient->checkLatest(priorEtag, std::move(done));
-    };
     updateHooks.startDownload = [updateDownloader, updateCallbacks](
         const Colosseum::Update::DownloadRequest& request,
         Colosseum::Update::UpdateServiceHooks::DownloadProgress progress,
@@ -623,6 +627,17 @@ int main(int argc, char *argv[]) {
     updateHooks.requestShutdown = [&app, &engine] {
         Colosseum::Bootstrap::requestApplicationShutdown(app, engine);
     };
+#else
+#if defined(Q_OS_ANDROID) && defined(Q_PROCESSOR_ARM_64)
+    updateHooks.manualPackageKinds = {QStringLiteral("android-arm64-apk")};
+#elif defined(Q_OS_MACOS) && defined(Q_PROCESSOR_ARM_64)
+    updateHooks.manualPackageKinds = {QStringLiteral("macos-arm64-dmg")};
+#elif defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID) && defined(Q_PROCESSOR_X86_64)
+    updateHooks.manualPackageKinds = {QStringLiteral("linux-x64-appimage"),
+                                      QStringLiteral("linux-x64-deb")};
+#endif
+    updateHooks.openUrl = [](const QUrl& url) { return QDesktopServices::openUrl(url); };
+#endif
     updateHooks.fetchArtwork = [catalogNam](const QString&, const QUrl& url, qint64 cap,
                                            Colosseum::Update::UpdateServiceHooks::ArtworkCompleted done,
                                            Colosseum::Update::UpdateServiceHooks::ArtworkFailed failed) {
@@ -682,7 +697,7 @@ int main(int argc, char *argv[]) {
     // before use, so a stale or tampered extraction is rejected.
     {
         const QString chronicleCacheDir =
-            QDir(updateCache->rootPath()).filePath(QStringLiteral("installed-chronicle"));
+            QDir(updateCacheRoot).filePath(QStringLiteral("installed-chronicle"));
         const QString artworkCacheDir = QDir(chronicleCacheDir).filePath(QStringLiteral("artwork"));
         QDir().mkpath(artworkCacheDir);
         const auto extract = [](const QString& qrcPath, const QString& destName,
@@ -713,7 +728,7 @@ int main(int argc, char *argv[]) {
         }
     }
     auto *updates = new Colosseum::Update::UpdateService(
-        *installedVersion, updateCache->rootPath(), std::move(updateHooks), &backendServices);
+        *installedVersion, updateCacheRoot, std::move(updateHooks), &backendServices);
 #ifdef COLOSSEUM_UPDATE_TESTING
     if (qEnvironmentVariableIsSet("COLOSSEUM_UPDATE_TEST_PRESENTATION_STATE")) {
         const QString requestedState = qEnvironmentVariable("COLOSSEUM_UPDATE_TEST_PRESENTATION_STATE");
@@ -743,14 +758,15 @@ int main(int argc, char *argv[]) {
     }
 #endif
     engine.rootContext()->setContextProperty(QStringLiteral("Updates"), updates);
-    const bool installedUpdateEligible = updateBridge->installedBuildEligible();
-#ifdef COLOSSEUM_UPDATE_TESTING
-    constexpr bool updateTestingBuild = true;
+#ifdef Q_OS_WIN
+    const bool updateDiscoveryEligible = updateBridge->installedBuildEligible();
 #else
-    constexpr bool updateTestingBuild = false;
+    constexpr bool updateDiscoveryEligible = true;
 #endif
-    if (!installedUpdateEligible && !updateTestingBuild)
-        qInfo("[update] automatic checks disabled (source/dev build or missing installed layout)");
+#if defined(COLOSSEUM_UPDATE_TESTING) && !defined(COLOSSEUM_UPDATE_TEST_FEED_URL)
+    constexpr bool updateDiscoveryConfigured = false;
+#else
+    constexpr bool updateDiscoveryConfigured = true;
 #endif
     QString startupLayoutError;
     const auto startupLayout = resolveStartupLayout(
@@ -2525,7 +2541,9 @@ int main(int argc, char *argv[]) {
         });
     }
 
+#ifdef Q_OS_WIN
     const QStringList launchArguments = QCoreApplication::arguments();
+#endif
     QObject* rootObject = engine.rootObjects().constFirst();
 #ifdef COLOSSEUM_RATINGS_REVIEWS_TESTING
     if (qEnvironmentVariable("COLOSSEUM_APPDATA_TAG")
@@ -2548,24 +2566,23 @@ int main(int argc, char *argv[]) {
         if (!QMetaObject::invokeMethod(rootObject, "handleEscape", Qt::QueuedConnection))
             qWarning("[platform] root QML does not expose handleEscape()");
     });
-#if !defined(Q_OS_ANDROID)
-    const auto acknowledgeFirstFrame = [&app, &guiStallProbe, updateBridge,
-                                        launchArguments, biblioCatalog](const QString &context) {
-        app.setStallContext(QStringLiteral("startup"), context);
-        app.markFirstFrame();
-        guiStallProbe.notifyFirstFrame();
-        updateBridge->acknowledgeHealthyBoot(launchArguments);
-        QTimer::singleShot(0, biblioCatalog, [biblioCatalog] { biblioCatalog->refreshIfDue(); });
-    };
-#else
-    const auto acknowledgeFirstFrame = [&app, &guiStallProbe,
-                                        biblioCatalog](const QString &context) {
-        app.setStallContext(QStringLiteral("startup"), context);
-        app.markFirstFrame();
-        guiStallProbe.notifyFirstFrame();
-        QTimer::singleShot(0, biblioCatalog, [biblioCatalog] { biblioCatalog->refreshIfDue(); });
-    };
+    const bool scheduleUpdateChecks = updateDiscoveryEligible && updateDiscoveryConfigured
+        && !hasQmlOverride;
+    const auto acknowledgeFirstFrame = [&, biblioCatalog, updates, scheduleUpdateChecks
+#ifdef Q_OS_WIN
+                                        , updateBridge
 #endif
+                                       ](const QString &context) {
+        app.setStallContext(QStringLiteral("startup"), context);
+        app.markFirstFrame();
+        guiStallProbe.notifyFirstFrame();
+#ifdef Q_OS_WIN
+        updateBridge->acknowledgeHealthyBoot(launchArguments);
+#endif
+        QTimer::singleShot(0, biblioCatalog, [biblioCatalog] { biblioCatalog->refreshIfDue(); });
+        if (scheduleUpdateChecks)
+            QTimer::singleShot(0, updates, &Colosseum::Update::UpdateService::startAutomaticChecks);
+    };
 
     if (auto* rootWindow = qobject_cast<QQuickWindow*>(rootObject)) {
 #ifdef Q_OS_ANDROID
@@ -2606,11 +2623,6 @@ int main(int argc, char *argv[]) {
             app.setStallContext({}, {});
         });
     }
-
-#if !defined(Q_OS_ANDROID)
-    if (installedUpdateEligible && !updateTestingBuild)
-        QTimer::singleShot(0, updates, &Colosseum::Update::UpdateService::startAutomaticChecks);
-#endif
 
     // Lanista dev-control bridge — ALWAYS ON for reads/grabs (Hemanth, spec
     // 2026-08-01 §3). Local named pipe only, never a network port. Driving and

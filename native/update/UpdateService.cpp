@@ -15,7 +15,20 @@
 namespace Colosseum::Update {
 namespace {
 
-constexpr qint64 kAutomaticCheckIntervalMs = 6LL * 60LL * 60LL * 1000LL;
+constexpr int kAutomaticCheckIntervalMs = 6 * 60 * 60 * 1000;
+
+QString packageLabel(const QString& kind)
+{
+    if (kind == QStringLiteral("android-arm64-apk"))
+        return QStringLiteral("Download APK");
+    if (kind == QStringLiteral("linux-x64-appimage"))
+        return QStringLiteral("Download AppImage");
+    if (kind == QStringLiteral("linux-x64-deb"))
+        return QStringLiteral("Download .deb");
+    if (kind == QStringLiteral("macos-arm64-dmg"))
+        return QStringLiteral("Download DMG");
+    return {};
+}
 constexpr qint64 kArtworkCapBytes = 8LL * 1024LL * 1024LL;
 constexpr int kServiceSchemaVersion = 1;
 
@@ -116,6 +129,9 @@ UpdateService::UpdateService(Version installedVersion, QString cacheRoot,
       m_cache(m_cacheRoot),
       m_hooks(std::move(hooks))
 {
+    m_automaticTimer.setInterval(kAutomaticCheckIntervalMs);
+    m_automaticTimer.setTimerType(Qt::PreciseTimer);
+    connect(&m_automaticTimer, &QTimer::timeout, this, &UpdateService::startAutomaticChecks);
     loadInstalledChronicle();
     loadPersisted();
     // Both loaders are best-effort: on a fresh cache (no persisted state, no
@@ -125,6 +141,40 @@ UpdateService::UpdateService(Version installedVersion, QString cacheRoot,
     // chronicle (installed and/or offered) actually loaded. rebuildPresentation
     // is idempotent and cheap when nothing changed.
     rebuildPresentation();
+}
+
+QStringList UpdateService::availableManualPackages() const
+{
+    QStringList result;
+    for (const QString& kind : m_hooks.manualPackageKinds) {
+        if (m_manifest.downloads.contains(kind) && !packageLabel(kind).isEmpty())
+            result.append(kind);
+    }
+    return result;
+}
+
+QStringList UpdateService::manualDownloadLabels() const
+{
+    QStringList labels;
+    if (m_state == ManualUpdateRequired && m_updateAvailable) {
+        for (const QString& kind : availableManualPackages())
+            labels.append(packageLabel(kind));
+    }
+    return labels;
+}
+
+void UpdateService::openManualDownload(int index)
+{
+    if (m_state != ManualUpdateRequired || !m_updateAvailable || !m_hooks.openUrl)
+        return;
+    const QString kind = availableManualPackages().value(index);
+    const auto it = m_manifest.downloads.constFind(kind);
+    if (it == m_manifest.downloads.constEnd())
+        return;
+    if (!m_hooks.openUrl(platformDownloadUrl(m_manifest, *it))) {
+        m_updateError = QStringLiteral("Could not open the download");
+        emitChanged();
+    }
 }
 
 double UpdateService::progress() const
@@ -340,7 +390,10 @@ bool UpdateService::applyManifest(const Manifest& manifest, const QByteArray& ma
                                   const QByteArray& signatureBytes, State requestedState,
                                   bool seen, QString* error)
 {
-    if (manifest.schemaVersion != 1 || manifest.version.canonical().isEmpty()) {
+    const bool hasPlatformDownloads = manifest.schemaVersion == 2;
+    if ((manifest.schemaVersion != 1 && !hasPlatformDownloads)
+        || (hasPlatformDownloads && !m_hooks.openUrl)
+        || manifest.version.canonical().isEmpty()) {
         fail(error, QStringLiteral("invalid_manifest"));
         return false;
     }
@@ -379,7 +432,11 @@ bool UpdateService::applyManifest(const Manifest& manifest, const QByteArray& ma
     } else {
         order = installedComparison;
     }
-    if (manifest.minimumUpdaterVersion.compare(m_installedVersion) > 0) {
+    if (m_hooks.openUrl) {
+        m_updateAvailable = installedComparison > 0 && !availableManualPackages().isEmpty();
+        m_unseenUpdate = m_updateAvailable && m_seenVersion != m_latestReleaseKey;
+        m_state = installedComparison > 0 ? ManualUpdateRequired : UpToDate;
+    } else if (manifest.minimumUpdaterVersion.compare(m_installedVersion) > 0) {
         m_updateAvailable = false;
         m_unseenUpdate = false;
         m_state = ManualUpdateRequired;
@@ -471,11 +528,7 @@ void UpdateService::rebuildPresentation()
 
 bool UpdateService::newerReleaseOffered() const
 {
-    // A newer release is "offered" only when a verified chronicle is active AND
-    // the current state is one where the user is being shown that newer release
-    // (Available, mid-download, verifying, or ready to restart). At rest
-    // (Idle/Checking/UpToDate), or on failure (VerificationFailure/
-    // ManualUpdateRequired), the offered release reverts to the installed one.
+    // A verified compatible offer shows its own chronicle while actionable.
     if (!m_hasChronicle || !m_updateAvailable)
         return false;
     switch (m_state) {
@@ -485,6 +538,8 @@ bool UpdateService::newerReleaseOffered() const
     case Verifying:
     case Ready:
         return true;
+    case ManualUpdateRequired:
+        return m_manifest.schemaVersion == 2;
     default:
         return false;
     }
@@ -590,7 +645,10 @@ void UpdateService::persist()
 
 void UpdateService::startAutomaticChecks()
 {
-    if (m_checkInFlight)
+    if (!m_automaticTimer.isActive())
+        m_automaticTimer.start();
+    if (m_checkInFlight || m_state == Downloading || m_state == Paused
+        || m_state == Verifying || m_state == Ready || m_state == Installing)
         return;
     const qint64 current = nowMs();
     if (m_lastCheckMs >= 0 && current >= m_lastCheckMs
@@ -611,8 +669,11 @@ void UpdateService::checkNow()
         return;
     }
     m_checkInFlight = true;
+    m_updateError.clear();
     m_stateBeforeCheck = m_state;
     m_lastCheckMs = nowMs();
+    if (m_automaticTimer.isActive())
+        m_automaticTimer.start();
     setState(Checking);
     persist();
     m_hooks.checkLatest(m_etag, [this](const ReleaseCheckResult& result) {
@@ -623,8 +684,6 @@ void UpdateService::checkNow()
 void UpdateService::handleRelease(const ReleaseCheckResult& result)
 {
     m_checkInFlight = false;
-    if (!result.etag.isEmpty())
-        m_etag = result.etag;
     if (result.status == ReleaseCheckResult::Status::NotModified) {
         setState(m_hasChronicle ? m_stateBeforeCheck : UpToDate);
         persist();
@@ -634,6 +693,9 @@ void UpdateService::handleRelease(const ReleaseCheckResult& result)
     const bool manualUpdateRequired =
         result.status == ReleaseCheckResult::Status::ManualUpdateRequired;
     if (result.status != ReleaseCheckResult::Status::Valid && !manualUpdateRequired) {
+        m_updateError = result.status == ReleaseCheckResult::Status::NetworkError
+            ? QStringLiteral("Could not check for updates")
+            : QStringLiteral("Could not verify the release");
         setState(m_hasChronicle ? m_stateBeforeCheck : Idle);
         persist();
         emitChanged();
@@ -655,12 +717,13 @@ void UpdateService::handleRelease(const ReleaseCheckResult& result)
                                  seen, &error);
     }
     if (!accepted) {
+        m_updateError = QStringLiteral("Could not verify the release");
         setState(m_hasChronicle ? m_stateBeforeCheck : Idle);
         persist();
         return;
     }
     m_etag = result.etag;
-    m_assetUrls = manualUpdateRequired ? QHash<QString, QUrl>{} : result.assetUrls;
+    m_assetUrls = result.assetUrls;
     m_installerPath.clear();
     m_receivedBytes = 0;
     m_totalBytes = result.manifest.installerSize;

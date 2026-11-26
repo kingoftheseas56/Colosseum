@@ -35,9 +35,7 @@ struct ReleaseClientConfig {
 #ifdef Q_OS_WIN
     bool automaticInstallerSupported = true;
 #else
-    // Schema v1 names exactly one installer and has no platform identity. Until a
-    // platform-aware Linux artifact schema exists, a non-Windows build may verify
-    // release metadata but must never select an automatic installer from it.
+    // Non-Windows builds discover platform downloads and never run the EXE.
     bool automaticInstallerSupported = false;
 #endif
     int timeoutMs = 15000;

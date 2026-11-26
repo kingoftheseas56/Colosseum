@@ -72,7 +72,55 @@ bool safeAssetName(const QString& name)
     return true;
 }
 
+bool parsePlatformDownloads(const QJsonValue& value, Manifest* manifest, QString* error)
+{
+    const auto downloads = value.toObject();
+    const QString version = manifest->version.canonical();
+    const QHash<QString, QString> expectedNames = {
+        {QStringLiteral("android-arm64-apk"),
+         QStringLiteral("Colosseum-Android-%1-arm64-v8a.apk").arg(version)},
+        {QStringLiteral("linux-x64-appimage"),
+         QStringLiteral("Colosseum-%1-x86_64.AppImage").arg(version)},
+        {QStringLiteral("linux-x64-deb"),
+         QStringLiteral("Colosseum-%1-linux-amd64.deb").arg(version)},
+        {QStringLiteral("macos-arm64-dmg"),
+         QStringLiteral("Colosseum-%1-macOS-arm64.dmg").arg(version)},
+    };
+    if (downloads.isEmpty() || downloads.size() > expectedNames.size()) {
+        fail(error, QStringLiteral("invalid_platform_downloads"));
+        return false;
+    }
+    for (auto it = downloads.constBegin(); it != downloads.constEnd(); ++it) {
+        const QJsonObject item = it.value().toObject();
+        PlatformDownload download;
+        download.assetName = item.value(QStringLiteral("asset")).toString();
+        download.size = item.value(QStringLiteral("size")).toInteger(0);
+        if (!expectedNames.contains(it.key()) || download.assetName != expectedNames.value(it.key())
+            || download.size <= 0
+            || !exactKeys(item, {QStringLiteral("asset"), QStringLiteral("size"),
+                                 QStringLiteral("sha256")}, error)
+            || !sha256Field(item.value(QStringLiteral("sha256")), &download.sha256,
+                            error, "downloads.sha256")) {
+            fail(error, QStringLiteral("invalid_platform_download:") + it.key());
+            return false;
+        }
+        manifest->downloads.insert(it.key(), download);
+    }
+    return true;
+}
+
 } // namespace
+
+QUrl platformDownloadUrl(const Manifest& manifest, const PlatformDownload& download)
+{
+    const QString file = manifest.tag + u'/' + download.assetName;
+#if defined(COLOSSEUM_UPDATE_TESTING) && defined(COLOSSEUM_UPDATE_TEST_FEED_URL)
+    const QUrl feed(QStringLiteral(COLOSSEUM_UPDATE_TEST_FEED_URL));
+    return feed.resolved(QUrl(QStringLiteral("downloads/") + file));
+#else
+    return QUrl(QStringLiteral("https://github.com/kingoftheseas56/Colosseum/releases/download/") + file);
+#endif
+}
 
 std::optional<Manifest> parseManifest(const QByteArray& verifiedUtf8, QString* error)
 {
@@ -84,21 +132,25 @@ std::optional<Manifest> parseManifest(const QByteArray& verifiedUtf8, QString* e
     }
 
     const QJsonObject root = document.object();
-    if (!exactKeys(root, {QStringLiteral("schemaVersion"), QStringLiteral("version"),
+    const int schemaVersion = root.value(QStringLiteral("schemaVersion")).toInt(-1);
+    QSet<QString> rootKeys = {QStringLiteral("schemaVersion"), QStringLiteral("version"),
                           QStringLiteral("sequence"), QStringLiteral("tag"),
                           QStringLiteral("eyebrow"),
                           QStringLiteral("title"), QStringLiteral("summary"),
                           QStringLiteral("installer"), QStringLiteral("minimumUpdaterVersion"),
                           QStringLiteral("notesUrl"), QStringLiteral("highlights"),
-                          QStringLiteral("artwork")}, error))
+                          QStringLiteral("artwork")};
+    if (schemaVersion == 2)
+        rootKeys.insert(QStringLiteral("downloads"));
+    if (!exactKeys(root, rootKeys, error))
         return std::nullopt;
-    if (root.value(QStringLiteral("schemaVersion")).toInt(-1) != 1) {
+    if (schemaVersion != 1 && schemaVersion != 2) {
         fail(error, QStringLiteral("unsupported_schema"));
         return std::nullopt;
     }
 
     Manifest manifest;
-    manifest.schemaVersion = 1;
+    manifest.schemaVersion = schemaVersion;
     // Optional signed ordering across editions of one displayed version.
     // Absent (or explicitly 0) keeps the legacy version-only order.
     const QJsonValue sequenceValue = root.value(QStringLiteral("sequence"));
@@ -119,6 +171,9 @@ std::optional<Manifest> parseManifest(const QByteArray& verifiedUtf8, QString* e
     }
     manifest.version = *version;
     manifest.tag = root.value(QStringLiteral("tag")).toString();
+    if (schemaVersion == 2
+        && !parsePlatformDownloads(root.value(QStringLiteral("downloads")), &manifest, error))
+        return std::nullopt;
     if (!boundedText(root.value(QStringLiteral("eyebrow")), &manifest.eyebrow, error, "eyebrow")
         || !boundedText(root.value(QStringLiteral("title")), &manifest.title, error, "title")
         || !boundedText(root.value(QStringLiteral("summary")), &manifest.summary, error, "summary"))

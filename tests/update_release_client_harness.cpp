@@ -21,7 +21,6 @@ using namespace Colosseum::Update;
 namespace {
 
 constexpr auto kManifestAsset = "colosseum-update-v1.json";
-constexpr auto kSignatureAsset = "colosseum-update-v1.json.sig";
 constexpr auto kInstallerAsset = "Colosseum-1.1.1-setup.exe";
 constexpr auto kInstallerDigest = "fbc5fd97006521785cd1aa58917a4e2999e66d835748400dcb47e1df5e5a8226";
 constexpr auto kValidSignature =
@@ -65,6 +64,52 @@ QByteArray validManifest()
         "\"highlights\":[],\"artwork\":[]}\n");
 }
 
+// Signed with a disposable fixture key. No production release artifact is used.
+constexpr auto kPlatformFixtureKey =
+    "7b04c75c63cfcd3421e18f37a57b8eb4beefedbada1f8405c603cbfff1422cad";
+constexpr auto kPlatformFixtureSignature =
+    "30d8917c36504c3d3e93381d9081faab75e8a5508ce36349e7f18fa6d5286d7a"
+    "c9d992c3aa3d02bf442e38b4d233d85eee19995a0721b65313ae5ede186d240e";
+constexpr auto kPlatformFixtureManifest = R"json({
+  "schemaVersion": 2,
+  "version": "1.5.1",
+  "tag": "v1.5.1",
+  "eyebrow": "Colosseum update",
+  "title": "Colosseum 1.5.1",
+  "summary": "Signed package fixture.",
+  "installer": {
+    "asset": "Colosseum-1.5.1-setup.exe",
+    "size": 17,
+    "sha256": "fbc5fd97006521785cd1aa58917a4e2999e66d835748400dcb47e1df5e5a8226"
+  },
+  "minimumUpdaterVersion": "1.1.0",
+  "notesUrl": "https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.5.1",
+  "highlights": [],
+  "artwork": [],
+  "downloads": {
+    "android-arm64-apk": {
+      "asset": "Colosseum-Android-1.5.1-arm64-v8a.apk",
+      "size": 4096,
+      "sha256": "a1bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "linux-x64-appimage": {
+      "asset": "Colosseum-1.5.1-x86_64.AppImage",
+      "size": 4097,
+      "sha256": "a2bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "linux-x64-deb": {
+      "asset": "Colosseum-1.5.1-linux-amd64.deb",
+      "size": 4098,
+      "sha256": "a3bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "macos-arm64-dmg": {
+      "asset": "Colosseum-1.5.1-macOS-arm64.dmg",
+      "size": 4099,
+      "sha256": "a4bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  }
+})json";
+
 QByteArray crossRepoManifest()
 {
     QByteArray bytes = validManifest();
@@ -83,11 +128,14 @@ struct ApiOptions {
     bool duplicateInstaller = false;
     QByteArray installerDigest = QByteArray("fbc5fd97006521785cd1aa58917a4e2999e66d835748400dcb47e1df5e5a8226");
     double installerSize = 17.0;
+    QString manifestName = QString::fromLatin1(kManifestAsset);
+    QJsonArray additionalAssets;
 };
 
 class FixtureServer final : public QTcpServer {
 public:
     QByteArray latestBody;
+    QByteArray publicKey;
     QByteArray manifestBody = validManifest();
     QByteArray signatureBody = hex(kValidSignature);
     QByteArray latestRequest;
@@ -119,10 +167,10 @@ public:
             assets.append(asset);
         };
         if (options.includeManifest)
-            addAsset(QString::fromLatin1(kManifestAsset), QStringLiteral("/download/manifest"),
+            addAsset(options.manifestName, QStringLiteral("/download/manifest"),
                      manifestBody.size(), sha256Hex(manifestBody).toLatin1());
         if (options.includeSignature)
-            addAsset(QString::fromLatin1(kSignatureAsset), QStringLiteral("/download/signature"),
+            addAsset(options.manifestName + QStringLiteral(".sig"), QStringLiteral("/download/signature"),
                      signatureBody.size(), sha256Hex(signatureBody).toLatin1());
         if (options.includeInstaller)
             addAsset(QString::fromLatin1(kInstallerAsset), QStringLiteral("/download/installer"),
@@ -131,6 +179,8 @@ public:
             addAsset(QString::fromLatin1(kInstallerAsset), QStringLiteral("/download/installer2"),
                      options.installerSize, options.installerDigest);
 
+        for (const auto& asset : options.additionalAssets)
+            assets.append(asset);
         QJsonObject release;
         release.insert(QStringLiteral("tag_name"), options.tag);
         release.insert(QStringLiteral("draft"), options.draft);
@@ -215,6 +265,8 @@ ReleaseClientConfig configFor(const FixtureServer& server,
     config.publicKey = QByteArray(
         reinterpret_cast<const char*>(kUpdateTestPublicKey.data()),
         static_cast<qsizetype>(kUpdateTestPublicKey.size()));
+    if (!server.publicKey.isEmpty())
+        config.publicKey = server.publicKey;
     config.allowHttpForTests = true;
     config.timeoutMs = 250;
     config.automaticInstallerSupported = automaticInstallerSupported;
@@ -293,6 +345,62 @@ int main(int argc, char** argv)
             "manual-only policy preserves the verified release identity");
     require(!manual.assetUrls.contains(QString::fromLatin1(kInstallerAsset)),
             "manual-only policy never exposes the Windows installer URL");
+
+    {
+        FixtureServer platformServer;
+        require(platformServer.listen(QHostAddress::LocalHost), "platform fixture server listens");
+        platformServer.publicKey = hex(kPlatformFixtureKey);
+        platformServer.manifestBody = QByteArray(kPlatformFixtureManifest);
+        platformServer.signatureBody = hex(kPlatformFixtureSignature);
+        ApiOptions options;
+        options.tag = QStringLiteral("v1.5.1");
+        options.manifestName = QStringLiteral("colosseum-update-v2.json");
+        options.includeInstaller = false;
+        auto manifest = parseManifest(platformServer.manifestBody, nullptr);
+        require(manifest && manifest->downloads.size() == 4, "all signed platform packages parsed");
+        for (const auto& package : manifest->downloads) {
+            options.additionalAssets.append(QJsonObject{
+                {QStringLiteral("name"), package.assetName},
+                {QStringLiteral("browser_download_url"), platformDownloadUrl(*manifest, package).toString()},
+                {QStringLiteral("size"), package.size},
+                {QStringLiteral("digest"), QStringLiteral("sha256:")
+                    + QString::fromLatin1(package.sha256.toHex())},
+            });
+        }
+        platformServer.rebuildLatest(options);
+        const auto offer = check(nam, platformServer, {}, false, true);
+        require(offer.status == ReleaseCheckResult::Status::ManualUpdateRequired
+                    && offer.manifest.tag == QStringLiteral("v1.5.1")
+                    && offer.manifest.downloads.size() == 4,
+                "signed 1.5.1 platform release reaches the manual updater");
+        require(offer.assetUrls.isEmpty(), "manual updater never exposes an executable auto-install URL");
+
+        const auto original = options.additionalAssets.at(0);
+        auto modified = original.toObject();
+        modified.insert(QStringLiteral("browser_download_url"), QStringLiteral("https://example.com/package"));
+        options.additionalAssets.replace(0, modified);
+        platformServer.rebuildLatest(options);
+        require(check(nam, platformServer, {}, false).errorCode == QStringLiteral("platform_asset_mismatch"),
+                "a platform package URL outside the signed release route is rejected");
+
+        modified = original.toObject();
+        modified.insert(QStringLiteral("digest"), QStringLiteral("sha256:") + QString(64, u'f'));
+        options.additionalAssets.replace(0, modified);
+        platformServer.rebuildLatest(options);
+        require(check(nam, platformServer, {}, false).errorCode == QStringLiteral("platform_asset_mismatch"),
+                "mismatched platform package digest is rejected");
+
+        options.additionalAssets.replace(0, original);
+        platformServer.signatureBody[0] = platformServer.signatureBody.at(0) ^ 1;
+        platformServer.rebuildLatest(options);
+        require(check(nam, platformServer, {}, false).errorCode == QStringLiteral("invalid_manifest_signature"),
+                "tampered platform signature cannot create an offer");
+
+        options.manifestName = QString::fromLatin1(kManifestAsset);
+        platformServer.rebuildLatest(options);
+        require(check(nam, platformServer, {}, false).errorCode == QStringLiteral("missing_platform_manifest"),
+                "a current release cannot silently fall back to Windows-only metadata");
+    }
 
     const ReleaseCheckResult valid = check(nam, server);
     require(valid.status == ReleaseCheckResult::Status::Valid, "valid stable release accepted");

@@ -21,8 +21,8 @@ Item {
             minimizeAction.forceActiveFocus(Qt.TabFocusReason)
     }
 
-    // The native enum is deliberately mapped here to stable human language. QML never sees
-    // error codes or transport logs, and the test seam can use the same numeric values.
+    // Keep transport details in native code and show only actionable copy here.
+    readonly property var manualDownloadLabels: updates ? (updates.manualDownloadLabels || []) : []
     readonly property string automationState: stateName(updates ? updates.state : 0)
     readonly property string automationVersion: updates ? String(updates.latestVersion || "") : ""
     readonly property string primaryLabel: primaryCopy(updates ? updates.state : 0)
@@ -96,11 +96,13 @@ Item {
         case 8: return ""
         case 9: return "Retry download"
         case 10: return "Check again"
-        case 11: return "Check again"
+        case 11: return manualDownloadLabels.length ? manualDownloadLabels[0] : "Check again"
         default: return "Check again"
         }
     }
     function statusCopy(value) {
+        if (updates && updates.updateError)
+            return updates.updateError
         switch (Number(value)) {
         case 1: return "Checking for updates"
         case 2: return "Everything is up to date"
@@ -112,7 +114,8 @@ Item {
         case 8: return "Colosseum is updating"
         case 9: return "The update could not finish"
         case 10: return "This update could not be verified"
-        case 11: return "Manual update required"
+        case 11: return manualDownloadLabels.length
+                ? "Colosseum " + targetVersion() + " is available" : "No compatible update download"
         default: return "No update check yet"
         }
     }
@@ -153,6 +156,10 @@ Item {
         if (Number(updates.state) === 5) { updates.download(); return }
         if (Number(updates.state) === 7) { updates.restartAndUpdate(); return }
         if (Number(updates.state) === 9) { updates.download(); return }
+        if (Number(updates.state) === 11 && manualDownloadLabels.length) {
+            updates.openManualDownload(0)
+            return
+        }
         updates.checkNow()
     }
     function cancelDownload() {
@@ -186,23 +193,33 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        anchors.leftMargin: 54
-        anchors.rightMargin: 54
+        anchors.leftMargin: Math.min(54, parent.width * 0.05)
+        anchors.rightMargin: anchors.leftMargin
         anchors.bottomMargin: 90
         height: 52
         // Quiet unless there is something to say. The status text always shows
         // a human sentence; the metadata and progress appear only when relevant.
         Column {
             id: statusColumn
+            width: Math.min(Math.max(statusText.implicitWidth, statusMetadata.implicitWidth),
+                            Math.max(0, (alternateDownload.visible ? alternateDownload.x
+                                        : primaryAction.visible ? primaryAction.x : statusStrip.width)
+                                     - 12 - (root.progressVisible ? progressColumn.width + 28 : 0)))
             spacing: 4
             Text {
+                id: statusText
                 objectName: "colosseumUpdateStatusText"
-                text: root.statusCopy(updates ? updates.state : 0)
+                text: root.statusCopy(root.updates ? root.updates.state : 0)
+                width: statusColumn.width
+                wrapMode: Text.WordWrap
                 color: theme.ink
                 font.family: theme.ui; font.pixelSize: 14; font.weight: Font.Medium
             }
             Text {
+                id: statusMetadata
                 objectName: "colosseumUpdateStatusMetadata"
+                width: statusColumn.width
+                elide: Text.ElideRight
                 text: root.taskbarMetadata
                 visible: text.length > 0
                 color: theme.inkDim
@@ -243,6 +260,35 @@ Item {
                 }
             }
         }
+        Button {
+            id: alternateDownload
+            objectName: "colosseumUpdateAlternateDownload"
+            visible: root.manualDownloadLabels.length > 1
+            anchors.right: primaryAction.left
+            anchors.rightMargin: 8
+            anchors.verticalCenter: primaryAction.verticalCenter
+            implicitHeight: 44
+            leftPadding: 14
+            rightPadding: 14
+            text: visible ? root.manualDownloadLabels[1] : ""
+            contentItem: Text {
+                text: alternateDownload.text
+                color: theme.ink
+                font.family: theme.ui
+                font.pixelSize: 12
+                font.weight: Font.DemiBold
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+            }
+            background: Rectangle {
+                radius: 22
+                color: Qt.rgba(1, 1, 1, alternateDownload.hovered ? 0.14 : 0.07)
+                border.width: alternateDownload.activeFocus ? 2 : 1
+                border.color: alternateDownload.activeFocus ? theme.gold : Qt.rgba(1, 1, 1, 0.24)
+            }
+            onClicked: root.updates.openManualDownload(1)
+        }
+
         // Primary action button — right-aligned in the strip.
         Rectangle {
             id: primaryAction

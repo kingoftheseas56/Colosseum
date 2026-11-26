@@ -54,7 +54,7 @@ class AndroidBuildGraphContract(unittest.TestCase):
         forbidden = (
             "account/WindowsAccountCredentialStore.cpp",
             "account/WindowsAccountSensitiveClipboard.cpp",
-            "update/",
+            "update/UpdateInstallBridge.cpp",
             "installed_chronicle.qrc",
             "player/MediaAdmissionProbe.cpp",
             "player/livestore.cpp",
@@ -77,13 +77,27 @@ class AndroidBuildGraphContract(unittest.TestCase):
         self.assertIsNotNone(guarded, "desktop sources must be preserved in a NOT ANDROID target_sources block")
         block = guarded.group(1)
         for token in (
-            "update/UpdateService.cpp",
             "player/MediaAdmissionProbe.cpp",
             "player/mpvitem.cpp",
             "player/streamserver.cpp",
         ):
             with self.subTest(token=token):
                 self.assertIn(token, block)
+
+    def test_shared_update_discovery_keeps_the_installer_windows_only(self):
+        text = cmake_text()
+        core = re.search(
+            r"(?m)^target_sources\(colosseum PRIVATE\n"
+            r"((?:    update/[^\n]+\n)+)\)\n"
+            r"target_link_libraries\(colosseum PRIVATE colosseum_update_crypto\)",
+            text,
+        )
+        self.assertIsNotNone(core, "update discovery and signing trust must build on Android")
+        for name in ("UpdateService", "UpdateReleaseClient", "UpdateManifest", "UpdateTrust"):
+            self.assertIn(f"update/{name}.cpp", core.group(1))
+        self.assertNotIn("UpdateInstallBridge", core.group(1))
+        self.assertRegex(text, r"if\(WIN32\)\s*target_sources\(colosseum PRIVATE "
+                               r"update/UpdateInstallBridge.cpp update/UpdateInstallBridge.h\)")
 
     def test_android_link_graph_has_no_webengine_or_mpv(self):
         text = cmake_text()
