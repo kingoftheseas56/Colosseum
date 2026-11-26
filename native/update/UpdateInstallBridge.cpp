@@ -185,9 +185,12 @@ std::optional<InstallLaunch> UpdateInstallBridge::prepare(const QString& verifie
         QStringLiteral("/WAITPID=") + QString::number(QCoreApplication::applicationPid()),
         QStringLiteral("/TARGETVERSION=") + target.canonical(),
         QStringLiteral("/RESTART=1"),
-        QStringLiteral("/LOG=") + QDir(cacheRoot).filePath(
-            QStringLiteral("update-%1.log").arg(target.canonical())),
     };
+    const QString logPath = QDir(cacheRoot).filePath(
+        QStringLiteral("update-%1.log").arg(target.canonical()));
+    // NSIS GetOptions reads the raw command line. Keep /LOG= outside the
+    // quotes and use backslashes so a path separator is not read as an option.
+    launch.nativeArguments = QStringLiteral("/LOG=\"%1\"").arg(QDir::toNativeSeparators(logPath));
     return launch;
 #endif
 }
@@ -203,9 +206,12 @@ bool UpdateInstallBridge::launchDetached(const InstallLaunch& launch, QString* e
         setError(error, QStringLiteral("invalid_install_launch"));
         return false;
     }
-    qint64 childPid = 0;
-    if (!QProcess::startDetached(launch.program, launch.arguments,
-                                 launch.workingDirectory, &childPid)) {
+    QProcess process;
+    process.setProgram(launch.program);
+    process.setArguments(launch.arguments);
+    process.setWorkingDirectory(launch.workingDirectory);
+    process.setNativeArguments(launch.nativeArguments);
+    if (!process.startDetached()) {
         setError(error, QStringLiteral("installer_launch_failed"));
         return false;
     }
