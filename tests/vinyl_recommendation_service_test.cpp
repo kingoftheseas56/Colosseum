@@ -5,6 +5,7 @@
 #include <QDateTime>
 #include <QEventLoop>
 #include <QFile>
+#include <QFutureWatcher>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -332,6 +333,17 @@ private:
     QQueue<Request> m_fixtureRequests;
 };
 
+// Most unit fixtures assert a specific publication phase using an in-memory
+// source. Deliver the queued visit turn without also draining provider replies.
+void runHomeVisit(VinylRecommendationService &service)
+{
+    service.beginHomeVisit();
+    auto *timer = service.findChild<QTimer *>("homeVisitTimer");
+    QVERIFY(timer && timer->isActive());
+    timer->stop();
+    QVERIFY(QMetaObject::invokeMethod(timer, "timeout", Qt::DirectConnection));
+}
+
 struct HomeFixture {
     FakeSource source;
     FakePreferences preferences;
@@ -347,7 +359,7 @@ struct HomeFixture {
             ? withFiveDistinctTasteArtists(seeds) : seeds;
         preferences.setTaste(taste, answered);
         if (beginVisit)
-            service.beginHomeVisit();
+            runHomeVisit(service);
     }
 };
 
@@ -516,12 +528,67 @@ QStringList runTwoSeedOrder(bool reverseCompletion)
 class VinylRecommendationServiceTest final : public QObject {
     Q_OBJECT
 private slots:
+    void beginHomeVisitDoesNotWaitForCatalogueCache()
+    {
+        QTemporaryDir cache;
+        QVERIFY(cache.isValid());
+        VinylProvider provider({}, nullptr, 128LL * 1024 * 1024,
+                               [] { return kFixedNowMs; }, cache.path());
+        VinylRecommendationService service(nullptr, [] { return kFixedNowMs; });
+        FakePreferences prefs;
+        service.setPreferences(&prefs);
+        service.setSource(&provider);
+        QVariantList seeds;
+        for (int i = 0; i < 48; ++i)
+            seeds.append(artistSeed(i));
+        prefs.setTaste(seeds);
+        // Use the production seed projection and v2 cache keys/envelopes.
+        for (const auto &entry : service.selectedArtists()) {
+            const auto seed = entry.toMap();
+            const auto id = seed.value("providerId").toString();
+            const QVariantMap input{{"operation","artistCandidates"},{"value",id},
+                                    {"cacheSchema",2},{"seed",seed}};
+            const auto key = QString::fromLatin1(QCryptographicHash::hash(
+                QJsonDocument::fromVariant(input).toJson(QJsonDocument::Compact),
+                QCryptographicHash::Sha256).toHex());
+            QVariantList items;
+            for (int j = 0; j < 48; ++j)
+                items.append(albumCandidate(seed, "MPRE_" + id.right(8) + QString::number(j),
+                                            QString("Fixture album %1").arg(j)));
+            const QVariantMap data{{"version",1},{"seed",seed},{"items",items},
+                {"provenance",QVariantMap{{"source","youtube-music"}}},
+                {"fetchedAt",QDateTime::fromMSecsSinceEpoch(kFixedNowMs, Qt::UTC).toString(Qt::ISODateWithMs)},
+                {"complete",true},{"status","ready"}};
+            QFile file(cache.filePath(key + ".json"));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            QVERIFY(file.write(QJsonDocument::fromVariant(QVariantMap{{"version",2},
+                {"requestKey",key},{"storedAtMs",kFixedNowMs},{"ttlMs",6 * 3600000},{"data",data}})
+                .toJson(QJsonDocument::Compact)) > 0);
+        }
+        QCOMPARE(service.selectedArtists().size(), seeds.size());
+        QElapsedTimer timer;
+        timer.start();
+        service.beginHomeVisit();
+        const auto elapsedNs = timer.nsecsElapsed();
+        qInfo() << "beginHomeVisit (48 cached seeds):" << elapsedNs / 1e6 << "ms";
+        QVERIFY(elapsedNs < 20'000'000);
+        QTRY_COMPARE(service.homeStatus(), QString("ready"));
+        QVERIFY(!sectionById(service.homeSections(), "from-your-artists").value("items").toList().isEmpty());
+
+        // A disk batch already running must not publish into the next profile.
+        service.refreshHome(true);
+        QVERIFY(!service.findChildren<QFutureWatcherBase *>().isEmpty());
+        service.setProfileGeneration(service.profileGeneration()+1);
+        QTRY_VERIFY(service.findChildren<QFutureWatcherBase *>().isEmpty());
+        QVERIFY(service.homeSections().isEmpty());
+        QVERIFY(service.homeSnapshot().isEmpty());
+    }
     void activityChangesCoalesceWhileHomeIsVisible() {
         qint64 now = kFixedNowMs;
         VinylRecommendationService service(nullptr, [&now] { return now; });
         ActivityStore activity;
         service.setActivityStore(&activity);
-        service.beginHomeVisit();
+        runHomeVisit(service);
         QSignalSpy rebuilt(&service, &VinylRecommendationService::homeChanged);
         for (int i = 0; i < 20; ++i) {
             now += 50;
@@ -545,7 +612,7 @@ private slots:
     }
     void collectionChangesShareTheDeferredVisibilityWindow() {
         HomeFixture fixture({}, kFixedNowMs, false, false);
-        fixture.service.beginHomeVisit();
+        runHomeVisit(fixture.service);
         QSignalSpy rebuilt(&fixture.service, &VinylRecommendationService::homeChanged);
         for (int i = 0; i < 20; ++i)
             fixture.service.setHomeCollections({{"revision", i}});
@@ -556,14 +623,14 @@ private slots:
         fixture.service.setHomeCollections({{"revision", 21}});
         expireHomeInputs(fixture.service);
         QCOMPARE(rebuilt.size(), 1);
-        fixture.service.beginHomeVisit();
+        runHomeVisit(fixture.service);
         QCOMPARE(rebuilt.size(), 2);
     }
     void activityChangesWaitUntilHomeIsVisitedAgain() {
         HomeFixture fixture({}, kFixedNowMs, false, false);
         ActivityStore activity;
         fixture.service.setActivityStore(&activity);
-        fixture.service.beginHomeVisit();
+        runHomeVisit(fixture.service);
         emit activity.changed(); // Leaving must cancel a pending visible window too.
         QVERIFY(QMetaObject::invokeMethod(&fixture.service, "leaveHome", Qt::DirectConnection));
         QSignalSpy rebuilt(&fixture.service, &VinylRecommendationService::homeChanged);
@@ -573,14 +640,14 @@ private slots:
         auto timer = fixture.service.findChild<QTimer *>("homeInputsTimer");
         QVERIFY(timer);
         QVERIFY(!timer->isActive());
-        fixture.service.beginHomeVisit();
+        runHomeVisit(fixture.service);
         QCOMPARE(rebuilt.size(), 1);
     }
     void historyResetClearsPrivateStateBeforeDeferredRebuild() {
         HomeFixture fixture({}, kFixedNowMs, false, false);
         ActivityStore activity;
         fixture.service.setActivityStore(&activity);
-        fixture.service.beginHomeVisit();
+        runHomeVisit(fixture.service);
         fixture.preferences.exposure = "private exposure";
         fixture.preferences.selection = "private selection";
         QSignalSpy rebuilt(&fixture.service, &VinylRecommendationService::homeChanged);
@@ -609,7 +676,7 @@ private slots:
         HomeFixture fixture({}, kFixedNowMs, false, false);
         ActivityStore activity;
         fixture.service.setActivityStore(&activity);
-        fixture.service.beginHomeVisit();
+        runHomeVisit(fixture.service);
         emit activity.changed();
         QSignalSpy rebuilt(&fixture.service, &VinylRecommendationService::homeChanged);
         const QVariantMap ref{{"identity","provider"},{"kind","artist"},
@@ -832,7 +899,7 @@ private slots:
         // exposure either. The fatigue is retained for the next Home visit.
         fixture.service.setHomeCollections({{"songs",QVariantList()}});
         QCOMPARE(sectionItems(fixture.service,"from-your-artists"),before);
-        fixture.service.beginHomeVisit();
+        runHomeVisit(fixture.service);
         QVERIFY(sectionItems(fixture.service,"from-your-artists")!=before);
         QVERIFY(!fixture.preferences.exposure.isEmpty());
     }
@@ -905,7 +972,10 @@ private slots:
         QVERIFY(sectionItems(fixture.service,"rediscover-library").isEmpty());
     }
     void equalOrUnknownCountsDoNotClaimLessPlayed() {
-        HomeFixture fixture({});ActivityStore activity;fixture.service.setActivityStore(&activity);
+        QTemporaryDir profile;
+        QVERIFY(profile.isValid());
+        ActivityStore activity(profile.filePath("activity.sqlite"));
+        HomeFixture fixture({});fixture.service.setActivityStore(&activity);
         QVariantList albums;
         for(const QString id:{QString("one"),QString("two")}) {
             albums.append(QVariantMap{{"album",QVariantMap{{"id",id},{"title",id},{"origin","local"}}}});
@@ -924,7 +994,7 @@ private slots:
             QVERIFY(activity.recordPlaybackDelta(fact));
         }
         expireHomeInputs(fixture.service);
-        QCOMPARE(sectionItems(fixture.service,"rediscover-library").size(),2);
+        QTRY_COMPARE(sectionItems(fixture.service,"rediscover-library").size(),2);
         QVERIFY(sectionItems(fixture.service,"less-played").isEmpty());
     }
     void savedSongsUseTheirExistingLibraryRouteAndTypedListeningIdentity() {
@@ -977,7 +1047,7 @@ private slots:
         rows=QJsonArray();for(int i=0;i<2001;++i){auto item=record;item["exposureId"]="bounded-"+QString::number(i);rows.append(item);}
         invalid=envelope;invalid["records"]=rows;QCOMPARE(restore(invalid),0);
         rows.removeLast();envelope["records"]=rows;QCOMPARE(restore(envelope),2000);
-        fixture.service.beginHomeVisit();pumpSuccessfulReplies(fixture.source);
+        runHomeVisit(fixture.service);pumpSuccessfulReplies(fixture.source);
         QVERIFY(fixture.service.recordVisibleItems("from-your-artists",fixture.service.homeSnapshot().value("exposureSnapshotId").toString(),{ref},0));
         QCOMPARE(QJsonDocument::fromJson(fixture.preferences.exposure.toUtf8()).object().value("records").toArray().size(),2000);
     }
@@ -1008,7 +1078,7 @@ private slots:
         restored.setPreferences(&fixture.preferences);restored.setSource(&fixture.source);
         restored.setActivityStore(&activity);QCOMPARE(fixture.preferences.exposure,stored);
         restored.setHistoryStore(&history);QCOMPARE(fixture.preferences.exposure,stored);
-        restored.beginHomeVisit();pumpSuccessfulReplies(fixture.source);
+        runHomeVisit(restored);pumpSuccessfulReplies(fixture.source);
         QCOMPARE(restored.homeSnapshot().value("exposureCount").toInt(),1);
     }
     void qualifiedHistoryChangesRankAndClearRetainsExplicitTaste() {
@@ -1153,13 +1223,13 @@ private slots:
             const auto calls=source.callsFor(op);
             return std::count_if(calls.cbegin(),calls.cend(),[&](const auto &call){return call.value==value;});
         };
-        service.beginHomeVisit();
+        runHomeVisit(service);
         drain();
         QCOMPARE(attempts("recommendationIdentity",failedId),1);
         QCOMPARE(attempts("recommendationDiscography",mbid),1);
         const auto coreCalls=source.callsFor("artistCandidates").size();
         service.leaveHome();
-        service.beginHomeVisit();
+        runHomeVisit(service);
         drain();
         QCOMPARE(source.callsFor("artistCandidates").size(),coreCalls);
         service.refreshHome(true);
@@ -1210,7 +1280,7 @@ private slots:
         for (int index=0;index<5;++index) { auto seed=artistSeed(index+1);seed["name"]=names[index];seeds.append(seed); }
         HomeFixture fixture(seeds,now,false,true);
         fixture.source.runtimeFixtures=true;
-        fixture.service.beginHomeVisit();
+        runHomeVisit(fixture.service);
         QTRY_VERIFY_WITH_TIMEOUT(!fixture.source.callsFor("chartCandidates").isEmpty(),5000);
         QTRY_VERIFY_WITH_TIMEOUT(fixture.service.property("homeSourcePool").toMap().value("rows").toList().size()==6
             && fixture.service.property("homeSourcePool").toMap().value("pendingCount",-1).toInt()==0
@@ -1289,7 +1359,7 @@ private slots:
             projected=true;
             QTest::qSleep(8500); // A synchronous QML observer, before provider dispatch.
         });
-        fixture.service.beginHomeVisit();
+        runHomeVisit(fixture.service);
         QVERIFY(projected);
         QTest::qWait(50);
         QCOMPARE(fixture.source.pendingRequests("artistCandidates").size(),2);
@@ -1434,13 +1504,13 @@ private slots:
             {"row",QVariantMap{{"trackId","owned-track"},{"albumId","owned-album"},
                 {"track",QVariantMap{{"id","owned-track"}}},{"edition",QVariantMap{{"origin","local"}}}}}};
         fixture.service.setHomeCollections({{"catalogueSongs",QVariantList{song}}});
-        fixture.service.beginHomeVisit();
+        runHomeVisit(fixture.service);
         QVERIFY(fixture.service.setCratePin(song,true,generation));
         QCOMPARE(fixture.preferences.cratePins.first().toMap().value("artist").toString(),QString("Known artist"));
         fixture.service.setHomeCollections({});
         VinylRecommendationService restored;
         restored.setPreferences(&fixture.preferences);
-        restored.beginHomeVisit();
+        runHomeVisit(restored);
         QTRY_COMPARE(restored.homeSourcePool().value("crate").toList().size(),1);
         const auto unavailable=restored.homeSourcePool().value("crate").toList().first().toMap();
         QVERIFY(unavailable.value("unavailable").toBool());
@@ -1456,7 +1526,7 @@ private slots:
         QCOMPARE(fixture.service.minimumArtists(),5);
         QVERIFY(fixture.service.selectedArtists().isEmpty());
         fixture.source.runtimeFixtures=true;
-        fixture.service.beginHomeVisit();
+        runHomeVisit(fixture.service);
         QCOMPARE(fixture.service.onboardingState(),QString("unanswered"));
         QTRY_VERIFY_WITH_TIMEOUT(fixture.service.homeSourcePool().value("charts").toMap().value("albums").toList().size()>=5,10000);
         QVERIFY(fixture.service.homeSourcePool().value("rows").toList().isEmpty());
@@ -1473,13 +1543,13 @@ private slots:
     {
         qint64 now=kFixedNowMs;FakeSource source;FakePreferences prefs;
         VinylRecommendationService service(nullptr,[&now]{return now;});service.setSource(&source);service.setPreferences(&prefs);
-        prefs.setTaste(withFiveDistinctTasteArtists({artistSeed(70)}));service.beginHomeVisit();
+        prefs.setTaste(withFiveDistinctTasteArtists({artistSeed(70)}));runHomeVisit(service);
         const auto call=source.pendingRequests("artistCandidates").first();auto data=source.defaultReply(call);
         const auto seed=call.options.value("seed").toMap();const auto date=QDateTime::fromMSecsSinceEpoch(now,Qt::UTC).date().addMonths(-12).addDays(1);
         data["items"]=QVariantList{albumCandidate(seed,"MPRE_DATED","Dated",{{"releaseDate",date.toString(Qt::ISODate)}})};
         source.complete(call,data);QTRY_VERIFY(!sectionItems(service,"new-from-your-artists").isEmpty());
         for(const auto &optional:source.pendingRequests())source.complete(optional,{},"Optional fixture offline");
-        QCoreApplication::processEvents();now+=2LL*86400000;service.beginHomeVisit();
+        QCoreApplication::processEvents();now+=2LL*86400000;runHomeVisit(service);
         QCOMPARE(service.homeSnapshot().value("evaluatedAtMs").toLongLong(),now);
         QVERIFY(sectionItems(service,"new-from-your-artists").isEmpty());
         QCOMPARE(source.callsFor("artistCandidates").size(),2);
@@ -1488,7 +1558,7 @@ private slots:
     {
         HomeFixture fixture({artistSeed(71)});const auto old=fixture.source.pendingRequests("artistCandidates").first();
         pumpSuccessfulReplies(fixture.source);QVERIFY(!sectionItems(fixture.service,"from-your-artists").isEmpty());
-        FakeSource replacement;fixture.service.setSource(&replacement);fixture.service.beginHomeVisit();
+        FakeSource replacement;fixture.service.setSource(&replacement);runHomeVisit(fixture.service);
         QTRY_VERIFY(!replacement.pendingRequests("artistCandidates").isEmpty());
         const auto call=replacement.pendingRequests("artistCandidates").first();auto data=replacement.defaultReply(call);
         data["items"]=QVariantList{albumCandidate(call.options.value("seed").toMap(),"MPRE_NEW_SOURCE","New Source")};
@@ -1520,7 +1590,7 @@ private slots:
     void pickerCommitAutomaticallyDispatchesCandidates()
     {
         HomeFixture fixture({}, kFixedNowMs, false, false);
-        fixture.service.beginHomeVisit();
+        runHomeVisit(fixture.service);
         fixture.service.beginTasteEdit();
         QCOMPARE(fixture.service.onboardingState(), QStringLiteral("editing"));
         QVERIFY(fixture.service.canEnterVinyl());
@@ -1595,7 +1665,7 @@ private slots:
     void tastePickerNeedsFiveArtistsAndKeepsCancelForEdits()
     {
         HomeFixture fixture({}, kFixedNowMs, false, false);
-        fixture.service.beginHomeVisit();
+        runHomeVisit(fixture.service);
         fixture.service.beginTasteEdit();
         QCOMPARE(fixture.service.draftArtistCount(),0);
         QVERIFY(!fixture.service.commitTaste(false));
@@ -1680,7 +1750,7 @@ private slots:
     {
         HomeFixture fixture({}, kFixedNowMs, false, false);
         fixture.service.setSuggestions({artistSeed(100)});
-        fixture.service.beginHomeVisit();
+        runHomeVisit(fixture.service);
         fixture.service.beginTasteEdit();
 
         QCOMPARE(fixture.service.artistResults().value(QStringLiteral("status")).toString(), QStringLiteral("ready"));
@@ -1704,7 +1774,7 @@ private slots:
         for (const QVariant &value : seeds)
             fixture.source.cacheArtistSeed(value.toMap());
 
-        fixture.service.beginHomeVisit();
+        runHomeVisit(fixture.service);
 
         QVERIFY(fixture.source.callsFor("artistCandidates").isEmpty());
         QVERIFY(!fixture.source.callsFor("recommendationIdentity").isEmpty());
@@ -1731,7 +1801,7 @@ private slots:
         service.setSource(&source);
         service.setPreferences(&preferences);
         preferences.setTaste(seeds, true);
-        service.beginHomeVisit();
+        runHomeVisit(service);
         pumpAllHomeReplies(source);
 
         QVERIFY(sectionItems(service, QStringLiteral("from-your-artists")).size() > 5);
@@ -1750,7 +1820,7 @@ private slots:
         QCOMPARE(uniqueInitialSaved.size(), 5);
         QCOMPARE(snapshot.value(QStringLiteral("refreshSerial")).toInt(), 0);
 
-        service.beginHomeVisit();
+        runHomeVisit(service);
         pumpAllHomeReplies(source);
         QCOMPARE(carouselKeys(service), initial);
 
@@ -1772,7 +1842,7 @@ private slots:
         VinylRecommendationService restored(nullptr, [&now] { return now; });
         restored.setSource(&source);
         restored.setPreferences(&preferences);
-        restored.beginHomeVisit();
+        runHomeVisit(restored);
         pumpAllHomeReplies(source);
         QCOMPARE(carouselKeys(restored), refreshed);
 
@@ -1805,7 +1875,7 @@ private slots:
         fixture.source.cacheArtistSeed(saved);
         fixture.service.setHomeCollections({{QStringLiteral("artists"),
                                              QVariantList{savedArtistRecord(saved)}}});
-        fixture.service.beginHomeVisit();
+        runHomeVisit(fixture.service);
         QVERIFY(sectionHasProviderId(fixture.service, QStringLiteral("from-your-artists"),
                                      QStringLiteral("MPRE_00000050")));
         QVERIFY(!fixture.service.homeSnapshot().isEmpty());
@@ -1817,7 +1887,7 @@ private slots:
         QVERIFY(fixture.service.homeCollections().isEmpty());
         QVERIFY(fixture.service.homeSnapshot().isEmpty());
         QVERIFY(fixture.service.selectedArtists().isEmpty());
-        fixture.service.beginHomeVisit();
+        runHomeVisit(fixture.service);
         QVERIFY(fixture.service.homeSections().isEmpty());
         QVERIFY(fixture.source.pendingRequests().isEmpty());
     }
@@ -1829,7 +1899,7 @@ private slots:
         fixture.source.cacheArtistSeed(seed);
         fixture.service.setHomeCollections({{QStringLiteral("artists"),
                                              QVariantList{savedArtistRecord(seed)}}});
-        fixture.service.beginHomeVisit();
+        runHomeVisit(fixture.service);
         QVERIFY(sectionHasProviderId(fixture.service, QStringLiteral("from-your-artists"),
                                      QStringLiteral("MPRE_00000051")));
 
@@ -1961,7 +2031,7 @@ private slots:
         const FakeSource::Request oldRequest = fixture.source.pendingRequests(QStringLiteral("artistCandidates")).first();
 
         fixture.preferences.setTaste(withFiveDistinctTasteArtists({artistSeed(9)}), true);
-        fixture.service.beginHomeVisit();
+        runHomeVisit(fixture.service);
         QTRY_VERIFY(std::any_of(fixture.source.requests.cbegin(), fixture.source.requests.cend(), [](const auto &call) {
             return call.operation == QStringLiteral("artistCandidates")
                 && call.options.value(QStringLiteral("seed")).toMap().value(QStringLiteral("providerId")).toString()

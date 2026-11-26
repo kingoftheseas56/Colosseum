@@ -280,10 +280,16 @@ TestCase {
         recommendations.homeVisits=0;
         world.worldView.setTab("discover");
         world.showHome();
+        compare(world.worldData.activeTab,"home");
+        compare(recommendations.homeVisits,0,"Navigation must not wait for native Home work");
+        tryCompare(recommendations,"homeVisits",1);
+        wait(0);
         compare(recommendations.homeVisits,1);
 
         recommendations.homeVisits=0;
         world.showHome();
+        tryCompare(recommendations,"homeVisits",1);
+        wait(0);
         compare(recommendations.homeVisits,1);
     }
 

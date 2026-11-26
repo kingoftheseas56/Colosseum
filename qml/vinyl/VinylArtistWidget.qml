@@ -41,8 +41,9 @@ Item {
             objectName: "vinylRecordMaterial"
             anchors.fill: parent
             source: "assets/record-ring.svg"
-            sourceSize.width: Math.ceil(width * 2)
-            sourceSize.height: Math.ceil(height * 2)
+            // One cache key for every widget, at more than 2x the usual card size.
+            sourceSize: Qt.size(512, 512)
+            asynchronous: true
             cache: true
             smooth: true
         }

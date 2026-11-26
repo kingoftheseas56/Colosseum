@@ -17,6 +17,8 @@ KeyboardAction {
     property string feedbackError: ""
     property bool compactCaption: false
     property var artistRadioAction: null
+    property var albumPlayAction: null
+    readonly property bool albumPlayAvailable: presentationKind === "albums" && albumPlayAction !== null
     readonly property bool pinAvailable: worldData && typeof worldData.pinCrateItem==="function"
         && typeof worldData.isCratePinned==="function" && !!item.id
         && ["songs","saved-song","albums","artists","mixes","radio"].indexOf(presentationKind)>=0
@@ -34,7 +36,7 @@ KeyboardAction {
         || likeBadge.hovered || likeBadge.activeFocus || hideBadge.hovered || hideBadge.activeFocus)
 
     enabled: root.item.available !== false && root.item.unavailable !== true
-    spaceActivates: presentationKind === "artists" && artistRadioAction !== null
+    spaceActivates: albumPlayAvailable || (presentationKind === "artists" && artistRadioAction !== null)
     readonly property string reason: item.reason || ""
     readonly property string presentationKind: Presentation.kind(item)
     readonly property string artistText: Presentation.artist(item)
@@ -189,17 +191,20 @@ KeyboardAction {
     }
 
     VinylFeedbackBadge {
-        id: artistRadio
-        objectName: root.objectName + "_artistRadio"
+        objectName: root.objectName + (root.albumPlayAvailable ? "_albumPlay" : "_artistRadio")
         anchors.centerIn: art
         z: 2
-        visible: root.presentationKind === "artists" && root.artistRadioAction !== null
+        visible: root.albumPlayAvailable || (root.presentationKind === "artists" && root.artistRadioAction !== null)
         enabled: visible && root.enabled
         revealed: root.hovered || root.activeFocus || hovered || activeFocus
         symbol: "play"
-        accessibleName: qsTr("Artist radio")
+        accessibleName: !root.albumPlayAvailable ? qsTr("Artist radio")
+            : root.item.resumeTrack > 0 ? qsTr("Resume album") : qsTr("Play album")
         spaceActivates: true
-        onTriggered: root.artistRadioAction(root.item)
+        onTriggered: {
+            if (root.albumPlayAvailable) root.albumPlayAction(root.item);
+            else root.artistRadioAction(root.item);
+        }
     }
 
     VinylFeedbackBadge {

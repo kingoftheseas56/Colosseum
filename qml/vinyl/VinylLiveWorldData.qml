@@ -51,21 +51,42 @@ Item {
         : usesRecommendationService ? String(recommendationService.homeStatus || "empty") : "empty"
     readonly property string homeError: homePublicDiscovery ? discoveryError
         : usesRecommendationService ? String(recommendationService.homeError || "") : ""
-    readonly property var recommendationHomeSnapshot: {
-        var revision = homeRevision;
-        if(!usesRecommendationService || !recommendationService.homeSnapshot) return ({});
-        var snapshot = session.plainData(recommendationService.homeSnapshot);
-        return snapshot && typeof snapshot === "object" ? snapshot : ({});
+    readonly property var recommendationHomeSnapshot: usesRecommendationService ? recommendationService.homeSnapshot || ({}) : ({})
+    readonly property var homeSourcePool: usesRecommendationService ? recommendationService.homeSourcePool || ({}) : ({})
+    // Keep delegate models intact when only pending work or provenance changes.
+    // Compare before publishing instead of serializing every album and queue payload.
+    QtObject {
+        id: models
+        property var hero: []
+        property var songs: []
+        property var albums: []
+        property var artists: []
+        property var home: []
+        property var crate: []
+        property var library: []
     }
-    readonly property var homeSourcePool: {
-        var revision=homeRevision;
-        return usesRecommendationService && recommendationService.homeSourcePool
-            ? session.plainData(recommendationService.homeSourcePool) : ({});
+    function sameData(left,right) {
+        if(left===right)return true;
+        if(!left || !right || typeof left!=="object" || typeof right!=="object")return false;
+        var keys=Object.keys(left);
+        if(keys.length!==Object.keys(right).length)return false;
+        for(var i=0;i<keys.length;++i) {
+            var key=keys[i];
+            if(!Object.prototype.hasOwnProperty.call(right,key) || !sameData(left[key],right[key]))return false;
+        }
+        return true;
     }
-    // Keep delegate models intact when a background reply changes only pending
-    // work or provenance. QML string equality suppresses those identical models.
-    readonly property var heroSlides: JSON.parse(heroSlidesSnapshot)
-    readonly property string heroSlidesSnapshot: {
+    function publish(model,next) {
+        var prior=models[model], result=[], changed=prior.length!==next.length;
+        for(var i=0;i<next.length;++i) {
+            var value=next[i];
+            if(i<prior.length && sameData(prior[i],value))result.push(prior[i]);
+            else {result.push(value);changed=true;}
+        }
+        if(changed)models[model]=result;
+    }
+    readonly property var heroSlides: models.hero
+    readonly property var heroProjection: {
         var charts=homeSourcePool.charts || {},result=[];
         var groups=[{kind:"topAlbum",items:charts.albums || [],kicker:qsTr("#1 album in the world this week")},
             {kind:"topSong",items:charts.songs || [],kicker:qsTr("#1 song in the world this week")},
@@ -89,54 +110,67 @@ Item {
         if(fallback)picks=(charts.artists || []).slice(4,9).map(function(item){return Object.assign({},item,{reason:qsTr("From this week’s charts")});});
         if(picks.length>=5)result.push({kind:"forYou",item:picks[0],sideItems:picks.slice(1,5),
             kicker:fallback ? qsTr("For you · from this week’s charts") : qsTr("For you · picked today")});
-        return JSON.stringify(result);
+        return result;
     }
-    readonly property string spinSongsSnapshot: JSON.stringify((homeSourcePool.songs || []).length ? homeSourcePool.songs : (homeSourcePool.charts || {}).songs || [])
-    readonly property string spinAlbumsSnapshot: JSON.stringify((homeSourcePool.albums || []).length ? homeSourcePool.albums : (homeSourcePool.charts || {}).albums || [])
-    readonly property string spinArtistsSnapshot: JSON.stringify((homeSourcePool.artists || []).length ? homeSourcePool.artists : (homeSourcePool.charts || {}).artists || [])
-    readonly property var spinSongs: JSON.parse(spinSongsSnapshot)
-    readonly property var spinAlbums: JSON.parse(spinAlbumsSnapshot)
-    readonly property var spinArtists: JSON.parse(spinArtistsSnapshot)
-    readonly property var v1HomeRows: JSON.parse(v1HomeRowsSnapshot)
-    readonly property string v1HomeRowsSnapshot: JSON.stringify((homeSourcePool.rows || []).map(function(row){
+    onHeroProjectionChanged: publish("hero",heroProjection)
+    function spinProjection(kind) {
+        var items=homeSourcePool[kind];
+        return items && items.length ? items : (homeSourcePool.charts || {})[kind] || [];
+    }
+    readonly property var spinSongs: models.songs
+    readonly property var spinAlbums: models.albums
+    readonly property var spinArtists: models.artists
+    readonly property var spinSongsProjection: spinProjection("songs")
+    readonly property var spinAlbumsProjection: spinProjection("albums")
+    readonly property var spinArtistsProjection: spinProjection("artists")
+    onSpinSongsProjectionChanged: publish("songs",spinSongsProjection)
+    onSpinAlbumsProjectionChanged: publish("albums",spinAlbumsProjection)
+    onSpinArtistsProjectionChanged: publish("artists",spinArtistsProjection)
+    readonly property var v1HomeRows: models.home
+    readonly property var homeRowsProjection: {
+        var generation=recommendationProfileGeneration();
         var aliases={"albums-for-you":"from-your-artists","because-you-played":"from-your-artists",
             "artists-like-yours":"related-discoveries","rediscover":"rediscover-library"};
         var reasons={"new-from-your-artists":qsTr("A recent release near your artists"),"deep-cuts":qsTr("Beyond their top songs"),
             "artists-like-yours":qsTr("Related to your artists"),"rediscover":qsTr("From your listening history")};
-        var items=(row.items || []).map(function(item){return Object.assign({},item,{reason:item.reason || reasons[row.key] || qsTr("Near the artists you picked")});});
-        return Object.assign({},row,{key:"v1:"+row.key,homeKey:row.key,sectionId:aliases[row.key] || row.key,items:items,
-            kind:"recommendations",recommendation:true,profileGeneration:recommendationProfileGeneration()});
-    }))
-    readonly property var crateItems: JSON.parse(crateItemsSnapshot)
-    readonly property string crateItemsSnapshot: JSON.stringify((homeSourcePool.crate || []).map(function(source){
+        return (homeSourcePool.rows || []).map(function(row){
+            var items=(row.items || []).map(function(item){return Object.assign({},item,{reason:item.reason || reasons[row.key] || qsTr("Near the artists you picked")});});
+            return Object.assign({},row,{key:"v1:"+row.key,homeKey:row.key,sectionId:aliases[row.key] || row.key,items:items,
+                kind:"recommendations",recommendation:true,profileGeneration:generation});
+        });
+    }
+    onHomeRowsProjectionChanged: publish("home",homeRowsProjection)
+    readonly property var crateItems: models.crate
+    readonly property var crateProjection: (homeSourcePool.crate || []).map(function(source){
         var item=Object.assign({},source);
         if(item.kind!=="albums" || item.unavailable)return item;
         var record=item.record || root.findAlbum(item.albumId || item.id);
         var recent=recentContinue.find(function(entry){return entry.albumId===(record || {}).id || entry.albumId===item.albumId;});
         if(record && !recent && session.progressStore && typeof session.progressStore.get==="function"
-            && typeof session.normalize==="function" && typeof session.checkpointSummary==="function"){
-            var edition=session.normalize(record);
-            var checkpoint=session.plainData(session.progressStore.get("music",edition.id));
-            var summary=session.checkpointSummary(checkpoint && checkpoint.resume);
-            if(summary.valid && summary.row && summary.row.albumId===record.id)
+            && typeof session.checkpointSummary==="function"){
+            var editionId=((record.editions || [])[0] || {}).id || record.id;
+            var checkpoint=session.progressStore.get("music",editionId);
+            var summary=checkpoint && session.checkpointSummary(checkpoint.resume);
+            if(summary && summary.valid && summary.row && summary.row.albumId===record.id)
                 recent={trackId:summary.row.trackId,resumeEntry:checkpoint};
         }
         if(!record || !recent)return item;
         var index=(record.tracks || []).findIndex(function(track){return track.id===recent.trackId;});
         if(index>=0){item.resumeTrack=index+1;item.totalTracks=record.tracks.length;item.resumeEntry=recent.resumeEntry;}
         return item;
-    }))
-    readonly property var libraryRows: JSON.parse(libraryRowsSnapshot)
-    readonly property string libraryRowsSnapshot: {
-        var revision=homeRevision;
+    })
+    onCrateProjectionChanged: publish("crate",crateProjection)
+    readonly property var libraryRows: models.library
+    readonly property var libraryProjection: {
         var downloadsRevision=session ? session.downloadRevision : 0;
-        if(!session || session.profileActive===false || session.shuttingDown)return "[]";
-        return JSON.stringify(LibraryProjection.project(personalLibrary,
+        if(!session || session.profileActive===false || session.shuttingDown)return [];
+        return LibraryProjection.project(personalLibrary,
             typeof session.feedbackState==="function" ? session.feedbackState() : ({}),
-            usesRecommendationService ? session.plainData(recommendationService.historySnapshot) : ({}),
+            usesRecommendationService ? recommendationService.historySnapshot : ({}),
             session.downloadStore && typeof session.downloadStore.downloadedMusic==="function"
-                ? session.downloadStore.downloadedMusic(session.profileScope) : []));
+                ? session.downloadStore.downloadedMusic(session.profileScope) : []);
     }
+    onLibraryProjectionChanged: publish("library",libraryProjection)
     readonly property var downloadJobs: {
         var revision=session ? session.downloadRevision : 0;
         return session && session.profileActive && session.downloadStore && typeof session.downloadStore.musicJobs==="function"
@@ -149,7 +183,15 @@ Item {
     }
     signal homeActionRequested(var item,string action)
     function playHomeItem(item){homeActionRequested(item,"play");}
-    function openHomeItem(item){homeActionRequested(item,"open");}
+    // The song route validates a JS track array. Materialize only the selected
+    // source record, not the whole card (which may carry a saved queue).
+    function openItemData(item) {
+        if(item && item.destination && item.destination.kind==="song"
+            && item.record && !Array.isArray(item.record.tracks))
+            return Object.assign({},item,{record:session.plainData(item.record)});
+        return item;
+    }
+    function openHomeItem(item){homeActionRequested(openItemData(item),"open");}
     function saveHomeItem(item){homeActionRequested(item,"save");}
     function radioHomeItem(item){homeActionRequested(item,"radio");}
     function crateItem(item){
@@ -163,20 +205,27 @@ Item {
         });
         return owned ? Object.assign({},owned,{kind:"saved-song"}) : null;
     }
+    function cratePinIdentity(item){
+        // The native service resolves the canonical card itself. Do not marshal
+        // the entire record, library item and possible resume queue for a lookup.
+        var identity={key:item.key,id:item.id,kind:item.kind};
+        if(item.libraryItem)identity.libraryItem={id:item.libraryItem.id};
+        return identity;
+    }
     function pinCrateItem(item,pinned){
-        if(!usesRecommendationService || typeof recommendationService.setCratePin!=="function")return false;
+        if(!item || !usesRecommendationService || typeof recommendationService.setCratePin!=="function")return false;
         if(pinned && typeof session.cacheCrateRecord==="function" && !session.cacheCrateRecord(item))return false;
         if(item.libraryAction==="openDownloadedSong" && personalLibrary){
             if(typeof personalLibrary.refreshModels==="function")personalLibrary.refreshModels();
         }
         item=crateItem(item);if(!item)return false;
-        return recommendationService.setCratePin(item,pinned,recommendationProfileGeneration())===true;
+        return recommendationService.setCratePin(cratePinIdentity(item),pinned,recommendationProfileGeneration())===true;
     }
     function isCratePinned(item){
         var revision=homeRevision;
         item=crateItem(item);if(!item)return false;
         return usesRecommendationService && typeof recommendationService.isCratePinned==="function"
-            && recommendationService.isCratePinned(item,recommendationProfileGeneration())===true;
+            && recommendationService.isCratePinned(cratePinIdentity(item),recommendationProfileGeneration())===true;
     }
     function hideHomeItem(item){if(item && item.ref)return setRecommendationFeedback(item.ref,"hide",recommendationProfileGeneration());return false;}
     function feedbackHomeItem(item,action){if(item && item.ref)return setRecommendationFeedback(item.ref,action,recommendationProfileGeneration());return false;}
@@ -189,12 +238,8 @@ Item {
         // Public catalogue snapshots remain independent of listening privacy.
         if(homeListSnapshot)homeListSnapshot=null;
     }
-    readonly property var recommendationHomeSections: {
-        var revision = homeRevision;
-        var sections = usesRecommendationService ? recommendationService.homeSections || [] : [];
-        sections = session.plainData(sections);
-        return Array.isArray(sections) ? sections : [];
-    }
+    readonly property var recommendationHomeSections: usesRecommendationService
+        ? recommendationService.homeSections || [] : []
     readonly property string onboardingState: usesRecommendationService
         ? recommendationService.onboardingState
         : fallbackEditing ? "editing" : fallbackTastePickerOpen ? "draft" : fallbackPickerAnswered ? "answered" : "unanswered"
@@ -251,10 +296,12 @@ Item {
     property bool homePageVisible: activeTab === "home"
     onHomePageVisibleChanged: {
         if(!usesRecommendationService)return;
-        if(homePageVisible && typeof recommendationService.beginHomeVisit==="function")
-            recommendationService.beginHomeVisit();
-        else if(!homePageVisible && typeof recommendationService.leaveHome==="function")
-            recommendationService.leaveHome();
+        if(homePageVisible)Qt.callLater(beginVisibleHomeVisit);
+        else if(typeof recommendationService.leaveHome==="function")recommendationService.leaveHome();
+    }
+    function beginVisibleHomeVisit() {
+        if(homePageVisible && usesRecommendationService && session.profileActive!==false && !session.shuttingDown
+            && typeof recommendationService.beginHomeVisit==="function")recommendationService.beginHomeVisit();
     }
     property string activeTab: "library"
     property var browseStates: initialBrowseStates()
@@ -271,9 +318,11 @@ Item {
         onTriggered:root.refreshHome()
     }
     readonly property var homeListeningCards: usesRecommendationService
-        ? session.plainData(recommendationService.homeListeningCards || []) : []
+        ? recommendationService.homeListeningCards || [] : []
     readonly property var homeQuickPicks: usesRecommendationService
-        ? session.plainData(recommendationService.homeQuickPicks || []) : []
+        ? recommendationService.homeQuickPicks || [] : []
+    readonly property var homeCarouselCards: usesRecommendationService && legacyCarouselEnabled
+        ? recommendationService.homeCarouselItems || [] : []
     function refreshHomeSelection() {
         homeNowMs=Date.now();
         if(usesRecommendationService && typeof recommendationService.refreshHomeSelection==="function")
@@ -291,23 +340,28 @@ Item {
         if(!session.profileActive || session.shuttingDown || !session.progressStore
             || typeof session.checkpointSummary!=="function") {recentContinue=[];return;}
         if(typeof session.progressStore.get==="function") {
-            var latest=session.plainData(session.progressStore.get("music-session","vinyl"));
+            var latest=session.progressStore.get("music-session","vinyl");
             var state=session.checkpointSummary(latest && latest.resume);
             if(state.valid && state.empty){recentContinue=[];return;}
         }
-        var values=session.plainData(session.progressStore.recent("music",8)) || [];
-        if(latest && state && state.valid && state.row)values=[latest].concat(values);
-        var seen={};
-        recentContinue=values.map(function(entry){
-            var summary=session.checkpointSummary(entry.resume),row=summary.row;
-            if(!row || (summary.duration>0 && summary.position>=summary.duration-0.5))return null;
+        var values=session.progressStore.recent("music",8) || [], seen=new Set(), result=[];
+        function append(entry,summary) {
+            var row=summary.row;
+            if(!row || (summary.duration>0 && summary.position>=summary.duration-0.5))return;
             var key=JSON.stringify([row.albumId,row.editionId,row.trackId]);
-            if(seen[key])return null;seen[key]=true;
-            return {id:"resume:"+row.editionId,kind:"resume",title:row.title,artist:row.artist,subtitle:row.artist,
+            if(seen.has(key))return;
+            seen.add(key);
+            result.push({id:"resume:"+row.editionId,kind:"resume",title:row.title,artist:row.artist,subtitle:row.artist,
                 cover:row.cover || "",albumId:row.albumId,editionId:row.editionId,trackId:row.trackId,
                 lastPlaybackAtMs:Number(summary.lastPlaybackAtMs)||0,
-                unavailable:!session.personalRowAvailable(row),resumeEntry:entry};
-        }).filter(item=>!!item).slice(0,6);
+                unavailable:!session.personalRowAvailable(row),resumeEntry:entry});
+        }
+        if(latest && state && state.valid && state.row)append(latest,state);
+        for(var i=0;i<values.length && result.length<6;++i) {
+            var entry=values[i];
+            if(entry!==latest)append(entry,session.checkpointSummary(entry.resume));
+        }
+        recentContinue=result;
     }
     function retryHomeRecommendations() {
         if(homePublicDiscovery)return retryDiscovery();
@@ -320,7 +374,7 @@ Item {
         return retryHomeRecommendations();
     }
     function personalizedHomeRow(section, snapshot, generation) {
-        if(!section || section.kind!=="recommendations" || !Array.isArray(section.items)) return null;
+        if(!section || section.kind!=="recommendations" || !section.items || typeof section.items.map!=="function") return null;
         var identity=String(section.id || section.key || "").trim();
         if(!identity) return null;
         var items=section.items.map(function(source) {
@@ -331,7 +385,8 @@ Item {
             if(["albums","artists","songs","saved-song"].indexOf(kind)<0) return null;
             if(kind==="saved-song" && (destination.kind!=="saved-song" || item.unavailable===true || !item.row))return null;
             if(kind==="songs") {
-                var tracks=item.record && Array.isArray(item.record.tracks) ? item.record.tracks : [];
+                var tracks=item.record && item.record.tracks;
+                if(!tracks || typeof tracks.findIndex!=="function")return null;
                 var trackIndex=Number(item.trackIndex);
                 if(!Number.isInteger(trackIndex) || trackIndex<0 || trackIndex>=tracks.length) {
                     var trackIds=[String(item.trackId || ""),String(destination.id || ""),String(destination.providerId || "")];
@@ -397,14 +452,15 @@ Item {
         if(!artistRef || artistRef.identity!=="provider" || artistRef.kind!=="artist"
             || !artistRef.providerId || !artistRef.itemId) return [];
         var snapshot=recommendationHomeSnapshot;
-        var suppressed=snapshot && Array.isArray(snapshot.suppressedItems) ? snapshot.suppressedItems : [];
+        var suppressed=snapshot && snapshot.suppressedItems;
+        if(!suppressed || typeof suppressed.filter!=="function")return [];
         return suppressed.filter(function(entry) {
             if(!entry || typeof entry!=="object"
                 || (entry.hidden!==true && entry.snoozed!==true && entry.excluded!==true)) return false;
             if(recommendationRefsEqual(entry.ref,artistRef)) return true;
             if(recommendationRefsEqual(recommendationArtistRef(entry.seedArtistRef),artistRef)) return true;
-            var credits=Array.isArray(entry.artistRefs) ? entry.artistRefs : [];
-            return credits.some(function(artist) {
+            var credits=entry.artistRefs || [];
+            return typeof credits.some==="function" && credits.some(function(artist) {
                 return recommendationRefsEqual(recommendationArtistRef(artist),artistRef);
             });
         }).slice(0,300);
@@ -517,8 +573,10 @@ Item {
     }
     function saveBrowseState() {
         if(changingTab) return;
+        var state={query:query,lens:Object.assign({},lens),sortOrder:sortOrder,onlineMode:activeTab==="discover" && onlineMode};
+        if(sameData(browseStates[activeTab],state))return;
         var next=Object.assign({},browseStates);
-        next[activeTab]={query:query,lens:Object.assign({},lens),sortOrder:sortOrder,onlineMode:activeTab==="discover" && onlineMode};
+        next[activeTab]=state;
         browseStates=next;
     }
     function selectTab(tab) {
@@ -528,16 +586,28 @@ Item {
         if(tab===activeTab) {
             // Explicit Home navigation still refreshes an already-visible Home.
             // Returning from a detail/list/hidden surface is handled by visibility.
-            if(tab==="home" && homePageVisible && usesRecommendationService
-                && typeof recommendationService.beginHomeVisit==="function")
-                recommendationService.beginHomeVisit();
+            if(tab==="home")Qt.callLater(beginVisibleHomeVisit);
             return;
         }
         saveBrowseState();
-        if(session.browsing && ["search","catalogueSearch"].indexOf(session.browseOperation)>=0) session.cancelBrowse();
         changingTab=true;activeTab=tab;
         var state=browseStates[tab] || {query:"",lens:emptyLens(),sortOrder:"title",onlineMode:false};query=state.query;lens=Object.assign({},state.lens);sortOrder=state.sortOrder;onlineMode=state.onlineMode;
-        changingTab=false;refreshSearch();if(tab==="home"){refreshHome();ensureDiscovery();}
+        changingTab=false;
+        // Publish the selected pill immediately; settle Home/Spin data on the
+        // next turn. Library/Discover still restore their search synchronously.
+        if(["home","songs","albums","artists"].indexOf(tab)>=0)Qt.callLater(settleHomeOrSpin);
+        else {cancelTabSearch();refreshSearch();}
+    }
+    function cancelTabSearch() {
+        if(session.browsing && ["search","catalogueSearch"].indexOf(session.browseOperation)>=0)session.cancelBrowse();
+    }
+    function settleHomeOrSpin() {
+        if(["home","songs","albums","artists"].indexOf(activeTab)<0)return;
+        cancelTabSearch();refreshSelectedHome();
+    }
+    function refreshSelectedHome() {
+        if(activeTab!=="home")return;
+        refreshHome();ensureDiscovery();
     }
     function setQuery(value) {query=String(value || "");}
     function setOnlineMode(value) {
@@ -704,8 +774,7 @@ Item {
             if(recent)result.push({key:recent.id,id:recent.id,title:recent.title,blurb:recent.subtitle,
                 art:recent.cover,artKind:"square",cta:"Continue listening",kicker:"Continue listening",item:recent});
         }
-        var cards=usesRecommendationService ? session.plainData(recommendationService.homeCarouselItems || []) : [];
-        cards.forEach(function(item){
+        homeCarouselCards.forEach(function(item){
             if(result.length>=5)return;
             var kind=String(item.spotlightKind || "");
             result.push({id:String(item.key || item.id),key:String(item.key || item.id),title:item.title,
@@ -856,7 +925,7 @@ Item {
     function resetPicker() {
         return beginTasteEdit();
     }
-    function activate(item) {itemRequested(item);}
+    function activate(item) {itemRequested(openItemData(item));}
     function openList(key,home) {
         var sections={"saved-songs":"songs","saved-albums":"albums","saved-artists":"artists","playlists":"playlists"};
         homeListSnapshot=null;
@@ -881,9 +950,9 @@ Item {
         ignoreUnknownSignals:true
         function onLibraryChanged(){root.refreshSearch();}
         function onProfileGenerationChanged(){root.recentContinue=[];root.homeSelectionDay="";root.homeListSnapshot=null;root.loadTaste();root.resetBrowseState();}
-        function onPlayingTrackChanged(){if(root.activeTab==="home")root.refreshHome();}
-        function onPausedChanged(){if(root.activeTab==="home")root.refreshHome();}
-        function onQueueChanged(){if(root.activeTab==="home")Qt.callLater(root.refreshHome);}
+        function onPlayingTrackChanged(){if(root.activeTab==="home")Qt.callLater(root.refreshSelectedHome);}
+        function onPausedChanged(){if(root.activeTab==="home")Qt.callLater(root.refreshSelectedHome);}
+        function onQueueChanged(){if(root.activeTab==="home")Qt.callLater(root.refreshSelectedHome);}
         function onOnlineAlbumsChanged(){root.acceptCatalogueMatches();}
         function onOnlineArtistsChanged(){root.acceptCatalogueMatches();}
         function onCataloguePagesChanged(){root.acceptCatalogueMatches();}

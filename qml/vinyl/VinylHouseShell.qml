@@ -375,17 +375,15 @@ WorldPage {
                     delegate: VinylShelf {
                         required property string modelData
                         readonly property string homeKey: modelData
-                        readonly property string rowSnapshot: {
-                            var entry=(root.worldData.v1HomeRows || []).find(function(candidate) {
-                                return (candidate.homeKey || candidate.key) === homeKey;
-                            });
-                            return JSON.stringify(entry || {key:"v1:"+homeKey,homeKey:homeKey,title:"",items:[]});
-                        }
+                        readonly property var emptyRow: ({key:"v1:"+homeKey,homeKey:homeKey,title:"",items:[]})
                         objectName: "vinylHomeRow_"+homeKey
                         readonly property int itemCount: (row.items || []).length
                         visible: itemCount>0 && !picker.visible
                         width: homeContent.width
-                        row: JSON.parse(rowSnapshot); worldData: root.worldData
+                        row: (root.worldData.v1HomeRows || []).find(function(candidate) {
+                            return (candidate.homeKey || candidate.key) === homeKey;
+                        }) || emptyRow
+                        worldData: root.worldData
                         homePageVisible: root.contentVisible && homeContent.visible
                             && root.currentTab==="home" && !root.listKey && !picker.visible
                         backdrop: root.backdrop; pageFlick: root.pageFlickable

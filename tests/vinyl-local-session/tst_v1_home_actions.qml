@@ -85,6 +85,14 @@ TestCase {
             worldData.preferencesStore:temporaryPreferences
         }
     }
+    Component {
+        id:crateFactory
+        Vinyl.VinylCrate {
+            width:640; z:100; compact:true
+            onOpenRequested: item => worldData.openHomeItem(item)
+            onActivateRequested: item => worldData.playHomeItem(item)
+        }
+    }
     function album(){
         var artist="ytm:artist:UC"+"a".repeat(22);
         return {id:"home-route-album",browseId:"MPRE_home_fixture",origin:"youtube-music",type:"Album",
@@ -118,6 +126,8 @@ TestCase {
         tryCompare(world,"page","home");
         verify(world.homeActivationAllowed);
         compare(world.session.queue.length,0);
+        // The selection is immediate; the initial Home visit settles next turn.
+        wait(0);
         calls=[];
     }
     function cleanup(){
@@ -142,6 +152,7 @@ TestCase {
         var serial=0;
         function dirty(){
             verify(world.worldData.homePageVisible);
+            wait(0); // Run the deferred Home visit before dirtying its inputs.
             owner.homeCollections={visibilityTest:++serial};
             verify(timer.active);
         }
@@ -208,14 +219,21 @@ TestCase {
     }
     function test_knownAlbumOpenOnlyBrowsesAndPlayUsesResumeQueueIndex(){
         var item={id:record.id,albumId:record.id,kind:"albums",title:record.title,record:record,resumeTrack:2,totalTracks:2};
-        world.worldData.openHomeItem(item);
+        var crate=createTemporaryObject(crateFactory,host.contentItem,{items:[item],worldData:world.worldData});
+        verify(crate);
+        var card=findChild(crate,"vinylCrateTile_0_card");
+        verify(card && waitForRendering(card));
+        mouseClick(card,20,70);
         var browse=requests("album","browse");compare(browse.length,1);compare(browse[0].value,record.id);
         compare(world.session.queue.length,0);compare(requests("resolve","play").length,0);
         reply(browse[0],record);
         tryCompare(world,"page","album");compare(world.session.shownAlbumId,record.id);compare(world.session.queue.length,0);
         world.showHome();calls=[];
-        world.worldData.playHomeItem(item);
+        var play=findChild(card,card.objectName+"_albumPlay");
+        mouseMove(card,20,70);tryCompare(play,"revealed",true);
+        compare(play.accessibleName,"Resume album");mouseClick(play);
         assertSelectedQueue(1);
+        compare(requests("album","browse").length,0);
     }
     function test_libraryProjectionDispatchesOriginalPersonalOwnerItem(){
         var rows=LibraryProjection.project(world.personalLibrary,{ok:false},{});

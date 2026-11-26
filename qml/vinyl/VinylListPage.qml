@@ -105,6 +105,8 @@ Item {
                 item: modelData
                 artistRadioAction: root.homeArtistActions && typeof root.worldData.radioHomeItem === "function"
                     ? function(item) { root.worldData.radioHomeItem(item); } : null
+                albumPlayAction: root.homeArtistActions && typeof root.worldData.playHomeItem === "function"
+                    ? function(item) { root.worldData.playHomeItem(item); } : null
                 onActiveFocusChanged: if(activeFocus) {root.currentIndex=index;root.selectedId=modelData.id}
                 Keys.onPressed: event => { if([Qt.Key_Left,Qt.Key_Right,Qt.Key_Up,Qt.Key_Down,Qt.Key_Home,Qt.Key_End,Qt.Key_PageUp,Qt.Key_PageDown].indexOf(event.key)>=0) nav.handle(event); }
                 width: (grid.width-(grid.columns-1)*24)/grid.columns

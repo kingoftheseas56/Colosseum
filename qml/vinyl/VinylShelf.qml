@@ -120,6 +120,8 @@ Item {
                     item: root.row.items[index]
                     artistRadioAction: root.home && typeof root.worldData.radioHomeItem === "function"
                         ? function(item) { root.worldData.radioHomeItem(item); } : null
+                    albumPlayAction: root.home && typeof root.worldData.playHomeItem === "function"
+                        ? function(item) { root.worldData.playHomeItem(item); } : null
                     recommendationRow: root.home ? root.row : null
                     pageFlick: root.pageFlick
                     exposureRail: rail

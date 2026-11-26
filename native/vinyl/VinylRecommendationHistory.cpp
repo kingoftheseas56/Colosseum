@@ -25,10 +25,29 @@ QString catalogueKey(const QString &album,const QString &track) {
     return QString::fromUtf8(QJsonDocument(QJsonArray{album,track}).toJson(QJsonDocument::Compact));
 }
 }
+VinylRecommendationHistory::Inputs VinylRecommendationHistory::capture(ActivityStore *activity,HistoryStore *history) {
+    Inputs inputs;
+    inputs.enabled=activity&&activity->retentionEnabled();
+    if(!inputs.enabled)return inputs;
+    inputs.healthy=activity->healthy()&&(!history||history->healthy());
+    if(!inputs.healthy)return inputs;
+    inputs.resetGeneration=activity->resetGeneration();
+    inputs.resetAt=std::max(activity->resetAtMs(),history?history->syncResetBarrierAtMs():qint64(0));
+    inputs.activityDatabase=activity->historyProjectionDatabasePath();
+    if(inputs.activityDatabase==":memory:"){
+        inputs.activityDatabase.clear();inputs.inMemoryFacts=activity->historyProjectionFacts();
+    }
+    inputs.hasChronology=history!=nullptr;
+    if(history)inputs.chronology=history->records();
+    return inputs;
+}
 QVariantMap VinylRecommendationHistory::project(ActivityStore *activity,HistoryStore *history,
                                                const QVariantList &catalogueRows,qint64 nowMs) {
-    if(!activity || !activity->retentionEnabled())return emptyProjection(true,false);
-    if(nowMs<=0 || !activity->healthy() || (history && !history->healthy()))return emptyProjection(false,true);
+    return project(capture(activity,history),catalogueRows,nowMs);
+}
+QVariantMap VinylRecommendationHistory::project(const Inputs &inputs,const QVariantList &catalogueRows,qint64 nowMs) {
+    if(!inputs.enabled)return emptyProjection(true,false);
+    if(nowMs<=0||!inputs.healthy)return emptyProjection(false,true);
     struct Session {
         QString id,item,origin="unknown",outcome;
         QVariantMap recording;
@@ -62,13 +81,13 @@ QVariantMap VinylRecommendationHistory::project(ActivityStore *activity,HistoryS
         }
     }
     QMap<QString,Session> sessions;
-    for(const auto &fact:activity->historyProjectionFacts()) {
+    const auto facts=inputs.activityDatabase.isEmpty()?inputs.inMemoryFacts:ActivityStore::readHistoryProjectionFacts(inputs.activityDatabase);
+    for(const auto &fact:facts) {
         if(fact.value("world")!="vinyl" || fact.value("kind")!="music" || fact.value("syncable").toBool()
             || fact.value("_trackerOrigin")!="native_local")continue;
         const auto type=fact.value("type").toString();if(type!="music_action" && type!="playback_delta")continue;
         const auto at=fact.value(type=="playback_delta"?"startAtMs":"atMs").toLongLong();
-        const auto resetAt=std::max(activity->resetAtMs(),history?history->syncResetBarrierAtMs():qint64(0));
-        if(at<=0 || at>nowMs || at<=resetAt)continue;
+        if(at<=0 || at>nowMs || at<=inputs.resetAt)continue;
         const auto sessionId=fact.value("sessionId").toString(),item=fact.value("itemKey").toString();
         const auto key=QString::fromUtf8(QJsonDocument(QJsonArray{sessionId,item}).toJson(QJsonDocument::Compact));
         auto &session=sessions[key];session.id=key;session.item=item;
@@ -122,10 +141,10 @@ QVariantMap VinylRecommendationHistory::project(ActivityStore *activity,HistoryS
             {"outcome",session.started?session.outcome:QString()},{"outcomeAtMs",session.outcomeAt},{"positionMs",session.position}});
     }
     auto result=emptyProjection(true,true);result["sessions"]=output;result["qualifiedManualSessions"]=manual;
-    result["resetGeneration"]=QVariant::fromValue(activity->resetGeneration());
+    result["resetGeneration"]=QVariant::fromValue(inputs.resetGeneration);
     // Chronology is factual, but does not manufacture outcome or play-count evidence.
-    if(history) {
-        QVariantList chronology;for(const auto &entry:history->records())
+    if(inputs.hasChronology) {
+        QVariantList chronology;for(const auto &entry:inputs.chronology)
             if(entry.toMap().value("kind")=="music")chronology.append(entry);
         result["chronology"]=chronology;
     }

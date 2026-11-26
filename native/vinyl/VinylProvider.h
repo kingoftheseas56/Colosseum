@@ -27,6 +27,7 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include "VinylBackgroundRead.h"
 #include "VinylRecommendationIdentity.h"
 #include "VinylSourcePool.h"
 #include "RecommendationEntityRef.h"
@@ -35,7 +36,11 @@
 class VinylProvider : public QObject {
     Q_OBJECT
     Q_PROPERTY(int annotationsVersion READ annotationsVersion CONSTANT)
+    Q_PROPERTY(QString recommendationCacheRoot READ recommendationCacheRoot CONSTANT)
+    Q_PROPERTY(qint64 recommendationCacheNow READ recommendationCacheNow)
 public:
+    QString recommendationCacheRoot() const {return m_cacheRoot;}
+    qint64 recommendationCacheNow() const {return m_clock();}
     int annotationsVersion() const { return 1; }
     explicit VinylProvider(QString helper,QObject *parent=nullptr,qint64 cacheBudgetBytes=128LL*1024*1024,
         std::function<qint64()> clock={},QString cacheRoot={},int mediaIdleMs=600000,int catalogueIdleMs=180000):QObject(parent),m_helper(std::move(helper)),
@@ -170,12 +175,15 @@ public:
     }
     Q_INVOKABLE int request(const QString &lane,const QString &operation,const QString &value){return requestPayload(lane,operation,value,{});}
     Q_INVOKABLE QVariantMap cachedRecommendation(const QString &operation,const QString &value,const QVariantMap &payload) const {
+        return cachedRecommendationAt(m_cacheRoot,m_clock(),operation,value,payload);
+    }
+    static QVariantMap cachedRecommendationAt(const QString &root,qint64 now,const QString &operation,const QString &value,const QVariantMap &payload) {
         if(!homeOperation(operation))return {};
         auto input=QJsonObject::fromVariantMap(payload);input.remove("refresh");input["operation"]=operation;input["value"]=value;input["cacheSchema"]=2;
         const auto key=QString::fromLatin1(QCryptographicHash::hash(QJsonDocument(input).toJson(QJsonDocument::Compact),QCryptographicHash::Sha256).toHex());
-        const auto path=m_cacheRoot+"/"+key+".json";
-        auto data=readCache(path,key,operation,value,payload,true,true);
-        if(data.isEmpty()){data=readCache(path,key,operation,value,payload,true,false);if(!data.isEmpty())data["_stale"]=true;}
+        const auto path=root+"/"+key+".json";
+        auto data=readCacheAt(path,key,operation,value,payload,true,true,now);
+        if(data.isEmpty()){data=readCacheAt(path,key,operation,value,payload,true,false,now);if(!data.isEmpty())data["_stale"]=true;}
         if(!data.isEmpty())data["_cached"]=true;return data;
     }
     Q_INVOKABLE QVariantMap annotationCache(const QString &key) const {
@@ -291,7 +299,13 @@ public:
             qInfo().noquote()<<"[vinyl-provider]"<<QJsonDocument(QJsonObject{{"phase",phase},{"operation",operation},
                 {"lane",lane},{"requestId",id},{"reused",reused}}).toJson(QJsonDocument::Compact);
         };
-        auto finish=[guard=QPointer<VinylProvider>(this),this,process,lane,id,home,cacheable,path,key,operation,value,payload,timing,warm,server,deadline,reused,warming,traceEnabled](QVariant data,QString error,bool cleanReply=false){
+        const bool homeLane=home||lane.startsWith("home-listening-");
+        const auto incompleteChart=[operation](const QVariantMap &map,const QString &error){
+            return operation=="chartCandidates"&&(!error.isEmpty()||map.value("status")!="ready"
+                ||!map.value("complete").toBool()||map.value("items").toList().isEmpty());
+        };
+        auto publish=[guard=QPointer<VinylProvider>(this),this,process,lane,id,home,homeLane,cacheable,path,key,operation,value,payload,timing,warm,server,deadline,reused,warming,traceEnabled,incompleteChart]
+            (QVariant data,QString error,bool cleanReply,bool invalidEnvelope,QVariantMap fallback){
             if(!guard||m_active.value(lane)!=process)return;
             const auto received=timing->elapsed.elapsed();
             const bool ran=timing->dispatch>=0;
@@ -310,13 +324,6 @@ public:
             }else{
                 retireProcess(process);
             }
-            bool invalidEnvelope=false;
-            if(home&&error.isEmpty()){
-                QVariantMap normalized;
-                if(!normalizeHome(operation,value,payload,data,&normalized)){
-                    data={};error="The recommendation response is invalid.";invalidEnvelope=true;
-                }else data=normalized;
-            }
             const auto map=data.toMap();
             if(home&&ran&&map.value("sourceStatus")=="rate_limited"){
                 const auto retry=qBound(1,map.value("retryAfterSeconds",60).toInt(),3600);
@@ -324,28 +331,21 @@ public:
             }
             const bool unavailable=home&&map.value("status")=="unavailable";
             if(cacheable){
-                const bool incompleteChart=operation=="chartCandidates"&&(!error.isEmpty()||map.value("status")!="ready"
-                    ||!map.value("complete").toBool()||map.value("items").toList().isEmpty());
-                if(incompleteChart){
+                if(incompleteChart(map,error)){
                     // A failed, empty or truncated refresh cannot replace a good
                     // chart week. Its original timestamp remains authoritative.
-                    auto cached=readCache(path,key,operation,value,payload,true,false);
+                    auto cached=std::move(fallback);
                     if(!cached.value("items").toList().isEmpty()){
                         cached["_cached"]=true;cached["_stale"]=true;
                         cached["_cacheError"]=error.isEmpty()?map.value("error","The chart refresh was incomplete.").toString():error;
                         data=cached;error.clear();
                     }
                 }else if(error.isEmpty()&&!unavailable&&!map.value("_cached").toBool()){
-                    const bool positive=!map.value("items").toList().isEmpty()||map.value("status")=="verified"
-                        ||!map.value("artist").toMap().value("releaseGroups").toList().isEmpty();
-                    if(!home||positive||(map.value("complete").toBool()&&map.value("status")!="partial")){
-                        QJsonObject wire=QJsonObject::fromVariantMap(map);
-                        if(home)wire={{"version",2},{"requestKey",key},{"storedAtMs",m_clock()},{"ttlMs",ttl(operation,map)},{"data",wire}};
-                        const auto bytes=home?QJsonDocument(wire).toJson(QJsonDocument::Compact):QJsonDocument::fromVariant(data).toJson(QJsonDocument::Compact);
-                        if(bytes.size()<=4*1024*1024){QDir().mkpath(m_cacheRoot);QSaveFile file(path);if(file.open(QIODevice::WriteOnly)){file.write(bytes);file.commit();}prune();}
-                    }
+                    // Home writes and the accompanying directory scan have
+                    // already run in the reply worker.
+                    if(!homeLane)writeProviderCache(m_cacheRoot,m_cacheBudget,path,QJsonDocument::fromVariant(data).toJson(QJsonDocument::Compact));
                 }else if(!error.isEmpty()||unavailable){
-                    auto cached=readCache(path,key,operation,value,payload,home,false);
+                    auto cached=homeLane?std::move(fallback):readCache(path,key,operation,value,payload,home,false);
                     if(!cached.isEmpty()){cached["_cached"]=true;cached["_stale"]=true;cached["_cacheError"]=error.isEmpty()?map.value("error","The source is unavailable.").toString():error;data=cached;error.clear();}
                 }
             }
@@ -375,6 +375,41 @@ public:
             qInfo().noquote()<<"[vinyl-provider]"<<QJsonDocument(replyTrace).toJson(QJsonDocument::Compact);
             emit completed(lane,id,data,error);
             if(guard)QTimer::singleShot(0,this,[this]{startWaiting();});
+        };
+        auto finishing=std::make_shared<bool>(false);
+        auto finish=[this,process,lane,deadline,home,homeLane,cacheable,path,key,operation,value,payload,publish,incompleteChart,finishing]
+            (QVariant data,QString error,bool cleanReply=false){
+            if(m_active.value(lane)!=process||*finishing)return;
+            *finishing=true;deadline->stop();
+            if(!homeLane){publish(data,error,cleanReply,false,{});return;}
+            struct Reply {QVariant data;QString error;bool invalid=false;QVariantMap fallback;};
+            vinyl::backgroundRead(process,
+                [data=std::move(data),error=std::move(error),home,cacheable,path,key,operation,value,payload,incompleteChart,
+                 now=m_clock(),root=m_cacheRoot,budget=m_cacheBudget]() mutable {
+                    Reply reply{std::move(data),std::move(error)};
+                    if(home&&reply.error.isEmpty()){
+                        QVariantMap normalized;
+                        if(!normalizeHome(operation,value,payload,reply.data,&normalized)){
+                            reply.data={};reply.error="The recommendation response is invalid.";reply.invalid=true;
+                        }else reply.data=normalized;
+                    }
+                    const auto map=reply.data.toMap();
+                    if(!cacheable)return reply;
+                    const bool unavailable=home&&map.value("status")=="unavailable";
+                    if(incompleteChart(map,reply.error)||!reply.error.isEmpty()||unavailable)
+                        reply.fallback=readCacheAt(path,key,operation,value,payload,home,false,now);
+                    else if(!map.value("_cached").toBool()){
+                        const bool positive=!map.value("items").toList().isEmpty()||map.value("status")=="verified"
+                            ||!map.value("artist").toMap().value("releaseGroups").toList().isEmpty();
+                        if(!home||positive||(map.value("complete").toBool()&&map.value("status")!="partial")){
+                            auto wire=QJsonObject::fromVariantMap(map);
+                            if(home)wire={{"version",2},{"requestKey",key},{"storedAtMs",now},{"ttlMs",ttl(operation,map)},{"data",wire}};
+                            const auto bytes=home?QJsonDocument(wire).toJson(QJsonDocument::Compact):QJsonDocument::fromVariant(reply.data).toJson(QJsonDocument::Compact);
+                            writeProviderCache(root,budget,path,bytes);
+                        }
+                    }
+                    return reply;
+                },[publish,cleanReply](Reply reply){publish(reply.data,reply.error,cleanReply,reply.invalid,std::move(reply.fallback));});
         };
         connect(deadline,&QTimer::timeout,this,[finish]{finish({},"The music catalogue took too long. Retry when connected.");});
         connect(process,&QProcess::errorOccurred,this,[finish](QProcess::ProcessError error){
@@ -425,7 +460,8 @@ public:
             trace("process-started");
         });
         const bool catalogueObject=QStringList{"browseCategories","browseCatalogue","cataloguePage","catalogueSearch","artist","artistReleases","album","artistVideos","artistIdentity"}.contains(operation);
-        if(cacheable&&(home||operation=="discover"||operation=="lyrics"||catalogueObject)&&!payload.value("refresh").toBool()){
+        const bool checkCache=cacheable&&(home||operation=="discover"||operation=="lyrics"||catalogueObject)&&!payload.value("refresh").toBool();
+        if(checkCache&&!homeLane){
             const auto cached=readCache(path,key,operation,value,payload,home,true);
             const bool usable=!cached.isEmpty()&&(operation!="artistIdentity"
                 ||(cached.value("source")=="musicbrainz"&&cached.value("complete").toBool()
@@ -434,11 +470,6 @@ public:
         }
         if(operation=="lyrics"&&m_deferred.value("lrclib")>m_clock()){
             QTimer::singleShot(0,process,[finish]{finish({},"Lyrics are temporarily rate limited. Retry later.");});return id;
-        }
-        const auto deferred=home?deferredHome(operation,value,payload):QVariantMap();
-        if(!deferred.isEmpty()){
-            const auto data=deferred;
-            QTimer::singleShot(0,process,[finish,data]{finish(data,{});});return id;
         }
 #ifdef Q_OS_WIN
         const auto bundled=QFileInfo(m_helper).absolutePath()+"/runtime/python.exe";
@@ -468,14 +499,24 @@ public:
                 if(guard&&m_active.value(lane)==process){process->write(requestBytes);process->closeWriteChannel();}
             }
         };
-        if(home||musicBrainz){
-            QueuedWork job{QPointer<QProcess>(process),launch,musicBrainz,home};
-            // Foreground artist identity shares the MusicBrainz gate, but gets
-            // the next eligible slot ahead of queued Home enrichment.
-            if(home)m_waiting.enqueue(std::move(job));
-            else m_waiting.prepend(std::move(job));
-            QTimer::singleShot(0,this,[this]{startWaiting();});
-        }else QTimer::singleShot(0,process,launch);
+        auto dispatch=[this,process,lane,launch,finish,home,musicBrainz,operation,value,payload](QVariantMap cached){
+            if(m_active.value(lane)!=process)return;
+            if(!cached.isEmpty()){cached["_cached"]=true;finish(cached,{});return;}
+            const auto deferred=home?deferredHome(operation,value,payload):QVariantMap();
+            if(!deferred.isEmpty()){QTimer::singleShot(0,process,[finish,deferred]{finish(deferred,{});});return;}
+            if(home||musicBrainz){
+                QueuedWork job{QPointer<QProcess>(process),launch,musicBrainz,home};
+                // Foreground identity gets the next eligible MusicBrainz slot.
+                if(home)m_waiting.enqueue(std::move(job));
+                else m_waiting.prepend(std::move(job));
+                QTimer::singleShot(0,this,[this]{startWaiting();});
+            }else QTimer::singleShot(0,process,launch);
+        };
+        if(checkCache&&homeLane){
+            vinyl::backgroundRead(process,[path,key,operation,value,payload,home,now=m_clock()]{
+                return readCacheAt(path,key,operation,value,payload,home,true,now);
+            },std::move(dispatch));
+        }else dispatch({});
         return id;
     }
     Q_INVOKABLE void cancel(const QString &lane){
@@ -604,19 +645,32 @@ private:
         return op=="recommendationIdentity"?7LL*86400000:op=="populationCandidates"?86400000:6LL*3600000;
     }
     QVariantMap readCache(const QString &path,const QString &key,const QString &op,const QString &value,const QVariantMap &payload,bool home,bool fresh)const{
+        return readCacheAt(path,key,op,value,payload,home,fresh,home?m_clock():0);
+    }
+    static QVariantMap readCacheAt(const QString &path,const QString &key,const QString &op,const QString &value,const QVariantMap &payload,bool home,bool fresh,qint64 now){
         QFile file(path);const QFileInfo info(file);if(info.size()>4*1024*1024||!file.open(QIODevice::ReadOnly))return {};
         const auto doc=QJsonDocument::fromJson(file.readAll());if(!doc.isObject())return {};
         if(!home){const auto age=info.lastModified().secsTo(QDateTime::currentDateTime());if(fresh&&(age<0||age>900))return {};return doc.object().toVariantMap();}
         const auto wire=doc.object();if(wire.value("version").toInt()!=2||wire.value("requestKey")!=key||!wire.value("data").isObject())return {};
         if(!wire.value("storedAtMs").isDouble()||wire.value("storedAtMs").toInteger()<=0||!wire.value("ttlMs").isDouble())return {};
-        const auto age=m_clock()-wire.value("storedAtMs").toInteger();
+        const auto age=now-wire.value("storedAtMs").toInteger();
         if(fresh&&(age<0||age>wire.value("ttlMs").toInteger()))return {};
         QVariantMap data;if(!normalizeHome(op,value,payload,wire.value("data").toVariant(),&data)||wire.value("ttlMs").toInteger()!=ttl(op,data))return {};return data;
     }
-    void prune(){
-        QDir root(m_cacheRoot);auto files=root.entryInfoList({"*.json"},QDir::Files|QDir::NoSymLinks,QDir::Time|QDir::Reversed);
+    static void writeProviderCache(const QString &root,qint64 budget,const QString &path,const QByteArray &bytes){
+        if(bytes.size()>4*1024*1024)return;
+        QDir().mkpath(root);QSaveFile file(path);
+        if(file.open(QIODevice::WriteOnly)){file.write(bytes);file.commit();}
+        pruneCache(root,budget);
+    }
+    void prune(){pruneCache(m_cacheRoot,m_cacheBudget);}
+    static void pruneCache(const QString &path,qint64 budget){
+        QDir root(path);auto files=root.entryInfoList({"*.json"},QDir::Files|QDir::NoSymLinks,QDir::Time|QDir::Reversed);
         qint64 total=0;for(const auto &file:files)total+=file.size();int remaining=files.size();
-        for(const auto &file:files){if(total<=m_cacheBudget&&remaining<=4096)break;if(QFile::remove(file.absoluteFilePath())){total-=file.size();--remaining;}}
+        for(const auto &file:files){if(total<=budget&&remaining<=4096)break;
+            // Another reply may have already pruned this entry.
+            if(QFile::remove(file.absoluteFilePath())||!QFileInfo::exists(file.absoluteFilePath())){total-=file.size();--remaining;}
+        }
     }
     struct QueuedWork {QPointer<QProcess> process;std::function<void()> launch;bool musicBrainz;bool home;};
     struct MusicBrainzGate {QMutex mutex;QProcess *active=nullptr;qint64 notBefore=0;};

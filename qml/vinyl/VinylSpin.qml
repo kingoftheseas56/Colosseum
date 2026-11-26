@@ -126,7 +126,7 @@ Item {
                             property var session: root.worldData && root.worldData.session ? root.worldData.session : null
                             function artwork(value) { return root.artwork(value); }
                             function activate(item) {
-                                if (card.presentationKind === "artists") root.openRequested(item);
+                                if (card.presentationKind === "artists" || card.presentationKind === "albums") root.openRequested(item);
                                 else root.activateRequested(item);
                             }
                         }
@@ -137,8 +137,8 @@ Item {
                             item: entry.modelData; worldData: actions
                             backdrop: root.backdrop; pageFlick: root.pageFlick
                             artistRadioAction: function(item) { root.radioRequested(item); }
+                            albumPlayAction: function(item) { root.activateRequested(item); }
                         }
-                        VinylFeedbackBadge { objectName:"vinylSpinOpen_"+entry.itemIndex; x:(parent.width-width)/2; y:(root.tileSize-height)/2; visible:card.enabled && card.presentationKind!=="artists"; revealed:tileHover.hovered || card.activeFocus || activeFocus; symbol:"show"; accessibleName:qsTr("Open %1").arg(entry.modelData.title); onTriggered:root.openRequested(entry.modelData) }
                         VinylFeedbackBadge { objectName:"vinylSpinLike_"+entry.itemIndex; x:7; y:7; visible:card.enabled; revealed:tileHover.hovered || card.activeFocus || activeFocus; symbol:"check"; accessibleName:qsTr("More like %1").arg(entry.modelData.title); onTriggered:root.feedbackRequested(entry.modelData,"like") }
                         VinylFeedbackBadge { objectName:"vinylSpinHide_"+entry.itemIndex; x:parent.width-width-7; y:7; visible:card.enabled; revealed:tileHover.hovered || card.activeFocus || activeFocus; symbol:"hide"; accessibleName:qsTr("Hide %1").arg(entry.modelData.title); onTriggered:root.feedbackRequested(entry.modelData,"hide") }
                     }

@@ -70,7 +70,16 @@ TestCase {
         var tile=findChild(crate,"vinylCrateTile_0"); compare(tile.resumeTrack,4);
         var caption=findChild(tile,"vinylCrateTile_0_card_captionDetail");
         compare(caption.text,"Resume · track 4 of 12"); compare(String(caption.color),"#f0c44a");
-        click(tile,20,100); compare(activated.count,1); compare(activated.signalArguments[0][0].resumeTrack,4);
+        var card=findChild(tile,"vinylCrateTile_0_card");
+        click(card,20,100); compare(opened.count,1); compare(activated.count,0);
+        card.forceActiveFocus(Qt.TabFocusReason);
+        keyClick(Qt.Key_Return); keyClick(Qt.Key_Space);
+        compare(opened.count,3); compare(activated.count,0);
+        var badge=findChild(card,"vinylCrateTile_0_card_albumPlay");
+        compare(badge.accessibleName,"Resume album");
+        tryCompare(badge,"revealed",true); click(badge);
+        compare(opened.count,3); compare(activated.count,1);
+        compare(activated.signalArguments[0][0].resumeTrack,4);
         compare(activated.signalArguments[0][0].totalTracks,12); verify(activated.signalArguments[0][0].reason.indexOf("Resume")<0);
     }
     function test_cratePinSignalDoesNotMutateOwnerAndUnavailableCanUnpin() {
@@ -152,14 +161,17 @@ TestCase {
         verify(findChild(spin,"vinylSpinTile_8")!==null); compare(findChild(spin,"vinylSpinTile_0"),null);
         click(findChild(spin,"vinylSpinPrevious")); tryCompare(spin,"page",0);
         var card=findChild(spin,"vinylSpinTile_0"), isArtist=data.view==="artists";
-        var primary=isArtist ? opened : activated, secondary=isArtist ? radio : opened;
+        var secondary=isArtist ? radio : activated;
         click(card,20,100);
-        compare(primary.count,1); compare(primary.signalArguments[0][0].id,data.view+"-0");
-        compare(secondary.count,0);
-        var badge=findChild(spin,isArtist ? "vinylSpinTile_0_artistRadio" : "vinylSpinOpen_0");
+        compare(opened.count,1); compare(opened.signalArguments[0][0].id,data.view+"-0");
+        card.forceActiveFocus(Qt.TabFocusReason);
+        keyClick(Qt.Key_Return); keyClick(Qt.Key_Space);
+        compare(opened.count,3); compare(secondary.count,0);
+        var badge=findChild(card,card.objectName+(isArtist ? "_artistRadio" : "_albumPlay"));
+        compare(badge.accessibleName,isArtist ? "Artist radio" : "Play album");
         tryCompare(badge,"revealed",true); click(badge);
         compare(secondary.count,1); compare(secondary.signalArguments[0][0].id,data.view+"-0");
-        compare(primary.count,1);
+        compare(opened.count,3);
         compare((isArtist ? activated : radio).count,0);
     }
     function test_noNestedVerticalScrollerOrInventedSpinPicks() {

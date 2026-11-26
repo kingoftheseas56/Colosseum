@@ -118,7 +118,8 @@ TestCase {
     function card(kind,index){
         var id=kind+"-"+index;
         return {id:id,kind:kind,title:"Fixture "+index,artist:"Fixture artist",
-            destination:kind==="artists" ? {kind:"artist", id:id} : undefined,
+            destination:kind==="artists" ? {kind:"artist", id:id}
+                : kind==="albums" ? {kind:"album", id:id} : undefined,
             subtitle:"Owner metadata",reason:"Close to your city pop",
             cover:Qt.resolvedUrl("../../qml/vinyl/assets/record-ring.svg")};
     }
@@ -385,6 +386,45 @@ TestCase {
         } finally {
             view.resetRouteState("home");
             gateData.v1HomeRows=rows;
+        }
+    }
+    function test_homeAlbumShelfOpensDetailsAndCentrePlays_data() {
+        return [{tag:"shelf", cardId:"vinylCard_v1:albums-for-you_0"},
+                {tag:"see-all", cardId:"vinylListCard_0"}];
+    }
+    function test_homeAlbumShelfOpensDetailsAndCentrePlays(data) {
+        try {
+            if(data.tag==="see-all")view.showList("v1:albums-for-you",true);
+            var tile=findChild(view,data.cardId);
+            scrollToCard(tile);
+            var play=findChild(tile,data.cardId+"_albumPlay");
+            verify(play && play.enabled);
+            compare(play.accessibleName,"Play album");
+            compare(play.tooltipText,"Play album");
+            tryCompare(play,"opacity",0);
+            mouseClick(tile,20,80);
+            mouseMove(test,width-2,height-2);
+            tile.forceActiveFocus(Qt.TabFocusReason);
+            for(var key of [Qt.Key_Return,Qt.Key_Space])keyClick(key);
+            compare(gateData.actions.length,3);
+            for(var action of gateData.actions){
+                compare(action.action,"activate");
+                compare(action.item.destination.kind,"album");
+                compare(action.item.destination.id,tile.item.id);
+            }
+            tryCompare(play,"opacity",1);
+            mouseClick(play);
+            compare(gateData.actions.length,4);
+            compare(gateData.actions[3].action,"play");
+            compare(gateData.actions[3].item.id,tile.item.id);
+            tile.forceActiveFocus(Qt.TabFocusReason);
+            keyClick(Qt.Key_Tab);
+            tryCompare(play,"activeFocus",true);
+            keyClick(Qt.Key_Space);
+            compare(gateData.actions.length,5);
+            compare(gateData.actions[4].action,"play");
+        } finally {
+            view.resetRouteState("home");
         }
     }
     function test_homeArtistStationKeepsStationActivation() {

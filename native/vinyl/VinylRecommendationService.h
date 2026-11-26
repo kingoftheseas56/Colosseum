@@ -143,6 +143,10 @@ private:
     void markHomeDirty();
     void flushHomeInputs();
     void visitHome();
+    void finishHomeRefresh(bool force);
+    struct HomeComposition;
+    static HomeComposition composeHome(HomeComposition);
+    void publishHome(HomeComposition);
     void rebuildHome(bool immediate=false);
     void selectHomeCarousel(bool refresh=false);
     void pumpHome(bool publishNow=false);

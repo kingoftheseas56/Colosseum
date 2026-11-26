@@ -89,7 +89,7 @@ Item {
                     property var session: root.worldData && root.worldData.session ? root.worldData.session : null
                     function artwork(value) { return root.artwork(value); }
                     function activate(item) {
-                        if (tile.kind === "artists") root.openRequested(tile.modelData);
+                        if (tile.kind === "artists" || tile.kind === "albums") root.openRequested(tile.modelData);
                         else root.activateRequested(tile.modelData);
                     }
                 }
@@ -100,6 +100,7 @@ Item {
                     width: parent.width; height: implicitHeight
                     worldData: actions; item: root.presentation(tile.modelData)
                     artistRadioAction: function() { root.radioRequested(tile.modelData); }
+                    albumPlayAction: function() { root.activateRequested(tile.modelData); }
                     compactCaption: root.compact
                     backdrop: root.backdrop; pageFlick:root.pageFlick
                     opacity: tile.available ? 1 : 0.38

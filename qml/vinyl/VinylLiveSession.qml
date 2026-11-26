@@ -241,14 +241,14 @@ Item {
     signal playlistAddRequested(var rows)
     function personalCommand(operation,args) {
         var result=personalEnabled && typeof backend.mutatePersonal==="function"
-            ? plainData(backend.mutatePersonal(operation,plainData(args || {}))) : {ok:false,error:"Your music library is unavailable."};
+            ? plainData(backend.mutatePersonal(operation,args || {})) : {ok:false,error:"Your music library is unavailable."};
         personalError=result.ok ? "" : result.error || "The music library could not be updated.";
         if(result.ok) refreshLibrary();
         return result;
     }
     function songSaved(row) {
         var revision=collectionStore ? collectionStore.revision : 0;
-        var id=typeof backend.personalSongId==="function" ? backend.personalSongId(plainData(row || {})) : "";
+        var id=typeof backend.personalSongId==="function" ? backend.personalSongId(row || {}) : "";
         return !!id && !!collectionStore && collectionStore.has("Vinyl",id);
     }
     function toggleSongSaved(row) {return personalCommand("saveSong",{row:row,saved:!songSaved(row)}).ok;}
@@ -261,18 +261,19 @@ Item {
     }
     function shownTrackRow(index) {return index>=0 && index<tracks.length ? rowFor(shownEdition,shownDisc,index) : null;}
     function shownAlbumRows() {return editionRows(shownEdition);}
-    function personalRowAvailable(row) {return !!row && typeof backend.personalRowAvailable==="function" && backend.personalRowAvailable(plainData(row));}
+    function personalRowAvailable(row) {return !!row && typeof backend.personalRowAvailable==="function" && backend.personalRowAvailable(row);}
     function playPersonalRows(rows,shuffleOrder,index) {
         if(!personalEnabled || !rows || !rows.length)return false;
         manualPlaybackStarted();
         snapshot();cancelQueueRequest();refreshSource();
-        var ok=backend.replaceRows(plainData(rows),index===undefined ? 0 : index,!!shuffleOrder);snapshot();return ok;
+        var ok=backend.replaceRows(rows,index===undefined ? 0 : index,!!shuffleOrder);snapshot();return ok;
     }
     function createPlaylistFromSongs(title,songs,artistId) {
         var rows=[];
         songs.forEach(function(song){
-            if(!song.album || !validAlbum(song.album))return;
-            var edition=normalizeEditions(song.album).find(function(e){return e.id===song.editionId;}) || normalize(song.album);
+            var album=albumData(song.album);
+            if(!validAlbum(album))return;
+            var edition=normalizeEditions(album).find(function(e){return e.id===song.editionId;}) || normalize(album);
             var flat=editionRows(edition),row=Number.isInteger(song.index) ? flat[song.index] : null;
             if(row && song.track && row.trackId===song.track.id)rows.push(row);
         });
@@ -463,7 +464,7 @@ Item {
         if(!autoNotes || !hasNotes) return -1;
         if(usingGeniusNotes) {
             if(!timedLyrics)return -1;
-            var anchors=plainData(geniusService.anchors) || {};
+            var anchors=geniusService.anchors || {};
             return typeof anchors[currentLineIndex]==="number" ? anchors[currentLineIndex] : -1;
         }
         var keys=Object.keys(notes).map(Number).sort((a,b)=>a-b);
@@ -533,7 +534,7 @@ Item {
     function noteWindow(index) {
         if(!timedLyrics || !lyrics[index]) return 0;
         if(usingGeniusNotes) {
-            var ends=plainData(geniusService.groupEndLines) || {};
+            var ends=geniusService.groupEndLines || {};
             var last=ends[index];
             if(typeof last!=="number")return 0;
             var end=last+1<lyrics.length ? lyrics[last+1].time : duration;
@@ -544,12 +545,21 @@ Item {
     }
     function plainData(value) {
         // QVariantList/QStringList arrive as Qt sequence wrappers, not JS Arrays.
-        // Materialize their JSON data shape once at the adapter boundary; ordinary
+        // Materialize their JSON data shape only at an ingress that needs real
+        // JS arrays, not when passing QVariant data back to a native method. Ordinary
         // malformed {0:...,length:...} objects remain objects and fail validation.
         try {return JSON.parse(JSON.stringify(value));} catch(error) {return null;}
     }
+    // Records read from the native artist/Home models still have Qt sequences.
+    // Materialize a selected record only; source responses and Collection records
+    // were already converted at ingress. Do not coerce array-like objects.
+    function albumData(album) {
+        if(!album || (Array.isArray(album.tracks)
+            && (album.artists===undefined || Array.isArray(album.artists))
+            && (album.editions===undefined || Array.isArray(album.editions)))) return album;
+        return plainData(album);
+    }
     function validAlbum(album) {
-        album=plainData(album);
         if(!album || typeof album.id!=="string" || !album.id.length || !Array.isArray(album.tracks)) return false;
         if(album.artists!==undefined && !Array.isArray(album.artists)) return false;
         var es=album.editions===undefined ? [album] : album.editions;
@@ -557,13 +567,14 @@ Item {
         return es.every(e=>e && Array.isArray(e.tracks) && e.tracks.every(t=>t && typeof t.id==="string" && t.id.length && (t.artists===undefined || (Array.isArray(t.artists) && t.artists.every(a=>typeof a==="string"))) && (t.disc===undefined || (Number.isInteger(t.disc) && t.disc>0 && t.disc<=1000)) && (t.seconds===undefined || (typeof t.seconds==="number" && isFinite(t.seconds) && t.seconds>=0))));
     }
     function normalizeEditions(album) {
-        album=plainData(album);
+        album=albumData(album);
         if (!album || !album.id) return [];
         var es=Array.isArray(album.editions) && album.editions.length ? album.editions : [{id:album.id,title:album.title,tracks:album.tracks || []}];
         return es.map(e => normalize(album,e));
     }
     function normalize(album,edition) {
-        album=plainData(album);edition=edition ? plainData(edition) : null;
+        album=albumData(album);
+        if(edition && !Array.isArray(edition.tracks))edition=plainData(edition);
         edition=edition || (Array.isArray(album.editions) && album.editions.length ? album.editions[0] : album);
         var artists=album.artists || [], ts=Array.isArray(edition.tracks) ? edition.tracks : [];
         var discNumbers=[];
@@ -698,13 +709,21 @@ Item {
         // album/track with a canonical ID wins. Retain distinct session snapshots
         // FIRST, then current Collection records LAST: omitted queued recordings
         // remain resolvable without replacing fresh browse metadata or paths.
-        var records=[], seen=new Set();
+        var records=[], references=new Set(), byId=new Map();
         function retain(album) {
-            if(!album)return;
-            // QVariant rows expose separate JS wrappers for equal album snapshots.
-            // Content identity preserves old queued recordings with the same album ID.
-            var key=JSON.stringify(album);
-            if(!seen.has(key)) {records.push(album);seen.add(key);}
+            if(!album || references.has(album))return;
+            references.add(album);
+            var prior=byId.get(album.id);
+            if(!prior)byId.set(album.id,{first:album});
+            else {
+                // QVariant rows can wrap equal snapshots independently. Only
+                // compare content when IDs collide, preserving distinct old records.
+                if(!prior.keys)prior.keys=new Set([JSON.stringify(prior.first)]);
+                var key=JSON.stringify(album);
+                if(prior.keys.has(key))return;
+                prior.keys.add(key);
+            }
+            records.push(album);
         }
         retain(shownEdition.sourceAlbum);retain(playingEdition.sourceAlbum);
         queue.forEach(r=>retain(r.edition.sourceAlbum));
@@ -794,6 +813,7 @@ Item {
         if(shuttingDown || !profileActive)return false;
         var record=item && (item.record || item.album || (item.libraryItem || {}).album);
         if(!record || record.origin!=="youtube-music")return true;
+        record=albumData(record);
         if(!validAlbum(record) || !collectionStore)return false;
         if(library.some(function(entry){return entry.id===record.id;}))return true;
         var ok=backend.setSavedAlbum({id:record.id,type:"album",title:record.title,cover:record.cover || "",
@@ -812,13 +832,20 @@ Item {
     function editionRows(e) {var rows=[];e.discs.forEach((d,di)=>d.forEach((t,i)=>rows.push(rowFor(e,di,i))));return rows;}
     function playableRows(rows) {return rows.filter(r=>r && r.track && r.track.available!==false);}
     function albumTrackRow(album,index,editionId) {
-        album=plainData(album);
-        if(!validAlbum(album) || !Number.isInteger(index) || index<0)return null;
-        var raw=(album.editions || []).find(e=>e.id===editionId) || (album.editions || [])[0] || album;
-        if(editionId && editionId!==(raw.id || album.id))return null;
+        album=albumData(album);
+        if(!validAlbum(album))return null;
+        var raw=albumEdition(album,editionId);
+        return raw ? trackRow(normalize(album,raw),raw,index) : null;
+    }
+    function albumEdition(album,editionId) {
+        var editions=Array.isArray(album.editions) && album.editions.length ? album.editions : [album];
+        return editionId ? editions.find(e=>(e.id || album.id)===editionId) : editions[0];
+    }
+    function trackRow(edition,raw,index) {
+        if(!Number.isInteger(index) || index<0)return null;
         var track=(raw.tracks || [])[index];if(!track)return null;
-        var edition=normalize(album,raw),disc=Math.max(1,Number(track.disc)||1);
-        var di=edition.discNumbers.indexOf(disc),ti=raw.tracks.slice(0,index).filter(t=>Math.max(1,Number(t.disc)||1)===disc).length;
+        var disc=Math.max(1,Number(track.disc)||1),di=edition.discNumbers.indexOf(disc),ti=0;
+        for(var i=0;i<index;++i)if(Math.max(1,Number(raw.tracks[i].disc)||1)===disc)++ti;
         return di>=0 ? rowFor(edition,di,ti) : null;
     }
     function playShownAlbum() {playAlbum(shownEdition.sourceAlbum,undefined,shownEditionId);}
@@ -867,19 +894,21 @@ Item {
     function playTrack(index) { startQueue(index,false); }
     function playAlbum(album,index,editionId) {
         if(shuttingDown || !profileActive) return;
+        album=albumData(album);
         if(!validAlbum(album)) return;
         if(album.type==="Playlist" && album.complete!==true) {
             playCatalogueAlbum(album.id,false,index,index===undefined ? "" : (album.tracks[index] || {}).id);return;
         }
-        var edition=editionId ? normalizeEditions(album).find(e=>e.id===editionId) : normalize(album);
-        if(!edition) return;
-        var rows=playableRows(editionRows(edition)),selected=index===undefined ? rows[0] : albumTrackRow(album,index,editionId);
+        var raw=albumEdition(album,editionId);
+        if(!raw) return;
+        var edition=normalize(album,raw);
+        var rows=playableRows(editionRows(edition)),selected=index===undefined ? rows[0] : trackRow(edition,raw,index);
         var at=selected ? rows.findIndex(r=>r.discIndex===selected.discIndex && r.trackIndex===selected.trackIndex) : -1;
         if(at<0){browseError="This song is unavailable.";return;}
         if(rows.length>10000){browseError="This collection exceeds the queue limit.";return;}
         manualPlaybackStarted();snapshot();cancelQueueRequest();refreshSource(rows);browseError="";backend.replaceRows(rows,at,false);snapshot();
     }
-    function shuffleAlbum(album) {if(!validAlbum(album)) return;if(album.type==="Playlist"&&album.complete!==true){playCatalogueAlbum(album.id,true);return;}playSongs(editionRows(normalize(album)).map(r=>({album:album,track:r.track})),true);}
+    function shuffleAlbum(album) {album=albumData(album);if(!validAlbum(album)) return;if(album.type==="Playlist"&&album.complete!==true){playCatalogueAlbum(album.id,true);return;}playSongs(editionRows(normalize(album)).map(r=>({album:album,track:r.track})),true);}
     function playSongs(songs,shuffleOrder) {
         if(shuttingDown || !profileActive) return;
         if(!Array.isArray(songs)) return;
@@ -917,9 +946,11 @@ Item {
             if(!song || !song.album || !song.album.id) return;
             var cacheKey=JSON.stringify([song.album.id,song.editionId || ""]), prepared=cache.get(cacheKey);
             if(!prepared) {
-                if(!validAlbum(song.album)) return;
-                var edition=song.editionId ? normalizeEditions(song.album).find(e=>e.id===song.editionId) : normalize(song.album);
-                if(!edition) return;
+                var album=albumData(song.album);
+                if(!validAlbum(album)) return;
+                var raw=albumEdition(album,song.editionId);
+                if(!raw) return;
+                var edition=normalize(album,raw);
                 var flat=[], byId=new Map();
                 edition.discs.forEach((disc,d)=>disc.forEach((track,i)=>{var ref={d:d,i:i};flat.push(ref);if(!byId.has(track.id)) byId.set(track.id,ref);}));
                 prepared={edition:edition,flat:flat,byId:byId};cache.set(cacheKey,prepared);
@@ -1009,14 +1040,16 @@ Item {
     function setShuffle(enabled) {backend.setShuffle(enabled);snapshot();}
     function cycleRepeat() {backend.cycleRepeat();snapshot();}
     function checkpointSummary(checkpoint) {
-        return profileActive && !shuttingDown ? plainData(backend.checkpointSummary(plainData(checkpoint || {}))) : {};
+        // Both sides of this call accept/read QVariant maps. Do not expand a
+        // compact queue checkpoint and its edition table into JS just to validate it.
+        return profileActive && !shuttingDown ? backend.checkpointSummary(checkpoint || {}) : {};
     }
     function resumeSavedCheckpoint(entry) {
         if(!profileActive || shuttingDown)return false;
         var checkpoint=entry && entry.resume;
         if(!checkpointSummary(checkpoint).row){browseError="This listening session is no longer available.";return false;}
         snapshot();
-        var resume=Object.assign({},plainData(checkpoint));
+        var resume=Object.assign({},checkpoint);
         if(resume.completed || (resume.duration>0 && resume.position>=resume.duration)) resume.position=0;
         if(!backend.restoreCheckpoint(resume)){browseError="This listening session could not be restored.";return false;}
         refreshSource();browseError="";paused=false;snapshot();return true;
@@ -1048,9 +1081,12 @@ Item {
             // Leave room BEFORE adding another full-queue checkpoint to the shared store.
             // recent(kind, 0) is the store's uncapped, newest-first listing.
             if(typeof progressStore.forget==="function" && typeof progressStore.recent==="function") {
-                var albums=plainData(progressStore.recent("music",0)) || [];
-                var older=albums.filter(entry=>entry.kind==="music" && entry.id!==playingEditionId);
-                older.slice(19).forEach(entry=>progressStore.forget("music",entry.id));
+                var albums=progressStore.recent("music",0) || [], retained=0;
+                for(var i=0;i<albums.length;++i) {
+                    var old=albums[i];
+                    if(old.kind==="music" && old.id!==playingEditionId && ++retained>19)
+                        progressStore.forget("music",old.id);
+                }
             }
             var entry={kind:"music",id:playingEditionId,title:playingTrack.title,
                 caption:playingEdition.name,sub:playingTrack.artist,cover:playingEdition.cover,
@@ -1072,11 +1108,11 @@ Item {
             return false;
         }
         if (!progressStore) return rejected();
-        var stored=!entry && progressStore.get ? plainData(progressStore.get("music-session","vinyl")) : null;
+        var stored=!entry && progressStore.get ? progressStore.get("music-session","vinyl") : null;
         var singleton=stored && stored.kind==="music-session" && stored.id==="vinyl";
-        var recent=plainData(entry ? [entry] : singleton ? [stored] : progressStore.recent("music",1)) || [];
-        if (!recent.length) return rejected();
-        var r=recent[0].resume;
+        var recent=entry || (singleton ? stored : (progressStore.recent("music",1) || [])[0]);
+        if(!recent)return rejected();
+        var r=recent.resume;
         if(r && r.version===3) {
             if(entry && !backend.checkpointSummary(r).row) return rejected();
             // Finished video/audiobook resume restarts at zero. Also repair older v3
@@ -1092,6 +1128,8 @@ Item {
             }
             return rejected();
         }
+        // Only legacy checkpoints are decoded and validated in JavaScript.
+        r=plainData(r);
         if (!r || [1,2].indexOf(r.version)<0 || !Array.isArray(r.queue) || r.queue.length>10000) return rejected();
         var qi=r.queueIndex, rows=r.queue;
         if(!Number.isInteger(qi)||qi< -1||qi>=rows.length||!Number.isFinite(r.position)) return rejected();

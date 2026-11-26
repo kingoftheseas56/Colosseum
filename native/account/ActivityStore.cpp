@@ -461,12 +461,10 @@ bool ActivityStore::insertFact(const QString &type, const QVariantMap &fact,
     return true;
 }
 
-QList<QVariantMap> ActivityStore::historyProjectionFacts() const {
+namespace {
+QList<QVariantMap> historyFacts(const QSqlDatabase &db) {
     QList<QVariantMap> facts;
-    if (!healthy())
-        return facts;
-
-    QSqlQuery query(m_db);
+    QSqlQuery query(db);
     if (!query.exec(QStringLiteral(
             "SELECT events.canonical_json, activity_event_origin.origin "
             "FROM events LEFT JOIN activity_event_origin "
@@ -504,6 +502,24 @@ QList<QVariantMap> ActivityStore::historyProjectionFacts() const {
         return left.value(QStringLiteral("eventId")).toString()
             < right.value(QStringLiteral("eventId")).toString();
     });
+    return facts;
+}
+}
+
+QList<QVariantMap> ActivityStore::historyProjectionFacts() const {
+    return healthy() ? historyFacts(m_db) : QList<QVariantMap>();
+}
+
+QList<QVariantMap> ActivityStore::readHistoryProjectionFacts(const QString &databasePath) {
+    const auto connection = QStringLiteral("activity-read-") + generatedUuid();
+    QList<QVariantMap> facts;
+    {
+        auto db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connection);
+        db.setConnectOptions(QStringLiteral("QSQLITE_OPEN_READONLY"));
+        db.setDatabaseName(databasePath);
+        if (db.open()) facts = historyFacts(db);
+    }
+    QSqlDatabase::removeDatabase(connection);
     return facts;
 }
 

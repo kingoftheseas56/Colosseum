@@ -52,7 +52,7 @@ What you keep going back to: songs, albums, artists, mixes and stations in one g
 - **Two rows of 8 square tiles** at house card size (about 130 px at 1280 width), with page arrows for more. Every tile is the same square, with the same two caption lines under it.
 - **Balanced mix:** listening counts at album and artist level as well as song level (an album played through counts as the album, not 12 songs). Songs can't crowd out albums and artists.
 - **Pin anything** to keep it in The Crate; pinned tiles show a gold dot.
-- **Album tiles resume** the album at the track you stopped on. The caption says so in gold ("Resume · track 4 of 12").
+- **Album tiles open the album page** on click, Enter or Space. The centre control plays the album or resumes it at the track you stopped on; the caption still says so in gold ("Resume · track 4 of 12"). Changed 2026-11-26 by Hemanth.
 - **Artist tiles across Home open the artist page** on click or Enter/Space. A small play control in the middle of the record, shown on hover or focus and labelled “Artist radio”, starts that artist's radio. Artist stations still start radio on click. (Changed 2026-11-23 by Hemanth.)
 - **Mix and station tiles** play the mix or station.
 

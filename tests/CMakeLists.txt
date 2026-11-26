@@ -5817,7 +5817,8 @@ target_link_libraries(vinyl_be3_ranker_test PRIVATE colosseum_vinyl_backend Qt6:
 add_test(NAME colosseum.vinyl_be3_ranker COMMAND vinyl_be3_ranker_test)
 
 add_executable(vinyl_recommendation_contracts_test vinyl_recommendation_contracts.cpp)
-add_executable(vinyl_recommendation_service_test vinyl_recommendation_service_test.cpp)
+add_executable(vinyl_recommendation_service_test vinyl_recommendation_service_test.cpp
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylProvider.h")
 add_executable(vinyl_source_pool_test tst_vinyl_source_pool.cpp
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylProvider.h")
 

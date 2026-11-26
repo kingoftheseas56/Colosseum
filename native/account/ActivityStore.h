@@ -116,6 +116,9 @@ public:
     Q_INVOKABLE bool clearAll();
 
     QList<QVariantMap> historyProjectionFacts() const;
+    QString historyProjectionDatabasePath() const { return m_db.databaseName(); }
+    // Background readers open their own read-only connection to the ledger.
+    static QList<QVariantMap> readHistoryProjectionFacts(const QString &databasePath);
     QVariantMap historyProjectionFact(const QString &eventId) const;
 
     // Portable immutable Activity facts used by account sync. Only durable
