@@ -17,6 +17,21 @@ applied to the catalogue instead of download sources.
 - Out of scope now: a configuration page (Hemanth: only if needed, later), Home changes, a shared Cloudflare Worker,
   personal listening statistics, mood mixes, reviews, ReccoBeats/FreqBlog/MusicAtlas.
 
+## Inclusion rule and evidence (Hemanth, 2026-11-27)
+A service joins only if it **adds** to the catalogue (artists, albums, genres, metadata) beyond the base. Base =
+**YouTube Music** (ruling R17, 2026-10-07: Vinyl's main catalogue). MusicBrainz is **enrichment only** (R18): used
+where it matches, never awaited, never required. Measured 2026-11-27 (`C:\b\vinyl-s0-temp\discovery\coverage.json`):
+| Service | What it adds |
+|---|---|
+| YouTube Music | Base: official discographies, every reissue/compilation (Miles Davis 1,685 entries), playback |
+| Apple RSS | Current hits: 74 of Apple's top 100 are absent from Last.fm's top 1,000 -> Trending |
+| MusicBrainz | Release dates and album types (Last.fm has neither); 24-66 extra albums per artist; 2,227 curated genres; rock-tagged albums 372,451 vs Last.fm 44,820. Search can pick the wrong release, so match by artist MBID + title + track count, never top hit. Throttled (503) - non-blocking |
+| Last.fm | Long-run popularity (listeners/playcount), genre tags, album description |
+| ListenBrainz | Per-artist most-played (Essentials), similar artists |
+| TheAudioDB | Album mood, genre/style, art, year (no descriptions on the free key) |
+| JioSaavn | Indian-language depth (5 Nov probe) |
+Excluded: ReccoBeats (junk similarity), FreqBlog, MusicAtlas (key quotas).
+
 ## What the user sees
 Discover keeps today's house browser layout (left rail, Songs · Albums · Artists tabs, filter row, card grid,
 "Now browsing" corner):
@@ -43,7 +58,8 @@ Lives in the existing music engine (`scripts/vinyl/provider.py`) and the existin
      `top-release-groups-for-artist`) for Essentials and for de-duplicating canon.
    - JioSaavn: Indian-language charts/editorial (existing `_jio_page`) — used only when a Language filter selects
      an Indian language, or blended at low weight under "All".
-   - MusicBrainz: identity only (via the identity memory).
+   - MusicBrainz: identity, release date, album type, genres — enrichment via the identity memory, never awaited.
+   - TheAudioDB: album mood and genre/style (enrichment; existing artist-art integration).
 2. **Identity merge.** Candidates merge into one card by, in order: MusicBrainz ID (from the identity memory) → ISRC
    → normalised artist + title (existing `_catalogue_match_title` rules). If unsure, keep two cards rather than merge
    two different recordings.
