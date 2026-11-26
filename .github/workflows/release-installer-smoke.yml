@@ -1,89 +1,202 @@
-name: Staging-only Windows update replay
+name: Staging-only Windows update rehearsal with process-local TLS
 
 on:
   workflow_dispatch:
 
 permissions:
-  actions: read
   contents: read
+  actions: read
 
 concurrency:
   group: release-installer-smoke-${{ github.ref }}
   cancel-in-progress: false
-
 jobs:
-  replay:
+  build-installer:
     runs-on: windows-2025
-    timeout-minutes: 25
+    timeout-minutes: 155
+    env:
+      SOURCE_SHA: d73111cddfef5728aa6b714fdb52fdf030b96ec6
+      VERSION: '1.5.0'
+      VCPKG_TAG: "2026.07.29"
+      MPV_RELEASE: "20261011"
+      MPV_VERSION: "20261011-git-accb7b2821"
+      MPV_SHA256: "cf63b4ce66e03e5e70acf2648cbc3177656c77c5b9583e16d83efc58801182b7"
+      MPVQT_VERSION: "1.2.0"
+      MPVQT_SHA256: "8660ad79c0d60fed77f29b36e1742841466af5405de702c81a121e6eeb625ebb"
+      V113_SHA256: "140cefc39a47b932558cabb15adfacd7e991fda7e1762c2681c48a0be9272ee7"
     steps:
       - uses: actions/checkout@v7
         with:
+          fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.12'
-      - name: Receive exact retained Windows fixtures
-        uses: actions/download-artifact@v4
-        with:
-          name: Windows-staging-only-installer-pair
-          run-id: 45887841731
-          github-token: ${{ github.token }}
-          path: ${{ runner.temp }}/colosseum-update-rehearsal/fixtures
-      - name: Receive retained signed fixture metadata
-        uses: actions/download-artifact@v4
-        with:
-          name: Windows-staging-rehearsal-evidence
-          run-id: 45887841731
-          github-token: ${{ github.token }}
-          path: ${{ runner.temp }}/colosseum-update-rehearsal/received-evidence
-      - name: Replay installed Windows update with temporary runner user trust
+      - name: Preserve the rehearsal driver across source checkout
         shell: pwsh
         run: |
-          $ErrorActionPreference = 'Stop'
-          if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted') {
-            throw 'Disposable hosted runner required'
+          Copy-Item -LiteralPath 'tests/installer/windows_update_rehearsal.py' -Destination "$env:RUNNER_TEMP/windows_update_rehearsal.py"
+      - name: Verify and locally tag trusted release source
+        shell: pwsh
+        run: |
+          git fetch origin master --no-tags
+          if ($LASTEXITCODE -ne 0) { throw "failed to fetch origin/master" }
+          git cat-file -e "$env:SOURCE_SHA^{commit}"
+          if ($LASTEXITCODE -ne 0) { throw "source SHA is not a commit in this repository" }
+          git merge-base --is-ancestor $env:SOURCE_SHA origin/master
+          if ($LASTEXITCODE -ne 0) { throw "source SHA is not reachable from origin/master" }
+          git checkout --detach $env:SOURCE_SHA
+          if ($LASTEXITCODE -ne 0) { throw "failed to checkout trusted source SHA" }
+          $head = git rev-parse HEAD
+          if ($head -ne $env:SOURCE_SHA) { throw "source SHA drift: $head" }
+          git tag -d "v$env:VERSION" 2>$null
+          git tag "v$env:VERSION" $head
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install Qt 6.11.1
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730 # v4.3.1
+        with:
+          version: "6.11.1"
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          modules: "qtwebengine qtwebchannel qtwebsockets qtpositioning qtimageformats qtquick3d qtquicktimeline qtshadertools"
+          aqtsource: "git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b"
+          cache: true
+      - name: Verify Quick3D Timeline runtime dependency is installed
+        shell: pwsh
+        run: |
+          if (-not (Test-Path (Join-Path $env:QT_ROOT_DIR 'bin/Qt6QuickTimeline.dll'))) {
+            throw 'Qt Quick Timeline is required by the shipped Quick3D runtime'
           }
-          $driver = 'tests/installer/windows_update_rehearsal.py'
-          python $driver prepare-tls
+      - name: Enable MSVC developer environment
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          arch: x64
+      - name: Install native dependencies
+        shell: pwsh
+        run: |
+          $vcpkg = Join-Path $env:RUNNER_TEMP "vcpkg"
+          git clone --depth 1 --branch $env:VCPKG_TAG https://github.com/microsoft/vcpkg.git $vcpkg
+          & "$vcpkg/bootstrap-vcpkg.bat" -disableMetrics
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $caPath = Join-Path $env:RUNNER_TEMP 'colosseum-update-rehearsal/keys/ca.cer'
-          $ca = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($caPath)
-          $store = [System.Security.Cryptography.X509Certificates.X509Store]::new('Root', 'CurrentUser')
-          $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
-          $created = $false
-          try {
-            $selector = [System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint
-            if ($store.Certificates.Find($selector, $ca.Thumbprint, $false).Count -ne 0) {
-              throw 'Unexpected existing CA thumbprint on runner'
-            }
-            $created = $true
-            $store.Add($ca)
-            if ($store.Certificates.Find($selector, $ca.Thumbprint, $false).Count -ne 1) {
-              throw 'Could not establish the temporary CurrentUser Root fixture certificate'
-            }
-            Write-Host "Temporary runner CurrentUser Root certificate $($ca.Thumbprint)"
-            python $driver verify
-            if ($LASTEXITCODE -ne 0) { throw "Windows replay failed with exit code $LASTEXITCODE" }
-          } finally {
-            try {
-              if ($created) {
-                foreach ($added in $store.Certificates.Find($selector, $ca.Thumbprint, $false)) {
-                  $store.Remove($added)
-                }
-                if ($store.Certificates.Find($selector, $ca.Thumbprint, $false).Count -ne 0) {
-                  throw 'Temporary runner CA remained in CurrentUser Root'
-                }
-                Write-Host "Removed runner CurrentUser Root certificate $($ca.Thumbprint)"
-              }
-            } finally {
-              $store.Close()
-            }
-          }
-      - name: Preserve replay evidence
+          & "$vcpkg/vcpkg.exe" install libtorrent:x64-windows openssl:x64-windows boost-filesystem:x64-windows boost-system:x64-windows ecm:x64-windows
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "VCPKG_ROOT=$vcpkg" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "$vcpkg/installed/x64-windows/bin" | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Build pinned patched pupnp for DLNA
+        shell: pwsh
+        run: |
+          $prefix = Join-Path $env:RUNNER_TEMP "pupnp-install"
+          & ./scripts/deps/build-pupnp.ps1 -Prefix $prefix -WorkDir (Join-Path $env:RUNNER_TEMP "pupnp-build")
+          if ($LASTEXITCODE -ne 0) { throw "pinned pupnp build failed" }
+          "UPNP_ROOT=$prefix" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Prepare libmpv
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP "mpv-dev.7z"
+          $extract = Join-Path $env:RUNNER_TEMP "libmpv"
+          $uri = "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/$env:MPV_RELEASE/mpv-dev-x86_64-$env:MPV_VERSION.7z"
+          Invoke-WebRequest -Uri $uri -OutFile $archive
+          $hash = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne $env:MPV_SHA256) { throw "libmpv checksum mismatch" }
+          New-Item -ItemType Directory -Force -Path $extract | Out-Null
+          7z x $archive "-o$extract" -y | Out-Null
+          $dll = Get-ChildItem $extract -Recurse -Filter "libmpv-2.dll" | Select-Object -First 1
+          if (-not $dll) { throw "libmpv-2.dll missing" }
+          $root = $dll.Directory.FullName
+          $libDir = Join-Path $root "lib"
+          New-Item -ItemType Directory -Force -Path $libDir | Out-Null
+          $def = Join-Path $root "mpv.def"
+          @("LIBRARY libmpv-2.dll", "EXPORTS") | Set-Content $def
+          dumpbin /exports $dll.FullName | ForEach-Object {
+            if ($_ -match '^\s+\d+\s+[0-9A-Fa-f]+\s+[0-9A-Fa-f]+\s+(mpv_\S+)\s*$') { $Matches[1] }
+          } | Sort-Object -Unique | Add-Content $def
+          lib.exe "/def:$def" "/out:$libDir/mpv.lib" /machine:x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "LIBMPV_ROOT=$root" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          $root | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Build MpvQt
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP "mpvqt.tar.xz"
+          $sourceRoot = Join-Path $env:RUNNER_TEMP "mpvqt-source"
+          $build = Join-Path $env:RUNNER_TEMP "mpvqt-build"
+          $install = Join-Path $env:RUNNER_TEMP "mpvqt-install"
+          $uri = "https://download.kde.org/stable/mpvqt/mpvqt-$env:MPVQT_VERSION.tar.xz"
+          curl.exe --fail --location --retry 5 --retry-all-errors --retry-delay 2 --output $archive $uri
+          if ($LASTEXITCODE -ne 0) { throw "MpvQt download failed after retries" }
+          $hash = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne $env:MPVQT_SHA256) { throw "MpvQt checksum mismatch" }
+          New-Item -ItemType Directory -Force -Path $sourceRoot | Out-Null
+          tar -xf $archive -C $sourceRoot
+          $source = Get-ChildItem $sourceRoot -Directory -Filter "mpvqt-*" | Select-Object -First 1
+          if (-not $source) { throw "MpvQt source directory missing" }
+          $prefix = "$env:QT_ROOT_DIR;$env:VCPKG_ROOT/installed/x64-windows"
+          cmake -S $source.FullName -B $build -G Ninja -DCMAKE_BUILD_TYPE=Release `
+            "-DCMAKE_INSTALL_PREFIX=$install" "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            "-DCMAKE_PREFIX_PATH=$prefix" "-DLibmpv_INCLUDE_DIRS=$env:LIBMPV_ROOT/include" `
+            "-DLibmpv_LIBRARIES=$env:LIBMPV_ROOT/lib/mpv.lib" -DBUILD_EXAMPLES=OFF
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build $build --target install --parallel 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "MPVQT_ROOT=$install" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "$install/bin" | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Provision ephemeral Windows rehearsal keys and process-local TLS trust
+        shell: pwsh
+        run: |
+          python "$env:RUNNER_TEMP/windows_update_rehearsal.py" prepare
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Configure and build staging-only Colosseum 1.5.0
+        shell: pwsh
+        run: |
+          $build = Join-Path $env:GITHUB_WORKSPACE "native\build-msvc"
+          $prefix = "$env:QT_ROOT_DIR;$env:MPVQT_ROOT;$env:VCPKG_ROOT/installed/x64-windows"
+          cmake -S native -B $build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF `
+            -DCOLOSSEUM_UPDATE_TESTING=ON `
+            -DCOLOSSEUM_UPDATE_TEST_FEED_URL=https://127.0.0.1:18443/updates/stable.json `
+            -DCOLOSSEUM_NO_ACCOUNT_EDITION=OFF `
+            -DCOLOSSEUM_VINYL_IN_APP=OFF -DCOLOSSEUM_FERIA_IN_APP=OFF `
+            -DCOLOSSEUM_ENABLE_VINYL_QUALIFICATION=OFF -DCOLOSSEUM_ENABLE_VINYL_TEST_FIXTURES=OFF `
+            -DCOLOSSEUM_CONTENT_API_URL=https://colosseum-content-api.colosseum-watchparty-relay.workers.dev `
+            "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            "-DCMAKE_PREFIX_PATH=$prefix" "-DMPVQT_PREFIX=$env:MPVQT_ROOT" "-DLIBMPV_PREFIX=$env:LIBMPV_ROOT" `
+            "-DUPNP_ROOT=$env:UPNP_ROOT" 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP/colosseum-configure.log"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (!(Select-String -Path "$env:RUNNER_TEMP/colosseum-configure.log" -SimpleMatch "DLNA sharing enabled: pupnp found" -Quiet)) { throw "release must include DLNA" }
+          cmake --build $build --target colosseum --parallel 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Ensure NSIS is available
+        shell: pwsh
+        run: |
+          $makensis = 'C:\Program Files (x86)\NSIS\makensis.exe'
+          if (!(Test-Path $makensis)) { choco install nsis -y --no-progress; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }
+          if (!(Test-Path $makensis)) { throw 'makensis missing after install' }
+      - name: Build fixture 1.5.1 and assemble two staging installers
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python "$env:RUNNER_TEMP/windows_update_rehearsal.py" package
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Exercise signed in-app discovery, installation and restart
+        timeout-minutes: 12
+        shell: pwsh
+        run: |
+          python "$env:RUNNER_TEMP/windows_update_rehearsal.py" verify
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload staging-only evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Windows-staging-replay-evidence
+          name: Windows-staging-rehearsal-evidence
           path: ${{ runner.temp }}/colosseum-update-rehearsal/evidence/
-          retention-days: 7
+          retention-days: 3
+          if-no-files-found: warn
+      - name: Upload staging-only installer pair
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-staging-only-installer-pair
+          path: ${{ runner.temp }}/colosseum-update-rehearsal/fixtures/*.exe
+          compression-level: 0
+          retention-days: 3
           if-no-files-found: warn
