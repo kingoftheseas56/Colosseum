@@ -235,9 +235,14 @@ class Application:
                 if self.property(welcome, 'visible') is True:
                     raise RuntimeError('Local-only onboarding was not retained')
                 yield state
-                self.call('ui-keypress', {'key': 'Ctrl+Q'})
+                if sys.platform == 'darwin':
+                    self.quit_from_home()
+                else:
+                    self.call('ui-keypress', {'key': 'Ctrl+Q'})
                 if self.process.wait(timeout=45) != 0:
                     raise RuntimeError('Package did not quit normally')
+                if sys.platform == 'darwin' and '[quit] Feria drained' not in self.log.read_text(errors='replace'):
+                    raise RuntimeError('Quit did not reach the application shutdown route')
             finally:
                 if self.process.poll() is None:
                     self.process.terminate()
@@ -254,6 +259,29 @@ class Application:
     def return_to_home(self):
         self.click('colosseumUpdateBackAction')
         self.await_value('colosseumTopbarUpdateButton', 'visible', True)
+
+    def quit_from_home(self):
+        self.await_value('updateLayer', 'active', False)
+        self.call('get-state')
+        update = self.call('ui-query', {'object': 'colosseumTopbarUpdateButton'})
+        # The existing anonymous Quit SysIcon is a sibling of the named Update control.
+        siblings = self.call('dump-ui', {'root': update['parentHandle'], 'maxDepth': 1, 'maxItems': 40})
+        if siblings['truncated']:
+            raise RuntimeError('Home toolbar lookup was truncated before locating Quit')
+        quit_targets = []
+        for item in siblings['items']:
+            if item['depth'] != 1 or not item['visible'] or not item['enabled']:
+                continue
+            props = self.call('qml-get', {'object': item['handle'], 'props': ['accessibleName']})['props']
+            if props.get('accessibleName') == 'Quit Colosseum':
+                quit_targets.append(item['handle'])
+        if len(quit_targets) != 1:
+            raise RuntimeError(f'Expected exactly one visible Quit Colosseum control, found {len(quit_targets)}')
+        target = quit_targets[0]
+        control = self.call('ui-query', {'object': target})
+        if control['clippedByWindow'] or control['rect']['width'] <= 0 or control['rect']['height'] <= 0:
+            raise RuntimeError('Quit Colosseum is outside the visible window')
+        self.click(target)
 
     def package_url(self, filename):
         deadline = time.monotonic() + 20
@@ -321,6 +349,7 @@ def qualify(args):
                 install_root.mkdir()
                 executable = install(kind, old, install_root, work)
                 profile = f'staging-{kind}-{os.getpid()}'
+                downloaded = install_root / new.name
                 pre = Application(executable, profile, args.private, work, args.output, f'{kind}-before')
                 with pre.launch('1.5.0', onboard=True) as before:
                     pre.await_value('colosseumTopbarUpdateBadge', 'visible', True, timeout=90)
@@ -336,11 +365,15 @@ def qualify(args):
                               else 'colosseumUpdatePrimaryAction')
                     pre.click(target)
                     url = pre.package_url(new.name)
-                downloaded = install_root / new.name
-                run('curl', '--fail', '--silent', '--show-error', '--cacert', args.private / 'https.crt',
-                    '--noproxy', 'localhost', '--output', downloaded, url, timeout=150)
-                if package(downloaded) != package(new):
-                    raise RuntimeError('Downloaded bytes do not match the signed package metadata')
+                    pre.call('get-state')
+                    run('curl', '--fail', '--silent', '--show-error', '--cacert', args.private / 'https.crt',
+                        '--noproxy', 'localhost', '--output', downloaded, url, timeout=150)
+                    if package(downloaded) != package(new):
+                        raise RuntimeError('Downloaded bytes do not match the signed package metadata')
+                    pre.call('get-state')
+                    record['verified_download_before_quit'] = True
+                    if sys.platform == 'darwin':
+                        pre.return_to_home()
                 executable = install(kind, downloaded, install_root, work)
                 post = Application(executable, profile, args.private, work, args.output, f'{kind}-after')
                 with post.launch('1.5.1', onboard=False) as after:
@@ -371,6 +404,7 @@ def qualify(args):
                 record.update(status='PASS', launched=['1.5.0', '1.5.1'], download_url=url,
                               profile_retained=True, badge_cleared=True,
                               cached_release_up_to_date=True, manual_verified_feed_recheck=True,
+                              clean_exit=True,
                               download_scope='QDesktopServices result observed. Harness fetched that HTTPS URL and installed the verified bytes.')
             server['bad_signature'] = True
             invalid = Application(executable, f'staging-invalid-{os.getpid()}', args.private,

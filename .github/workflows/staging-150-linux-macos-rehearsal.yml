@@ -15,6 +15,7 @@ env:
 
 jobs:
   linux:
+    if: ${{ !contains(github.event.head_commit.message, '[macos-only]') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 110
     env:
