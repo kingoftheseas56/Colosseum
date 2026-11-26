@@ -121,7 +121,7 @@ TestCase {
         verify(findChild(view,"vinylSpin").visible);
         gateData.crateItems=[]; gateData.homeStatus="error";
         verify(loading.visible,"A failed catalogue needs a dedicated failure view");
-        verify(!bar.indeterminate && !bar.visible,"A failed provider must not leave a permanent loading bar");
+        verify(!bar.indeterminate && !bar.spinning,"A failed provider must not leave the record spinning");
         compare(findChild(view,"vinylHomeLoadingMessage").text,"Could not load your music.");
         gateData.homeStatus="loading"; view.setTab("library"); verify(!loading.visible);
         view.setTab("home"); verify(loading.visible);
@@ -236,7 +236,7 @@ TestCase {
             compare(message.text, localMessage.text);
             compare(message.color, localMessage.color);
             compare(message.font.pixelSize, localMessage.font.pixelSize);
-            compare(bar.palette.dark, localBar.palette.dark);
+            compare(bar.labelColor, localBar.labelColor);
 
             shell.hostedHomeLoading = true;
             host.item = shell;
@@ -252,7 +252,7 @@ TestCase {
             verify(host.children.some(child => child.visible && child.text === "Opening Test song…"));
             host.pendingVinylResume = null;
             data.homeStatus = "error";
-            verify(!message.visible && localMessage.visible && !localBar.visible);
+            verify(!message.visible && localMessage.visible && !localBar.spinning);
             compare(localMessage.text, "Could not load your music.");
             var retry = localMessage.parent.children.find(child => child.label === "Retry");
             verify(retry && retry.visible);
