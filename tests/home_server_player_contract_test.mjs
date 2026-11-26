@@ -41,9 +41,9 @@ function session(os = 'android') {
   let restarts = 0, stops = 0;
   const service = {
     profileGeneration: 1, accepts: true,
-    loadPlayback(backend, sourceKey, resumeMs, forceTranscode) {
+    loadPlayback(backend, sourceKey, resumeMs, forceTranscode, reconnect) {
       events.push('native-load');
-      native.push({ backend, sourceKey, resumeMs, forceTranscode });
+      native.push({ backend, sourceKey, resumeMs, forceTranscode, reconnect });
       return this.accepts;
     },
     cancelPlayback(backend) { cancellations.push(backend); events.push('native-cancel'); },
@@ -58,6 +58,8 @@ function session(os = 'android') {
     homePlaybackKey: '', homePlaybackProfileGeneration: -1,
     homePlaybackService: null,
     homePlaybackReportedStart: false, homePlaybackReportedTerminal: false,
+    homeReconnectState: null, homeReconnectWaiting: false, homeReconnectAttempts: 0,
+    homeReconnectDelays: [1000, 2000, 4000, 8000, 16000, 24000],
     currentPlaybackUrl: '', activeDirectHeaders: { Authorization: 'old-direct-header' },
     currentStreamIndex: 0, streamCandidates: [home()], pendingSeekSec: 56.75,
     mediaResumeHash: '', mediaResumeFileIdx: 0, streamRetryCount: 0,
@@ -80,17 +82,21 @@ function session(os = 'android') {
     handleSleepEpisodeEnd: () => false, startUpNextCountdown: noop,
     arrivingStreamUrl: '', audioHandoffPaused: false,
     streamRouteRetired: () => false, recoveryPauseIntent: () => false,
+    audioRows: [], subRows: [],
     captureSelectedSidecarSubtitle: () => null, resetRecoveryResume: noop,
+    restoreSelectedSidecarSubtitle: noop,
     activityCompletionEventId: '', activitySessionId: '',
     parseSubtitleMeta: () => ({ type: 'movie' }), fmtTime: () => 'remaining',
     clamp: (value, min, max) => Math.max(min, Math.min(max, value)),
   };
   const mpv = {
     position: 120, duration: 3600, pause: false,
+    audioTrack: '', subtitleTrack: '', subDelay: 0,
     loadSource(url, headers) { assert.ok(!url.startsWith('home-server:')); events.push('plain-load'); plain.push({ url, headers }); },
     stopPlayback() { events.push('backend-stop'); },
   };
-  const context = vm.createContext({ root, mpv, qsTr: value => value,
+  const platform = { applicationState: 'active' };
+  const context = vm.createContext({ root, mpv, qsTr: value => value, PlatformRuntime: platform,
     Qt: { platform: { os } }, Date: { now: () => 100000 },
     Stream: {
       stopDemand: () => stops++, play(hash) { assert.ok(!hash.startsWith('home-server:')); events.push('torrent-play'); torrents.push(hash); },
@@ -106,7 +112,10 @@ function session(os = 'android') {
   });
   for (const name of ['homeServerIdentityMetadata', 'normalizeStreamCandidates', 'directStreamUrl', 'findStreamIndex', 'streamCandidateKey',
     'currentStreamCandidate', 'clearActiveDirectHeaders', 'loadHomeServerCandidate', 'failHomeServerPlayback', 'invalidateHomeServerRoute', 'reportHomeServerPlayback',
-    'homePlaybackContextCurrent', 'homeServerPlaybackResolved', 'homeServerPlaybackFailed',
+    'clearHomeReconnect', 'homePlaybackRouteCurrent', 'homePlaybackContextCurrent',
+    'homeReconnectForeground', 'scheduleHomeReconnect', 'reconnectHomeServer',
+    'findReconnectTrack', 'restoreHomeReconnectTracks', 'selectedAudioRow', 'selectedSubtitleRow',
+    'homeServerPlaybackResolved', 'homeServerPlaybackFailed',
     'playStreamAt', 'playTorrent', 'retryCurrentStream', 'reloadActiveDirectSource', 'loadDirectStreamUrl',
     'handlePlaybackFailure', 'handlePlaybackIssue', 'prepareRecoveryResume', 'replayEndedPlayback', 'tickWakeReconnect', 'stop']) {
     root[name] = vm.runInContext(`(${extractedFunction(name)})`, context);
@@ -122,7 +131,7 @@ function session(os = 'android') {
     const args = marker === 'onEndFile:' ? 'reason' : marker === 'onPlaybackError:' ? 'code, message' : '';
     handlers[marker.slice(2, -1)] = vm.runInContext(`(function(${args}) ${body})`, context);
   }
-  return { root, mpv, service, native, plain, torrents, policyInputs, cancellations, events, progress, reports, recordProgress, handlers,
+  return { root, mpv, service, platform, native, plain, torrents, policyInputs, cancellations, events, progress, reports, recordProgress, handlers,
     get restarts() { return restarts; }, get stops() { return stops; } };
 }
 
@@ -215,6 +224,118 @@ test('already transcoded playback fails without repeated negotiation', () => {
   s.root.handlePlaybackFailure('network');
   assert.equal(s.native.length, 1);
   assert.equal(s.root.errored, true);
+});
+
+test('an Android home-server network failure schedules a reconnect instead of transcoding', () => {
+  const s = session();
+  s.root.playStreamAt(0, 'start');
+  s.root.pendingSeekSec = -1;
+  s.handlers.FileLoaded();
+  s.handlers.PlaybackError('network_error', 'Playback failed');
+  assert.equal(s.native.length, 1);
+  assert.equal(s.root.homeReconnectWaiting, true);
+  assert.equal(s.root.errored, false);
+});
+
+test('reconnect preserves position, pause intent, selected tracks and subtitle offset', () => {
+  for (const paused of [true, false]) {
+    const s = session();
+    s.root.playStreamAt(0, 'start');
+    s.root.pendingSeekSec = -1;
+    s.handlers.FileLoaded();
+    const audio = { id: 'a:2:0', label: 'Japanese', lang: 'jpn', codec: 'AAC', channels: 2 };
+    const subtitle = { id: 's:3:0', label: 'French', lang: 'fra', codec: 'text' };
+    s.root.audioRows = [audio];
+    s.root.subRows = [subtitle];
+    s.mpv.audioTrack = audio.id;
+    s.mpv.subtitleTrack = subtitle.id;
+    s.mpv.position = 142.625;
+    s.mpv.subDelay = 2;
+    s.mpv.pause = true; // Media3 reports paused on error for both prior intents.
+    s.root.recoveryPauseIntent = () => paused;
+    s.handlers.PlaybackError('network_error', 'Playback failed');
+    s.handlers.EndFile('error');
+    assert.equal(s.root.starting, true);
+    s.root.reconnectHomeServer();
+    assert.deepEqual(s.native.at(-1), {
+      backend: s.mpv, sourceKey: key, resumeMs: 142625, forceTranscode: false, reconnect: true,
+    });
+    s.root.homeServerPlaybackFailed(key, 'Still offline', true);
+    assert.equal(s.root.homeReconnectWaiting, true);
+    s.mpv.position = 0; // Failed generations can reset position and track rows.
+    s.root.reconnectHomeServer();
+    assert.equal(s.native.at(-1).resumeMs, 142625);
+    s.root.homeServerPlaybackResolved(key, false);
+    s.root.audioRows = [{ ...audio, id: 'a:1:0' }];
+    s.root.subRows = [{ ...subtitle, id: 's:5:0' }];
+    s.mpv.audioTrack = '';
+    s.mpv.subtitleTrack = '';
+    s.mpv.subDelay = 0;
+    s.handlers.FileLoaded();
+    assert.equal(s.mpv.pause, paused);
+    assert.equal(s.mpv.audioTrack, 'a:1:0');
+    assert.equal(s.mpv.subtitleTrack, 's:5:0');
+    assert.equal(s.mpv.subDelay, 2);
+    assert.equal(s.root.homeReconnectState, null);
+    assert.equal(s.root.starting, !paused);
+  }
+});
+
+test('offline backoff is bounded and a manual Retry reuses the original snapshot', () => {
+  const s = session();
+  s.root.playStreamAt(0, 'start');
+  s.root.pendingSeekSec = -1;
+  s.handlers.FileLoaded();
+  s.handlers.PlaybackError('network_error', 'Playback failed');
+  for (const _ of s.root.homeReconnectDelays) {
+    assert.equal(s.root.homeReconnectWaiting, true);
+    s.root.reconnectHomeServer();
+    s.root.homeServerPlaybackFailed(key, 'Server offline', true);
+  }
+  assert.equal(s.native.length, s.root.homeReconnectDelays.length + 1);
+  assert.equal(s.root.errored, true);
+  assert.equal(s.root.homeReconnectWaiting, false);
+  s.mpv.position = 0;
+  s.root.retryCurrentStream();
+  assert.equal(s.native.at(-1).resumeMs, 120000);
+  assert.equal(s.native.at(-1).reconnect, true);
+});
+
+test('reconnect defers in background and cannot reopen a previous source or profile', () => {
+  for (const replaceProfile of [false, true]) {
+    const s = session();
+    s.root.playStreamAt(0, 'start');
+    s.root.pendingSeekSec = -1;
+    s.handlers.FileLoaded();
+    s.handlers.PlaybackError('network_error', 'Playback failed');
+    s.platform.applicationState = 'suspended';
+    s.root.reconnectHomeServer();
+    assert.equal(s.native.length, 1);
+    assert.equal(s.root.homeReconnectWaiting, true);
+    if (replaceProfile) s.service.profileGeneration++;
+    else s.root.invalidateHomeServerRoute();
+    s.platform.applicationState = 'active';
+    s.root.reconnectHomeServer();
+    assert.equal(s.native.length, 1);
+    assert.equal(s.root.homeReconnectState, null);
+  }
+});
+
+test('permanent negotiation failure stops recovery and explicit Off survives a reconnect', () => {
+  const s = session();
+  s.root.playStreamAt(0, 'start');
+  s.root.pendingSeekSec = -1;
+  s.handlers.FileLoaded();
+  s.handlers.PlaybackError('network_error', 'Playback failed');
+  s.root.reconnectHomeServer();
+  s.root.homeServerPlaybackFailed(key, 'Server sign-in has expired.', false);
+  assert.equal(s.root.errored, true);
+  assert.equal(s.root.homeReconnectWaiting, false);
+  s.root.retryCurrentStream();
+  s.mpv.subtitleTrack = 's:3:0'; // New backend default.
+  s.handlers.FileLoaded();
+  assert.equal(s.mpv.subtitleTrack, '');
+  assert.equal(s.root.userTouchedSubs, true);
 });
 
 test('retry, wake reconnect and Android EOF replay keep native path', () => {

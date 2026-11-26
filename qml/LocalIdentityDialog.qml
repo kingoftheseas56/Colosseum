@@ -1,4 +1,4 @@
-// Desktop keeps the existing identity ceremony unchanged behind a platform seam.
+// Open Media uses the same identity ceremony as Vault.
 import QtQuick
 
 VaultIdentityCeremonyDialog {}

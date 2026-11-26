@@ -354,10 +354,11 @@ void HomeServerPlaybackJob::finish(Result result) {
   if (cb)
     cb(std::move(result));
 }
-void HomeServerPlaybackJob::fail(QString error, bool expired) {
+void HomeServerPlaybackJob::fail(QString error, bool expired, bool retryable) {
   Result r;
   r.error = std::move(error);
   r.expired = expired;
+  r.retryable = retryable;
   finish(std::move(r));
 }
 void HomeServerPlaybackJob::start(QJsonObject connection, QJsonObject item,
@@ -411,7 +412,9 @@ void HomeServerPlaybackJob::request(QString path, QByteArray method,
                         self->fail(response.expired()
                                        ? "Server sign-in has expired."
                                        : "Could not negotiate server playback.",
-                                   response.expired());
+                                   response.expired(),
+                                   response.status == 0 || response.status == 408 ||
+                                       response.status == 429 || response.status >= 500);
                         return;
                       }
                       if (!response.body.isObject()) {

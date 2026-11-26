@@ -100,6 +100,8 @@ public:
 
     Q_INVOKABLE void loadSource(const QString &url);
     Q_INVOKABLE void loadSource(const QString &url, const QVariantMap &headers) override;
+    void reloadSourceForRecovery(const QString &url, const QVariantMap &headers,
+                                 const QList<PlayerExternalSubtitle> &subtitles, qint64 positionMs) override;
     Q_INVOKABLE void stopPlayback() override;
     Q_INVOKABLE void setHostLifecycleState(const QString &state) override;
     Q_INVOKABLE void setAudioFocusState(const QString &state) override;
@@ -178,6 +180,7 @@ protected:
     QSGNode *updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *data) override;
 
 private:
+    void openSource(const QString &url, const QVariantMap &headers, qint64 positionMs, bool autoplay);
     void publishSnapshotChanges(const Colosseum::Player::AndroidMedia3Snapshot &before);
     void callHost(const char *method);
     void callHostSeek(qint64 positionMs);

@@ -21,6 +21,7 @@ Item {
     property string selectedId: ""
     property real delay: 0
     property alias syncValue: menu.delay
+    property bool syncAvailable: true
     property string chipValue: ""      // native chrome: live value shown on the chip face
     property bool loading: false
     property int count: (tracks || []).length
@@ -917,7 +918,7 @@ Item {
 
                 DelayRow {
                     id: delayRow
-                    visible: !menu.appearanceOpen
+                    visible: menu.syncAvailable && !menu.appearanceOpen
                     anchors.right: parent.right
                     anchors.rightMargin: 20
                     anchors.bottom: parent.bottom
