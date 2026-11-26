@@ -63,7 +63,8 @@ class VinylReleaseGateTests(unittest.TestCase):
             cases = [('1.1.10', 'OFF', None, 0), ('1.1.10', 'ON', None, 1),
                      ('1.1.10', None, None, 1), ('1.1.9', 'ON', None, 0)]
             cases += [(version, vinyl, feria, int(vinyl != 'OFF' or feria != 'OFF'))
-                      for version in ('1.2.0', '1.3.0', '1.4.0') for vinyl in ('OFF', 'ON', None) for feria in ('OFF', 'ON', None)]
+                      for version in ('1.2.0', '1.3.0', '1.4.0', '1.5.0', '1.5.1')
+                      for vinyl in ('OFF', 'ON', None) for feria in ('OFF', 'ON', None)]
             for version, vinyl_value, feria_value, expected in cases:
                 with self.subTest(version=version, vinyl_value=vinyl_value, feria_value=feria_value):
                     vinyl_line = '' if vinyl_value is None else f'COLOSSEUM_VINYL_IN_APP:BOOL={vinyl_value}\n'
