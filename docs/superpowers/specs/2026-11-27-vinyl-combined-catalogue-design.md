@@ -24,7 +24,6 @@ Same split as Theatre (Discover poster wall vs Movies/Shows/Anime shelf tabs) an
 | Last.fm | Endless depth: deep songs/albums/artists per genre tag | Discover |
 | Wikipedia (MediaWiki API) | Filter values (genre, era, "#1s", "Year-end") and editorial rows from sourced chart lists (incl. Billboard facts) | Discover filter, Explore rows |
 | Kworb | "This week, worldwide": Spotify, Apple Music, iTunes, Shazam, Deezer charts, balancing YouTube's India/Latin America skew (Hemanth chose B) | Discover "This week" list, Explore chart rows |
-| JioSaavn | Indian-language depth (existing) | Discover, Language filter |
 
 **Not catalogue sources** (kept only where they already work elsewhere, or dropped): MusicBrainz (no cross-source
 merge, so no identity matching needed here; still used by Home/artist pages), ListenBrainz (Home radio, artist pages),
@@ -33,14 +32,17 @@ Apple RSS (Kworb covers it), TheAudioDB (artist art only), ReccoBeats, FreqBlog,
 works; its robots.txt blocks AI agents by name. Billboard chart facts come only from Wikipedia's sourced lists.
 **No merge layer**: each list comes from one source; no blended cross-source ranking.
 
+## English first (Hemanth, 2026-11-27)
+Vinyl v1 focuses on **English-language music**. JioSaavn is removed for now (Discover source, Language filter,
+Indian lists); regional coverage (Indian, Japanese, Korean, ...) comes in a later version as its own design.
+
 ## Discover (endless grid)
 - Rail: one source, "Vinyl". Tabs: Songs · Albums · Artists.
 - List filter: **This week** (Kworb worldwide + YouTube chart, interleaved by rank, de-duplicated by normalised
   artist+title) · **Popular** (Last.fm genre/global charts, endless) · **New** (YouTube Music new releases).
-- Genre filter: the existing genre list (Last.fm tags), plus "All". Language filter: All, English, Indian languages
-  (JioSaavn when an Indian language is chosen).
+- Genre filter: the existing genre list (Last.fm tags), plus "All". No Language filter in v1.
 - Index: only if it helps the current list (e.g. A–Z jump for artists); otherwise none.
-- Cards and tap behaviour unchanged (YouTube resolves on tap). Paging: endless via Last.fm/JioSaavn cursors; "This
+- Cards and tap behaviour unchanged (YouTube resolves on tap). Paging: endless via Last.fm cursors; "This
   week" ends at the chart length.
 
 ## Explore rows
@@ -72,7 +74,7 @@ list only; other lists keep working. Offline: last cached pages, marked stale.
 **Decided by Hemanth (2026-11-27):** one catalogue front instead of per-service sources; every source serves one
 function, no spaghetti; Kworb in (B); Discover = endless grid + genre filter + index, no rows; editorial rows belong
 to Explore; use Billboard only legitimately (Wikipedia).
-**Calls by Claude:** source/job table above; "This week" interleave + de-dup; JioSaavn kept for Indian languages;
+**Calls by Claude:** source/job table above; "This week" interleave + de-dup; JioSaavn removed from Vinyl v1 (Hemanth);
 MusicBrainz/ListenBrainz/TheAudioDB stay out of the catalogue; daily Kworb, weekly Wikipedia caching.
 **Decided by Hemanth (cont.):** Vinyl Explore = one shelf tab combining the roles of Theatre's Movies/Shows/Anime.
 **Calls by Claude (cont.):** tab order Home · Discover · Explore · Library; reuse the house shelf page.
