@@ -36,7 +36,9 @@ Flickable {
     readonly property real albumMetadataHeight: albumTitle.height + albumArtist.height
         + albumFacts.height + albumActionsRow.height + albumInfoColumn.spacing * 4
     readonly property real coverSize: Math.min(440, albumInfoColumn.width)
-    readonly property bool albumDetailsFit: albumInfoColumn.height + 48 <= height
+    property real titleBarHeight: 0
+    readonly property real heroContentTop: titleBarHeight + 24
+    readonly property bool albumDetailsFit: albumInfoColumn.height + 48 + titleBarHeight <= height
     readonly property bool trackSaveAvailable: !!pageData
         && typeof pageData.personalEnabled === "boolean"
         && typeof pageData.shownTrackRow === "function"
@@ -126,12 +128,13 @@ Flickable {
         id: hero
         x: root.inset
         width: root.usable
-        height: Math.max(root.height, trackList.height + 30, albumInfoColumn.height + 48)
+        height: Math.max(root.height, root.titleBarHeight + Math.max(trackList.height + 30, albumInfoColumn.height + 48))
         Column {
             id: albumInfoColumn
             y: root.albumDetailsFit
-                ? Math.min(Math.max(24, root.contentY + 24), Math.max(24, hero.height - height - 20))
-                : 24
+                ? Math.min(Math.max(root.heroContentTop, root.contentY + root.heroContentTop),
+                           Math.max(root.heroContentTop, hero.height - height - 20))
+                : root.heroContentTop
             width: root.usable * 0.4
             spacing: 14
             RoundedPosterImage {
@@ -246,7 +249,7 @@ Flickable {
         Column {
             id: trackList
             x: root.usable * 0.46
-            y: 24
+            y: root.heroContentTop
             width: root.usable * 0.54
             Row {
                 visible: root.discSwitchVisible
@@ -405,7 +408,8 @@ Flickable {
         worldName: "Vinyl"
         automationPrefix: "vinylRowIndex"
         rows: sections.sectionRows
-        currentOffset: 12
+        pinLine: root.titleBarHeight + 12
+        currentOffset: pinLine
         onRowRequested: target => {
             root.cancelFlick();
             root.contentY = Math.max(0, target.mapToItem(root.contentItem, 0, 0).y - sidebar.pinLine);

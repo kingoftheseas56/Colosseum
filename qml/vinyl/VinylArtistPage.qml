@@ -25,6 +25,9 @@ Flickable {
 
     property Item dialogReturnItem: null
     property bool systemMenuOpen: false
+    property TitlePageBar sharedTitleBar: null
+    readonly property real titleBarHeight: sharedTitleBar ? sharedTitleBar.height : artistTitleBar.height
+    readonly property alias portraitBackdrop: internalArtistSkin
 
     readonly property alias heroItem: hero
     readonly property int albumGridColumns: bodyWidth >= 1340 ? 6 : bodyWidth >= 980 ? 5 : bodyWidth >= 620 ? 4 : 2
@@ -50,7 +53,7 @@ Flickable {
         releasePicker.closePopup(false);
         artistData.activeTab = tabKey;
         Qt.callLater(function() {
-            root.contentY = Math.max(0, Math.min(root.contentHeight - root.height, tabBarSlot.y - artistTitleBar.height));
+            root.contentY = Math.max(0, Math.min(root.contentHeight - root.height, tabBarSlot.y - root.titleBarHeight));
         });
         if (focusTabButton) artistTabs.forceActiveFocus(Qt.TabFocusReason);
     }
@@ -127,8 +130,8 @@ Flickable {
     function reveal(item) {
         if (!item) return;
         var y = item.mapToItem(root.contentItem, 0, 0).y;
-        var topInset = artistTitleBar.height + (selectedCategory === "" ? stickyTabBar.height : 0) + 12;
-        var bottomInset = hudPlayer.visible ? hudPlayer.height + 30 : 12;
+        var topInset = titleBarHeight + (selectedCategory === "" ? stickyTabBar.height : 0) + 12;
+        var bottomInset = Math.max(contentEndPadding, hudPlayer.visible ? hudPlayer.height + 30 : 12);
         if (y < contentY + topInset) contentY = Math.max(0, y - topInset);
         else if (y + item.height > contentY + height - bottomInset)
             contentY = Math.min(Math.max(0, contentHeight - height), y + item.height - height + bottomInset);
@@ -265,7 +268,7 @@ Flickable {
             width: root.width
             viewportHeight: root.height
             horizontalGutter: root.gutter
-            contentTopInset: artistTitleBar.height
+            contentTopInset: root.titleBarHeight
             fullBleed: true
             skinLayerAReady: internalArtistSkin.artistLayerAReady
             skinLayerBReady: internalArtistSkin.artistLayerBReady
@@ -783,7 +786,7 @@ Flickable {
         objectName: "vinylArtistTabBar"
         visible: root.selectedCategory === ""
         x: 0
-        y: Math.max(tabBarSlot.y, root.contentY + artistTitleBar.height)
+        y: Math.max(tabBarSlot.y, root.contentY + root.titleBarHeight)
         width: root.width
         height: 58
         z: 30
@@ -845,6 +848,7 @@ Flickable {
     Item {
         id: artistTitleBar
         objectName: "vinylArtistTitleBar"
+        visible: !root.sharedTitleBar
         x: 0
         y: root.contentY
         width: root.width
@@ -885,7 +889,7 @@ Flickable {
             BackAction {
                 focusOnPointer: false
                 id: headerBackButton
-                objectName: "vinylArtistHeaderBack"
+                objectName: root.sharedTitleBar ? "" : "vinylArtistHeaderBack"
                 label: "Vinyl"
                 labelSize: 15
                 tip: "Back to Vinyl"
@@ -912,10 +916,11 @@ Flickable {
             }
         }
 
-        // Page options
+        // On the hosted page, keep the artist actions alongside the shared app menu.
         Row {
+            parent: root.sharedTitleBar ? root.sharedTitleBar.pageActionsHost : artistTitleBar
             anchors.right: parent.right
-            anchors.rightMargin: root.gutter
+            anchors.rightMargin: root.sharedTitleBar ? 0 : root.gutter
             anchors.verticalCenter: parent.verticalCenter
             spacing: 10
 
@@ -928,7 +933,11 @@ Flickable {
                 focusRadius: 20
                 spaceActivates: true
                 accessibleName: "Page options"
-                onTriggered: root.systemMenuOpen = !root.systemMenuOpen
+                onTriggered: {
+                    if (root.sharedTitleBar && root.sharedTitleBar.menuOpen)
+                        root.sharedTitleBar.closeMenu(false);
+                    root.systemMenuOpen = !root.systemMenuOpen;
+                }
 
                 Rectangle {
                     anchors.fill: parent
@@ -951,11 +960,12 @@ Flickable {
             }
         }
 
-        // System popover (.sys-pop parity)
+        // Artist options popover (separate from the shared system menu).
         Rectangle {
             id: sysPopup
+            parent: root.sharedTitleBar || artistTitleBar
             objectName: "vinylArtistSystemMenu"
-            visible: root.systemMenuOpen
+            visible: root.systemMenuOpen && !(root.sharedTitleBar && root.sharedTitleBar.menuOpen)
             anchors.right: parent.right
             anchors.rightMargin: root.gutter
             y: parent.height + 6
@@ -965,7 +975,7 @@ Flickable {
             color: Qt.rgba(0.039, 0.047, 0.071, 0.98)
             border.width: 1
             border.color: theme.edge
-            z: 60
+            z: 45
 
             Column {
                 id: sysColumn

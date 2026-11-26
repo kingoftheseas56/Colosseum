@@ -22,6 +22,8 @@ Item {
     property bool searchVisible: true
     readonly property bool menuOpen: systemMenu.visible
     readonly property Item backItem: backAction
+    // Optional page-specific actions belong next to, not in, the app system menu.
+    readonly property alias pageActionsHost: pageActionsSlot
 
     signal backRequested()
     signal worldRequested(string world)
@@ -120,6 +122,12 @@ Item {
         anchors.rightMargin: theme.margin
         anchors.verticalCenter: parent.verticalCenter
         spacing: 10
+        Item {
+            id: pageActionsSlot
+            visible: width > 0
+            width: children.length ? children[0].width : 0
+            height: 40
+        }
         Item {
             visible: bar.searchVisible
             width: 40; height: 40

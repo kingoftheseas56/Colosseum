@@ -4,6 +4,7 @@ VinylRuntime {
     id: runtime
     objectName: "vinylRuntime"
     homeLanding: true
+    fullWindowDetails: Qt.platform.os !== "android"
     page: "home"
     enabled: componentReady && hostReady && !showHostLoading
     opacity: showHostLoading ? 0 : 1

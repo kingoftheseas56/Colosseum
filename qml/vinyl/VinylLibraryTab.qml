@@ -29,6 +29,8 @@ Item {
     signal itemActivated(var item)
     signal listRequested(var row)
 
+    function forceLayout() { content.forceLayout(); }
+
     Theme { id: theme }
     QtObject {
         id: cards

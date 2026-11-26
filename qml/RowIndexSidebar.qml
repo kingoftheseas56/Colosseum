@@ -49,7 +49,7 @@ Item {
     readonly property int _shellPadRight: collapsed ? 4 : 16
     readonly property int _listPadRight: collapsed ? 0 : 16
     readonly property bool _labelsShown: width > openWidth - 24
-    readonly property real pinLine: 12
+    property real pinLine: 12
     readonly property real bottomGap: 92
     readonly property bool _flow: flowHost !== null
     // A flow rail can be reparented outside the page to avoid its Column layout.

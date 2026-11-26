@@ -94,10 +94,28 @@ Item {
         : height - Math.max(62, shellDockBottomExtent)
     readonly property bool worldVisible: canEnterVinyl
         ? ["home","songs","albums","artists","discover","library"].indexOf(page)>=0 : worldData.tastePickerOpen===true
+    property bool fullWindowDetails: false
+    readonly property Item detailView: page === "artist" ? artist : page === "album" ? album : page === "song" ? song : null
+    readonly property bool fullWindowDetail: fullWindowDetails && canEnterVinyl && !!detailView
+    readonly property Item detailTitleBar: page === "artist" ? artistTitle : page === "album" ? albumTitle : page === "song" ? songTitle : null
+    readonly property string detailBackLabel: {
+        const previous = routeStack[routeStack.length - 1];
+        if (!previous) return qsTr("Library");
+        if (previous.searchOpen) return qsTr("Search");
+        switch (previous.page) {
+        case "artist": return qsTr("Artist");
+        case "album": return qsTr("Album");
+        case "song": return qsTr("Now Playing");
+        case "mix": return qsTr("Mix");
+        case "feedback": return qsTr("Recommendations");
+        default: return qsTr("Vinyl");
+        }
+    }
     readonly property bool detailPage: canEnterVinyl && ["album","song","artist","mix"].includes(page)
     readonly property bool detailBackdrop: detailPage && (page !== "artist" || !coldRippleBackdrop)
     readonly property bool browsingShell: !detailPage && page!=="feedback"
-    readonly property Item chromeBackdrop: detailBackdrop || !browseBackdrop ? vinylBackdrop : browseBackdrop
+    readonly property Item chromeBackdrop: fullWindowDetail && page === "artist" ? artist.portraitBackdrop
+        : detailBackdrop || !browseBackdrop ? vinylBackdrop : browseBackdrop
     readonly property bool discoverOnlineMode: {
         if(worldData.activeTab==="discover") return !!worldData.onlineMode;
         var states=worldData.browseStates;
@@ -245,7 +263,8 @@ Item {
         Qt.callLater(function(){
             if(!root.visible || !root.lifecycleActive || root.page!=="song")return;
             try{if(previous && previous.visible && previous.enabled){previous.forceActiveFocus(Qt.BacktabFocusReason);return;}}catch(error){}
-            song.focusBackControl();
+            if (root.fullWindowDetail && songTitle.visible) songTitle.backItem.focusControl(Qt.BacktabFocusReason);
+            else song.focusBackControl();
         });
     }
     Timer {
@@ -329,7 +348,9 @@ Item {
     }
     // A destination starts at a silent focus origin, as in Main's keyboard ignition.
     // Tab still enters the shared focus chain; opening a page never selects Back/Play.
-    function parkFocus() {if(!searchOpen)root.forceActiveFocus(Qt.OtherFocusReason);}
+    function parkFocus() {
+        if (!searchOpen) (fullWindowDetail ? detailView : root).forceActiveFocus(Qt.OtherFocusReason);
+    }
     function focusLibrary() {Qt.callLater(root.parkFocus);}
     function showHome() {
         if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
@@ -713,6 +734,7 @@ Item {
         root.cancelPendingVideoOpen(true);
         if(videoFullscreen){exitVideoFullscreen();return true;}
         if(searchOpen) {closeSearch();return true;}
+        if(fullWindowDetail && detailTitleBar.menuOpen) {detailTitleBar.closeMenu(true);return true;}
         if(!root.canEnterVinyl) {
             if(artistSearchOpen) {artistSearchOpen=false;searchOpen=false;return true;}
             root.enforceTasteGate();return true;
@@ -792,12 +814,20 @@ Item {
         }
     }
     Keys.onEscapePressed: event => {event.accepted=root.goBack();}
+    Keys.onTabPressed: event => {
+        event.accepted = root.fullWindowDetail && root.detailView.activeFocus && root.detailTitleBar.visible;
+        if (event.accepted) root.detailTitleBar.backItem.focusControl(Qt.TabFocusReason);
+    }
     Keys.onPressed: event => {
         if(root.videoDisplayed)root.revealVideoHud();
-        if (!world || !(root.activeFocus || world.activeFocus) || [Qt.Key_Up,Qt.Key_Down,Qt.Key_Left,Qt.Key_Right].indexOf(event.key)<0) return;
+        if (!world || !(root.activeFocus || world.activeFocus || (root.fullWindowDetail && root.detailView.activeFocus))
+                || [Qt.Key_Up,Qt.Key_Down,Qt.Key_Left,Qt.Key_Right].indexOf(event.key)<0) return;
         if (root.worldVisible) world.focusCurrent();
         else if (root.page==="album") album.focusPrimaryControl();
-        else if (root.page==="song") song.focusBackControl();
+        else if (root.page==="song") {
+            if (root.fullWindowDetail && songTitle.visible) songTitle.backItem.focusControl(Qt.TabFocusReason);
+            else song.focusBackControl();
+        }
         else if (root.page==="artist") artist.forceActiveFocus(Qt.TabFocusReason);
         event.accepted=true;
     }
@@ -949,7 +979,7 @@ Item {
     VinylBackdrop {id:vinylBackdrop;anchors.fill:parent;visible:root.detailBackdrop || !root.browseBackdrop;source:root.page==="song" ? song.pageData.playingEdition.cover : root.page==="album" ? session.shownEdition.cover : ""}
     TopBar {
         id:top;objectName:root.browsingShell ? "" : "vinylTopBar"
-        visible: !root.browsingShell && !root.videoFullscreen
+        visible: !root.browsingShell && !root.fullWindowDetail && !root.videoFullscreen
         anchors {left:parent.left;right:parent.right;top:parent.top;margins:theme.margin}
         backdrop:root.chromeBackdrop;activeMedium:"Vinyl";lifecycleActive:root.lifecycleActive
         onAccountClicked:(anchorRight,anchorBottom)=>root.accountClicked(anchorRight,anchorBottom)
@@ -1025,17 +1055,43 @@ Item {
             onActionRequested:(ref,action,generation)=>root.applyRecommendationAction(ref,action,generation)
         }
     }
+    // The runtime already fills Main's world loader, so the same page instances can
+    // take over its canvas without moving the session, history, dock or player HUD.
+    component DetailBar: TitlePageBar {
+        objectName: visible ? "titlePageBar" : ""
+        width: root.width
+        z: 40
+        visible: root.fullWindowDetails && !root.videoFullscreen && !root.searchOpen
+        backLabel: root.detailBackLabel
+        onVisibleChanged: if (!visible && menuOpen) closeMenu(false)
+        onBackRequested: {
+            if (root.page === "artist" && artist.selectedCategory.length > 0) artist.closeCategory();
+            else root.goBack();
+        }
+        onSearchRequested: root.enterDiscoverSearch(true, false)
+        onMinimizeRequested: root.minimizeClicked()
+        onFullscreenRequested: root.fullscreenClicked()
+        onQuitRequested: root.powerClicked()
+    }
     BackAction {
         focusOnPointer: false
-        id:albumBack;objectName:"vinylAlbumBack";x:theme.margin;y:top.y+top.height+24;height:44;label:"Back";visible:root.canEnterVinyl && root.page==="album";onTriggered:root.goBack();Keys.onReturnPressed:root.goBack();Keys.onEnterPressed:root.goBack()}
+        id:albumBack;objectName:root.fullWindowDetails ? "" : "vinylAlbumBack";x:theme.margin;y:top.y+top.height+24;height:44;label:"Back";visible:!root.fullWindowDetails && root.canEnterVinyl && root.page==="album";onTriggered:root.goBack();Keys.onReturnPressed:root.goBack();Keys.onEnterPressed:root.goBack()}
     VinylAlbumPage {
-        id:album;x:0;y:albumBack.y+albumBack.height+8;width:parent.width;height:Math.max(0,scrollInsets.viewportBottom-y)
+        id:album;x:0;y:root.fullWindowDetails ? 0 : albumBack.y+albumBack.height+8;width:parent.width;height:Math.max(0,scrollInsets.viewportBottom-y)
+        titleBarHeight: root.fullWindowDetails ? albumTitle.height : 0
         contentEndPadding:scrollInsets.endPadding
         visible:root.canEnterVinyl && root.page==="album";pageData:session;backdrop:root.chromeBackdrop;artistNavigationEnabled:true;shuffleEnabled:true;saveEnabled:true;scrollbarVisible:false;songNavigationEnabled:true;queueActionsEnabled:true
         onSongRequested: index => {var record=session.shownEdition.sourceAlbum;var flat=index;for(var d=0;d<session.shownDisc;d++)flat+=session.shownEdition.discs[d].length;if(flat>=0)root.showBrowseSong(record,flat,session.shownEditionId);}
+        DetailBar {
+            id: albumTitle
+            y: album.contentY
+            backObjectName: root.fullWindowDetails ? "vinylAlbumBack" : ""
+            solid: album.contentY > 40
+        }
     }
     VinylArtistPage {
-        id:artist;x:0;y:top.y+top.height+24;width:parent.width;height:Math.max(0,scrollInsets.viewportBottom-y)
+        id:artist;x:0;y:root.fullWindowDetails ? 0 : top.y+top.height+24;width:parent.width;height:Math.max(0,scrollInsets.viewportBottom-y)
+        sharedTitleBar: root.fullWindowDetails ? artistTitle : null
         contentEndPadding:scrollInsets.endPadding
         visible:root.canEnterVinyl && root.page==="artist";artistData:artistData;worldData:worldData;backdrop:root.chromeBackdrop
         onBackRequested:root.goBack();onArtistRequested:name=>root.showArtist(name)
@@ -1046,11 +1102,23 @@ Item {
             root.cancelDiscoverItem();
             session.playArtistVideo(record,artistData.name,artistData.canonicalArtistId);
         }
+        DetailBar {
+            id: artistTitle
+            y: artist.contentY
+            backObjectName: root.fullWindowDetails ? "vinylArtistHeaderBack" : ""
+            backLabel: artist.selectedCategory.length > 0 ? qsTr("Artist") : root.detailBackLabel
+            solid: artist.contentY > 40
+            onMenuOpenChanged: if (menuOpen) artist.systemMenuOpen = false
+        }
     }
     VinylSongPage {
-        id:song;x:0;y:root.videoFullscreen ? 0 : top.y+top.height+24;width:parent.width
-        // Do not resize the hidden song reader when the browsing HUD compacts.
-        height:root.videoFullscreen ? root.height : Math.max(0,root.height-root.playerBottomMargin-bar.songHeight-root.playerContentGap-y)
+        id:song;x:0;y:root.fullWindowDetails || root.videoFullscreen ? 0 : top.y+top.height+24;width:parent.width
+        // Keep the reader above the tall song HUD even while another route compacts it.
+        readonly property real playerInset: root.videoFullscreen ? 0 : root.playerBottomMargin + bar.songHeight + root.playerContentGap
+        height: root.fullWindowDetails ? root.height : Math.max(0, root.height - playerInset - y)
+        contentBottomInset: root.fullWindowDetails ? playerInset : 0
+        titleBarHeight: root.fullWindowDetails && !root.videoFullscreen ? songTitle.height : 0
+        titleActionsHost: titleBarHeight > 0 ? songTitle.pageActionsHost : null
         visible:root.canEnterVinyl && root.page==="song";pageData:root.browsingSong && !browseSong.isCurrent ? browseSong : session;browseMode:root.browsingSong && !browseSong.isCurrent;artistNavigationEnabled:true
         videoFullscreen: root.videoFullscreen
         videoControlsVisible: !root.videoFullscreen || root.videoHudVisible
@@ -1059,6 +1127,10 @@ Item {
         backLabel:"Back";onBackRequested:root.goBack();onArtistRequested:name=>root.showRecordArtist(name,root.browsingSong ? browseSong.album : session.playingEdition.sourceAlbum || {})
         onPlayRequested:if(browseSong.playingTrack.available!==false)browseSong.play()
         onAlbumRequested:{if(!root.canEnterVinyl){root.enforceTasteGate();return;}if(root.browsingSong)root.openAlbum(browseSong.album.id);else {root.pushRoute();session.showPlayingAlbum();root.page="album";root.parkFocus();}}
+        DetailBar {
+            id: songTitle
+            backObjectName: song.titleBarHeight > 0 ? "vinylSongBack" : ""
+        }
     }
     VinylHomeMixPage {
         id:homeMix;x:0;y:top.y+top.height+24;width:parent.width;height:Math.max(0,scrollInsets.viewportBottom-y)

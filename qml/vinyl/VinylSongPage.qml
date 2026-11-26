@@ -23,18 +23,23 @@ Item {
     readonly property bool stackedReaders: width < 720
     readonly property real sideInset: Math.max(20, Math.min(54, width * 0.034))
     readonly property real sideGap: Math.max(18, Math.min(64, width * 0.034))
-    readonly property real headerBottom: backAction.y + backAction.height
+    property real titleBarHeight: 0
+    property Item titleActionsHost: null
+    property real contentBottomInset: 0
+    readonly property real viewportHeight: Math.max(0, height - contentBottomInset)
+    readonly property real headerBottom: titleBarHeight || backAction.y + backAction.height
     readonly property real artworkTop: stackedReaders ? headerBottom + 18 : 4
+    readonly property real readerToolsTop: Math.max(0, titleBarHeight - artworkTop)
     // The fixed metadata reservation keeps toggling reading tools from moving the cover.
     readonly property real centerWidth: Math.max(96, Math.min(540,
         stackedReaders ? width - 2 * sideInset : width * 0.36,
-        stackedReaders ? height * 0.38 : height - artworkTop - 108))
+        stackedReaders ? viewportHeight * 0.38 : viewportHeight - artworkTop - 108))
     readonly property real cardHeight: centerWidth
-    readonly property real videoFrameHeight: Math.max(0, Math.min(height, width * 9 / 16))
+    readonly property real videoFrameHeight: Math.max(0, Math.min(viewportHeight - titleBarHeight, width * 9 / 16))
     readonly property real readingTop: stackedReaders
         ? room.y + cardHeight + 10 + songMetadata.implicitHeight + 54
-        : room.y + 42
-    readonly property real readingHeight: Math.max(0, height - readingTop - 8)
+        : room.y + readerToolsTop + 42
+    readonly property real readingHeight: Math.max(0, viewportHeight - readingTop - 8)
     readonly property real notesAreaX: stackedReaders ? width / 2 + sideGap / 2
         : (width + centerWidth) / 2 + sideGap
     readonly property real readerWidth: stackedReaders
@@ -99,20 +104,21 @@ Item {
     }
     Rectangle {
         objectName: "vinylSongVideoStage"
-        anchors.fill: parent
+        width: parent.width
+        height: root.viewportHeight
         visible: root.videoShown
         color: "#000000"
     }
     BackAction {
         focusOnPointer: false
-        visible: opacity > 0.01
+        visible: root.titleBarHeight === 0 && opacity > 0.01
         enabled: visible
         opacity: root.videoFullscreen && root.videoShown && !root.videoControlsVisible ? 0 : 1
         Behavior on opacity { NumberAnimation { duration: 140 } }
         id: backAction
-        objectName: "vinylSongBack"
+        objectName: root.titleBarHeight === 0 ? "vinylSongBack" : ""
         x: root.videoShown ? 12 : theme.margin
-        y: root.videoShown ? (root.height - root.videoFrameHeight) / 2 + 12 : 4
+        y: root.videoShown ? root.titleBarHeight + (root.viewportHeight - root.titleBarHeight - root.videoFrameHeight) / 2 + 12 : 4
         z: root.videoShown ? 20 : 0
         label: root.backLabel
         width: Math.max(92, implicitWidth)
@@ -133,7 +139,7 @@ Item {
         id: songActions
         objectName: "vinylSongPageActions"
         x: root.width - width - (root.videoShown ? 12 : theme.margin)
-        y: root.videoShown ? backAction.y : (root.width < 560 ? 56 : 9)
+        y: root.videoShown ? backAction.y : root.titleBarHeight + (root.width < 560 ? 56 : 9)
         z: 20
         opacity: root.videoFullscreen && root.videoShown && !root.videoControlsVisible ? 0 : 1
         visible: opacity > 0.01
@@ -156,8 +162,9 @@ Item {
     Item {
         id: songCollectionHost
         objectName: "vinylSongCollectionActions"
-        x: root.width - width - theme.margin
-        y: backAction.y + (backAction.height - height) / 2
+        parent: root.titleActionsHost && !root.videoShown ? root.titleActionsHost : root
+        x: parent === root ? root.width - width - theme.margin : 0
+        y: parent === root ? backAction.y + (backAction.height - height) / 2 : (parent.height - height) / 2
         width: songActions.collectionWidth
         height: 34
         visible: !root.videoShown
@@ -167,7 +174,7 @@ Item {
         width: parent.width
         visible: !(root.videoFullscreen && root.videoShown)
         height: root.videoShown ? root.videoFrameHeight : root.cardHeight + 18 + songMetadata.implicitHeight
-        y: root.videoShown ? (root.height - height) / 2
+        y: root.videoShown ? root.titleBarHeight + (root.viewportHeight - root.titleBarHeight - height) / 2
             : root.artworkTop
         Item {
             id: poster
@@ -344,7 +351,7 @@ Item {
             objectName: "vinylSongLyricsHeading"
             x: root.stackedReaders ? root.sideInset
                 : (root.width - root.centerWidth) / 2 - root.sideGap - width
-            y: root.stackedReaders ? root.readingTop - room.y - 42 : 0
+            y: root.stackedReaders ? root.readingTop - room.y - 42 : root.readerToolsTop
             width: songActions.lyricsWidth
             height: 34
             visible: !root.videoShown

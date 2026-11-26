@@ -4686,6 +4686,7 @@ Window {
         z: -1
         anchors.fill: parent
         visible: win.vinylColdRippleBackdrop && worldStack.current === "Vinyl" && wall.visible
+            && (!win.vinylWorld || !win.vinylWorld.fullWindowDetail || win.vinylWorld.searchOpen)
         Image {
             id: vinylWallArt
             objectName: "vinylColdRippleImage"

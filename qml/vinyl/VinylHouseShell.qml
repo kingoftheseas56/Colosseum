@@ -47,12 +47,16 @@ WorldPage {
 
     function validTab(tab) { return ["home", "discover", "library"].indexOf(tab) >= 0; }
     function parkPage(y) {
-        function position() {
-            var maximum = Math.max(0, pageFlickable.contentHeight-pageFlickable.height);
-            pageFlickable.contentY = Math.min(maximum, Math.max(0, Number(y) || 0));
-        }
-        position();
-        Qt.callLater(function() { if (root && root.pageFlickable) position(); });
+        // Tab/list changes dirty nested positioners. Finish them inside-out so
+        // scroll bounds and pointer hit targets both belong to the new route.
+        if (listKey) list.forceLayout();
+        else if (currentTab === "library" && library.visible) library.forceLayout();
+        else if (currentTab === "home") homeContent.forceLayout();
+        surface.forceLayout();
+        surface.parent.forceLayout(); // WorldPage's board
+        const target = y === undefined ? contentTop - dockedInset : y;
+        const maximum = Math.max(0, pageFlickable.contentHeight - pageFlickable.height);
+        pageFlickable.contentY = Math.min(maximum, Math.max(0, Number(target) || 0));
     }
     // Provider replies can insert, remove or resize sections above a reader.
     // Preserve the first surviving section at the viewport edge, not the old absolute Y.
@@ -137,7 +141,7 @@ WorldPage {
         if (tabRoutes[tab]) restoreRouteState(tabRoutes[tab]);
         else {
             listKey = ""; listHome = false; list.currentIndex = 0; list.selectedId = "";
-            parkPage(Math.max(0,contentTop-dockedInset));
+            parkPage();
         }
     }
     function focusCurrent() {
@@ -151,7 +155,7 @@ WorldPage {
         listReturnY = pageFlickable.contentY;
         listReturnFocus = root.Window.window ? root.Window.window.activeFocusItem : null;
         listHome = home; listKey = key;
-        parkPage(Math.max(0, contentTop - dockedInset));
+        parkPage();
         // A pointer-opened list must not leave keyboard focus on its hidden shelf.
         root.forceActiveFocus(Qt.OtherFocusReason);
     }
@@ -194,7 +198,7 @@ WorldPage {
                 if (root.currentTab !== "home" || !root.worldData.tastePickerOpen) return;
                 // Onboarding has no tabs. The hidden bar retains its old y, which
                 // can park the page below the picker header and its Save button.
-                root.parkPage(root.gated ? 0 : Math.max(0, root.contentTop - root.dockedInset));
+                root.parkPage(root.gated ? 0 : undefined);
                 root.focusArtistSearch();
             });
         }

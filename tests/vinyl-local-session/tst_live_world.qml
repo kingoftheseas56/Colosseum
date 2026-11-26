@@ -191,9 +191,91 @@ TestCase {
         compare(world.worldScroll,world.browseShell.pageFlickable);
         verify(world.worldScroll.y>=top.y+top.height);
         verify(world.worldScroll.y<=top.y+top.height+18);
-        world.showBrowseSong(record(0),0);wait(0);
-        top=item("vinylTopBar");
-        compare(item("vinylSongPage").y,top.y+top.height+24);
+    }
+    function verifyDetailTitlePage(name, backLabel, playerHeight) {
+        const detail = item(name);
+        verify(detail && detail.visible);
+        compare(detail.mapToItem(host.contentItem, 0, 0).y, 0,
+                name + " must start at the top of the window");
+        compare(detail.width, host.width);
+        compare(detail.height, host.height);
+        const titleBar = item("titlePageBar");
+        verify(titleBar && titleBar.visible);
+        compare(titleBar.mapToItem(host.contentItem, 0, 0).y, 0);
+        compare(titleBar.backItem.label, backLabel);
+        verify(titleBar.backItem.visible);
+        verify(!titleBar.solid);
+        const top = item("vinylTopBar");
+        verify(!top || !top.visible);
+        const player = item("vinylPlayerBar");
+        verify(player.visible && player.enabled);
+        compare(player.height, playerHeight);
+        return titleBar;
+    }
+    function test_fullWindowDetailTitlePages() {
+        seed(2);
+        world.showLibrary();
+        world.session.playAlbum(record(0), 0);
+        tryCompare(world.session, "playingIndex", 0);
+        world.shellDockRight = 250;
+        world.shellDockBottomExtent = 62;
+        host.requestActivate();
+        tryCompare(host, "active", true);
+
+        world.showArtist({name:"Local Artist", id:"artist-one"});
+        const artistBar = verifyDetailTitlePage("vinylArtistPage", "Vinyl", 76);
+        const artistPage = item("vinylArtistPage");
+        tryCompare(artistPage, "activeFocus", true);
+        artistPage.contentY = 100;
+        tryCompare(artistBar, "solid", true);
+        verify(artistPage.contentEndPadding > item("vinylPlayerBar").height);
+        verify(item("vinylPlayerBar").x > world.shellDockRight);
+        mouseClick(item("vinylArtistMoreButton"));
+        verify(item("vinylArtistTopOfPageAction").visible);
+        mouseClick(item("vinylArtistTopOfPageAction"));
+        tryCompare(artistBar, "solid", false);
+        artistPage.contentY = 100;
+        mouseClick(item("vinylBarOpenSong"));
+        verifyDetailTitlePage("vinylSongPage", "Artist", 104);
+        tryCompare(item("vinylSongPage"), "activeFocus", true);
+        keyClick(Qt.Key_Escape);
+        compare(world.page, "artist");
+        tryCompare(artistBar, "solid", true);
+
+        world.openAlbum("album-1");
+        source.completed("browse", world.session.browseRequest, record(1), "");
+        tryCompare(world, "page", "album");
+        const albumBar = verifyDetailTitlePage("vinylAlbumPage", "Artist", 76);
+        item("vinylAlbumPage").contentY = 100;
+        tryCompare(albumBar, "solid", true);
+        verify(item("vinylAlbumPage").contentEndPadding > item("vinylPlayerBar").height);
+
+        world.showBrowseSong(record(1), 0);
+        const songBar = verifyDetailTitlePage("vinylSongPage", "Album", 104);
+        const song = item("vinylSongPage");
+        verify(song.y + song.viewportHeight <= item("vinylPlayerBar").y);
+        tryCompare(song, "activeFocus", true);
+        keyClick(Qt.Key_Tab);
+        tryCompare(songBar.backItem, "automationActiveFocus", true);
+        keyClick(Qt.Key_Return);
+        compare(world.page, "album");
+        tryCompare(albumBar, "solid", true);
+        mouseClick(albumBar.backItem);
+        compare(world.page, "artist");
+        tryCompare(artistBar, "solid", true);
+        mouseClick(findChild(artistBar, "titleBarSystemMenu"));
+        tryCompare(artistBar, "menuOpen", true);
+        keyClick(Qt.Key_Escape);
+        tryCompare(artistBar, "menuOpen", false);
+        compare(world.page, "artist");
+        mouseClick(findChild(artistBar, "titleBarSearch"));
+        tryCompare(world, "searchOpen", true);
+        world.closeSearch();
+        tryCompare(world, "searchOpen", false);
+        mouseClick(artistBar.backItem);
+        compare(world.page, "library");
+        verify(item("vinylTopBar").visible);
+        compare(world.session.playingTrack.id, "track-0");
     }
     function test_asyncImportControlsProgressCancelAndAlbumAwareStatus() {
         var fileDialog=item("vinylOpenFilesDialog");

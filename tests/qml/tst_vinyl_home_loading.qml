@@ -279,7 +279,7 @@ TestCase {
         var main = source("Main.qml");
         var runtime = source("vinyl/VinylRuntime.qml");
         var wallpaper = /    component WallpaperVeil: Rectangle \{[^]*?WallpaperVeil \{ source: vinylWallArt.source \}\s*\}/.exec(main);
-        var route = /    readonly property bool detailPage:[^]*?readonly property Item chromeBackdrop:[^\r\n]+/.exec(runtime);
+        var route = /    readonly property bool detailPage:[^]*?(?=\r?\n    readonly property bool discoverOnlineMode:)/.exec(runtime);
         var browse = /    readonly property Item browseBackdrop:[^\r\n]+/.exec(runtime);
         var artwork = /    VinylBackdrop \{id:vinylBackdrop;[^\r\n]+/.exec(runtime);
         verify(wallpaper && route && browse && artwork);
@@ -290,14 +290,19 @@ TestCase {
                 id: root
                 property string page: "home"
                 property bool canEnterVinyl: true
+                readonly property bool fullWindowDetail: ["artist", "album", "song"].includes(page)
+                property bool searchOpen: false
                 property Item backdrop: wall
                 property Item coldRippleBackdrop: win.vinylColdRippleBackdrop ? vinylWall : null
                 property alias world: worldStack.current
                 property alias experiment: win.vinylColdRippleBackdrop
                 component WallpaperLuma: Item { property url source; property real luma: 0.5 }
                 QtObject { id: win; property bool vinylEnabled: true; property bool vinylColdRippleBackdrop: true
+                    property Item vinylWorld: root
                     property url defaultWallpaperSource: Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg") }
                 QtObject { id: worldStack; property string current: "Vinyl" }
+                QtObject { id: artist; property Item portraitBackdrop: portrait }
+                Item { id: portrait; objectName: "portraitBackdrop" }
                 QtObject { id: song; property var pageData: ({playingEdition:{cover:"${songArt}"}}) }
                 QtObject { id: session; property var shownEdition: ({cover:"${albumArt}"}) }
                 Item { id: dockScene; anchors.fill: parent }
@@ -313,15 +318,23 @@ TestCase {
             verify(cold.visible && image.source.toString().endsWith("assets/wallpaper/cold-ripple.jpg"));
             compare(image.fillMode, Image.PreserveAspectCrop);
             tryCompare(image, "status", Image.Ready);
-            for (var page of ["home", "discover", "library", "songs", "albums", "artists", "artist"]) {
+            for (var page of ["home", "discover", "library", "songs", "albums", "artists"]) {
                 fixture.page = page;
                 compare(fixture.chromeBackdrop, cold, page);
+                verify(cold.visible);
             }
+            fixture.page = "artist";
+            compare(fixture.chromeBackdrop.objectName, "portraitBackdrop");
+            verify(!cold.visible);
             for (var detail of ["album", "song"]) {
                 fixture.page = detail;
+                verify(!cold.visible);
                 compare(fixture.chromeBackdrop.objectName, "vinylBackdrop");
                 compare(fixture.chromeBackdrop.source.toString(), (detail === "album" ? albumArt : songArt).toString());
             }
+            fixture.searchOpen = true;
+            verify(cold.visible, "Vinyl Search keeps Cold Ripple even when opened from a detail page");
+            fixture.searchOpen = false;
             fixture.world = "Theatre";
             verify(!cold.visible && fixture.backdrop.visible);
             fixture.world = "Vinyl";

@@ -12,6 +12,7 @@ Item {
     property Flickable pageFlick: null
     property int currentIndex: 0
     property string selectedId: ""
+    function forceLayout() { grid.forceLayout(); }
     function focusCurrent() {
         var item=cards.itemAt(Math.max(0,Math.min(currentIndex,cards.count-1)));
         if(item) item.forceActiveFocus();
