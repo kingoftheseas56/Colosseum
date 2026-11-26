@@ -283,7 +283,7 @@ def install(kind, payload, install_root, work):
         replacement.chmod(0o755)
         replacement.replace(target)
         return target
-    mount = work / 'dmg'
+    mount = work / 'mounted-dmg'
     mount.mkdir(exist_ok=True)
     run('hdiutil', 'attach', '-readonly', '-nobrowse', '-mountpoint', mount, payload)
     try:
@@ -343,15 +343,26 @@ def qualify(args):
                     raise RuntimeError('Downloaded bytes do not match the signed package metadata')
                 executable = install(kind, downloaded, install_root, work)
                 post = Application(executable, profile, args.private, work, args.output, f'{kind}-after')
-                requests_before_relaunch = len(receipt['requests'])
                 with post.launch('1.5.1', onboard=False) as after:
                     post.open_updates()
+                    post.await_value('colosseumUpdatePage', 'automationState', 'UpToDate')
+                    post.await_value('colosseumUpdatePage', 'automationVersion', '1.5.1')
+                    post.await_value('colosseumUpdateStatusText', 'text', 'Everything is up to date')
+                    post.return_to_home()
+                    post.await_value('colosseumTopbarUpdateBadge', 'visible', False)
+                    post.open_updates()
+                    post.await_value('colosseumUpdatePage', 'primaryLabel', 'Check again')
+                    requests_before_manual_check = len(receipt['requests'])
+                    # A recent authenticated result is intentionally reused on relaunch.
+                    # Test a fresh network check through the real on-page action.
+                    post.click('colosseumUpdatePrimaryAction')
                     deadline = time.monotonic() + 30
-                    while signature_request not in receipt['requests'][requests_before_relaunch:]:
+                    while signature_request not in receipt['requests'][requests_before_manual_check:]:
                         if time.monotonic() >= deadline:
-                            raise RuntimeError('The upgraded package did not recheck the signed feed')
+                            raise RuntimeError('Check again did not fetch the signed feed after upgrade')
                         time.sleep(0.3)
                     post.await_value('colosseumUpdatePage', 'automationState', 'UpToDate')
+                    post.await_value('colosseumUpdateStatusText', 'text', 'Everything is up to date')
                     post.await_value('colosseumUpdatePage', 'primaryLabel', 'Check again')
                     post.return_to_home()
                     post.await_value('colosseumTopbarUpdateBadge', 'visible', False)
@@ -359,7 +370,7 @@ def qualify(args):
                     raise RuntimeError('Upgrade changed the application profile')
                 record.update(status='PASS', launched=['1.5.0', '1.5.1'], download_url=url,
                               profile_retained=True, badge_cleared=True,
-                              verified_feed_rechecked=True,
+                              cached_release_up_to_date=True, manual_verified_feed_recheck=True,
                               download_scope='QDesktopServices result observed. Harness fetched that HTTPS URL and installed the verified bytes.')
             server['bad_signature'] = True
             invalid = Application(executable, f'staging-invalid-{os.getpid()}', args.private,
