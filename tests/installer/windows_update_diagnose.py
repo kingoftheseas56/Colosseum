@@ -9,6 +9,7 @@ import ssl
 import subprocess
 import threading
 import time
+import urllib.request
 import winreg
 
 from windows_update_rehearsal import App, digest, openssl, require, run
@@ -108,8 +109,24 @@ class Feed:
                                           "user_agent": inner.headers.get("User-Agent", "")})
                 super().do_GET()
 
-        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
-        self.server.socket = make_tls(work).wrap_socket(self.server.socket, server_side=True)
+        tls = make_tls(work)
+
+        class Server(http.server.ThreadingHTTPServer):
+            def get_request(inner):
+                conn, peer = super().get_request()
+                try:
+                    conn.settimeout(5)
+                    secured = tls.wrap_socket(conn, server_side=True)
+                    secured.settimeout(20)
+                    return secured, peer
+                except OSError as error:
+                    conn.close()
+                    with self.lock:
+                        self.requests.append({"time": time.time(), "tls_error": str(error)})
+                    print(f"Loopback TLS accept failed: {error}", flush=True)
+                    raise
+
+        self.server = Server(("127.0.0.1", PORT), Handler)
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
 
     def configure(self, *, corrupt):
@@ -125,8 +142,14 @@ class Feed:
 
     def saw_package(self):
         with self.lock:
-            return any(row["path"].endswith("/" + PACKAGE) and row["user_agent"] == "Colosseum/1.5.0"
+            return any(row.get("path", "").endswith("/" + PACKAGE) and row.get("user_agent") == "Colosseum/1.5.0"
                        for row in self.requests)
+
+    def verify_origin(self):
+        tls = ssl.create_default_context(cafile=os.environ["COLOSSEUM_WINDOWS_REHEARSAL_CA"])
+        with urllib.request.urlopen(ORIGIN + "/updates/stable.json", context=tls, timeout=8) as reply:
+            require(json.load(reply)["tag_name"] == "v1.5.1", "TLS fixture self-check failed")
+        print("Independent HTTPS client verified the loopback origin", flush=True)
 
 
 class Capture:
@@ -202,6 +225,41 @@ class Capture:
         self.log.close()
 
 
+def direct_installer_control(work, evidence, capture, old, app):
+    require(old.poll() is None, "Direct control requires a genuinely running older app")
+    capture.profile = app.booted("Direct control confirmed the old app is running")
+    snapshot = capture.snapshot("direct-control-before-launch", version=True)
+    require(snapshot["registry"]["DisplayVersion"] == "1.5.0"
+            and snapshot["paths"][0]["sha256"] == EXPECTED["1.5.0"][2], "Direct control needs the exact old install")
+    version_cache = Path(capture.profile["cacheRoot"]).parent / "updates" / TARGET
+    version_cache.mkdir(parents=True, exist_ok=True)
+    installer = Path(shutil.copy2(work / "fixtures" / PACKAGE, version_cache / PACKAGE))
+    require(digest(installer) == EXPECTED[TARGET][1], "Direct-control cached installer digest changed")
+    args = [str(installer), "/UPDATE=1", f"/WAITPID={old.pid}", "/TARGETVERSION=1.5.1",
+            "/RESTART=1", f"/LOG={version_cache.parent / 'update-1.5.1.log'}"]
+    process = subprocess.Popen(args, cwd=version_cache)
+    write_json(evidence / "direct-control-launch.json", {"argv": args, "pid": process.pid, "prior_pid": old.pid,
+                                                          "cwd": str(version_cache)})
+    capture.mark(f"direct-control-installer-pid-{process.pid}-waiting-on-{old.pid}")
+    # Leave the old window open through installer startup, as the standalone release smoke does.
+    waiting_for_exit = capture.install.with_name(capture.install.name + ".__update-new")
+    deadline = time.monotonic() + 8
+    while not waiting_for_exit.exists() and process.poll() is None and time.monotonic() < deadline:
+        time.sleep(0.15)
+    new_sibling_before_close = waiting_for_exit.exists()
+    require(old.poll() is None, "Old app exited unexpectedly before the control sent a normal close")
+    capture.mark("direct-control-sending-normal-window-close")
+    close_cmd = (f"$p = Get-Process -Id {old.pid} -ErrorAction Stop; "
+                 "if ($p.MainWindowHandle -eq 0 -or -not $p.CloseMainWindow()) { exit 1 }")
+    run("pwsh", "-NoProfile", "-NonInteractive", "-Command", close_cmd, timeout=15)
+    old_result = old.wait(60)
+    capture.mark(f"direct-control-old-pid-{old.pid}-exit-{old_result}")
+    result = process.wait(150)
+    installed = capture.snapshot("direct-control-settled-identity", version=True)
+    write_json(evidence / "direct-control-outcome.json", {"installer_exit_code": result, "old_exit_code": old_result,
+               "new_sibling_while_old_pid_was_alive": new_sibling_before_close, "installed": installed})
+
+
 def diagnose(work):
     require(os.environ.get("GITHUB_ACTIONS") == "true" and os.environ.get("RUNNER_ENVIRONMENT") == "github-hosted",
             "Disposable hosted runner required")
@@ -212,7 +270,8 @@ def diagnose(work):
     require(not install.exists() and reg_identity() is None, "Expected no existing Colosseum install or registry key")
     exe = install / APP_EXE
     capture = Capture(work, evidence, install)
-    feed = None
+    feed, app, bad, prior = None, None, None, None
+    handoff_attempted = False
     try:
         run(work / "fixtures/Colosseum-1.5.0-setup.exe", "/S", cwd=work, timeout=120)
         before = capture.snapshot("staged-installed-before-launch", version=True)
@@ -231,8 +290,9 @@ def diagnose(work):
             return proc
 
         feed.configure(corrupt=True)
+        feed.verify_origin()
         bad = start("corrupt-signature")
-        app.booted("Corrupt-signature precursor booted")
+        capture.profile = app.booted("Corrupt-signature precursor booted")
         app.enter_local_profile()
         app.open_updates()
         app.until("Corrupt release rejected", "qml-get",
@@ -263,6 +323,7 @@ def diagnose(work):
         capture.snapshot("before-restart-click")
         app.screenshot("before-restart-click")
         capture.mark(f"restart-click-prior-pid-{prior.pid}")
+        handoff_attempted = True
         try:
             app.click("colosseumUpdatePrimaryAction")
         except (OSError, json.JSONDecodeError):
@@ -281,6 +342,14 @@ def diagnose(work):
             "binary_version": settled.get("binary_version"), "badge_visible": badge["visible"],
             "marker_before": marker_digest, "marker_after": digest(marker) if marker.is_file() else None,
         })
+    except Exception as error:
+        capture.capture_logs("in-app-error")
+        write_json(evidence / "in-app-error.json", {"detail": str(error), "handoff_attempted": handoff_attempted})
+        running_old = next((proc for proc in (prior, bad) if proc is not None and proc.poll() is None), None)
+        if handoff_attempted or app is None or running_old is None:
+            raise
+        print(f"In-app replay stopped before installer handoff: {error}", flush=True)
+        direct_installer_control(work, evidence, capture, running_old, app)
     finally:
         # Always recover the installer output before any eventual identity comparison can stop the run.
         capture.capture_logs("final")

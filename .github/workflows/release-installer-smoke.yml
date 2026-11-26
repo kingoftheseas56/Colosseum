@@ -22,6 +22,16 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
+      - name: Restore the producer's pinned Qt 6.11.1 environment
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730
+        with:
+          version: '6.11.1'
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          modules: 'qtwebengine qtwebchannel qtwebsockets qtpositioning qtimageformats qtquick3d qtquicktimeline qtshadertools'
+          aqtsource: 'git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b'
+          cache: true
       - name: Receive retained Windows installers
         uses: actions/download-artifact@v4
         with:
