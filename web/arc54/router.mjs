@@ -3,6 +3,7 @@ const theatreTabs = new Set(['discover','movies','shows','anime','library']);
 const stableID = /^[A-Za-z0-9][A-Za-z0-9._~-]{0,95}$/;
 export function readRoute(hash = '#/') {
   const raw = hash.startsWith('#') ? hash.slice(1) : hash;
+  if (raw==='/data')return {name:'data'};
   if (raw==='/components'||raw==='/components/alt')return {name:'components'};
   if (!raw || raw === '/') return {name:'home'};
   const bits = raw.startsWith('/') ? raw.slice(1).split('/') : [];
