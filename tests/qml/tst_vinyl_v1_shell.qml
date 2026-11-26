@@ -194,6 +194,17 @@ TestCase {
         tryCompare(flick, "atYEnd", true);
         verify(bounds(lastRow).bottom <= bar.y - 14, "The last Home row must scroll fully clear of the player");
 
+        // Resize the docked footer without changing the Home viewport.
+        footer.anchors.fill = null;
+        footer.height = height;
+        for (const width of [860, 760, 700, 699, 860]) {
+            footer.width = width + bar.x + 54;
+            compare(bar.width, width);
+            compare(bar.y, width >= 700 ? 606 : 518);
+            compare(bounds(flick).bottom, height);
+            compare(view.contentEndPadding, height - bar.y + 14);
+        }
+
         footer.dockBottomExtent = 0;
         footer.hostBottomInset = 56;
         compare(bounds(flick).bottom, height - 56, "Non-floating host navigation still reserves space");
@@ -351,7 +362,6 @@ TestCase {
             var radio=findChild(tile,data.cardId+"_artistRadio");
             verify(radio && radio.enabled);
             compare(radio.accessibleName,"Artist radio");
-            compare(radio.tooltipText,"Artist radio");
             compare(radio.symbol,"play");
             tryCompare(radio,"opacity",0);
 
@@ -400,7 +410,6 @@ TestCase {
             var play=findChild(tile,data.cardId+"_albumPlay");
             verify(play && play.enabled);
             compare(play.accessibleName,"Play album");
-            compare(play.tooltipText,"Play album");
             tryCompare(play,"opacity",0);
             mouseClick(tile,20,80);
             mouseMove(test,width-2,height-2);

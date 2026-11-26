@@ -18,9 +18,12 @@ Item {
     property string page: "album"
     property bool queueEnabled: true
     property bool trackNavigationEnabled: true
-    readonly property real transportCenter: narrow ? width - 18 - transport.width / 2 : width / 2
+    // Center the desktop transport unless the fixed-width tools (including
+    // close on browsing pages) need the space to its right.
+    readonly property real transportCenter: narrow ? width - 18 - transport.width / 2
+        : Math.min(width / 2, toolsLeft - transport.width / 2 - 5)
     readonly property bool busy: pageData.sourceState === "finding" || pageData.sourceState === "retrying" || pageData.sourceState === "resolving"
-    readonly property bool narrow: width < 900
+    readonly property bool narrow: width < 700
     readonly property real songHeight: narrow ? 164 : 104
     readonly property bool compact: !narrow && page !== "song"
     readonly property real identityTop: compact ? 8 : 13
@@ -192,6 +195,7 @@ Item {
             width: parent.width
             spacing: 3
             Text {
+                objectName: "vinylBarTitle"
                 width: parent.width
                 text: root.displayedSong.playingTrack.title
                 color: theme.ink
@@ -201,6 +205,7 @@ Item {
                 elide: Text.ElideRight
             }
             Text {
+                objectName: "vinylBarArtist"
                 width: parent.width
                 text: root.displayedSong.playingEdition.artist + (root.page === "song" ? "" : " · " + root.displayedSong.playingEdition.name)
                 color: theme.inkDimmer

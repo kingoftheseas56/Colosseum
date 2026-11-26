@@ -108,12 +108,17 @@ Item {
     }
 
     // Colosseum's one focus look (world-feel R1): a solid gold ring outside the control.
-    FocusRing {
+    // Built only while shown: an idle button doesn't pay for its ring (Vinyl cards carry four buttons).
+    Loader {
         anchors.fill: parent
         anchors.margins: action.focusInset + 2
-        radius: action.focusRadius
-        primary: action.focusPrimary
-        shown: action.showFocusFrame && action.activeFocus
+        z: 10000
+        active: action.showFocusFrame && action.activeFocus
+        sourceComponent: FocusRing {
+            radius: action.focusRadius
+            primary: action.focusPrimary
+            shown: true
+        }
     }
 
     Accessible.role: Accessible.Button

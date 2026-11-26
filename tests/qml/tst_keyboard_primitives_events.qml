@@ -122,6 +122,20 @@ TestCase {
         keyClick(Qt.Key_F10, Qt.ShiftModifier)
         compare(actionContextSpy.count, 2)
     }
+    function test_action_focus_ring_is_lazy_and_keeps_the_same_outset() {
+        collection.forceActiveFocus()
+        compare(findChild(action, "focusRingStroke"), null)
+        action.forceActiveFocus()
+        var stroke = findChild(action, "focusRingStroke")
+        verify(stroke && stroke.visible)
+        compare(stroke.mapToItem(action, 0, 0).x, -3)
+        compare(stroke.width, action.width + 6)
+        action.focusPrimary = true
+        compare(stroke.mapToItem(action, 0, 0).x, -6)
+        action.focusPrimary = false
+        collection.forceActiveFocus()
+        tryVerify(function() { return findChild(action, "focusRingStroke") === null })
+    }
     function test_collection_spatial_and_boundary_keys() {
         collection.forceActiveFocus(Qt.OtherFocusReason)
         collection.currentIndex = 4

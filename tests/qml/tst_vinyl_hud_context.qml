@@ -250,11 +250,13 @@ TestCase {
         compare(queueSpy.count,1);
     }
     function test_barCompactsOnlyOnWideBrowsingPages_data() {
-        return [{tag:"desktop",width:1280},{tag:"actual",width:1028},{tag:"medium",width:800},{tag:"phone",width:360},{tag:"wide-phone",width:480}];
+        return [{tag:"desktop",width:1280},{tag:"actual",width:1028},{tag:"medium",width:800},
+            {tag:"desktop-minimum",width:700},{tag:"below-desktop-minimum",width:699},
+            {tag:"phone",width:360},{tag:"wide-phone",width:480}];
     }
     function test_barCompactsOnlyOnWideBrowsingPages(data) {
         bar.width=data.width;
-        var wide=data.width>=900;
+        var wide=data.width>=700;
         var controls=[
             {name:"vinylBarOpenSong", deltaY:5, deltaHeight:4, deltaWidth:4},
             {name:"vinylBarNowPlaying", deltaX:4, deltaY:5, deltaHeight:4, deltaWidth:-4},
@@ -331,10 +333,15 @@ TestCase {
     }
 
     function test_controlsDoNotOverlap_data() {
-        return [{tag:"phone",width:360,height:164,page:"song"},
+        var rows = [{tag:"phone",width:360,height:164,page:"song"},
             {tag:"wide-phone",width:480,height:164,page:"song"},
             {tag:"wide-compact",width:1280,height:76,page:"home"},
             {tag:"with-dock-and-notice",width:966,height:76,page:"home",notice:"No torrent found"}];
+        for (const width of [700, 760, 860, 1000]) {
+            rows.push({tag:"compact-" + width, width:width, height:76, page:"home", notice:"No torrent found"});
+            rows.push({tag:"song-" + width, width:width, height:104, page:"song", notice:"No torrent found"});
+        }
+        return rows;
     }
     function test_controlsDoNotOverlap(data) {
         bar.width=data.width;
@@ -348,19 +355,41 @@ TestCase {
         if(data.page!=="song") names.push("vinylBarClose");
         if(data.notice) names.push("vinylBarSourceError");
         var bounds=[];
-        for(var i=0;i<names.length;i++) {
-            var control=findChild(bar,names[i]),pos=control.mapToItem(bar,0,0);
-            verify(control.visible,names[i]+" remains visible");
-            verify(pos.x>=0 && pos.x+control.width<=bar.width,names[i]+" fits width");
-            verify(pos.y>=0 && pos.y+control.height<=bar.height,names[i]+" fits height");
-            bounds.push({name:names[i],x:pos.x,y:pos.y,w:control.width,h:control.height});
+        for (const name of names) {
+            var control=findChild(bar,name),pos=control.mapToItem(bar,0,0);
+            verify(control.visible,name+" remains visible");
+            verify(control.width>0 && pos.x>=0 && pos.x+control.width<=bar.width,name+" fits width");
+            verify(control.height>0 && pos.y>=0 && pos.y+control.height<=bar.height,name+" fits height");
+            bounds.push({name:name,x:pos.x,y:pos.y,w:control.width,h:control.height});
         }
         for(var j=0;j<bounds.length;j++)for(var k=j+1;k<bounds.length;k++) {
             var a=bounds[j],b=bounds[k];
             verify(a.x+a.w<=b.x || b.x+b.w<=a.x || a.y+a.h<=b.y || b.y+b.h<=a.y,
                 a.name+" must not overlap "+b.name);
         }
-        verify(item("vinylBarNowPlaying").width>0);
+        if (!bar.narrow) {
+            const identity = item("vinylBarNowPlaying");
+            const title = item("vinylBarTitle"), artist = item("vinylBarArtist");
+            for (const label of [title, artist]) {
+                const p = label.mapToItem(identity, 0, 0);
+                verify(label.visible && label.text.length > 0);
+                verify(p.x >= 0 && p.x + label.width <= identity.width);
+                verify(p.y >= 0 && p.y + label.height <= identity.height);
+            }
+            verify(title.y + title.height <= artist.y);
+            verify(!artist.truncated, "Artist fixture fits without elision");
+            const yt = item("vinylBarYouTube"), tankorent = item("vinylBarTankorent");
+            compare(yt.x + yt.width, tankorent.x);
+            compare(tankorent.x + tankorent.width, item("vinylBarSources").width);
+            for (const control of [yt, tankorent]) {
+                const label = item(control.objectName + "Label");
+                verify(control.visible && label.visible && label.text.length > 0);
+                verify(label.x + label.implicitWidth <= control.width);
+            }
+            if (data.notice)
+                verify(!item("vinylBarSourceError").truncated);
+            console.info("BAR_GEOMETRY " + data.tag + " " + JSON.stringify(bounds));
+        }
     }
     function test_longTimelineSpansCapsuleBelowAllControls_data() {
         return [{tag:"desktop",width:1280},{tag:"actual",width:1028},{tag:"tablet",width:800},
