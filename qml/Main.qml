@@ -5441,7 +5441,12 @@ Window {
                     readonly property real viewportTop: (parent.width >= 760 && parent.height <= 760 ? 8 : 24)
                         + topbar.implicitHeight + (win.televisionMode ? 18 : loadingLayout.compactChrome ? 8 : 10)
                     y: viewportTop + Math.max(0, (parent.height - viewportTop) * 0.4)
-                    sourceComponent: VinylHomeLoadingIndicator { indeterminate: worldLoader.status !== Loader.Error }
+                    sourceComponent: VinylHomeLoadingIndicator {
+                        indeterminate: worldLoader.status !== Loader.Error
+                        // Home is ready: the needle drops, then the record fades into Home.
+                        dropping: worldLoader.status === Loader.Ready && !!worldLoader.item
+                            && worldLoader.item.homeLoadingFinishing === true
+                    }
                 }
                 // Pass the initial activation state into the component before Component.onCompleted.
                 // This keeps opt-in warmers from running a world's synchronous setup while hidden.

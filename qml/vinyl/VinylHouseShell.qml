@@ -16,7 +16,9 @@ WorldPage {
     property bool contentVisible: true
     property bool showPageBacking: true
     property bool hostedHomeLoading: false
-    readonly property bool homeLoadingIndeterminate: homeLoading.visible && homeLoading.indeterminate
+    // The finishing beat (needle drop + fade) still counts as loading for the host's loader.
+    readonly property bool homeLoadingIndeterminate: homeLoading.visible && (homeLoading.indeterminate || homeLoading.finishing)
+    readonly property bool homeLoadingFinishing: homeLoading.finishing
     property bool runtimeReady: false
     property bool hostReady: false
     property bool componentReady: false
@@ -244,9 +246,22 @@ WorldPage {
                 && root.contentVisible && !root.gated && !root.worldData.tastePickerOpen
                 && root.worldData.pickerAnswered === true && root.currentTab === "home" && !root.listKey
             // Latch only after the first-load wait has let content through, not as rows arrive.
-            function rememberContent() { if (canPresentContent) contentShown = true; }
+            function rememberContent() {
+                if (!canPresentContent || contentShown) return;
+                // First reveal after a visible load gets the needle-drop beat before Home appears.
+                if (loadedVisibly) { finishing = true; finishTimer.restart(); }
+                loadedVisibly = false;
+                contentShown = true;
+            }
+            property bool finishing: false
+            // Set while the loader is on screen loading; read when content arrives (visibility drops first).
+            property bool loadedVisibly: false
+            onVisibleChanged: if (visible && indeterminate) loadedVisibly = true
+            onIndeterminateChanged: if (visible && indeterminate) loadedVisibly = true
+            dropping: finishing
+            Timer { id: finishTimer; interval: 780; onTriggered: homeLoading.finishing = false }
             onCanPresentContentChanged: rememberContent()
-            onHasContentChanged: if (!hasContent) { contentShown = false; optionalWaitExpired = false; }
+            onHasContentChanged: if (!hasContent) { contentShown = false; optionalWaitExpired = false; finishing = false; }
             Component.onCompleted: rememberContent()
             Connections {
                 target: root
@@ -259,12 +274,12 @@ WorldPage {
             topPadding: Math.max(0,root.pageFlickable.height*0.4)
             visible: !root.gated && !root.worldData.tastePickerOpen && root.worldData.pickerAnswered === true
                 && root.currentTab === "home" && !root.listKey
-                && !contentShown && (indeterminate || !hasContent)
+                && (finishing || (!contentShown && (indeterminate || !hasContent)))
             indeterminate: root.worldData.homeStatus === "loading" || root.worldData.homeStatus === "idle"
                 || (Number((root.worldData.homeSourcePool || {}).pendingCount) > 0 && !optionalWaitExpired)
-            showIndicator: !root.hostedHomeLoading || !indeterminate
+            showIndicator: !root.hostedHomeLoading || (!indeterminate && !finishing)
             error: root.worldData.homeError || ""
-            VinylWorldButton { x:(parent.width-width)/2; visible:!homeLoading.indeterminate; label:qsTr("Retry"); selected:true; backdrop:root.backdrop; onTriggered:root.worldData.retryHomeRecommendations() }
+            VinylWorldButton { x:(parent.width-width)/2; visible:!homeLoading.indeterminate && !homeLoading.finishing; label:qsTr("Retry"); selected:true; backdrop:root.backdrop; onTriggered:root.worldData.retryHomeRecommendations() }
         }
         VinylHero {
             id: hero

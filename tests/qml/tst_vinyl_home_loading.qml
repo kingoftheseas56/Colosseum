@@ -158,7 +158,13 @@ TestCase {
         gateData.heroSlides=[{kind:"topAlbum",item:album,sideItems:[]}];
         gateData.v1HomeRows=[{key:"v1:albums-for-you",homeKey:"albums-for-you",title:"For you",items:[album]}];
         verify(waitForRendering(view));
-        verify(!loading.visible);
+        // A visible load ends on the needle-drop beat: the record drops, Home waits, then shows.
+        if (loading.finishing) {
+            verify(loading.visible && loading.dropping, "The record drops before Home appears");
+            verify(!findChild(view,"vinylHero").visible, "Home waits for the needle drop");
+        }
+        tryCompare(loading,"visible",false,2000);
+        verify(!loading.finishing);
         view.pageFlickable.contentY=100;
         var scrollY=view.pageFlickable.contentY;
         verify(scrollY>0);
