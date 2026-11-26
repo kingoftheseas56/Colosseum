@@ -11,7 +11,9 @@ Same split as Theatre (Discover poster wall vs Movies/Shows/Anime shelf tabs) an
   there is indexing to do. **No rows.**
 - **Explore** — editorial shelf rows with the row-index sidebar. Hemanth, 2026-11-27: "vinyl's explore is basically
   combining the anime, movies and tv" — **one Explore tab doing the job of Theatre's Movies, Shows and Anime shelf tabs
-  combined** (songs, albums and artists as shelves on one page, like Biblio's single Explore). New tab order: **Home ·
+  combined** (songs, albums and artists as shelves on one page, like Biblio's single Explore). Hemanth: "instead of
+  having artists, albums and songs.. just explore" — this replaces the separate Songs / Albums / Artists destinations
+  of the 2026-11-03 blueprint; do not build those as tabs. New tab order: **Home ·
   Discover · Explore · Library**. Reuse the house shelf page (`TheatreCatalogPage` / `BiblioExplorePage` pattern,
   `RowIndexSidebar`); no hand-rolled shelves.
 
