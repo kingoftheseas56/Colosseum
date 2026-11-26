@@ -10,6 +10,7 @@
 #include <QDirIterator>
 #include <QFileInfo>
 #include <QFileSystemWatcher>
+#include <QPromise>
 #include <QTimer>
 #include <QVariantMap>
 #include <QtConcurrent>
@@ -71,6 +72,12 @@ VaultWatcher::VaultWatcher(VaultIndex* index, VaultIdentity* identity, VaultConf
 VaultWatcher::~VaultWatcher()
 {
     if (m_arrivalCancel) m_arrivalCancel->cancel();
+    if (m_treeRegistrationCancel) m_treeRegistrationCancel->cancel();
+    if (m_treeThread) {
+        m_treeThread->requestInterruption();
+        m_treeThread->quit();
+        m_treeThread->wait();
+    }
 }
 
 void VaultWatcher::setPublishing(bool publishing)
@@ -108,7 +115,8 @@ void VaultWatcher::refreshInternal(bool retryDegradedTree)
         return;
     const auto personal = m_config->personalPaths();
     const auto needles = m_config->scanIgnore();
-    if (personal != m_personal || needles != m_scanIgnore) {
+    const bool policyChanged = personal != m_personal || needles != m_scanIgnore;
+    if (policyChanged) {
         m_personal = personal;
         m_scanIgnore = needles;
         m_treeInitialized.clear();
@@ -143,20 +151,27 @@ void VaultWatcher::refreshInternal(bool retryDegradedTree)
         }
     }
 
-    // A removed root must not leave its old recursive children consuming the global
-    // QFileSystemWatcher budget. Keep only directories belonging to confirmed roots.
-    const QStringList watchedDirectories = m_watcher->directories();
-    for (const QString& watched : watchedDirectories) {
-        const QString watchedNorm = normPath(watched);
-        bool keep = false;
-        for (auto it = configuredRoots.constBegin(); it != configuredRoots.constEnd(); ++it) {
-            if (VaultLocation::containsPath(it.key(), watchedNorm)) {
-                keep = true;
-                break;
-            }
-        }
-        if (!keep || personal.excludes(watched, true) || VaultKit::pathHitsNeedle(watched, needles))
+    for (const QString& watched : m_watcher->directories()) {
+        if (!configuredRoots.contains(normPath(watched)) || VaultKit::pathHitsNeedle(watched, needles))
             m_watcher->removePath(watched);
+    }
+    if (policyChanged || configuredRoots != m_configuredWatchRoots) {
+        m_configuredWatchRoots = configuredRoots;
+        if (m_treeRegistrationCancel)
+            m_treeRegistrationCancel->cancel();
+        // Remove forgotten and excluded directories on the same thread that registers them.
+        // Queue this only on configuration changes, keeping the availability probe cheap.
+        if (m_treeWorker) {
+            QMetaObject::invokeMethod(m_treeWorker, [this, roots = configuredRoots.keys(), personal, needles] {
+                for (const QString& path : m_treeWatcher->directories()) {
+                    if (QThread::currentThread()->isInterruptionRequested())
+                        break;
+                    if (VaultKit::ownerRootForPath(roots, path).isEmpty()
+                        || personal.excludes(path, true) || VaultKit::pathHitsNeedle(path, needles))
+                        m_treeWatcher->removePath(path);
+                }
+            }, Qt::QueuedConnection);
+        }
     }
     for (auto it = m_treeInitialized.begin(); it != m_treeInitialized.end(); ) {
         if (!configuredRoots.contains(*it))
@@ -261,58 +276,115 @@ void VaultWatcher::scheduleTreeWatch(const QString& root, bool replayIfInFlight)
         return directories;
     });
     future.then(this, [this, root, norm, personal, needles](QStringList directories) {
-                m_treeScansInFlight.remove(norm);
-                QTimer::singleShot(0, this, &VaultWatcher::startNextTreeWatch);
+        if (!m_configuredWatchRoots.contains(norm) || m_unavailable.contains(norm)) {
+            finishTreeWatch(root);
+            return;
+        }
+        if (personal != m_personal || needles != m_scanIgnore) {
+            finishTreeWatch(root);
+            scheduleTreeWatch(root);
+            return;
+        }
+        if (directories.isEmpty()) {
+            m_watcher->removePath(root);
+            m_degraded.insert(norm);
+            m_treeDegraded.insert(norm);
+            finishTreeWatch(root);
+            return;
+        }
+        registerTree(root, std::move(directories));
+    });
+}
 
-                if (!m_config || !m_config->isRootConfirmed(root) || !QDir(root).exists()
-                    || m_personal.excludes(root, true))
-                    return;
-                if (personal != m_personal || needles != m_scanIgnore) {
-                    scheduleTreeWatch(root);
-                    return;
-                }
+void VaultWatcher::startTreeWatcher()
+{
+    if (m_treeWorker)
+        return;
+    m_treeThread = new QThread(this);
+    m_treeThread->setObjectName(QStringLiteral("Vault directory watches"));
+    m_treeWorker = new QObject;
+    m_treeWorker->moveToThread(m_treeThread);
+    connect(m_treeThread, &QThread::finished, m_treeWorker, &QObject::deleteLater);
+    // On Windows QFileSystemWatcher installs a native event filter in its constructing thread.
+    // Construct and destroy it on the worker so that filter shares its event dispatcher.
+    QMetaObject::invokeMethod(m_treeWorker, [this, worker = m_treeWorker] {
+        m_treeWatcher = new QFileSystemWatcher(worker);
+        connect(m_treeWatcher, &QFileSystemWatcher::directoryChanged,
+                this, &VaultWatcher::onDirectoryChanged, Qt::QueuedConnection);
+    }, Qt::QueuedConnection);
+    m_treeThread->start();
+}
 
-                if (directories.isEmpty()) {
-                    m_watcher->removePath(root);
-                    m_degraded.insert(norm);
-                    m_treeDegraded.insert(norm);
-                    return;
-                }
-                const bool capped = directories.constLast().isEmpty();
-                if (capped)
-                    directories.removeLast();
+void VaultWatcher::registerTree(const QString& root, QStringList directories)
+{
+    startTreeWatcher();
+    const QString norm = normPath(root);
+    const bool capped = directories.constLast().isEmpty();
+    if (capped)
+        directories.removeLast();
+    const qsizetype count = directories.size();
+    // The root is already watched by m_watcher. The recursive watcher owns only child paths.
+    directories.removeFirst();
+    const auto cancel = std::make_shared<VaultKit::CancellationToken>();
+    m_treeRegistrationCancel = cancel;
+    auto completion = std::make_shared<QPromise<bool>>();
+    completion->start();
+    completion->future().then(this, [this, root, norm, capped, count, cancel](bool registered) {
+        m_treeRegistrationCancel.reset();
+        if (!m_configuredWatchRoots.contains(norm) || m_unavailable.contains(norm)) {
+            finishTreeWatch(root);
+            return;
+        }
+        if (cancel->isCancelled()) {
+            finishTreeWatch(root);
+            scheduleTreeWatch(root);
+            return;
+        }
 
-                bool registrationFailed = false;
-                for (const QString& directory : directories) {
-                    if (!addDirectoryWatch(directory)) {
-                        registrationFailed = true;
-                        break;
-                    }
-                }
-                const bool complete = !capped && !registrationFailed;
-                // A healthy completed walk is sticky — one probe-time recursive attempt is enough,
-                // and a missing/revived root clears this bit in refresh(). A capped or
-                // registration-failed walk must NOT set this bit: refresh()'s gate
-                // (`!m_treeInitialized.contains(norm)`) is the only thing that re-triggers
-                // scheduleTreeWatch, so a degraded root that stays marked initialized would get
-                // exactly one walk attempt per session — self-healing (cap relief, watch budget
-                // freed elsewhere) would never be revisited.
-                if (complete) {
-                    m_treeInitialized.insert(norm);
-                    m_treeDegraded.remove(norm);
-                    m_degraded.remove(norm);
-                } else {
-                    m_treeDegraded.insert(norm);
-                    m_degraded.insert(norm);
-                }
-                emit watchTreeReconciled(root, directories.size(), complete);
+        // A capped or failed tree can be retried by an explicit refresh or a directory change.
+        const bool complete = !capped && registered && m_watched.contains(norm);
+        if (complete) {
+            m_treeInitialized.insert(norm);
+            m_treeDegraded.remove(norm);
+            m_degraded.remove(norm);
+        } else {
+            m_treeInitialized.remove(norm);
+            m_treeDegraded.insert(norm);
+            m_degraded.insert(norm);
+        }
+        emit watchTreeReconciled(root, count, complete);
+        const bool replay = m_treeRescanRequested.remove(norm);
+        finishTreeWatch(root);
+        if (replay)
+            scheduleTreeWatch(root);
+    });
 
-                const bool replay = m_treeRescanRequested.remove(norm);
-                if (replay)
-                    scheduleTreeWatch(root);
-                if (m_dirty.contains(norm) && !m_immersive)
-                    m_debounce->start();
-            });
+    QMetaObject::invokeMethod(m_treeWorker,
+        [this, directories = std::move(directories), cancel, completion] {
+            QSet<QString> watched;
+            for (const QString& path : m_treeWatcher->directories())
+                watched.insert(normPath(path));
+            bool registered = true;
+            for (const QString& directory : directories) {
+                if (cancel->isCancelled()
+                    || (!watched.contains(normPath(directory)) && !m_treeWatcher->addPath(directory))) {
+                    registered = false;
+                    break;
+                }
+            }
+            completion->addResult(registered);
+            completion->finish();
+        }, Qt::QueuedConnection);
+}
+
+void VaultWatcher::finishTreeWatch(const QString& root)
+{
+    const QString norm = normPath(root);
+    m_treeScansInFlight.remove(norm);
+    m_treeRescanRequested.remove(norm);
+    QTimer::singleShot(0, this, &VaultWatcher::startNextTreeWatch);
+    if (m_dirty.contains(norm) && !m_immersive)
+        m_debounce->start();
 }
 
 void VaultWatcher::startNextTreeWatch()
@@ -338,8 +410,11 @@ void VaultWatcher::onDirectoryChanged(const QString& path)
                 roots.append(configured.value(QStringLiteral("path")).toString());
         }
         const QString owner = VaultKit::ownerRootForPath(roots, path);
-        if (!owner.isEmpty()) root = owner;
-        if (m_personal.excludes(path, true) || m_personal.excludes(root, true))
+        if (owner.isEmpty())
+            return; // a queued notification can outlive the configured watch
+        root = owner;
+        if (m_personal.excludes(path, true) || m_personal.excludes(root, true)
+            || VaultKit::pathHitsNeedle(path, m_scanIgnore))
             return;
     }
 

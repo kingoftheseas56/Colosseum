@@ -37,6 +37,7 @@
 
 class QFileSystemWatcher;
 class QTimer;
+class QThread;
 class VaultConfig;
 class VaultIdentity;
 class VaultIndex;
@@ -95,8 +96,8 @@ signals:
     // Root availability is a state transition, not a destructive scan result. The library keeps
     // rows in place while false and clears their away flag when true.
     void rootAvailabilityChanged(const QString& root, bool available);
-    // Internal reconciliation signal used by deterministic tests and diagnostics. The walk is
-    // off-thread; registration and this signal return to the watcher owner thread.
+    // Internal reconciliation signal used by deterministic tests and diagnostics. The walk
+    // and recursive registration are off-thread. This signal is emitted on the owner thread.
     void watchTreeReconciled(const QString& root, int directoryCount, bool complete);
     void immersiveChanged();
 
@@ -112,6 +113,9 @@ private:
     void watchRoot(const QString& root);
     void startNextTreeWatch();
     void scheduleTreeWatch(const QString& root, bool replayIfInFlight = false);
+    void startTreeWatcher();
+    void registerTree(const QString& root, QStringList directories);
+    void finishTreeWatch(const QString& root);
     bool addDirectoryWatch(const QString& path);
     static QString normPath(const QString& p);
     // The subtree's law: config chip override → index dominant kind → "" (a brand-new subtree's
@@ -122,7 +126,12 @@ private:
     VaultIndex* m_index = nullptr;
     VaultIdentity* m_identity = nullptr;
     VaultConfig* m_config = nullptr;
-    QFileSystemWatcher* m_watcher = nullptr; // heap: QFileSystemWatcher needs no Q_OBJECT here
+    QFileSystemWatcher* m_watcher = nullptr; // confirmed roots only
+    QThread* m_treeThread = nullptr;
+    QObject* m_treeWorker = nullptr;
+    QFileSystemWatcher* m_treeWatcher = nullptr; // accessed only on m_treeThread
+    QMap<QString, QString> m_configuredWatchRoots;
+    std::shared_ptr<VaultKit::CancellationToken> m_treeRegistrationCancel;
     QTimer* m_debounce = nullptr;
     QTimer* m_scanActivityTimer = nullptr;
     QTimer* m_probe = nullptr;       // cheap root-exists probe so a replug revives in-place
@@ -132,7 +141,7 @@ private:
     QSet<QString> m_unavailable; // normalized roots whose filesystem root is absent
     QSet<QString> m_watched;   // normalized roots with a live root watch
     QSet<QString> m_treeQueue;
-    QSet<QString> m_treeScansInFlight; // normalized roots with an off-thread directory walk
+    QSet<QString> m_treeScansInFlight; // normalized roots with a tree walk or registration in flight
     QSet<QString> m_treeRescanRequested; // changes observed while a tree walk was in flight
     QSet<QString> m_treeInitialized; // roots whose recursive registration has already been attempted
     VaultLocation::PersonalPaths m_personal;

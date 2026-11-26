@@ -21,7 +21,6 @@
 #include <QFileSystemWatcher>
 #include <QMap>
 #include <QSignalSpy>
-#include <QSignalBlocker>
 #include <QSemaphore>
 #include <QTemporaryDir>
 #include <QThreadPool>
@@ -756,6 +755,11 @@ void tst_vault_scanner::watcher_census_waits_off_thread_and_discards_old_choices
     const QString root = normForTest(tmp.filePath(QStringLiteral("Library")));
     const QString blocked = root + QStringLiteral("/Private");
     QVERIFY(QDir().mkpath(blocked));
+    // Seed the files before installing OS watches so only the explicit directory-change
+    // invocation below triggers a census.
+    const QString privateFile = writeMediaFile(blocked, QStringLiteral("Hidden.cbz"));
+    const QString publicFile = writeMediaFile(root, QStringLiteral("Public.cbz"));
+    QVERIFY(!privateFile.isEmpty() && !publicFile.isEmpty());
     VaultIndex index(tmp.filePath(QStringLiteral("index.sqlite")));
     VaultIdentity identity(tmp.path());
     VaultConfig config(tmp.path());
@@ -767,10 +771,6 @@ void tst_vault_scanner::watcher_census_waits_off_thread_and_discards_old_choices
     watcher.refresh();
     QTRY_VERIFY_WITH_TIMEOUT(treeReady.count() >= 1, 5000);
 
-    QSignalBlocker quiet(watcher.findChild<QFileSystemWatcher*>());
-    const QString privateFile = writeMediaFile(blocked, QStringLiteral("Hidden.cbz"));
-    const QString publicFile = writeMediaFile(root, QStringLiteral("Public.cbz"));
-    QVERIFY(!privateFile.isEmpty() && !publicFile.isEmpty());
     const int previous = treeReady.count();
     QVERIFY(QMetaObject::invokeMethod(&watcher, "onDirectoryChanged", Qt::DirectConnection, Q_ARG(QString, root)));
     QTRY_VERIFY_WITH_TIMEOUT(treeReady.count() > previous, 5000);
