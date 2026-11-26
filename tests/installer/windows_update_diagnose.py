@@ -225,7 +225,14 @@ class Capture:
         self.log.close()
 
 
-def direct_installer_control(work, evidence, capture, old, app):
+def close_normally(proc):
+    close_cmd = (f"$p = Get-Process -Id {proc.pid} -ErrorAction Stop; "
+                 "if ($p.MainWindowHandle -eq 0 -or -not $p.CloseMainWindow()) { exit 1 }")
+    run("pwsh", "-NoProfile", "-NonInteractive", "-Command", close_cmd, timeout=15)
+    return proc.wait(60)
+
+
+def direct_installer_control(work, evidence, capture, old, app, *, reuse_verified_cache=False):
     require(old.poll() is None, "Direct control requires a genuinely running older app")
     capture.profile = app.booted("Direct control confirmed the old app is running")
     snapshot = capture.snapshot("direct-control-before-launch", version=True)
@@ -233,36 +240,43 @@ def direct_installer_control(work, evidence, capture, old, app):
             and snapshot["paths"][0]["sha256"] == EXPECTED["1.5.0"][2], "Direct control needs the exact old install")
     version_cache = Path(capture.profile["cacheRoot"]).parent / "updates" / TARGET
     version_cache.mkdir(parents=True, exist_ok=True)
-    installer = Path(shutil.copy2(work / "fixtures" / PACKAGE, version_cache / PACKAGE))
+    installer = version_cache / PACKAGE
+    if not reuse_verified_cache:
+        shutil.copy2(work / "fixtures" / PACKAGE, installer)
     require(digest(installer) == EXPECTED[TARGET][1], "Direct-control cached installer digest changed")
+    log_path = version_cache.parent / "update-1.5.1.log"
     args = [str(installer), "/UPDATE=1", f"/WAITPID={old.pid}", "/TARGETVERSION=1.5.1",
-            "/RESTART=1", f"/LOG={version_cache.parent / 'update-1.5.1.log'}"]
+            "/RESTART=1", f"/LOG={log_path}"]
     process = subprocess.Popen(args, cwd=version_cache)
     write_json(evidence / "direct-control-launch.json", {"argv": args, "pid": process.pid, "prior_pid": old.pid,
                                                           "cwd": str(version_cache)})
     capture.mark(f"direct-control-installer-pid-{process.pid}-waiting-on-{old.pid}")
     # Leave the old window open through installer startup, as the standalone release smoke does.
     waiting_for_exit = capture.install.with_name(capture.install.name + ".__update-new")
-    deadline = time.monotonic() + 8
+    deadline = time.monotonic() + (0 if reuse_verified_cache else 8)
     while not waiting_for_exit.exists() and process.poll() is None and time.monotonic() < deadline:
         time.sleep(0.15)
     new_sibling_before_close = waiting_for_exit.exists()
     require(old.poll() is None, "Old app exited unexpectedly before the control sent a normal close")
     capture.mark("direct-control-sending-normal-window-close")
-    close_cmd = (f"$p = Get-Process -Id {old.pid} -ErrorAction Stop; "
-                 "if ($p.MainWindowHandle -eq 0 -or -not $p.CloseMainWindow()) { exit 1 }")
-    run("pwsh", "-NoProfile", "-NonInteractive", "-Command", close_cmd, timeout=15)
-    old_result = old.wait(60)
+    old_result = close_normally(old)
     capture.mark(f"direct-control-old-pid-{old.pid}-exit-{old_result}")
     result = process.wait(150)
+    if log_path.is_file():
+        shutil.copy2(log_path, evidence / "actual-native-path-nsis.log")
     installed = capture.snapshot("direct-control-settled-identity", version=True)
     write_json(evidence / "direct-control-outcome.json", {"installer_exit_code": result, "old_exit_code": old_result,
-               "new_sibling_while_old_pid_was_alive": new_sibling_before_close, "installed": installed})
+               "new_sibling_while_old_pid_was_alive": new_sibling_before_close, "log_path": str(log_path),
+               "nsis_log_created": log_path.is_file(), "installed": installed})
+    if reuse_verified_cache:
+        require(log_path.is_file(), "NSIS did not write its log with the native Windows path")
 
 
 def diagnose(work):
     require(os.environ.get("GITHUB_ACTIONS") == "true" and os.environ.get("RUNNER_ENVIRONMENT") == "github-hosted",
             "Disposable hosted runner required")
+    mode = os.environ.get("COLOSSEUM_DIAGNOSTIC_MODE", "forced-in-app")
+    require(mode in ("forced-in-app", "graceful-in-app", "forced-direct-native-log"), "Invalid diagnostic mode")
     evidence = work / "diagnostic-evidence"
     evidence.mkdir()
     validate(work, evidence)
@@ -299,10 +313,14 @@ def diagnose(work):
                   lambda row: row.get("props", {}).get("text") == "Could not verify the release",
                   object="colosseumUpdateStatusText", props=["text"])
         require(not feed.saw_package(), "Corrupt release downloaded the installer")
-        capture.mark("terminating-corrupt-precursor-as-in-original-run")
-        bad.terminate()
-        bad.wait(20)
-        capture.mark("corrupt-precursor-exited")
+        if mode == "graceful-in-app":
+            capture.mark("normally-closing-corrupt-precursor")
+            require(close_normally(bad) == 0, "The corrupt-signature precursor did not exit normally")
+        else:
+            capture.mark("terminating-corrupt-precursor-as-in-original-run")
+            bad.terminate()
+            bad.wait(20)
+        capture.mark(f"corrupt-precursor-exited-mode-{mode}")
 
         feed.configure(corrupt=False)
         os.environ["COLOSSEUM_APPDATA_TAG"] = tag
@@ -322,6 +340,10 @@ def diagnose(work):
         require(ready["primaryLabel"] == "Restart and update" and feed.saw_package(), "Verified installer download never reached Ready")
         capture.snapshot("before-restart-click")
         app.screenshot("before-restart-click")
+        if mode == "forced-direct-native-log":
+            handoff_attempted = True
+            direct_installer_control(work, evidence, capture, prior, app, reuse_verified_cache=True)
+            return
         capture.mark(f"restart-click-prior-pid-{prior.pid}")
         handoff_attempted = True
         try:
@@ -346,7 +368,7 @@ def diagnose(work):
         capture.capture_logs("in-app-error")
         write_json(evidence / "in-app-error.json", {"detail": str(error), "handoff_attempted": handoff_attempted})
         running_old = next((proc for proc in (prior, bad) if proc is not None and proc.poll() is None), None)
-        if handoff_attempted or app is None or running_old is None:
+        if mode != "forced-in-app" or handoff_attempted or app is None or running_old is None:
             raise
         print(f"In-app replay stopped before installer handoff: {error}", flush=True)
         direct_installer_control(work, evidence, capture, running_old, app)

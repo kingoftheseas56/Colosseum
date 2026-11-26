@@ -1,4 +1,4 @@
-name: Windows staging installer diagnostic replay
+name: Windows staging installer comparison and log capture
 
 on:
   workflow_dispatch:
@@ -13,8 +13,14 @@ concurrency:
 
 jobs:
   diagnose:
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [graceful-in-app, forced-direct-native-log]
     runs-on: windows-2025
     timeout-minutes: 18
+    env:
+      COLOSSEUM_DIAGNOSTIC_MODE: ${{ matrix.mode }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -46,6 +52,25 @@ jobs:
           run-id: 45900608282
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/colosseum-update-diagnostic/received-evidence
+      - name: Probe NSIS option parsing with the original FileFunc version
+        if: matrix.mode == 'forced-direct-native-log'
+        shell: pwsh
+        run: |
+          $makensis = 'C:\Program Files (x86)\NSIS\makensis.exe'
+          if (!(Test-Path -LiteralPath $makensis)) {
+            choco install nsis --version 3.13.0 -y --no-progress
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          & $makensis /VERSION
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $root = Join-Path $env:RUNNER_TEMP 'colosseum-update-diagnostic'
+          $probe = Join-Path $root 'nsis-getoptions-probe.exe'
+          $report = Join-Path $root 'nsis-getoptions-probe.log'
+          & $makensis /V2 "/DOUTFILE=$probe" "/DREPORT=$report" tests/installer/windows_update_options_probe.nsi
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $process = Start-Process -FilePath $probe -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw 'NSIS option parser probe failed' }
+          Get-Content -LiteralPath $report
       - name: Replay exact Windows installers with diagnostics
         shell: pwsh
         timeout-minutes: 12
@@ -56,7 +81,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Windows-installer-diagnostic-evidence
-          path: ${{ runner.temp }}/colosseum-update-diagnostic/diagnostic-evidence/
+          name: Windows-installer-diagnostic-${{ matrix.mode }}
+          path: |
+            ${{ runner.temp }}/colosseum-update-diagnostic/diagnostic-evidence/
+            ${{ runner.temp }}/colosseum-update-diagnostic/nsis-getoptions-probe.log
           retention-days: 14
           if-no-files-found: warn
