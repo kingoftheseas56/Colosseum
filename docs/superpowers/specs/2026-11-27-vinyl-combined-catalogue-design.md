@@ -32,7 +32,17 @@ where it matches, never awaited, never required. Measured 2026-11-27 (`C:\b\viny
 | JioSaavn | Indian-language depth (5 Nov probe) |
 Excluded: ReccoBeats (junk similarity), FreqBlog, MusicAtlas (key quotas).
 
-Charts (Hemanth's links, 2026-11-27): **YouTube Charts global** (top songs/videos playlists + 40 top artists via
+**Kworb is the chart layer** (Hemanth, 2026-11-27: "THE aggregator of charts"). kworb.net aggregates iTunes,
+Spotify, Apple Music, YouTube, Shazam and Deezer charts per country for songs, albums and artists, plus artist
+rankings and Spotify all-time stream totals. It has **no genre charts**. Static HTML, no API; its FAQ invites using
+the data and says pages are static so spikes can't overload the server; robots.txt allows all. Use: each install
+reads a small fixed set of pages (global + the user's country, per service, songs/albums/artists) **at most once a
+day**, parsed in the provider process, cached 24 h; a shared Worker cache can replace this later. Kworb's earlier
+rejection (5 Nov) was our prototype's serial YouTube matching before display, not Kworb's data; cards now show first
+and YouTube resolves on tap. Kworb supersedes the separate YouTube/Apple chart fetches below, which remain only as a
+fallback when Kworb is unreachable or its page layout changes (parser fails closed, logs once).
+
+Charts (Hemanth's links, 2026-11-27, now fallback): **YouTube Charts global** (top songs/videos playlists + 40 top artists via
 ytmusicapi `get_charts("ZZ")`, no key) and a **Vinyl global chart** computed from Apple's free per-country RSS feeds
 (US, GB, CA, AU, IN, ...; Apple's "Top 100: Global" playlist needs the paid Apple Music API, and the RSS has no global
 feed) feed Popular/Trending. **Billboard Global 200 is excluded**: no API, terms forbid scraping and reuse. Charts
