@@ -42,6 +42,13 @@ rejection (5 Nov) was our prototype's serial YouTube matching before display, no
 and YouTube resolves on tap. Kworb supersedes the separate YouTube/Apple chart fetches below, which remain only as a
 fallback when Kworb is unreachable or its page layout changes (parser fails closed, logs once).
 
+**YouTube Charts and Kworb do different jobs** (Hemanth asked "kworbs or this?", 2026-11-27): YouTube Charts (via
+ytmusicapi `get_charts`, global + per country: top songs / top videos playlists, top 40 artists; the charts.youtube.com
+site itself is reCAPTCHA-guarded, do not scrape it) is the YouTube side — official and instantly playable with no
+matching. Kworb supplies every other service (Spotify, Apple Music, iTunes, Shazam, Deezer). YouTube alone skews to
+India/Latin America (its global #1 song and artist on 2026-11-27 were Guzarish and Alka Yagnik); "Popular worldwide"
+needs both. "Biggest movers" / "Highest debut" are computed by Vinyl from stored week-over-week snapshots.
+
 Charts (Hemanth's links, 2026-11-27, now fallback): **YouTube Charts global** (top songs/videos playlists + 40 top artists via
 ytmusicapi `get_charts("ZZ")`, no key) and a **Vinyl global chart** computed from Apple's free per-country RSS feeds
 (US, GB, CA, AU, IN, ...; Apple's "Top 100: Global" playlist needs the paid Apple Music API, and the RSS has no global
