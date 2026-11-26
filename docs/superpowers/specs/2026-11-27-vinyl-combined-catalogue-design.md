@@ -32,6 +32,13 @@ where it matches, never awaited, never required. Measured 2026-11-27 (`C:\b\viny
 | JioSaavn | Indian-language depth (5 Nov probe) |
 Excluded: ReccoBeats (junk similarity), FreqBlog, MusicAtlas (key quotas).
 
+Charts (Hemanth's links, 2026-11-27): **YouTube Charts global** (top songs/videos playlists + 40 top artists via
+ytmusicapi `get_charts("ZZ")`, no key) and a **Vinyl global chart** computed from Apple's free per-country RSS feeds
+(US, GB, CA, AU, IN, ...; Apple's "Top 100: Global" playlist needs the paid Apple Music API, and the RSS has no global
+feed) feed Popular/Trending. **Billboard Global 200 is excluded**: no API, terms forbid scraping and reuse. Charts
+cover only the top ~100-200 songs, mostly pop/hip-hop, so genre depth, New and Essentials still come from Last.fm tags,
+MusicBrainz and ListenBrainz.
+
 ## What the user sees
 Discover keeps today's house browser layout (left rail, Songs · Albums · Artists tabs, filter row, card grid,
 "Now browsing" corner):
