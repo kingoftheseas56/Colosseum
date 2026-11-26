@@ -57,6 +57,18 @@ weeks on chart, from Vinyl's own weekly snapshots (columns fill in as history ac
 "Greatest of all time" per genre from long-run listening (ListenBrainz/Last.fm playcounts, Spotify totals via Kworb).
 Surfaced in Discover as a **Charts** entry in the List filter alongside Popular/Trending/New/Essentials.
 
+**Billboard via Wikipedia, never billboard.com** (Hemanth: "prove we can reliably use billboard to enrich our filters
+and explore's editorial rows", 2026-11-27). Proven: billboard.com's terms (pmc.com/terms-of-use) forbid robots,
+crawlers, scraping or aggregating its content or data, reproduction and derivative works, and limit use to personal
+non-commercial; its robots.txt blocks AI agents by name (ClaudeBot, anthropic-ai, GPTBot, ...). Do not fetch
+billboard.com. Chart facts are taken from Wikipedia's sourced chart lists via the official MediaWiki API (CC BY-SA,
+attribute Wikipedia), proven live: "List of Billboard Hot 100 number ones of 2025" (12 #1s), "Billboard Year-End Hot
+100 singles of 2025" (full 100), "List of Billboard Global 200 number ones of 2025", "List of Billboard Mainstream
+Rock number-one songs of the 2020s" (144 songs). Exact page titles vary by chart: discover them via the API's
+category/list pages, never guess. Uses: (1) filters — "Billboard #1s", "Year-end top 100", per-genre #1s by year or
+decade (Rock, Country, Rap, Dance, Latin, ...); (2) Explore editorial rows — "Every #1 of 2025", "The year-end 100",
+"Rock's #1s this decade", "#1 hits of the '90s". Lists refresh weekly; entries resolve to YouTube on tap.
+
 Charts (Hemanth's links, 2026-11-27, now fallback): **YouTube Charts global** (top songs/videos playlists + 40 top artists via
 ytmusicapi `get_charts("ZZ")`, no key) and a **Vinyl global chart** computed from Apple's free per-country RSS feeds
 (US, GB, CA, AU, IN, ...; Apple's "Top 100: Global" playlist needs the paid Apple Music API, and the RSS has no global
