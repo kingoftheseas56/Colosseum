@@ -3,7 +3,9 @@
 #include "update/UpdateVersion.h"
 
 #include <QByteArray>
+#include <QHash>
 #include <QList>
+#include <QUrl>
 #include <QStringList>
 
 #include <optional>
@@ -29,6 +31,12 @@ struct Highlight {
     QStringList artworkAssets;
 };
 
+struct PlatformDownload {
+    QString assetName;
+    qint64 size = 0;
+    QByteArray sha256;
+};
+
 struct Manifest {
     int schemaVersion = 0;
     Version version;
@@ -44,6 +52,7 @@ struct Manifest {
     QString installerAsset;
     qint64 installerSize = 0;
     QByteArray installerSha256;
+    QHash<QString, PlatformDownload> downloads;
     Version minimumUpdaterVersion;
     QString notesUrl;
     QList<Highlight> highlights;
@@ -51,5 +60,9 @@ struct Manifest {
 };
 
 std::optional<Manifest> parseManifest(const QByteArray& verifiedUtf8, QString* error);
+
+// Package names and routes are derived from signed metadata and the official
+// release repository. The unsigned feed cannot redirect the browser elsewhere.
+QUrl platformDownloadUrl(const Manifest& manifest, const PlatformDownload& download);
 
 } // namespace Colosseum::Update

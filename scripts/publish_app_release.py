@@ -13,7 +13,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "dat
 from vault_common import gh, resolve_token  # noqa: E402
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "update"))
-from generate_update_manifest import manifest_bytes, sign_raw  # noqa: E402
+from generate_update_manifest import (  # noqa: E402
+    LEGACY_MANIFEST, PLATFORM_MANIFEST, VERSION_RE, check_cpp_header, platform_asset_names,
+    requires_platform_manifest, write_signed_manifests,
+)
 from verify_update_release import verify  # noqa: E402
 
 APP_REPO = "kingoftheseas56/Colosseum"
@@ -40,10 +43,35 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def asset_files(installer: Path, manifest_dir: Path) -> list[Path]:
-    manifest_path = manifest_dir / "colosseum-update-v1.json"
-    paths = [installer, manifest_path, manifest_dir / "colosseum-update-v1.json.sig"]
-    paths.extend(manifest_dir / item["asset"] for item in json_load(manifest_path).get("artwork", []))
+def asset_files(installer: Path, manifest_dir: Path, tag: str, public_der: Path | None,
+                platform_dir: Path | None) -> list[Path]:
+    version = tag.removeprefix("v")
+    needs_platforms = requires_platform_manifest(version)
+    legacy = manifest_dir / LEGACY_MANIFEST
+    legacy_sig = manifest_dir / (LEGACY_MANIFEST + ".sig")
+    platform = manifest_dir / PLATFORM_MANIFEST
+    platform_sig = manifest_dir / (PLATFORM_MANIFEST + ".sig")
+    if needs_platforms and (platform_dir is None or public_der is None):
+        raise SystemExit("1.5.0 and later require --platform-dir and --public-key-der")
+    if public_der is not None:
+        checked = verify(legacy, legacy_sig, installer, public_der, manifest_dir)
+        if checked["version"] != version:
+            raise SystemExit("signed update version does not match draft tag")
+    paths = [installer, legacy, legacy_sig]
+    if needs_platforms:
+        verify(platform, platform_sig, installer, public_der, manifest_dir, platform_dir)
+        platform_release = json_load(platform)
+        if platform_release.get("schemaVersion") != 2:
+            raise SystemExit("platform manifest must have schemaVersion 2")
+        platform_release.pop("downloads")
+        platform_release["schemaVersion"] = 1
+        if platform_release != json_load(legacy):
+            raise SystemExit("platform and Windows manifests describe different releases")
+        paths.extend((platform, platform_sig))
+        paths.extend(platform_dir / name for name in platform_asset_names(version).values())
+    paths.extend(manifest_dir / item["asset"] for item in json_load(legacy).get("artwork", []))
+    if len({path.name for path in paths}) != len(paths):
+        raise SystemExit("duplicate release asset name")
     missing = [str(path) for path in paths if not path.is_file()]
     if missing:
         raise SystemExit("missing release asset(s): " + ", ".join(missing))
@@ -74,9 +102,11 @@ def find_release_by_tag(tag: str, token: str, transport=gh,
 
 
 def publish_draft(tag: str, installer: Path, manifest_dir: Path, token: str,
-                  transport=gh, public_der: Path | None = None) -> dict:
+                  transport=gh, public_der: Path | None = None,
+                  platform_dir: Path | None = None) -> dict:
     if not tag.startswith("v"):
         raise SystemExit("draft releases require a vX.Y.Z tag")
+    paths = asset_files(installer, manifest_dir, tag, public_der, platform_dir)
     release = find_release_by_tag(tag, token, transport)
     if release is None:
         release = transport(f"/repos/{APP_REPO}/releases", token, method="POST", payload={
@@ -89,11 +119,6 @@ def publish_draft(tag: str, installer: Path, manifest_dir: Path, token: str,
     if not release.get("draft", False):
         raise SystemExit("refusing to mutate an already-published release")
 
-    paths = asset_files(installer, manifest_dir)
-    if public_der is not None:
-        verify(manifest_dir / "colosseum-update-v1.json",
-               manifest_dir / "colosseum-update-v1.json.sig", installer, public_der,
-               manifest_dir)
     for path in paths:
         existing = next((item for item in release.get("assets", [])
                          if item.get("name") == path.name), None)
@@ -117,14 +142,31 @@ def publish_draft(tag: str, installer: Path, manifest_dir: Path, token: str,
     return release
 
 
-def publish_verified_draft(tag: str, token: str, transport=gh) -> int:
+def publish_verified_draft(tag: str, token: str, transport=gh, *,
+                           installer: Path | None = None, manifest_dir: Path | None = None,
+                           public_der: Path | None = None, platform_dir: Path | None = None) -> int:
+    if not tag.startswith("v"):
+        raise SystemExit("draft releases require a vX.Y.Z tag")
+    expected_assets = []
+    if requires_platform_manifest(tag[1:]):
+        if installer is None or manifest_dir is None:
+            raise SystemExit("publishing 1.5.0 and later requires --installer and --manifest-dir")
+        expected_assets = asset_files(installer, manifest_dir, tag, public_der, platform_dir)
     release = find_release_by_tag(tag, token, transport)
     if release is None:
         raise SystemExit(f"no release found for {tag}")
     if not release.get("draft", False):
         raise SystemExit("refusing to publish a release that is not a draft")
-    transport(f"/repos/{APP_REPO}/releases/{release['id']}", token, method="PATCH",
-              payload={"draft": False})
+    uploaded_assets = {item["name"]: item for item in release.get("assets", [])}
+    for path in expected_assets:
+        remote = uploaded_assets.get(path.name, {})
+        if (remote.get("size") != path.stat().st_size
+            or remote.get("digest") != "sha256:" + sha256(path)):
+            raise SystemExit(f"draft asset missing or did not match signed release: {path.name}")
+    payload = {"draft": False}
+    if expected_assets:
+        payload.update(prerelease=False, make_latest="true")
+    transport(f"/repos/{APP_REPO}/releases/{release['id']}", token, method="PATCH", payload=payload)
     print(f"PUBLISHED_RELEASE={release.get('html_url', release.get('id', 'unknown'))}")
     return 0
 
@@ -133,14 +175,11 @@ def draft_mode(args: argparse.Namespace) -> int:
     manifest_dir = Path(args.manifest_dir)
     installer = Path(args.installer)
     if args.private_key and args.presentation:
-        manifest_path = manifest_dir / "colosseum-update-v1.json"
-        manifest_path.parent.mkdir(parents=True, exist_ok=True)
-        manifest_path.write_bytes(manifest_bytes(args.version, installer, Path(args.presentation)))
-        (manifest_dir / "colosseum-update-v1.json.sig").write_bytes(
-            sign_raw(manifest_path.read_bytes(), Path(args.private_key)))
+        write_signed_manifests(args.version, installer, Path(args.presentation),
+                               Path(args.private_key), manifest_dir, args.platform_dir)
     public_der = Path(args.public_key_der) if args.public_key_der else None
     return 0 if publish_draft(f"v{args.version}", installer, manifest_dir, resolve_token(),
-                               public_der=public_der) else 1
+                               public_der=public_der, platform_dir=args.platform_dir) else 1
 
 
 def legacy_mode(argv: list[str]) -> int:
@@ -148,6 +187,9 @@ def legacy_mode(argv: list[str]) -> int:
         print(__doc__)
         return 2
     tag, zip_path = argv[1], argv[2]
+    version = tag.removeprefix("v")
+    if VERSION_RE.fullmatch(version) and requires_platform_manifest(version):
+        raise SystemExit("use the signed draft flow for 1.5.0 and later")
     title, notes = tag, ""
     args = list(argv[3:])
     while args:
@@ -190,10 +232,21 @@ def main() -> int:
     parser.add_argument("--manifest-dir")
     parser.add_argument("--private-key")
     parser.add_argument("--presentation")
-    parser.add_argument("--public-key-der")
+    parser.add_argument("--public-key-der", type=Path)
+    parser.add_argument("--platform-dir", type=Path)
     args = parser.parse_args()
+    if requires_platform_manifest(args.version):
+        if args.public_key_der is None:
+            parser.error("1.5.0 and later require --public-key-der")
+        header = Path(__file__).resolve().parents[1] / "native/update/UpdatePublicKey.h"
+        check_cpp_header(args.public_key_der, header)
     if args.publish_verified_draft:
-        return publish_verified_draft(f"v{args.version}", resolve_token())
+        return publish_verified_draft(
+            f"v{args.version}", resolve_token(),
+            installer=Path(args.installer) if args.installer else None,
+            manifest_dir=Path(args.manifest_dir) if args.manifest_dir else None,
+            public_der=args.public_key_der, platform_dir=args.platform_dir,
+        )
     if not args.installer or not args.manifest_dir:
         parser.error("--draft requires --installer and --manifest-dir")
     return draft_mode(args)
