@@ -555,7 +555,8 @@ Item {
         function test_downloadsDockCloseRespectsInput() {
             const button = findChild(bar, "taskbarDownloads")
             const action = findChild(button, "taskbarDownloadsAction")
-            const ring = findChild(button, "focusRingStroke")
+            // KeyboardAction builds its ring only while shown: look it up live.
+            const ring = { get visible() { const r = findChild(button, "focusRingStroke"); return !!r && r.visible } }
             verify(button.visible && action && ring)
             verify(waitForRendering(bar))
             bar.downloadsClicked.connect(() => { bar.downloadsActive = !bar.downloadsActive })
@@ -588,7 +589,8 @@ Item {
             const panel = createTemporaryObject(collectionsComponent, scene)
             verify(panel)
             const action = findChild(bar, "taskbarCollectionsAction")
-            const ring = findChild(action, "focusRingStroke")
+            // KeyboardAction builds its ring only while shown: look it up live.
+            const ring = { get visible() { const r = findChild(action, "focusRingStroke"); return !!r && r.visible } }
             verify(waitForRendering(bar))
             bar.collectionsActive = Qt.binding(() => panel.showing)
             bar.collectionsClicked.connect(viaPointer => {
