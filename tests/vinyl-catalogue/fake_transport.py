@@ -6,6 +6,87 @@ import tempfile
 import os
 from datetime import datetime, timezone
 
+def serve_editorial_fixtures():
+    """Drive the real provider wire protocol with only fixture-backed upstreams."""
+    import importlib.util
+    import io
+    from pathlib import Path
+    from urllib.parse import parse_qs, urlsplit
+    from unittest.mock import patch
+
+    here = Path(__file__).resolve().parent
+    fixtures = here / "fixtures"
+    spec = importlib.util.spec_from_file_location("vinyl_provider", here.parents[1] / "scripts/vinyl/provider.py")
+    provider = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(provider)
+    ua = "Colosseum-Vinyl/1.0 (open-source music app)"
+
+    def fixture(name):
+        print("fixture: " + name, file=sys.stderr)
+        return (fixtures / name).read_bytes()
+
+    class Response(io.BytesIO):
+        headers = {}
+        status = 200
+
+    class FixtureHttp:
+        def open(self, request, *, timeout):
+            assert request.get_header("User-agent") == ua
+            url = urlsplit(request.full_url)
+            assert url.scheme == "https"
+            if url.netloc == "kworb.net":
+                print("chart path: " + url.path, file=sys.stderr)
+                kind = {"/spotify/country/global_weekly.html": "songs", "/spotify/country/us_weekly.html": "songs",
+                        "/aww/": "albums", "/itunes/": "artists"}[url.path]
+                raw = fixture(f"kworb-{kind}.html")
+                if os.environ.get("VINYL_TEST_KWORB_CHANGED"):
+                    raw = raw.replace(b">Pos</th>", b">Position</th>", 1)
+                return Response(raw)
+            assert (url.netloc, url.path) == ("en.wikipedia.org", "/w/api.php")
+            params = parse_qs(url.query)
+            assert params["format"] == ["json"] and params["formatversion"] == ["2"]
+            if params["action"] == ["query"]:
+                assert params["list"] == ["allpages"] and params["apnamespace"] == ["0"]
+                name = {"List of Billboard Hot 100 number ones": "hot100",
+                        "List of Billboard Mainstream Rock number-one songs": "rock"}[params["apprefix"][0]]
+                raw = fixture(f"wikipedia-{name}-directory.json")
+                if os.environ.get("VINYL_TEST_WIKI_UNLISTED"):
+                    raw = b'{"query":{"allpages":[]}}'
+                return Response(raw)
+            assert params["action"] == ["parse"] and params["prop"] == ["wikitext"] and "page" not in params
+            name = {"78542955": "hot100", "62774351": "rock"}[params["pageid"][0]]
+            return Response(fixture(f"wikipedia-{name}.json"))
+
+    class FixtureYouTube:
+        def get_charts(self, country):
+            assert country in ("ZZ", "US")
+            print("chart country: " + country, file=sys.stderr)
+            return json.loads(fixture("youtube-zz.json"))
+
+        def get_playlist(self, playlist_id, *, limit):
+            playlist = json.loads(fixture("youtube-zz-top100.json"))
+            assert playlist_id == playlist["id"] and limit == 100
+            if os.environ.get("VINYL_TEST_NORMALISED_DUPLICATE"):
+                # The same Spotify/YouTube hit, with a different spelling of
+                # the title and reverse credit order, to prove normalisation.
+                row = next(row for row in playlist["tracks"] if row["title"] == "Dai Dai")
+                row["title"] = 'DAI DAI! (From "Fixture Film")'
+                row["artists"].reverse()
+            return playlist
+
+    def make_youtube(region, *, bounded, user_agent):
+        assert region in ("", "US") and bounded and user_agent == ua
+        return FixtureYouTube()
+
+    with patch.object(provider.urllib.request, "build_opener", return_value=FixtureHttp()), \
+         patch.object(provider, "_ytmusic_client", side_effect=make_youtube):
+        provider.serve()
+
+
+if sys.argv[1:] == ["--editorial-fixtures"]:
+    serve_editorial_fixtures()
+    sys.exit(0)
+
 request = json.load(sys.stdin)
 operation, value = request["operation"], request.get("value", "")
 counter_path = os.environ.get("VINYL_TEST_HOME_COUNTER")

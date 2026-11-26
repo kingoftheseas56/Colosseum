@@ -113,10 +113,10 @@ def _youtube_dl(kind):
     return contextlib.nullcontext(_SERVER_VIDEO_DL)
 
 
-def _ytmusic_client(region, *, bounded=False):
+def _ytmusic_client(region, *, bounded=False, user_agent=None):
     from ytmusicapi import YTMusic
     global _SERVER_MUSIC_CLIENT, _SERVER_MUSIC_KEY
-    key = (region, bounded)
+    key = (region, bounded, user_agent)
     if _SERVER_MODE and _SERVER_MUSIC_CLIENT is not None and _SERVER_MUSIC_KEY == key:
         return _SERVER_MUSIC_CLIENT
     options = ytmusic_location_options(region)
@@ -127,6 +127,8 @@ def _ytmusic_client(region, *, bounded=False):
         session.request = functools.partial(session.request, timeout=4)
         options["requests_session"] = session
     client = YTMusic(**options)
+    if user_agent:
+        client.headers["User-Agent"] = user_agent
     if _SERVER_MODE:
         _SERVER_MUSIC_CLIENT, _SERVER_MUSIC_KEY = client, key
     return client
@@ -3035,6 +3037,9 @@ _LASTFM_LOCK = threading.Lock()
 _LASTFM_NEXT_REQUEST = 0.0
 _LASTFM_TTL = 24 * 3600
 _DISCOVER_ART_TTL = 30 * 24 * 3600
+_CHART_USER_AGENT = "Colosseum-Vinyl/1.0 (open-source music app)"
+_CHART_TTL = 24 * 3600
+_WIKIPEDIA_TTL = 7 * _CHART_TTL
 
 
 class _DiscoverNoRedirect(urllib.request.HTTPRedirectHandler):
@@ -3128,11 +3133,18 @@ def _discover_http(source, method, params, language="", *, transport=None, timeo
         with _LASTFM_LOCK:
             time.sleep(max(0, _LASTFM_NEXT_REQUEST - time.monotonic()))
             _LASTFM_NEXT_REQUEST = time.monotonic() + 0.205
+    elif source == "kworb":
+        url = "https://kworb.net" + method  # Only paths built by fetch_chart_week.
+        headers = {"User-Agent": _CHART_USER_AGENT}
+    elif source == "wikipedia":
+        url = "https://en.wikipedia.org/w/api.php?" + urllib.parse.urlencode(
+            dict(params, action=method, format="json", formatversion=2))
+        headers = {"User-Agent": _CHART_USER_AGENT}
     else:
         url = "https://www.jiosaavn.com/api.php?" + urllib.parse.urlencode(
             dict(params, _format="json", _marker=0, api_version=4, ctx="web6dot0", __call=method))
         headers = {"User-Agent": "Mozilla/5.0", "Cookie": "L=" + language}
-    label = "Last.fm" if source == "lastfm" else "JioSaavn"
+    label = {"lastfm": "Last.fm", "kworb": "Kworb", "wikipedia": "Wikipedia"}.get(source, "JioSaavn")
     try:
         opener = transport or urllib.request.build_opener(_DiscoverNoRedirect())
         with opener.open(urllib.request.Request(url, headers=headers), timeout=timeout) as response:
@@ -3141,7 +3153,7 @@ def _discover_http(source, method, params, language="", *, transport=None, timeo
             raw = response.read(_DISCOVER_RESPONSE_LIMIT + 1)
             if len(raw) > _DISCOVER_RESPONSE_LIMIT:
                 raise ProviderUnavailableError(label + " returned too much catalogue data.")
-            data = json.loads(raw)
+            data = raw.decode("utf-8-sig") if source == "kworb" else json.loads(raw)
             directives = response.headers.get("Cache-Control", "")
             age = response.headers.get("Age", "0")
             expires = response.headers.get("Expires")
@@ -3516,6 +3528,316 @@ def fetch_music_catalogue(request):
     if options is not None:
         result["listOptions"] = options
     return result
+
+
+class _KworbTable(HTMLParser):
+    """Collect the sortable chart's rows and its cell-local link labels."""
+
+    def __init__(self):
+        super().__init__()
+        self.tables = []
+        self.table = self.row = self.cell = self.link = None
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "table" and "sortable" in (dict(attrs).get("class") or "").split():
+            self.table = []
+        elif self.table is not None:
+            if tag == "tr":
+                self.row = []
+            elif tag in ("th", "td") and self.row is not None:
+                self.cell = (tag, [], [])
+            elif tag == "a" and self.cell is not None:
+                self.link = (dict(attrs).get("href") or "", [])
+
+    def handle_data(self, data):
+        if self.cell is not None:
+            self.cell[1].append(data)
+        if self.link is not None:
+            self.link[1].append(data)
+
+    def handle_endtag(self, tag):
+        if tag == "a" and self.link is not None:
+            self.cell[2].append((self.link[0], "".join(self.link[1]).strip()))
+            self.link = None
+        elif tag in ("td", "th") and self.cell is not None:
+            name, text, links = self.cell
+            self.row.append((name, " ".join("".join(text).split()), links))
+            self.cell = self.link = None
+        elif tag == "tr" and self.row is not None:
+            self.table.append(self.row)
+            self.row = self.cell = self.link = None
+        elif tag == "table" and self.table is not None:
+            self.tables.append(self.table)
+            self.table = self.row = self.cell = self.link = None
+
+
+def _chart_key(kind, title, credits):
+    return (_catalogue_text_key(_catalogue_match_title(title), kind == "albums"),
+            tuple(sorted({_catalogue_text_key(name) for name in credits})))
+
+
+def _chart_card(source, kind, title, credits, rank, image="", key=None):
+    key = key or _discover_hash(_chart_key(kind, title, credits))
+    return dict(_discover_card(source, kind, key, title, credits, image), rank=rank)
+
+
+def _kworb_items(raw, kind):
+    table_parser = _KworbTable()
+    table_parser.feed(raw)
+    table_parser.close()
+    expected = {"songs": ["Pos", "P+", "Artist and Title", "Wks"],
+                "albums": ["Pos", "P+", "Artist and Title", "Days"],
+                "artists": ["Pos", "P+", "Artist", "Points"]}[kind]
+    tables = [table for table in table_parser.tables if table
+              and all(tag == "th" for tag, _, _ in table[0])
+              and [text for _, text, _ in table[0][:4]] == expected]
+    if len(tables) != 1 or len(tables[0]) < 2:
+        return []
+    header, *rows = tables[0]
+    items, previous_rank = [], 0
+    for row in rows:
+        if len(row) != len(header) or any(tag != "td" for tag, _, _ in row):
+            return []
+        position, (_, label, links) = row[0][1], row[2]
+        if not re.fullmatch(r"[1-9][0-9]{0,3}", position) or int(position) <= previous_rank:
+            return []
+        previous_rank = rank = int(position)
+        if kind == "songs":
+            titles = [name for url, name in links if url.startswith("../track/")]
+            credits = [name for url, name in links if url.startswith("../artist/")]
+            if len(titles) != 1:
+                return []
+            title = titles[0]
+        elif kind == "albums":
+            artist, separator, title = label.partition(" - ")
+            if not separator:
+                return []
+            credits = [artist]
+        else:
+            title, credits = label, [label]
+        if not 0 < len(title) <= 600 or not credits or not all(0 < len(name) <= 600 for name in credits):
+            return []
+        if len(items) < 100:
+            items.append(_chart_card("kworb", kind, title, credits, rank))
+    return items
+
+
+def _kworb_week(kind, scope):
+    # Only Spotify's weekly song feed has country equivalents. The album and
+    # artist rankings are global snapshots and share one cache across scopes.
+    path = {"songs": f"/spotify/country/{scope.lower()}_weekly.html",
+            "albums": "/aww/", "artists": "/itunes/"}[kind]
+
+    retry_key = ["chart-week", "kworb-retry", path]
+
+    def load():
+        retry = _discover_read(retry_key, lambda value: value is True)
+        if retry and time.time() < retry["time"] + retry["ttl"]:
+            raise ProviderUnavailableError("Kworb is unavailable.")
+        try:
+            raw, *headers = _discover_http("kworb", path, {})
+        except ProviderError:
+            # Keep any stale last-good chart, but don't repeatedly hit a down host.
+            _discover_write(retry_key, {"time": time.time(), "ttl": _CHART_TTL,
+                                        "staleAllowed": False, "value": True})
+            raise
+        # Cache a layout failure too: it must not use old Kworb data or hit the
+        # broken page again on every request.
+        return _kworb_items(raw, kind), *headers
+
+    items, stamp, stale = _discover_cached(["chart-week", "kworb", path], _CHART_TTL, False, load,
+                                            lambda value: isinstance(value, list))
+    return items, stamp, stale
+
+
+def _youtube_week(kind, scope, client):
+    country = "ZZ" if scope == "global" else scope
+
+    def youtube():
+        return client if client is not None else _ytmusic_client(
+            "" if scope == "global" else scope, bounded=True, user_agent=_CHART_USER_AGENT)
+
+    def load_charts():
+        return _call_provider(youtube().get_charts, country), "", "0", None, None
+
+    charts, stamp, stale = _discover_cached(["chart-week", "youtube-music", country], _CHART_TTL, False,
+                                             load_charts, lambda value: isinstance(value, dict) and "countries" in value)
+    if kind == "songs":
+        # get_charts returns playlist references, not individual tracks. Prefer
+        # the weekly shelf; the public response groups Top 100 and Daily under videos.
+        shelves = _discover_rows(charts.get("weekly", []) or charts.get("videos", []))
+        shelves = [row for row in shelves if source_key(row.get("playlistId"))]
+        if not shelves:
+            raise ProviderUnavailableError("YouTube Music did not return a song chart.")
+        shelf = next((row for row in shelves if "top 100" in _discover_text(row.get("title")).casefold()), shelves[0])
+        playlist_id = shelf["playlistId"]
+
+        def load_playlist():
+            playlist = _call_provider(youtube().get_playlist, playlist_id, limit=100)
+            return _discover_rows(playlist.get("tracks") if isinstance(playlist, dict) else None), "", "0", None, None
+
+        rows, playlist_stamp, playlist_stale = _discover_cached(
+            ["chart-week", "youtube-music", "playlist", playlist_id], _CHART_TTL, False, load_playlist,
+            lambda value: isinstance(value, list))
+        stamp, stale = min(stamp, playlist_stamp), stale or playlist_stale
+    else:
+        # The current public chart often omits albums; do not present songs or
+        # new releases as ranked albums when that happens.
+        rows = _discover_rows(charts.get(kind, []))
+    items = []
+    for position, row in enumerate(rows[:100], 1):
+        key = row.get("videoId" if kind == "songs" else "browseId")
+        title = _discover_text(row.get("title"))
+        raw_credits = row.get("artists", [])
+        if kind == "artists":
+            credits = [title]
+        elif isinstance(raw_credits, list) and all(isinstance(credit, dict) for credit in raw_credits):
+            credits = [_discover_text(credit.get("name")) for credit in raw_credits]
+        else:
+            continue
+        valid_id = source_key(key) and (kind != "songs" or len(key) == 11)
+        if not title or not credits or not all(credits) or not valid_id or row.get("isAvailable") is False:
+            continue
+        rank = _discover_number(row.get("rank")) or position
+        thumbs = row.get("thumbnails")
+        image = cover({"thumbnails": _catalogue_safe_thumbnails({"thumbnails": thumbs if isinstance(thumbs, list) else []})})
+        items.append(_chart_card("youtube-music", kind, title, credits, rank, image, key))
+    return items, stamp, stale
+
+
+_KWORB_LAYOUT_LOGGED = False
+
+
+def _editorial_envelope(source, items, stamp, stale, **fields):
+    return dict(version=1, source=source, items=items, complete=True, nextCursor={},
+                fetchedAt=datetime.datetime.fromtimestamp(stamp, datetime.timezone.utc).isoformat(),
+                stale=stale, **fields)
+
+
+def fetch_chart_week(request, client=None):
+    global _KWORB_LAYOUT_LOGGED
+    kind, scope = request.get("value"), request.get("scope", "global")
+    if (kind not in DISCOVER_KINDS or not isinstance(scope, str) or
+            (scope != "global" and (not re.fullmatch(r"[A-Za-z]{2}", scope) or scope.upper() == "ZZ"))
+            or set(request) - {"operation", "value", "scope"}):
+        raise InvalidArgumentError("Invalid weekly chart kind or scope.")
+    if scope != "global":
+        scope = scope.upper()
+    kworb_scope = scope if kind == "songs" else "global"
+    warning = ""
+    try:
+        kworb, kworb_stamp, kworb_stale = _kworb_week(kind, kworb_scope)
+    except ProviderError:
+        kworb, warning = [], "Kworb is unavailable."
+    else:
+        if not kworb:
+            warning = "Kworb chart layout changed."
+            if not _KWORB_LAYOUT_LOGGED:
+                print("Vinyl: Kworb chart layout changed; discarding Kworb rows.", file=sys.stderr, flush=True)
+                _KWORB_LAYOUT_LOGGED = True
+    try:
+        youtube, youtube_stamp, youtube_stale = _youtube_week(kind, scope, client)
+    except (ProviderError, ImportError):
+        if not kworb:
+            raise ProviderUnavailableError("No weekly chart is available for this request.") from None
+        youtube, warning = [], "YouTube Music chart is unavailable."
+    stamps, items, seen = [], [], set()
+    stale = False
+    if kworb:
+        stamps.append(kworb_stamp)
+        stale |= kworb_stale
+    if youtube:
+        stamps.append(youtube_stamp)
+        stale |= youtube_stale
+    if not stamps:
+        raise ProviderUnavailableError("No weekly chart is available for this request.")
+    # Python's stable sort puts Kworb first on ties, without renumbering or
+    # interleaving by index when either source has gaps in its ranks.
+    for item in sorted(kworb + youtube, key=lambda item: item["rank"]):
+        key = _chart_key(kind, item["title"], item["hints"]["artists"])
+        if key not in seen:
+            seen.add(key)
+            items.append(item)
+    return _editorial_envelope("chart-week", items, min(stamps), stale, kind=kind, scope=scope, warning=warning,
+                               kworbScope=kworb_scope if kworb else "")
+
+
+# List keys bind a directory family and a period, not a guessed article title.
+_WIKIPEDIA_LISTS = {
+    "hot100-2025": ("List of Billboard Hot 100 number ones", "of 2025", "2025"),
+    "mainstream-rock-2020s": ("List of Billboard Mainstream Rock number-one songs", "of the 2020s", ""),
+}
+
+
+def _wiki_cell(cell):
+    cell = re.sub(r"^\s*(?:[\w-]+\s*=\s*(?:\"[^\"]*\"|[^\s|]+)\s*)+\|", "", cell)
+    cell = re.sub(r"\[\[(?:[^\]|]+\|)?([^\]]+)\]\]", r"\1", cell)
+    while "{{" in cell:
+        text = re.sub(r"\{\{[^{}]*\}\}", "", cell)
+        if text == cell:
+            break
+        cell = text
+    cell = re.sub(r"</?[a-z][^>]*>", " ", cell, flags=re.I)
+    return _discover_text(" ".join(cell.replace("'''", "").replace("''", "").split())).strip('"“” ')
+
+
+def _wiki_chart_items(raw, initial_year):
+    if not isinstance(raw, str):
+        return []
+    raw = re.sub(r"<ref\b[^>]*?(?:/\s*>|>.*?</ref\s*>)|<!--.*?-->", "", raw, flags=re.I | re.S)
+    items, seen = [], set()
+    for table in re.findall(r"^\{\|[^\n]*\bwikitable\b[^\n]*\n(.*?)^\|}", raw, re.M | re.S):
+        year, columns = initial_year, None
+        for row in re.split(r"^\|-.*$", table, flags=re.M):
+            cells = [line[1:] for line in row.splitlines() if line.startswith(("|", "!"))]
+            values = [_wiki_cell(cell) for cell in cells]
+            if {"Song", "Artist(s)"} <= set(values):
+                columns = (len(values), values.index("Song"), values.index("Artist(s)"))
+            elif columns and len(cells) == 1 and cells[0].lstrip().startswith("colspan="):
+                year = values[0] if re.fullmatch(r"20[0-9]{2}", values[0]) else ""
+            elif columns and year and len(cells) == columns[0]:
+                # In the Hot 100 table, weeks covered by a rowspan omit the
+                # title/artist cells. Only the first week of each run has them.
+                title, artist = values[columns[1]], values[columns[2]]
+                if title and artist:
+                    key = (_chart_key("songs", title, [artist]), year)
+                    if key not in seen:
+                        seen.add(key)
+                        items.append(_discover_card("wikipedia", "songs", _discover_hash(key), title, [artist], "", year))
+    return items
+
+
+def fetch_wikipedia_list(request):
+    list_key = request.get("value")
+    if (not isinstance(list_key, str) or list_key not in _WIKIPEDIA_LISTS
+            or set(request) - {"operation", "value"}):
+        raise InvalidArgumentError("Unsupported Wikipedia chart list.")
+    prefix, period, year = _WIKIPEDIA_LISTS[list_key]
+
+    def load():
+        directory, *_ = _discover_http("wikipedia", "query", {"list": "allpages", "apnamespace": 0,
+                                                              "apprefix": prefix, "aplimit": 100})
+        query = directory.get("query") if isinstance(directory, dict) else None
+        rows = _discover_rows(query.get("allpages") if isinstance(query, dict) else None)
+        matches = [(row["pageid"], row["title"]) for row in rows
+                   if type(row.get("pageid")) is int and row["pageid"] > 0 and row.get("ns") == 0
+                   and isinstance(row.get("title"), str) and row["title"].startswith(prefix)
+                   and row["title"].endswith(" " + period)]
+        if len(matches) != 1:
+            raise ProviderUnavailableError("Wikipedia did not list a unique article for this chart.")
+        page_id, title = matches[0]
+        response, *headers = _discover_http("wikipedia", "parse", {"prop": "wikitext", "pageid": page_id})
+        parsed = response.get("parse") if isinstance(response, dict) else None
+        if not isinstance(parsed, dict) or parsed.get("title") != title or parsed.get("pageid") != page_id:
+            raise ProviderUnavailableError("Wikipedia returned a different article for this chart.")
+        items = _wiki_chart_items(parsed.get("wikitext"), year)
+        return {"title": title, "pageId": page_id, "items": items}, *headers
+
+    content, stamp, stale = _discover_cached(["wikipedia-list", list_key], _WIKIPEDIA_TTL, False, load,
+                                              lambda value: isinstance(value, dict) and bool(value.get("items")))
+    return _editorial_envelope("wikipedia", content["items"], stamp, stale, kind="songs", list=list_key,
+                               title=content["title"], attribution="Wikipedia", license="CC BY-SA",
+                               attributionUrl=f"https://en.wikipedia.org/?curid={content['pageId']}", warning="")
 
 
 def _catalogue_input(item, expected_id=None):
@@ -4033,6 +4355,10 @@ def source_pool_metadata(request, transport=None):
     return result
 
 def handle(request, client=None, mb_client=None, population_client=None, source_pool_transport=None):
+    if request.get("operation") == "chartWeek":
+        return fetch_chart_week(request, client)
+    if request.get("operation") == "wikipediaList":
+        return fetch_wikipedia_list(request)
     discover_page = (request.get("operation") == "browseCatalogue"
                      and request.get("catalogueSource") in ("lastfm", "jiosaavn"))
     discover_art = request.get("operation") == "resolveCatalogueArt"

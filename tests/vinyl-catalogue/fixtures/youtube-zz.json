@@ -1,0 +1,44 @@
+{
+  "countries": {
+    "selected": {
+      "text": "Global"
+    },
+    "options": [
+      "ZZ",
+      "US"
+    ]
+  },
+  "videos": [
+    {
+      "title": "Daily Top Music Videos - Global",
+      "playlistId": "PL4fGSI1pDJn6t3TXLGiiJdD-sZbrG3tG0"
+    },
+    {
+      "title": "Top 100 Music Videos Global",
+      "playlistId": "PL4fGSI1pDJn5kI81J1fYWK5eZRl1zJ5kM"
+    }
+  ],
+  "artists": [
+    {
+      "title": "Alka Yagnik",
+      "browseId": "UCptBkLZ6XRxoyn8SkUMc_Iw",
+      "subscribers": "2.34M",
+      "rank": "1",
+      "trend": "neutral"
+    },
+    {
+      "title": "Arijit Singh",
+      "browseId": "UCDxKh1gFWeYsqePvgVzmPoQ",
+      "subscribers": "6.61M",
+      "rank": "2",
+      "trend": "neutral"
+    },
+    {
+      "title": "Udit Narayan",
+      "browseId": "UC13ToEQgfmTe8_GW19LYtCg",
+      "subscribers": "3.98M",
+      "rank": "3",
+      "trend": "neutral"
+    }
+  ]
+}

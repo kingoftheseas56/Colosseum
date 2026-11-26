@@ -18,6 +18,7 @@
 #include <QJsonDocument>
 #include <QHash>
 #include <QScopeGuard>
+#include <QProcessEnvironment>
 
 namespace {
 qint64 cacheTreeBytes(const QString &root){
@@ -43,6 +44,46 @@ QList<QVariantMap> artistRequestLog(const QString &path){
             result.append(QJsonDocument::fromJson(file.readAll()).object().toVariantMap());
     }
     return result;
+}
+
+struct EditorialRun {
+    QList<QJsonObject> answers;
+    QByteArray diagnostics;
+    QJsonObject data(int index) const { return answers.value(index).value("data").toObject(); }
+    QJsonArray items(int index) const { return data(index).value("items").toArray(); }
+};
+
+EditorialRun runEditorialFixtures(const QString &cache, const QList<QJsonObject> &requests, const QString &mode = {}){
+    QProcess process;
+    auto env=QProcessEnvironment::systemEnvironment();
+    env.insert("COLOSSEUM_VINYL_DISCOVER_CACHE_DIR",cache);
+    if(!mode.isEmpty()) env.insert(mode,"1");
+    process.setProcessEnvironment(env);
+    process.start(qEnvironmentVariable("COLOSSEUM_VINYL_PYTHON"),
+                  {"-I","-B",QStringLiteral(VINYL_FAKE_TRANSPORT),"--editorial-fixtures"});
+    if(!process.waitForStarted(5000)) return {{},process.errorString().toUtf8()};
+    for(const auto &request:requests) process.write(QJsonDocument(request).toJson(QJsonDocument::Compact)+'\n');
+    process.closeWriteChannel();
+    if(!process.waitForFinished(10000)){
+        process.kill();
+        process.waitForFinished(5000);
+        return {{},process.errorString().toUtf8()};
+    }
+    EditorialRun run{{},process.readAllStandardError()};
+    if(process.exitStatus()!=QProcess::NormalExit || process.exitCode()!=0) return run;
+    for(const auto &line:process.readAllStandardOutput().trimmed().split('\n')){
+        const auto document=QJsonDocument::fromJson(line);
+        if(document.isObject()) run.answers.append(document.object());
+    }
+    return run;
+}
+
+QJsonObject chartWeek(const QString &kind, const QString &scope = "global"){
+    return {{"operation","chartWeek"},{"value",kind},{"scope",scope}};
+}
+
+QJsonObject wikipediaList(const QString &key){
+    return {{"operation","wikipediaList"},{"value",key}};
 }
 }
 
@@ -83,6 +124,140 @@ signals:
 class CatalogueSourceTest : public QObject {
     Q_OBJECT
 private slots:
+    void chartWeekParsesAndInterleavesByRank_data(){
+        QTest::addColumn<QString>("kind");
+        QTest::addColumn<int>("count");
+        QTest::addColumn<QString>("kworbTitle");
+        QTest::addColumn<QString>("youtubeTitle");
+        QTest::newRow("songs")<<QString("songs")<<9<<QString("BbY WOW")<<QString("DAI DAI! (From \"Fixture Film\")");
+        QTest::newRow("albums")<<QString("albums")<<3<<QString("Grand Theft Auto VI: The Album")<<QString();
+        QTest::newRow("artists")<<QString("artists")<<6<<QString("Bad Bunny")<<QString("Alka Yagnik");
+    }
+    void chartWeekParsesAndInterleavesByRank(){
+        QFETCH(QString,kind);
+        QFETCH(int,count);
+        QFETCH(QString,kworbTitle);
+        QFETCH(QString,youtubeTitle);
+        QTemporaryDir cache;
+        QVERIFY(cache.isValid());
+        const auto run=runEditorialFixtures(cache.path(),{chartWeek(kind)},"VINYL_TEST_NORMALISED_DUPLICATE");
+        QVERIFY2(run.answers.size()==1,run.diagnostics.constData());
+        const auto data=run.data(0);
+        const auto items=run.items(0);
+        QCOMPARE(items.size(),count);
+        QCOMPARE(data.value("kind").toString(),kind);
+        QVERIFY(data.value("complete").toBool());
+        QVERIFY(data.value("warning").toString().isEmpty());
+        QCOMPARE(items.at(0).toObject().value("title").toString(),kworbTitle);
+        QCOMPARE(items.at(0).toObject().value("rank").toInt(),1);
+        QCOMPARE(items.at(0).toObject().value("source").toString(),QString("kworb"));
+        if(!youtubeTitle.isEmpty()){
+            QCOMPARE(items.at(1).toObject().value("title").toString(),youtubeTitle);
+            QCOMPARE(items.at(1).toObject().value("rank").toInt(),1);
+            QCOMPARE(items.at(1).toObject().value("source").toString(),QString("youtube-music"));
+            QCOMPARE(items.at(2).toObject().value("rank").toInt(),2);
+            QCOMPARE(items.at(2).toObject().value("source").toString(),QString("kworb"));
+        }
+        if(kind=="songs"){
+            QCOMPARE(items.at(0).toObject().value("artist").toString(),QString("KAROL G, Judeline, rusowsky"));
+            for(const auto &item:items) QVERIFY(item.toObject().value("rank").toInt()!=56); // Kworb's duplicate
+        }
+    }
+    void editorialProviderReusesDailyAndWeeklyCaches(){
+        QTemporaryDir cache;
+        QVERIFY(cache.isValid());
+        const QList<QJsonObject> requests{chartWeek("songs"),chartWeek("artists"),chartWeek("songs","us"),
+                                         wikipediaList("hot100-2025"),wikipediaList("mainstream-rock-2020s")};
+        const auto first=runEditorialFixtures(cache.path(),requests);
+        QVERIFY2(first.answers.size()==requests.size(),first.diagnostics.constData());
+        for(const auto &answer:first.answers) QVERIFY2(answer.value("ok").toBool(),first.diagnostics.constData());
+        QCOMPARE(first.diagnostics.count("chart country: ZZ"),1);
+        QCOMPARE(first.diagnostics.count("chart country: US"),1);
+        QCOMPARE(first.diagnostics.count("chart path: /spotify/country/us_weekly.html"),1);
+        QCOMPARE(first.diagnostics.count("fixture: youtube-zz-top100.json"),1);
+        QCOMPARE(first.data(2).value("scope").toString(),QString("US"));
+        const auto second=runEditorialFixtures(cache.path(),requests);
+        QCOMPARE(second.answers,first.answers);
+        QVERIFY2(second.diagnostics.isEmpty(),second.diagnostics.constData());
+        int daily=0,weekly=0;
+        const QDir dir(cache.path());
+        for(const auto &name:dir.entryList({"discover-v1-*.json"},QDir::Files)){
+            QFile file(dir.filePath(name));
+            QVERIFY(file.open(QIODevice::ReadOnly));
+            const int ttl=QJsonDocument::fromJson(file.readAll()).object().value("ttl").toInt();
+            QVERIFY(ttl==86400 || ttl==604800);
+            ttl==86400 ? ++daily : ++weekly;
+        }
+        QCOMPARE(daily,6);
+        QCOMPARE(weekly,2);
+    }
+    void chartWeekKworbLayoutChangeFailsClosedAndLogsOnce(){
+        QTemporaryDir cache;
+        QVERIFY(cache.isValid());
+        const auto songs=chartWeek("songs");
+        const auto run=runEditorialFixtures(cache.path(),{songs,chartWeek("artists"),songs},"VINYL_TEST_KWORB_CHANGED");
+        QVERIFY2(run.answers.size()==3,run.diagnostics.constData());
+        QCOMPARE(run.items(0).size(),6);
+        QCOMPARE(run.items(1).size(),3);
+        QCOMPARE(run.answers.at(2),run.answers.at(0));
+        for(int i=0;i<run.answers.size();++i){
+            QCOMPARE(run.data(i).value("warning").toString(),QString("Kworb chart layout changed."));
+            for(const auto &item:run.items(i)) QCOMPARE(item.toObject().value("source").toString(),QString("youtube-music"));
+        }
+        QCOMPARE(run.diagnostics.count("Vinyl: Kworb chart layout changed"),1);
+        QCOMPARE(run.diagnostics.count("fixture: kworb-songs.html"),1);
+    }
+    void wikipediaListDiscoversArticleAndParsesChartRows_data(){
+        QTest::addColumn<QString>("key");
+        QTest::addColumn<int>("count");
+        QTest::addColumn<QString>("firstTitle");
+        QTest::addColumn<QString>("firstArtist");
+        QTest::addColumn<QString>("firstYear");
+        QTest::addColumn<QString>("lastYear");
+        QTest::newRow("hot100")<<QString("hot100-2025")<<3<<QString("All I Want for Christmas Is You")
+                               <<QString("Mariah Carey")<<QString("2025")<<QString("2025");
+        QTest::newRow("rock")<<QString("mainstream-rock-2020s")<<6<<QString("Under the Graveyard")
+                             <<QString("Ozzy Osbourne")<<QString("2020")<<QString("2021");
+    }
+    void wikipediaListDiscoversArticleAndParsesChartRows(){
+        QFETCH(QString,key);
+        QFETCH(int,count);
+        QFETCH(QString,firstTitle);
+        QFETCH(QString,firstArtist);
+        QFETCH(QString,firstYear);
+        QFETCH(QString,lastYear);
+        QTemporaryDir cache;
+        QVERIFY(cache.isValid());
+        const auto run=runEditorialFixtures(cache.path(),{wikipediaList(key)});
+        QVERIFY2(run.answers.size()==1,run.diagnostics.constData());
+        QCOMPARE(run.data(0).value("attribution").toString(),QString("Wikipedia"));
+        QCOMPARE(run.data(0).value("license").toString(),QString("CC BY-SA"));
+        QVERIFY(run.data(0).value("title").toString().contains("number"));
+        const auto items=run.items(0);
+        QCOMPARE(items.size(),count);
+        QCOMPARE(items.first().toObject().value("title").toString(),firstTitle);
+        QCOMPARE(items.first().toObject().value("artist").toString(),firstArtist);
+        QCOMPARE(items.first().toObject().value("year").toString(),firstYear);
+        QCOMPARE(items.last().toObject().value("year").toString(),lastYear);
+        QVERIFY(run.diagnostics.indexOf("-directory.json")>=0);
+        QVERIFY(run.diagnostics.indexOf("-directory.json")<run.diagnostics.lastIndexOf("fixture:"));
+    }
+    void editorialProviderRejectsInvalidOrUndiscoveredLists(){
+        QTemporaryDir cache;
+        QVERIFY(cache.isValid());
+        const auto run=runEditorialFixtures(cache.path(),{chartWeek("tracks"),chartWeek("songs","../"),
+            wikipediaList("unknown"),wikipediaList("hot100-2025")},"VINYL_TEST_WIKI_UNLISTED");
+        QVERIFY2(run.answers.size()==4,run.diagnostics.constData());
+        for(int i=0;i<3;++i) QCOMPARE(run.answers.at(i).value("errorCode").toString(),QString("invalid_argument"));
+        QCOMPARE(run.answers.last().value("errorCode").toString(),QString("unavailable"));
+        QCOMPARE(run.diagnostics.trimmed(),QByteArray("fixture: wikipedia-hot100-directory.json"));
+    }
+    void providerNeverReferencesBillboardHost(){
+        const QDir tests(QFileInfo(QStringLiteral(VINYL_FAKE_TRANSPORT)).absolutePath());
+        QFile provider(tests.filePath("../../scripts/vinyl/provider.py"));
+        QVERIFY(provider.open(QIODevice::ReadOnly));
+        QVERIFY(!provider.readAll().toLower().contains("billboard.com"));
+    }
     void downloadedRecordingResolvesOfflineThroughTheSameTrackIdentity(){
         QTemporaryDir dir;VaultIdentity identity(dir.filePath("identity.json"));VinylLocalSource local(&identity);
         VinylProvider provider(QStringLiteral(VINYL_FAKE_TRANSPORT),nullptr,128LL*1024*1024,{},dir.filePath("cache"));
