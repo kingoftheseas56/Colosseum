@@ -26,6 +26,14 @@ REQUIRED_PREFIXES = (
 
 RUNTIME_PREFIX = "assets/colosseum-runtime/"
 QML_PREFIX = RUNTIME_PREFIX + "qml/"
+ANDROID_SHARED_QML_FILES = {
+    "vinyl/VinylBackdrop.qml",
+    "vinyl/VinylControlIcon.qml",
+}
+ANDROID_SHARED_QML_IMPORTERS = {
+    "audiobook/AudiobookBookPage.qml",
+    "audiobook/AudiobookListenPage.qml",
+}
 
 
 def qml_policy_failures(files: dict[str, bytes]) -> list[str]:
@@ -35,7 +43,8 @@ def qml_policy_failures(files: dict[str, bytes]) -> list[str]:
         if not name.startswith(QML_PREFIX):
             continue
         relative = name[len(QML_PREFIX):]
-        if (re.search(r"(^|/)(feria|vinyl|player2|player2host)/", relative, re.I)
+        if ((re.search(r"(^|/)(feria|vinyl|player2|player2host)/", relative, re.I)
+                and relative not in ANDROID_SHARED_QML_FILES)
                 or relative in {"+android/VaultPage.qml", "VaultPage.qml"}  # retired pages; VaultLibraryPage is the Vault
                 or relative in {"+android/TopBar.qml", "+android/Taskbar.qml", "+android/ExtensionsHouseHero.qml"}
                 or relative in {"reader2/Paper.qml", "TrackerApprovalWebView.qml", "ExtensionsSetupSheet.qml"}):
@@ -44,7 +53,14 @@ def qml_policy_failures(files: dict[str, bytes]) -> list[str]:
             text = data.decode("utf-8-sig")
             if re.search(r"^\s*(?:\.import|import)\s+QtWebEngine\b", text, re.M):
                 failures.append(f"FORBIDDEN_WEBENGINE_IMPORT {relative}")
-            if re.search(r'^\s*(?:\.import|import)\s+[^\n]*["/](?:feria|vinyl|player2|player2host)(?:/|")', text, re.M | re.I):
+            desktop_imports = re.findall(
+                r'^\s*(?:\.import|import)\s+["\']([^"\']+)["\']', text, re.M
+            )
+            for imported in desktop_imports:
+                if not re.search(r"(^|/)(feria|vinyl|player2|player2host)(/|$)", imported, re.I):
+                    continue
+                if (relative in ANDROID_SHARED_QML_IMPORTERS and imported == "../vinyl"):
+                    continue  # Audiobooks reuse the two explicitly packaged shared controls above.
                 failures.append(f"FORBIDDEN_DESKTOP_IMPORT {relative}")
             for imported in re.findall(r'^\s*(?:\.import|import)\s+["\']([^"\']+)["\']', text, re.M):
                 if ":" in imported:
