@@ -132,6 +132,47 @@ TestCase {
         return null
     }
 
+    Component {
+        id: previousPageComponent
+        Rectangle { color: "#ff00ff" }
+    }
+
+    function test_phoneBookPaintsBehindTheDockAndClearsTheLastShelf() {
+        const width = 750
+        const height = 450
+        const dockInset = 53
+        const previous = make(previousPageComponent, { width: width, height: height })
+        const flow = make(flowComponent, {
+            width: width, height: height, androidHost: true,
+            catalog: make(catalogComponent), dockClearance: dockInset
+        })
+
+        flow.openWork("first", "edition-first")
+        const book = flow.currentPage
+        const scroll = findChild(book, "audiobookScroll")
+        compare(book.height, height)
+        compare(scroll.y + scroll.height, height)
+        verify(waitForRendering(book))
+        const pagePixel = grabImage(viewport.contentItem).pixel(width - 24, height - 2)
+        previous.color = "#00ff00"
+        verify(waitForRendering(previous))
+        compare(grabImage(viewport.contentItem).pixel(width - 24, height - 2), pagePixel)
+
+        const lastBook = visualChild(book, "audiobookSeries_second")
+        verify(lastBook)
+        scroll.contentY = scroll.contentHeight - scroll.height
+        verify(lastBook.mapToItem(book, 0, lastBook.height).y <= height - dockInset)
+
+        const withDock = scroll.contentHeight
+        flow.dockClearance = 0
+        compare(scroll.contentHeight, withDock - dockInset)
+
+        book.backRequested()
+        compare(flow.active, false)
+        verify(waitForRendering(previous))
+        compare(grabImage(viewport.contentItem).pixel(width - 24, height - 2), previous.color)
+    }
+
     function test_tab_refetches_shelves_and_genres_at_each_revision() {
         const catalog = make(catalogComponent, { remote: true })
         const tab = make(standaloneTab, { catalog: catalog })

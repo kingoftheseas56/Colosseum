@@ -19,6 +19,7 @@ import "CollectionsReferences.js" as CollectionsReferences
 
 Item {
     id: page
+    property real contentBottomInset: 0
     focus: true
     activeFocusOnTab: true
     property Item backdrop
@@ -542,7 +543,7 @@ Item {
         id: flick
         anchors.fill: parent
         contentWidth: width
-        contentHeight: pageCol.height
+        contentHeight: pageCol.height + page.contentBottomInset
         clip: true
         pixelAligned: false
         boundsBehavior: Flickable.StopAtBounds

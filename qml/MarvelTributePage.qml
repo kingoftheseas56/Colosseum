@@ -5,6 +5,7 @@ import QtQuick
 // and is loaded asynchronously; the house BackAction steps out of a phase first, then the page.
 FocusScope {
     id: root
+    property real contentBottomInset: 0
     objectName: "marvelTributePage"
     property string extensionId: ""
     property string universeName: ""
@@ -45,6 +46,7 @@ FocusScope {
         source: "mcu/InfinityGauntlet.qml"
         onLoaded: {
             item.embedded = true
+            item.contentBottomInset = Qt.binding(function() { return root.contentBottomInset })
             item.watchRequested.connect(root.watchRequested)
             item.comicsArchiveRequested.connect(root.comicsArchiveRequested)
             item.comicTitleRequested.connect(root.comicTitleRequested)

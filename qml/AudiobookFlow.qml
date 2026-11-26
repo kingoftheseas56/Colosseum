@@ -24,6 +24,7 @@ FocusScope {
     property Item backdrop: null
     property bool androidHost: Qt.platform.os === "android"
     property real dockClearance: 0
+    readonly property real androidDockInset: androidHost ? dockClearance : 0
     property bool dockExpanded: true
     readonly property bool abbEnabled: ExtensionCatalog.sourceEnabled(extensions, "colosseum.well.audiobookbay")
     readonly property bool active: routeStack.depth > 0
@@ -269,9 +270,11 @@ FocusScope {
     StackView {
         id: routeStack
         anchors.fill: parent
-        // A collapsed dock sits to the left of the series shelf on the desktop layout.
-        anchors.bottomMargin: !flow.dockExpanded && flow.width >= 760 && flow.height >= 700
-            && currentItem && currentItem.objectName === "audiobookBookPage" ? 0 : flow.dockClearance
+        // Android pages reserve the dock inside their content. On desktop the
+        // collapsed dock fits beside the wide book page's series shelf.
+        anchors.bottomMargin: flow.androidHost || (!flow.dockExpanded && flow.width >= 760
+            && flow.height >= 700 && currentItem && currentItem.objectName === "audiobookBookPage")
+                ? 0 : flow.dockClearance
     }
 
     Component {
@@ -317,6 +320,7 @@ FocusScope {
             canSave: !!flow.collectionStore && collectionId.length > 0 && built.workId === workId
             saved: canSave && (flow.collectionStore.revision, flow.collectionStore.has("biblio", collectionId))
             backdropBottomInset: routeStack.anchors.bottomMargin
+            contentBottomInset: flow.androidDockInset
             androidHost: flow.androidHost
             onMinimizeRequested: flow.minimizeRequested()
             onFullscreenRequested: flow.fullscreenRequested()
@@ -456,6 +460,7 @@ FocusScope {
         id: sourcesPage
         Audiobook.AudiobookSourcesPage {
             id: sources
+            contentBottomInset: flow.androidDockInset
             required property Item detail
             required property var options
             workTitle: detail.built.title
@@ -481,6 +486,7 @@ FocusScope {
         id: replacementPage
         Audiobook.AudiobookSourcesPage {
             id: replacement
+            contentBottomInset: flow.androidDockInset
             required property var stalled
             property Item bookDetail: null
             readonly property bool replacesStalledDownload: !bookDetail
@@ -580,6 +586,7 @@ FocusScope {
             required property var route
             session: flow.session
             contentTop: 75
+            contentBottomInset: flow.androidDockInset
             androidHost: flow.androidHost
             readonly property var ebook: Bridge.ownedEbook(Object.assign({}, route, book), flow.ebookLibrary)
             ebookAvailable: !!ebook
@@ -609,6 +616,7 @@ FocusScope {
     Component {
         id: cataloguePage
         TheatreSeeAllPage {
+            contentBottomInset: flow.androidDockInset
             emptyMessage: qsTr("No audiobooks found.")
             fitArtwork: true
             pageLoader: (pin, page, limit, options, done) => ShelfApi.loadPage(flow.catalog, pin, page, done)

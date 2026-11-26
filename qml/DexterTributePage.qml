@@ -2,6 +2,7 @@ import QtQuick
 
 FocusScope {
     id: root
+    property real contentBottomInset: 0
     objectName: "dexterTributePage"
     property string extensionId: ""
     property string universeName: ""
@@ -36,6 +37,7 @@ FocusScope {
     Loader {
         id: tribute
         anchors.fill: parent
+        anchors.bottomMargin: root.contentBottomInset
         asynchronous: true
         visible: status === Loader.Ready
         source: "dexter/TributeView.qml"

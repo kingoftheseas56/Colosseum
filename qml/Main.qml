@@ -5601,13 +5601,13 @@ Window {
         id: genreLayer
         parent: dockScene
         anchors.fill: parent
-        anchors.bottomMargin: win.browseBottomInset
         z: 45
         active: false
         visible: active
         property string genreName: ""
         source: "GenrePage.qml"
         onLoaded: {
+            if (win.androidHost) phoneShell.attachHostedItem(item)
             item.backdrop = wall
             item.genreName = genreLayer.genreName
             item.showExplicitContent = Qt.binding(function() { return contentPreferences.showExplicit })
@@ -5627,12 +5627,12 @@ Window {
         id: genreIndexLayer
         parent: dockScene
         anchors.fill: parent
-        anchors.bottomMargin: win.browseBottomInset
         z: 44
         active: false
         visible: active
         source: "GenreIndex.qml"
         onLoaded: {
+            if (win.androidHost) phoneShell.attachHostedItem(item)
             item.backdrop = wall
             item.showExplicitContent = Qt.binding(function() { return contentPreferences.showExplicit })
             item.backRequested.connect(win.closeGenreIndex)
@@ -5650,12 +5650,12 @@ Window {
         id: biblioGenreIndexLayer
         parent: dockScene
         anchors.fill: parent
-        anchors.bottomMargin: win.browseBottomInset
         z: 46
         active: false
         visible: active
         source: "BiblioGenreIndex.qml"
         onLoaded: {
+            if (win.androidHost) phoneShell.attachHostedItem(item)
             item.backdrop = wall
             item.showExplicitContent = Qt.binding(function() { return contentPreferences.showExplicit })
             item.backRequested.connect(win.closeBiblioGenreIndex)
@@ -5671,13 +5671,13 @@ Window {
         id: biblioGenreLayer
         parent: dockScene
         anchors.fill: parent
-        anchors.bottomMargin: win.browseBottomInset
         z: 46
         active: false
         visible: active
         property string genreName: ""
         source: "BiblioGenrePage.qml"
         onLoaded: {
+            if (win.androidHost) phoneShell.attachHostedItem(item)
             item.backdrop = wall
             item.genreName = biblioGenreLayer.genreName
             item.showExplicitContent = Qt.binding(function() { return contentPreferences.showExplicit })
@@ -5697,7 +5697,6 @@ Window {
         id: theatreGenreLayer
         parent: dockScene
         anchors.fill: parent
-        anchors.bottomMargin: win.browseBottomInset
         z: 48
         active: false
         visible: active
@@ -5705,6 +5704,7 @@ Window {
         property string genreName: ""
         source: "TheatreGenrePage.qml"
         onLoaded: {
+            if (win.androidHost) phoneShell.attachHostedItem(item)
             item.backdrop = wall
             item.mediaKind = theatreGenreLayer.mediaKind
             item.genreName = theatreGenreLayer.genreName
@@ -5725,13 +5725,13 @@ Window {
         id: theatreGenreIndexLayer
         parent: dockScene
         anchors.fill: parent
-        anchors.bottomMargin: win.browseBottomInset
         z: 47
         active: false
         visible: active
         property string mediaKind: "movie"
         source: "TheatreGenreIndex.qml"
         onLoaded: {
+            if (win.androidHost) phoneShell.attachHostedItem(item)
             item.backdrop = wall
             item.mediaKind = theatreGenreIndexLayer.mediaKind
             item.showExplicitContent = Qt.binding(function() { return contentPreferences.showExplicit })
@@ -5751,7 +5751,6 @@ Window {
         id: seriesLayer
         parent: dockScene
         anchors.fill: parent
-        anchors.bottomMargin: win.browseBottomInset
         z: 53     // above the universe overlay (z:52): a manga opened from a universe stacks on top, back returns to the universe
         active: false
         visible: active
@@ -5840,7 +5839,6 @@ Window {
         id: westernLayer
         parent: dockScene
         anchors.fill: parent
-        anchors.bottomMargin: win.browseBottomInset
         z: 53     // above the universe overlay (z:52): a comic opened from a universe stacks on top, back returns to the universe
         active: false
         visible: active
@@ -5851,6 +5849,7 @@ Window {
         property var    baked: null           // catalogue run {gcdId,releases,cover} OR pack {packSeriesId,releases,cover} OR universe {gcdId:0,releases,cover}
         source: "ComicSeries.qml"
         onLoaded: {
+            if (win.androidHost) phoneShell.attachHostedItem(item)
             item.openExtensionsRequested.connect(function() { win.openExtensionsPage("tankoban") })
             item.backdrop = wall
             item.seriesTitle = westernLayer.title
@@ -5892,7 +5891,6 @@ Window {
         id: comicSeriesLayer
         parent: dockScene
         anchors.fill: parent
-        anchors.bottomMargin: win.browseBottomInset
         z: 50
         active: false
         visible: active
@@ -5907,6 +5905,7 @@ Window {
         property var locgMeta: ({})          // {publisher, rating, startYear…} enriches the hero
         source: "ComicSeriesPage.qml"
         onLoaded: {
+            if (win.androidHost) phoneShell.attachHostedItem(item)
             item.openExtensionsRequested.connect(function() { win.openExtensionsPage("tankoban") })
             item.backdrop = wall
             item.seriesTitle = comicSeriesLayer.title
@@ -5952,13 +5951,13 @@ Window {
         id: continueSeeAllLayer
         parent: dockScene
         anchors.fill: parent
-        anchors.bottomMargin: win.browseBottomInset
         z: 49
         active: false
         visible: active
         property string scope: "home"
         source: "ContinueSeeAllPage.qml"
         onLoaded: {
+            if (win.androidHost) phoneShell.attachHostedItem(item)
             item.backdrop = wall
             item.scope = continueSeeAllLayer.scope
             item.backRequested.connect(win.closeContinueSeeAll)
@@ -6185,7 +6184,6 @@ Window {
         objectName: "biblioBookRouteState"
         enabled: !audiobookFlow.active
         anchors.fill: parent
-        anchors.bottomMargin: win.browseBottomInset
         z: 53
         active: false
         visible: active
@@ -6197,6 +6195,7 @@ Window {
         property var book: ({})
         source: "BiblioBook.qml"
         onLoaded: {
+            if (win.androidHost) phoneShell.attachHostedItem(item)
             item.backdrop = wall
             item.audioSessionRef = audioSession
             item.openExtensionsRequested.connect(function() { win.openExtensionsPage("biblio") })
@@ -6235,11 +6234,10 @@ Window {
         parent: dockScene
         objectName: "audiobookFlow"
         anchors.fill: parent
-        anchors.bottomMargin: win.browseBottomInset
         z: replacingDownload ? 57 : 54 // Above ebook detail (53), below Downloads (56) during browsing.
         backdrop: wall
         androidHost: win.androidHost
-        dockClearance: win.androidHost ? 0 : taskbar.contentBottomInset
+        dockClearance: win.androidHost ? win.browseBottomInset : taskbar.contentBottomInset
         dockExpanded: taskbar.open
         session: audioSession
         ebookLibrary: {
@@ -6557,9 +6555,6 @@ Window {
         parent: dockScene
         objectName: "universeLayer"
         anchors.fill: parent
-        // Standard detail pages reserve dock clearance at the end of their scroll content.
-        anchors.bottomMargin: status === Loader.Ready && item && item.contentBottomInset !== undefined
-                              ? 0 : win.browseBottomInset
         z: 52
         active: false
         visible: active

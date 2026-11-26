@@ -19,6 +19,7 @@ import "CollectionsReferences.js" as CollectionsReferences
 
 Item {
     id: detail
+    property real contentBottomInset: 0
     objectName: "biblioBookDetail"   // test-only seam: Lanista qml-get reads localPath/readError/pendingReadTransport
     property var book: ({})
     property Item backdrop
@@ -880,7 +881,7 @@ Item {
         anchors.left: parent.left; anchors.right: parent.right
         y: 108; height: detail.height - 108
         contentWidth: width
-        contentHeight: body.implicitHeight + 70
+        contentHeight: body.implicitHeight + 70 + detail.contentBottomInset
         clip: true
         flickableDirection: Flickable.VerticalFlick
         boundsBehavior: Flickable.StopAtBounds

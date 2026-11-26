@@ -14,6 +14,7 @@ import "GenreApi.js" as Api
 
 Item {
     id: root
+    property real contentBottomInset: 0
     anchors.fill: parent
 
     // shell contract (mirrors UniversePage / the world-page layers)
@@ -114,7 +115,7 @@ Item {
         anchors.fill: parent
         anchors.bottomMargin: root.bottomInset
         contentWidth: width
-        contentHeight: col.implicitHeight + 44
+        contentHeight: col.implicitHeight + 44 + root.contentBottomInset
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         Controls.ScrollBar.vertical: HouseScrollBar { flick: page }

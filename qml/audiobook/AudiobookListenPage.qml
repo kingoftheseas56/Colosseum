@@ -17,6 +17,7 @@ Item {
     property bool androidHost: Qt.platform.os === "android"
     // Inset from the top of the viewport to the content below the shell's top bar.
     property real contentTop: 138
+    property real contentBottomInset: 0
     property bool chaptersOpen: false
     property var listeningJump: null
     readonly property string listeningJumpOffer: listeningJump
@@ -360,7 +361,7 @@ Item {
         anchors.bottom: parent.bottom
         anchors.leftMargin: root.sideInset
         anchors.rightMargin: root.sideInset
-        anchors.bottomMargin: 18
+        anchors.bottomMargin: 18 + root.contentBottomInset
         session: root.session
         wide: true
         playbackAvailable: root.playbackReady

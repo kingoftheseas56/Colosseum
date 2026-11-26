@@ -8,6 +8,7 @@ import "TheatreGenreApi.js" as Api
 
 Item {
     id: root
+    property real contentBottomInset: 0
     anchors.fill: parent
 
     // shell contract (mirrors GenrePage / the world-page layers)
@@ -77,7 +78,7 @@ Item {
         id: page
         anchors.fill: parent
         contentWidth: width
-        contentHeight: col.implicitHeight + 50
+        contentHeight: col.implicitHeight + 50 + root.contentBottomInset
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: HouseScrollBar { flick: page }

@@ -7,6 +7,7 @@ import "DCAUUniverseData.js" as DCAU
 
 Item {
     id: root
+    property real contentBottomInset: 0
     function resolveContentAsset(path) { root.universeContentGeneration; return UniverseContent.asset(path) }
     onUniverseContentGenerationChanged: reload()
     readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
@@ -64,6 +65,7 @@ Item {
     Item {
         id: landing
         anchors.fill: parent
+        anchors.bottomMargin: root.contentBottomInset
         visible: root.currentHubId.length === 0
         property int selectedIndex: 0
 
@@ -203,6 +205,7 @@ Item {
     }
 
     DCAUWorldPage {
+        contentBottomInset: root.contentBottomInset
         anchors.fill: parent
         visible: root.currentHubId.length > 0
         hub: (root.universeContentGeneration, DCAU.hub)(root.currentHubId)

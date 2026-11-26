@@ -12,6 +12,7 @@ FocusScope {
     property string workAuthor
     property url artwork
     property Item backdrop: null
+    property real contentBottomInset: 0
     property bool showTankorent: false
     property string backTip: qsTr("Back to audiobook details")
     property string selectionError
@@ -22,9 +23,10 @@ FocusScope {
     readonly property int sideMargin: narrow ? 16 : theme.margin
     readonly property int headerInset: narrow ? 14 : 26
     readonly property int releaseHeight: narrow ? 104 : (compactHeight ? 116 : 150)
-    readonly property bool compactHeight: height - 300 < 20 + 26 + 52 + 2 * 44 + 150
-    readonly property int bannerHeight: narrow ? Math.min(188, Math.max(126, height - 220))
-        : Math.min(300, Math.max(88, height - (compactHeight ? 276 : 0)))
+    readonly property real contentHeightBudget: height - contentBottomInset
+    readonly property bool compactHeight: contentHeightBudget - 300 < 20 + 26 + 52 + 2 * 44 + 150
+    readonly property int bannerHeight: narrow ? Math.min(188, Math.max(126, contentHeightBudget - 220))
+        : Math.min(300, Math.max(88, contentHeightBudget - (compactHeight ? 276 : 0)))
     readonly property bool hasDisabledProvider: providerStates.abb?.state === "disabled"
         || (showTankorent && providerStates.tankorent?.state === "disabled")
     readonly property int releaseCount: (providerStates.abb?.rows?.length || 0)
@@ -210,7 +212,7 @@ FocusScope {
         anchors.top: banner.bottom
         anchors.topMargin: page.compactHeight ? 10 : 20
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: page.compactHeight ? 12 : 26
+        anchors.bottomMargin: page.contentBottomInset + (page.compactHeight ? 12 : 26)
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.leftMargin: page.sideMargin

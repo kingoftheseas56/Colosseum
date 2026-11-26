@@ -6,6 +6,7 @@ import "DCAUUniverseData.js" as DCAU
 
 Item {
     id: root
+    property real contentBottomInset: 0
     readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
     objectName: "dcauWorldPage"
     property var hub: ({})
@@ -58,7 +59,7 @@ Item {
         id: page
         anchors.fill: parent
         contentWidth: width
-        contentHeight: 128 + content.implicitHeight + 50
+        contentHeight: 128 + content.implicitHeight + 50 + root.contentBottomInset
         boundsBehavior: Flickable.StopAtBounds
         clip: true
         ScrollBar.vertical: HouseScrollBar { flick: page }

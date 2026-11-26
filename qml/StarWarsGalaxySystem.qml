@@ -3,6 +3,7 @@ import QtQuick
 
 FocusScope {
     id: root
+    property real contentBottomInset: 0
     objectName: "starWarsGalaxySystem"
     property var destinations: []
     property bool reducedMotion: false
@@ -11,7 +12,8 @@ FocusScope {
     property real cameraPitch: 0.73
     property real cameraZoom: 1.0
     property real orbitTime: 0
-    readonly property real viewportScale: Math.min(1.0, Math.max(.72, Math.min(width/1600, height/900)))
+    readonly property real safeHeight: Math.max(0, height - contentBottomInset)
+    readonly property real viewportScale: Math.min(1.0, Math.max(.72, Math.min(width/1600, safeHeight/900)))
     signal destinationActivated(string destinationId)
     signal skywalkerActivated()
 
@@ -30,7 +32,7 @@ FocusScope {
         var rz = y * sp + z1 * cp
         var distance = 1080 / (cameraZoom * viewportScale)
         var f = 860 / Math.max(220, distance + rz)
-        return { x: width/2 + x1*f, y: height/2 + ry*f, scale: f, depth: rz }
+        return { x: width/2 + x1*f, y: safeHeight/2 + ry*f, scale: f, depth: rz }
     }
     function projected(d) {
         var radius = d.node ? d.radius : d.orbit
@@ -60,6 +62,7 @@ FocusScope {
     onCameraZoomChanged: sky.requestPaint()
     onWidthChanged: sky.requestPaint()
     onHeightChanged: sky.requestPaint()
+    onSafeHeightChanged: sky.requestPaint()
 
     Canvas {
         id: sky
