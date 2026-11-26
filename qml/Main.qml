@@ -1700,8 +1700,8 @@ Window {
         feriaReturnSnapshot = null
         return true
     }
-    function openWorld(medium) {
-        if (win.guardNamedCollectionsNavigation(function() { win.openWorld(medium) })) return
+    function openWorld(medium, biblioTab) {
+        if (win.guardNamedCollectionsNavigation(function() { win.openWorld(medium, biblioTab) })) return
  win.cancelCatalogueRoute();
         // These worlds are not available in this release, including through indirect callers.
         var requestedWorld = String(medium || "").trim().toLowerCase()
@@ -1709,6 +1709,10 @@ Window {
         if (medium !== "Vinyl") win.pendingVinylResume = null
         if (medium === "Feria") { win.openFeriaPage(); return }
         if (win.parkFeria) win.parkFeria(true)
+        if (medium === "Biblio" && biblioTab === "audiobooks") {
+            if (audiobookFlow.world) audiobookFlow.world.activeTab = biblioTab
+            else worldStack.pendingBiblioAudiobooks = true
+        }
         var found = false
         for (var i = 0; i < openModes.count; i++)
             if (openModes.get(i).mode === medium) { found = true; break }
@@ -5201,12 +5205,20 @@ Window {
             Loader {
                 id: homeReadingDeskLoader
                 width: parent.width
-                height: 400
+                height: status === Loader.Ready ? item.implicitHeight : 400
                 active: false
                 asynchronous: true
                 onLoaded: {
                     item.track = Qt.binding(function() { return page.contentY })
                     item.clicked.connect(function() { win.openWorld("Biblio") })
+                    item.audiobookPicked.connect(function(book) {
+                        const work = AudiobookBridge.findWork(audiobookFlow.catalog, book, AudiobookBridge.pairFor(book))
+                        if (work.id) audiobookFlow.openWork(work.id)
+                        else win.openBook(book)
+                    })
+                    item.audiobookBrowseRequested.connect(function() {
+                        win.openWorld("Biblio", "audiobooks")
+                    })
                     item.genrePicked.connect(function(name) {
                         win.openWorld("Biblio")
                         win.openBiblioGenre(name)
@@ -5322,9 +5334,13 @@ Window {
         anchors.fill: parent
         anchors.leftMargin: win.wideWorldNavigationLeftInset
         property string current: ""                      // "" = home; else the visible mode
+        property bool pendingBiblioAudiobooks: false
         onCurrentChanged: {
             win.clearDockPickReturns()
-            if (current !== "Biblio") audiobookFlow.clear()
+            if (current !== "Biblio") {
+                pendingBiblioAudiobooks = false
+                audiobookFlow.clear()
+            }
         }
         Repeater {
             id: worldRepeater
@@ -5476,7 +5492,13 @@ Window {
                     if (biblioGenreSignal) biblioGenreSignal.connect(win.openBiblioGenre)
                     var biblioGenreIndexSignal = item["biblio" + "GenreIndexRequested"]
                     if (biblioGenreIndexSignal) biblioGenreIndexSignal.connect(win.openBiblioGenreIndex)
-                    if (mode === "Biblio") audiobookFlow.world = item
+                    if (mode === "Biblio") {
+                        audiobookFlow.world = item
+                        if (worldStack.pendingBiblioAudiobooks) {
+                            item.activeTab = "audiobooks"
+                            worldStack.pendingBiblioAudiobooks = false
+                        }
+                    }
                     if (item.continueResumeRequested) item.continueResumeRequested.connect(win.resumeContinue)
                     if (item.continueDetailRequested) item.continueDetailRequested.connect(win.detailContinue)
                     // the Universes world: its list is the installed roster plus the archived templates
