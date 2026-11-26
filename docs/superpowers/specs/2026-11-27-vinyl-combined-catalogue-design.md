@@ -9,8 +9,11 @@ function; no source without a job.** Evidence: `Brotherhood/agents/vinyl-combine
 Same split as Theatre (Discover poster wall vs Movies/Shows/Anime shelf tabs) and Biblio (Discover vs Explore):
 - **Discover** — one endless catalogue grid (the shared house `DiscoverBrowser`), a **genre filter**, and an index if
   there is indexing to do. **No rows.**
-- **Explore** — editorial shelf rows with the row-index sidebar. **Vinyl has no Explore tab today** (tabs are Home,
-  Discover, Library); where it lives is a separate decision. The rows below are specified so they are ready for it.
+- **Explore** — editorial shelf rows with the row-index sidebar. Hemanth, 2026-11-27: "vinyl's explore is basically
+  combining the anime, movies and tv" — **one Explore tab doing the job of Theatre's Movies, Shows and Anime shelf tabs
+  combined** (songs, albums and artists as shelves on one page, like Biblio's single Explore). New tab order: **Home ·
+  Discover · Explore · Library**. Reuse the house shelf page (`TheatreCatalogPage` / `BiblioExplorePage` pattern,
+  `RowIndexSidebar`); no hand-rolled shelves.
 
 ## Sources and the one job each does
 | Source | Job | Where |
@@ -38,7 +41,7 @@ works; its robots.txt blocks AI agents by name. Billboard chart facts come only 
 - Cards and tap behaviour unchanged (YouTube resolves on tap). Paging: endless via Last.fm/JioSaavn cursors; "This
   week" ends at the chart length.
 
-## Explore rows (ready for when Vinyl has an Explore tab)
+## Explore rows
 From Wikipedia chart lists, proven live via the MediaWiki API: "Every #1 of 2025" (Hot 100 #1s), "Global #1s",
 "The year-end 100" (Year-End Hot 100), per-genre "#1s this decade" (e.g. Mainstream Rock #1s of the 2020s, 144 songs),
 "#1 hits of the '90s". From Kworb: "This week on Spotify", "Most streamed ever". Page titles are discovered through the
@@ -69,5 +72,6 @@ function, no spaghetti; Kworb in (B); Discover = endless grid + genre filter + i
 to Explore; use Billboard only legitimately (Wikipedia).
 **Calls by Claude:** source/job table above; "This week" interleave + de-dup; JioSaavn kept for Indian languages;
 MusicBrainz/ListenBrainz/TheAudioDB stay out of the catalogue; daily Kworb, weekly Wikipedia caching.
-**Open (Hemanth's):** where Vinyl's Explore lives (new tab vs part of Home).
+**Decided by Hemanth (cont.):** Vinyl Explore = one shelf tab combining the roles of Theatre's Movies/Shows/Anime.
+**Calls by Claude (cont.):** tab order Home · Discover · Explore · Library; reuse the house shelf page.
 **Left out:** configuration page, shared Worker, merge layer, mood, reviews.
