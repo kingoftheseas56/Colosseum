@@ -3,6 +3,7 @@
 // the bridge methods. No provider names or quality claims are copied from the visual oracle.
 pragma ComponentBehavior: Bound
 import QtQuick
+import "WallpaperApi.js" as Wallpapers
 
 Item {
     id: root
@@ -207,7 +208,7 @@ Item {
     }
     Image {
         anchors.fill: parent
-        source: "../assets/wallpaper/captured-motion.jpg"
+        source: Wallpapers.defaultBackgroundSource(typeof Content !== "undefined" ? Content : null)
         fillMode: Image.PreserveAspectCrop
         visible: root.backdrop === null
         opacity: 0.78

@@ -4626,10 +4626,7 @@ Window {
         // re-shows instantly with no re-fetch. (2026-07-29 render-load diet.)
         visible: !win.immersiveSurfaceOpen
             && !win.vinylVideoFullscreen
-        // Real OS wallpaper — a placeholder PICK (Windows 11 "Captured Motion"; its translucent
-        // glass-ribbon motif echoes our material, and it's dark enough for the glass to read).
-        // Swap from the parked personalization gallery later. Glass composites over WHATEVER sits in
-        // `wall`, so the Image "just works" — and it pops against the chrome instead of reading as an app.
+        // Glass composites over the default or chosen wallpaper in `wall`.
         Image {
             anchors.fill: parent
             source: win.wallpaperIsNative ? "" : win.wallpaperSource

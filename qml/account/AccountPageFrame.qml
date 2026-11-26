@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Window
 import QtQuick.Controls
 import ".."
+import "../WallpaperApi.js" as Wallpapers
 
 Item {
     id: root
@@ -22,8 +23,7 @@ Item {
     }
     property Item backdrop: null
     property var contentStore: typeof Content !== "undefined" ? Content : null
-    readonly property string fallbackWallpaperSource: root.contentStore
-        ? (root.contentStore.generation, root.contentStore.assetUrl("assets/wallpaper/captured-motion.jpg")) : ""
+    readonly property string fallbackWallpaperSource: Wallpapers.defaultBackgroundSource(root.contentStore)
     property string eyebrow: ""
     property string headline: ""
     property string detail: ""

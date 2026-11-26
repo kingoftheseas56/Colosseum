@@ -23,7 +23,7 @@ Item {
             localMediaAvailable: true
             pickerPicks: ({
                 tv: [
-                    { title: "First", releaseInfo: "2020", genres: ["Mystery"], cover: Qt.resolvedUrl("../../assets/wallpaper/captured-motion.jpg") },
+                    { title: "First", releaseInfo: "2020", genres: ["Mystery"], cover: Qt.resolvedUrl("../../assets/wallpaper/sagas/harry-potter.jpg") },
                     { title: "Second", releaseInfo: "2023", genres: ["Drama"], cover: Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg") },
                     { title: "Third", cover: Qt.resolvedUrl("../../assets/wallpaper/sagas/dune.jpg") }
                 ]
@@ -127,7 +127,7 @@ Item {
         function test_circulationSharesOnePhysicalPath(data) {
             root.width = data.width
             root.height = data.height
-            const covers = ["captured-motion.jpg", "cold-ripple.jpg", "sagas/dune.jpg"]
+            const covers = ["sagas/harry-potter.jpg", "cold-ripple.jpg", "sagas/dune.jpg"]
             const entries = Array.from({ length: data.count }, (_, i) => ({
                 id: String(i), title: "Title " + i,
                 cover: Qt.resolvedUrl("../../assets/wallpaper/" + covers[i % covers.length])
@@ -269,7 +269,7 @@ Item {
         }
 
         function test_coversRemainReadyAcrossTurnsAndPageChanges() {
-            const covers = ["captured-motion.jpg", "cold-ripple.jpg", "sagas/dune.jpg"]
+            const covers = ["sagas/harry-potter.jpg", "cold-ripple.jpg", "sagas/dune.jpg"]
             const entries = Array.from({ length: 7 }, (_, i) => ({
                 id: String(i), title: "Title " + i,
                 cover: Qt.resolvedUrl("../../assets/wallpaper/" + covers[i % covers.length])

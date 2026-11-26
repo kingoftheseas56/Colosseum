@@ -9,6 +9,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
+import "WallpaperApi.js" as Wallpapers
 
 Item {
     id: root
@@ -626,7 +627,7 @@ Item {
             visible: root.backdrop !== null
         }
         Image { anchors.fill: parent; visible: root.backdrop === null
-                source: "../assets/wallpaper/captured-motion.jpg"
+                source: Wallpapers.defaultBackgroundSource(typeof Content !== "undefined" ? Content : null)
                 fillMode: Image.PreserveAspectCrop; cache: true }
         Rectangle { anchors.fill: parent; color: Qt.rgba(0.03,0.04,0.07,0.86) }
     }
