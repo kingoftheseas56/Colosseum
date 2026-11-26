@@ -49,6 +49,14 @@ matching. Kworb supplies every other service (Spotify, Apple Music, iTunes, Shaz
 India/Latin America (its global #1 song and artist on 2026-11-27 were Guzarish and Alka Yagnik); "Popular worldwide"
 needs both. "Biggest movers" / "Highest debut" are computed by Vinyl from stored week-over-week snapshots.
 
+**Vinyl's own genre charts, Billboard-style** (Hemanth pointed at billboard.com's genre charts as "what we wanted",
+2026-11-27). Billboard is not a source (no API; terms forbid reuse). Vinyl computes: per genre (Pop, Hip-hop, Rock &
+Alternative, Country, R&B, Latin, Afrobeats, Electronic, Metal, Jazz, ...), songs ranked by combined chart strength from
+YouTube Charts + Kworb positions, genre from Last.fm/MusicBrainz tags; each entry shows last week, peak, weeks at #1,
+weeks on chart, from Vinyl's own weekly snapshots (columns fill in as history accrues; first weeks show "New").
+"Greatest of all time" per genre from long-run listening (ListenBrainz/Last.fm playcounts, Spotify totals via Kworb).
+Surfaced in Discover as a **Charts** entry in the List filter alongside Popular/Trending/New/Essentials.
+
 Charts (Hemanth's links, 2026-11-27, now fallback): **YouTube Charts global** (top songs/videos playlists + 40 top artists via
 ytmusicapi `get_charts("ZZ")`, no key) and a **Vinyl global chart** computed from Apple's free per-country RSS feeds
 (US, GB, CA, AU, IN, ...; Apple's "Top 100: Global" playlist needs the paid Apple Music API, and the RSS has no global
