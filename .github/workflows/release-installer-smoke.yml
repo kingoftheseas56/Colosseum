@@ -1,38 +1,7 @@
-name: release-installer-smoke
+name: Staging-only Windows update rehearsal
 
 on:
   workflow_dispatch:
-    inputs:
-      source_sha:
-        description: Exact Colosseum source commit to package
-        required: true
-        type: string
-      expected_version:
-        description: Expected installed Colosseum version
-        required: true
-        default: "1.3.0"
-        type: string
-
-      previous_version:
-        description: Published version to upgrade from
-        required: true
-        default: "1.2.0"
-        type: string
-      previous_sha256:
-        description: Exact published prior installer SHA256
-        required: true
-        default: "32c9eafa99bd0735490b2d9b5525f174757cbaf19db57d3c80f4970bdf8d050d"
-        type: string
-      receive_run_id:
-        description: Existing installer run to qualify without rebuilding (empty builds normally)
-        required: false
-        default: ""
-        type: string
-      receive_sha256:
-        description: Required exact installer SHA256 in receive-only mode
-        required: false
-        default: ""
-        type: string
 
 permissions:
   contents: read
@@ -43,12 +12,11 @@ concurrency:
   cancel-in-progress: false
 jobs:
   build-installer:
-    if: inputs.receive_run_id == ''
     runs-on: windows-2025
-    timeout-minutes: 120
+    timeout-minutes: 155
     env:
-      SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
-      VERSION: ${{ inputs.expected_version || '1.3.0' }}
+      SOURCE_SHA: d73111cddfef5728aa6b714fdb52fdf030b96ec6
+      VERSION: '1.5.0'
       VCPKG_TAG: "2026.07.29"
       MPV_RELEASE: "20261011"
       MPV_VERSION: "20261011-git-accb7b2821"
@@ -56,14 +24,15 @@ jobs:
       MPVQT_VERSION: "1.2.0"
       MPVQT_SHA256: "8660ad79c0d60fed77f29b36e1742841466af5405de702c81a121e6eeb625ebb"
       V113_SHA256: "140cefc39a47b932558cabb15adfacd7e991fda7e1762c2681c48a0be9272ee7"
-    outputs:
-      sha256: ${{ steps.fingerprint.outputs.sha256 }}
-      bytes: ${{ steps.fingerprint.outputs.bytes }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Preserve the rehearsal driver across source checkout
+        shell: pwsh
+        run: |
+          Copy-Item -LiteralPath 'tests/installer/windows_update_rehearsal.py' -Destination "$env:RUNNER_TEMP/windows_update_rehearsal.py"
       - name: Verify and locally tag trusted release source
         shell: pwsh
         run: |
@@ -171,15 +140,19 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           "MPVQT_ROOT=$install" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
           "$install/bin" | Out-File $env:GITHUB_PATH -Encoding utf8 -Append
-      - name: Configure and build Colosseum release
-        env:
-          COLOSSEUM_TMDB_KEY: ${{ secrets.COLOSSEUM_TMDB_KEY }}
+      - name: Provision ephemeral Windows rehearsal keys and process-local TLS trust
+        shell: pwsh
+        run: |
+          python "$env:RUNNER_TEMP/windows_update_rehearsal.py" prepare
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Configure and build staging-only Colosseum 1.5.0
         shell: pwsh
         run: |
           $build = Join-Path $env:GITHUB_WORKSPACE "native\build-msvc"
           $prefix = "$env:QT_ROOT_DIR;$env:MPVQT_ROOT;$env:VCPKG_ROOT/installed/x64-windows"
           cmake -S native -B $build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF `
-            -DCOLOSSEUM_UPDATE_TESTING=OFF `
+            -DCOLOSSEUM_UPDATE_TESTING=ON `
+            -DCOLOSSEUM_UPDATE_TEST_FEED_URL=https://127.0.0.1:18443/updates/stable.json `
             -DCOLOSSEUM_NO_ACCOUNT_EDITION=OFF `
             -DCOLOSSEUM_VINYL_IN_APP=OFF -DCOLOSSEUM_FERIA_IN_APP=OFF `
             -DCOLOSSEUM_ENABLE_VINYL_QUALIFICATION=OFF -DCOLOSSEUM_ENABLE_VINYL_TEST_FIXTURES=OFF `
@@ -191,165 +164,38 @@ jobs:
           if (!(Select-String -Path "$env:RUNNER_TEMP/colosseum-configure.log" -SimpleMatch "DLNA sharing enabled: pupnp found" -Quiet)) { throw "release must include DLNA" }
           cmake --build $build --target colosseum --parallel 2
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Deploy standalone runtime
-        shell: pwsh
-        run: |
-          $build = Join-Path $env:GITHUB_WORKSPACE "native\build-msvc"
-          & "$env:QT_ROOT_DIR\bin\windeployqt.exe" --release --qmldir "$env:GITHUB_WORKSPACE\qml" "$build\colosseum.exe"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Copy-Item "$env:QT_ROOT_DIR\plugins\imageformats\qwebp.dll" "$build\imageformats\qwebp.dll" -Force
-          $mpvqt = Get-ChildItem $env:MPVQT_ROOT -Recurse -Filter "MpvQt.dll" | Select-Object -First 1
-          if (-not $mpvqt) { throw "MpvQt.dll missing after install" }
-          Copy-Item $mpvqt.FullName $build -Force
-          Copy-Item "$env:LIBMPV_ROOT\libmpv-2.dll" $build -Force
-          Get-ChildItem "$env:VCPKG_ROOT\installed\x64-windows\bin" -Filter "*.dll" | Copy-Item -Destination $build -Force
-          $licenses = Join-Path $build "licenses"
-          New-Item -ItemType Directory -Force -Path $licenses | Out-Null
-          foreach ($name in @('pupnp', 'pthreads4w', 'DLNA-PROVENANCE.txt')) {
-            Copy-Item -LiteralPath (Join-Path $env:UPNP_ROOT "share/licenses/$name") -Destination $licenses -Recurse -Force
-          }
-      - name: Recover authenticated Stremio runtime from 1.1.3
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $root = Join-Path $env:RUNNER_TEMP "colosseum-113"
-          $extract = Join-Path $root "extract"
-          New-Item -ItemType Directory -Force -Path $root, $extract | Out-Null
-          gh release download v1.1.3 --repo $env:GITHUB_REPOSITORY --pattern "Colosseum-1.1.3-setup.exe" --dir $root
-          $installer = Join-Path $root "Colosseum-1.1.3-setup.exe"
-          $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($hash -ne $env:V113_SHA256) { throw "1.1.3 provenance checksum mismatch: $hash" }
-          7z x $installer "-o$extract" -y | Out-Null
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $runtime = Get-ChildItem $extract -Recurse -Filter "stremio-runtime.exe" | Select-Object -First 1
-          if (-not $runtime) { throw "stremio-runtime.exe missing from authenticated 1.1.3 installer" }
-          $runtimeDir = $runtime.Directory.FullName
-          $required = @("stremio-runtime.exe","server.js","ffmpeg.exe","ffprobe.exe","avcodec-58.dll","avdevice-58.dll","avfilter-7.dll","avformat-58.dll","avutil-56.dll","postproc-55.dll","swresample-3.dll","swscale-5.dll","LICENSE.md")
-          foreach ($name in $required) {
-            if (!(Test-Path (Join-Path $runtimeDir $name))) { throw "authenticated Stremio file missing: $name" }
-          }
-          "STREMIO_SRC_WIN=$runtimeDir" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Ensure NSIS is available
         shell: pwsh
         run: |
-          $makensis = "C:\Program Files (x86)\NSIS\makensis.exe"
-          if (!(Test-Path $makensis)) {
-            choco install nsis --yes --no-progress
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
-          if (!(Test-Path $makensis)) { throw "makensis missing after install" }
-      - name: Package canonical release installer
-        shell: bash
+          $makensis = 'C:\Program Files (x86)\NSIS\makensis.exe'
+          if (!(Test-Path $makensis)) { choco install nsis -y --no-progress; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }
+          if (!(Test-Path $makensis)) { throw 'makensis missing after install' }
+      - name: Build fixture 1.5.1 and assemble two staging installers
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
-          export STREMIO_SRC="$(cygpath -u "$STREMIO_SRC_WIN")"
-          export BUILD_DIR="$(cygpath -u "$GITHUB_WORKSPACE")/native/build-msvc"
-          bash scripts/installer/package_release.sh "$VERSION"
-      - name: Fingerprint canonical installer
-        id: fingerprint
+          python "$env:RUNNER_TEMP/windows_update_rehearsal.py" package
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Exercise signed in-app discovery, installation and restart
         shell: pwsh
         run: |
-          $installer = Join-Path $env:GITHUB_WORKSPACE "dist\Colosseum-$env:VERSION-setup.exe"
-          if (!(Test-Path $installer)) { throw "packaged installer missing" }
-          $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
-          $bytes = (Get-Item $installer).Length
-          if ($bytes -gt 300MB) { throw "installer exceeds 300 MiB: $bytes" }
-          "sha256=$hash" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          "bytes=$bytes" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          Write-Host "CANONICAL_INSTALLER SHA256=$hash BYTES=$bytes"
-      - name: Upload canonical installer artifact
+          python "$env:RUNNER_TEMP/windows_update_rehearsal.py" verify
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload staging-only evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Colosseum-${{ env.VERSION }}-setup
-          path: dist/Colosseum-${{ env.VERSION }}-setup.exe
-          if-no-files-found: error
+          name: Windows-staging-rehearsal-evidence
+          path: ${{ runner.temp }}/colosseum-update-rehearsal/evidence/
+          retention-days: 3
+          if-no-files-found: warn
+      - name: Upload staging-only installer pair
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-staging-only-installer-pair
+          path: ${{ runner.temp }}/colosseum-update-rehearsal/fixtures/*.exe
           compression-level: 0
           retention-days: 3
-
-  fresh-windows-install:
-    needs: build-installer
-    runs-on: windows-latest
-    timeout-minutes: 20
-    env:
-      VERSION: ${{ inputs.expected_version || '1.3.0' }}
-    steps:
-      - uses: actions/checkout@v7
-      - name: Download canonical installer artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: Colosseum-${{ env.VERSION }}-setup
-          path: ${{ runner.temp }}/release-installer
-      - name: Fresh install, boot, runtime, and uninstall smoke
-        shell: pwsh
-        run: |
-          $installer = Get-ChildItem "$env:RUNNER_TEMP\release-installer" -Filter "Colosseum-$env:VERSION-setup.exe" | Select-Object -First 1
-          if (-not $installer) { throw "canonical installer artifact missing" }
-          & .\tests\installer\release_installer_smoke.ps1 `
-            -Installer $installer.FullName `
-            -ExpectedSha256 "${{ needs.build-installer.outputs.sha256 }}" `
-            -ExpectedVersion $env:VERSION
-
-      - name: Receive published prior installer and qualify real upgrade
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PREVIOUS_VERSION: ${{ inputs.previous_version }}
-          PREVIOUS_SHA256: ${{ inputs.previous_sha256 }}
-        run: |
-          if ($env:PREVIOUS_VERSION -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') { throw 'canonical prior version required' }
-          gh release download "v$env:PREVIOUS_VERSION" --repo $env:GITHUB_REPOSITORY --pattern "Colosseum-$env:PREVIOUS_VERSION-setup.exe" --dir "$env:RUNNER_TEMP/prior"
-          if ($LASTEXITCODE -ne 0) { throw 'prior installer download failed' }
-          & ./tests/installer/release_upgrade_smoke.ps1 -Installer "$env:RUNNER_TEMP/release-installer/Colosseum-$env:VERSION-setup.exe" -ExpectedSha256 "${{ needs.build-installer.outputs.sha256 }}" -ExpectedVersion $env:VERSION -PreviousInstaller "$env:RUNNER_TEMP/prior/Colosseum-$env:PREVIOUS_VERSION-setup.exe" -PreviousVersion $env:PREVIOUS_VERSION -PreviousSha256 $env:PREVIOUS_SHA256
-      - name: Preserve acceptance logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-built-upgrade-logs
-          path: ${{ runner.temp }}/*.log
-          retention-days: 3
-
-  receive-windows-upgrade:
-    if: inputs.receive_run_id != ''
-    runs-on: windows-latest
-    timeout-minutes: 20
-    env:
-      VERSION: ${{ inputs.expected_version || '1.3.0' }}
-      PREVIOUS_VERSION: ${{ inputs.previous_version }}
-      PREVIOUS_SHA256: ${{ inputs.previous_sha256 }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - name: Receive exact rebuilt installer
-        uses: actions/download-artifact@v4
-        with:
-          name: Colosseum-${{ env.VERSION }}-setup
-          path: ${{ runner.temp }}/received
-          run-id: ${{ inputs.receive_run_id }}
-          github-token: ${{ github.token }}
-      - name: Fingerprint, fresh install and uninstall
-        shell: pwsh
-        env:
-          EXPECTED_SHA256: ${{ inputs.receive_sha256 }}
-        run: |
-          if ($env:EXPECTED_SHA256 -notmatch '^[0-9a-fA-F]{64}$') { throw 'exact digest required' }
-          & ./tests/installer/release_installer_smoke.ps1 -Installer "$env:RUNNER_TEMP/received/Colosseum-$env:VERSION-setup.exe" -ExpectedSha256 $env:EXPECTED_SHA256 -ExpectedVersion $env:VERSION
-      - name: Receive published prior installer and qualify real upgrade
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EXPECTED_SHA256: ${{ inputs.receive_sha256 }}
-        run: |
-          if ($env:PREVIOUS_VERSION -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') { throw 'canonical prior version required' }
-          gh release download "v$env:PREVIOUS_VERSION" --repo $env:GITHUB_REPOSITORY --pattern "Colosseum-$env:PREVIOUS_VERSION-setup.exe" --dir "$env:RUNNER_TEMP/prior"
-          if ($LASTEXITCODE -ne 0) { throw 'prior installer download failed' }
-          & ./tests/installer/release_upgrade_smoke.ps1 -Installer "$env:RUNNER_TEMP/received/Colosseum-$env:VERSION-setup.exe" -ExpectedSha256 $env:EXPECTED_SHA256 -ExpectedVersion $env:VERSION -PreviousInstaller "$env:RUNNER_TEMP/prior/Colosseum-$env:PREVIOUS_VERSION-setup.exe" -PreviousVersion $env:PREVIOUS_VERSION -PreviousSha256 $env:PREVIOUS_SHA256
-      - name: Preserve acceptance logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-received-upgrade-logs
-          path: |
-            ${{ runner.temp }}/*.log
-          retention-days: 3
+          if-no-files-found: error
