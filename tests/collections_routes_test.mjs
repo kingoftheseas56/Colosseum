@@ -70,6 +70,7 @@ pageOwners.collectionsPanel.showing = true;
 assert.equal(vm.runInNewContext(fullWindowBinding, pageOwners), true, 'Collections owns its full-window page');
 function shell() {
     const calls = [], messages = [];
+    assert(declaredMainIds.has('audiobookFlow'), 'Audiobook flow must have an actual QML owner');
     const context = {
         namedCollectionsNavigation:null, namedCollectionsRouteBypass:false, namedCollectionsReturn:null,
         namedCollectionsOpening:null, namedCollectionsVaultPending:null, bookReturnSnapshot:null,
@@ -81,6 +82,7 @@ function shell() {
         VaultLibrary:{browseDetail:() => ({found:false})},
         openModes:{count:0,get:() => null,append:item => calls.push(['appendWorld',plain(item)])},
         phoneShell:{closeProfilePage:() => calls.push(['closeProfile'])},
+        audiobookFlow:{clear:() => calls.push(['clearAudiobookFlow'])},
         Qt:{BacktabFocusReason:1},
         collectionsPanel:{pendingChanges:false, showing:true, pickerActive:false, deleteActive:false, collectionId:'saved-collection',
             showMessage:message => messages.push(message), forceActiveFocus:() => {}}
@@ -140,12 +142,13 @@ function resolveTheatrePage(source,item,metadataById) {
     return {page:c,metaCalls,castCalls};
 }
 {
-    const {context:c} = shell();
+    const {context:c,calls} = shell();
     c.universeLayer.active = true;
     c.onePieceArcLayer.active = true;
     c.clearNamedCollectionsUnderlyingPages();
     assert.equal(c.universeLayer.active, false);
     assert.equal(c.onePieceArcLayer.active, false);
+    assert.equal(calls.filter(([name]) => name === 'clearAudiobookFlow').length, 1);
 }
 {
     const {context:c,calls,messages} = shell();
