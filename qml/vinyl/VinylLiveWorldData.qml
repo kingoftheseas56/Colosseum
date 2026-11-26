@@ -35,7 +35,14 @@ Item {
     // service and synchronously re-notify this gate through Runtime visibility.
     // Stay locked until this component's inputs have completed construction.
     property bool tasteStateReady: false
-    readonly property bool tasteGateLocked: !tasteStateReady || (usesRecommendationService
+    // The preference store can already hold a completed picker while the service
+    // is rebuilding its profile projection. That gap is loading, not onboarding.
+    readonly property bool tastePresentationPending: !tasteStateReady || (usesRecommendationService
+        && session.profileActive !== false && !session.shuttingDown
+        && preferencesStore.vinylTasteAnswered === true
+        && (preferencesStore.vinylTasteArtistIds || []).length >= minimumArtistCount
+        && (savedArtistCount < minimumArtistCount || onboardingState === "unanswered"))
+    readonly property bool tasteGateLocked: tastePresentationPending || (usesRecommendationService
             ? recommendationService.profileActive === true && String(recommendationService.profileScope || "") !== ""
             : session.profileActive!==false && !session.shuttingDown)
         && savedArtistCount < minimumArtistCount
@@ -245,9 +252,9 @@ Item {
         : fallbackEditing ? "editing" : fallbackTastePickerOpen ? "draft" : fallbackPickerAnswered ? "answered" : "unanswered"
     readonly property bool pickerAnswered: usesRecommendationService
         ? onboardingState === "answered" : fallbackPickerAnswered
-    readonly property bool tastePickerOpen: usesRecommendationService
+    readonly property bool tastePickerOpen: !tastePresentationPending && (usesRecommendationService
         ? activeTab === "home" && (onboardingState === "draft" || onboardingState === "editing" || tasteGateLocked)
-        : fallbackTastePickerOpen || tasteGateLocked
+        : fallbackTastePickerOpen || tasteGateLocked)
     readonly property var picks: usesRecommendationService
         ? recommendationService.selectedArtists : fallbackPicks
     readonly property var pickerDraft: usesRecommendationService
@@ -274,14 +281,13 @@ Item {
     }
     // The picker needs the service in an editing draft; open one whenever the gate is locked.
     function ensureGateDraft() {
-        // tasteGateLocked is forced true until construction completes. The world
-        // Loader is asynchronous, so a queued check can run first; the real gate
-        // check runs from Component.onCompleted.
-        if(!tasteStateReady || !usesRecommendationService || !tasteGateLocked || activeTab!=="home") return;
+        // Do not turn a temporary startup lock into an actual edit session.
+        if(tastePresentationPending || !usesRecommendationService || !tasteGateLocked || activeTab!=="home") return;
         if(onboardingState==="draft" || onboardingState==="editing") return;
         artistSearchText="";
         recommendationService.beginTasteEdit();
     }
+    onTastePresentationPendingChanged: Qt.callLater(ensureGateDraft)
     onTasteGateLockedChanged: Qt.callLater(ensureGateDraft)
     onOnboardingStateChanged: Qt.callLater(ensureGateDraft)
     onActiveTabChanged: Qt.callLater(ensureGateDraft)

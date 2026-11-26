@@ -14,6 +14,9 @@ WorldPage {
     property bool navigationEnabled: !!worldData && worldData.canEnterVinyl !== false
     readonly property bool gated: !!worldData && worldData.tasteGateLocked === true
     property bool contentVisible: true
+    property bool showPageBacking: true
+    property bool hostedHomeLoading: false
+    readonly property bool homeLoadingIndeterminate: homeLoading.visible && homeLoading.indeterminate
     property bool runtimeReady: false
     property bool hostReady: false
     property bool componentReady: false
@@ -204,6 +207,7 @@ WorldPage {
         parent: root
         anchors.fill: parent
         z: -1
+        visible: root.showPageBacking
         color: "#06070b"
     }
     Column {
@@ -213,7 +217,7 @@ WorldPage {
         readonly property bool compactIntro: root.shortDesktop && !hero.narrow
         // Use explicit gaps so only the spaces around the Home tab bar get tighter.
         onPositioningComplete: root.updateHomeLayout()
-        Column {
+        VinylHomeLoadingIndicator {
             id: homeLoading
             objectName: "vinylHomeLoading"
             readonly property bool hasContent: (root.worldData.heroSlides || []).length > 0
@@ -232,7 +236,7 @@ WorldPage {
                 running: homeLoading.waitingOnOptional && homeLoading.visible
                 onTriggered: homeLoading.optionalWaitExpired = true
             }
-            readonly property bool canPresentContent: hasContent && !loadingBar.indeterminate
+            readonly property bool canPresentContent: hasContent && !indeterminate
                 && root.contentVisible && !root.gated && !root.worldData.tastePickerOpen
                 && root.worldData.pickerAnswered === true && root.currentTab === "home" && !root.listKey
             // Latch only after the first-load wait has let content through, not as rows arrive.
@@ -248,32 +252,15 @@ WorldPage {
                     homeLoading.rememberContent();
                 }
             }
-            width: Math.min(420,parent.width)
-            x: (parent.width-width)/2
             topPadding: Math.max(0,root.pageFlickable.height*0.4)
-            spacing: 8
             visible: !root.gated && !root.worldData.tastePickerOpen && root.worldData.pickerAnswered === true
                 && root.currentTab === "home" && !root.listKey
-                && !contentShown && (loadingBar.indeterminate || !hasContent)
-            Text {
-                width: parent.width
-                horizontalAlignment: Text.AlignHCenter
-                objectName: "vinylHomeLoadingMessage"
-                text: loadingBar.indeterminate ? qsTr("Loading your music…") : root.worldData.homeError || qsTr("Could not load your music.")
-                color: theme.inkDim
-                font.family: theme.ui; font.pixelSize: 13
-            }
-            ProgressBar {
-                id: loadingBar
-                objectName: "vinylHomeLoadingBar"
-                width: parent.width; height: 6
-                indeterminate: root.worldData.homeStatus==="loading" || root.worldData.homeStatus==="idle" || (Number((root.worldData.homeSourcePool || {}).pendingCount)>0 && !homeLoading.optionalWaitExpired)
-                visible: indeterminate
-                palette.dark: theme.gold
-                palette.midlight: "#1affffff"
-                Accessible.name: qsTr("Loading your music")
-            }
-            VinylWorldButton { x:(parent.width-width)/2; visible:!loadingBar.indeterminate; label:qsTr("Retry"); selected:true; backdrop:root.backdrop; onTriggered:root.worldData.retryHomeRecommendations() }
+                && !contentShown && (indeterminate || !hasContent)
+            indeterminate: root.worldData.homeStatus === "loading" || root.worldData.homeStatus === "idle"
+                || (Number((root.worldData.homeSourcePool || {}).pendingCount) > 0 && !optionalWaitExpired)
+            showIndicator: !root.hostedHomeLoading || !indeterminate
+            error: root.worldData.homeError || ""
+            VinylWorldButton { x:(parent.width-width)/2; visible:!homeLoading.indeterminate; label:qsTr("Retry"); selected:true; backdrop:root.backdrop; onTriggered:root.worldData.retryHomeRecommendations() }
         }
         VinylHero {
             id: hero

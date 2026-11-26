@@ -184,6 +184,8 @@ Window {
                 win.closeSession(records[i].id)
     }
     readonly property bool vinylEnabled: typeof VinylLiveEnabled !== "undefined" && VinylLiveEnabled
+    // Vinyl experiment: disable to restore the original backdrop and loading presentation.
+    readonly property bool vinylColdRippleBackdrop: true
     function traceVinylResume(phase, pending) {
         if (typeof CatalogueTraceEnabled === "undefined" || !CatalogueTraceEnabled || !pending) return
         var track = String(pending.entry && pending.entry.resume && pending.entry.resume.trackId || "")
@@ -4655,24 +4657,44 @@ Window {
         // wallpaper search is open-ended, so the vignette reads each pick's brightness and
         // deepens on bright ones — from luma 0.50 up to full at 0.85, every stop capped at 0.55
         // so a bright image still looks like itself. Dark picks keep the baseline untouched.
-        WallpaperLuma {
-            id: wallLuma
-            objectName: "wallLuma"
-            visible: false
+        WallpaperVeil {
+            objectName: "wallVignette"
             source: win.wallpaperIsNative ? "" : Qt.resolvedUrl(win.wallpaperSource)
         }
-        Rectangle {
-            id: wallVignette
-            objectName: "wallVignette"
-            property real extra: 0.27 * Math.max(0, Math.min(1, (wallLuma.luma - 0.50) / 0.35))
-            Behavior on extra { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
-            anchors.fill: parent
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(0,0,0, Math.min(0.55, 0.34 + wallVignette.extra)) }
-                GradientStop { position: 0.5; color: Qt.rgba(0,0,0, Math.min(0.55, 0.28 + wallVignette.extra)) }
-                GradientStop { position: 1.0; color: Qt.rgba(0,0,0, Math.min(0.55, 0.46 + wallVignette.extra)) }
-            }
+    }
+
+    component WallpaperVeil: Rectangle {
+        id: veil
+        property alias source: luma.source
+        property real extra: 0.27 * Math.max(0, Math.min(1, (luma.luma - 0.50) / 0.35))
+        Behavior on extra { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
+        anchors.fill: parent
+        WallpaperLuma { id: luma; objectName: "wallLuma"; visible: false }
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: Qt.rgba(0,0,0, Math.min(0.55, 0.34 + veil.extra)) }
+            GradientStop { position: 0.5; color: Qt.rgba(0,0,0, Math.min(0.55, 0.28 + veil.extra)) }
+            GradientStop { position: 1.0; color: Qt.rgba(0,0,0, Math.min(0.55, 0.46 + veil.extra)) }
         }
+    }
+
+    // Keep both sources resident: switching worlds never changes the user's wallpaper
+    // source or waits on a reload. Vinyl's glass samples this image together with its veil.
+    Item {
+        id: vinylWall
+        objectName: "vinylColdRippleWall"
+        parent: dockScene
+        z: -1
+        anchors.fill: parent
+        visible: win.vinylColdRippleBackdrop && worldStack.current === "Vinyl" && wall.visible
+        Image {
+            id: vinylWallArt
+            objectName: "vinylColdRippleImage"
+            anchors.fill: parent
+            source: win.vinylColdRippleBackdrop && win.vinylEnabled
+                ? win.defaultWallpaperSource || Qt.resolvedUrl("../assets/wallpaper/cold-ripple.jpg") : ""
+            fillMode: Image.PreserveAspectCrop
+        }
+        WallpaperVeil { source: vinylWallArt.source }
     }
 
     // (RowHeader — the old hover-reveal row header — is gone: its one user was the home
@@ -5390,17 +5412,38 @@ Window {
                     }
                 }
                 // Android reports loading outside Universes. Vinyl also reports pending resume.
+                readonly property bool continuousVinylLoading: mode === "Vinyl"
+                    && win.vinylColdRippleBackdrop && !win.androidHost
                 Text {
                     anchors.centerIn: parent
                     visible: worldLoader.mode === "Vinyl"
-                        ? (worldLoader.status !== Loader.Ready || win.holdVinylResumePresentation(worldLoader.item))
+                        ? (win.holdVinylResumePresentation(worldLoader.item)
+                            || (!worldLoader.continuousVinylLoading && worldLoader.status !== Loader.Ready))
                         : (Qt.platform.os === "android" && worldLoader.mode !== "Universes"
                             && worldLoader.status !== Loader.Ready)
-                    text: worldLoader.mode === "Vinyl" && win.hasPendingVinylResume()
-                        && win.pendingVinylResume.entry && win.pendingVinylResume.entry.title
-                        ? qsTr("Opening %1…").arg(win.pendingVinylResume.entry.title)
-                        : qsTr("Loading %1…").arg(worldLoader.mode)
+                    text: {
+                        if (worldLoader.mode === "Vinyl" && win.hasPendingVinylResume()) {
+                            const title = win.pendingVinylResume.entry && win.pendingVinylResume.entry.title
+                            if (title) return qsTr("Opening %1…").arg(title)
+                            if (worldLoader.continuousVinylLoading) return qsTr("Opening your music…")
+                        }
+                        return qsTr("Loading %1…").arg(worldLoader.mode)
+                    }
                     color: "#9a99a5"; font.family: "Segoe UI"; font.pixelSize: 14
+                }
+                Loader {
+                    active: worldLoader.continuousVinylLoading
+                    visible: active && !win.hasPendingVinylResume()
+                        && (worldLoader.status !== Loader.Ready || worldLoader.item.homeLoadingIndeterminate)
+                    width: Math.max(0, Math.min(420, parent.width - 2 * loadingLayout.outerPageMargin))
+                    x: (parent.width - width) / 2
+                    AdaptiveLayout { id: loadingLayout; viewportWidth: worldLoader.width; desktopPresentation: false }
+                    // Match the Vinyl WorldPage viewport at its resting scroll position.
+                    // Keep the same indicator (including its animation) across Loader.Ready.
+                    readonly property real viewportTop: (parent.width >= 760 && parent.height <= 760 ? 8 : 24)
+                        + topbar.implicitHeight + (win.televisionMode ? 18 : loadingLayout.compactChrome ? 8 : 10)
+                    y: viewportTop + Math.max(0, (parent.height - viewportTop) * 0.4)
+                    sourceComponent: VinylHomeLoadingIndicator { indeterminate: worldLoader.status !== Loader.Error }
                 }
                 // Pass the initial activation state into the component before Component.onCompleted.
                 // This keeps opt-in warmers from running a world's synchronous setup while hidden.
@@ -5420,6 +5463,8 @@ Window {
                         initialProperties.showExplicitContent = contentPreferences.showExplicit
                     else {
                         initialProperties.backdrop = wall
+                        initialProperties.coldRippleBackdrop = win.vinylColdRippleBackdrop ? vinylWall : null
+                        initialProperties.hostedHomeLoading = worldLoader.continuousVinylLoading
                         initialProperties.homeLanding = true
                         initialProperties.hostReady = Qt.binding(function() {
                             return worldLoader.status === Loader.Ready

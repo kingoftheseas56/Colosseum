@@ -19,6 +19,8 @@ Item {
     property bool resumePresentationPending: false
     visible: !resumePresentationPending || resumeRequiresArtistSelection
     property Item backdrop
+    property Item coldRippleBackdrop
+    readonly property Item browseBackdrop: coldRippleBackdrop || backdrop
     property string page: "library"
     property bool videoFullscreen: false
     property var pendingVideoOpen: null
@@ -45,6 +47,7 @@ Item {
     readonly property bool resumeRequiresArtistSelection: componentReady && session.profileActive && !session.shuttingDown
         && recommendations.profileActive && recommendations.profileScope === session.profileScope
         && recommendations.profileGeneration === session.profileGeneration && !!recommendations.preferences
+        && !worldData.tastePresentationPending
         && (recommendations.canEnterVinyl !== true || worldData.tasteGateLocked === true)
     property string importStatus: ""
     readonly property bool importing: session.importing
@@ -91,9 +94,10 @@ Item {
         : height - Math.max(62, shellDockBottomExtent)
     readonly property bool worldVisible: canEnterVinyl
         ? ["home","songs","albums","artists","discover","library"].indexOf(page)>=0 : worldData.tastePickerOpen===true
-    readonly property bool detailBackdrop: canEnterVinyl && ["album","song","artist","mix"].includes(page)
-    readonly property bool browsingShell: !detailBackdrop && page!=="feedback"
-    readonly property Item chromeBackdrop: detailBackdrop || !root.backdrop ? vinylBackdrop : root.backdrop
+    readonly property bool detailPage: canEnterVinyl && ["album","song","artist","mix"].includes(page)
+    readonly property bool detailBackdrop: detailPage && (page !== "artist" || !coldRippleBackdrop)
+    readonly property bool browsingShell: !detailPage && page!=="feedback"
+    readonly property Item chromeBackdrop: detailBackdrop || !browseBackdrop ? vinylBackdrop : browseBackdrop
     readonly property bool discoverOnlineMode: {
         if(worldData.activeTab==="discover") return !!worldData.onlineMode;
         var states=worldData.browseStates;
@@ -942,7 +946,7 @@ Item {
         onAccepted: root.importLocalFiles([String(selectedFolder)])
         onRejected: root.parkFocus()
     }
-    VinylBackdrop {id:vinylBackdrop;anchors.fill:parent;visible:root.detailBackdrop || !root.backdrop;source:root.page==="song" ? song.pageData.playingEdition.cover : root.page==="album" ? session.shownEdition.cover : ""}
+    VinylBackdrop {id:vinylBackdrop;anchors.fill:parent;visible:root.detailBackdrop || !root.browseBackdrop;source:root.page==="song" ? song.pageData.playingEdition.cover : root.page==="album" ? session.shownEdition.cover : ""}
     TopBar {
         id:top;objectName:root.browsingShell ? "" : "vinylTopBar"
         visible: !root.browsingShell && !root.videoFullscreen
@@ -1000,7 +1004,7 @@ Item {
         active:root.searchOpen
         visible:active && root.lifecycleActive
         sourceComponent: VinylSearchPage {
-            session:root.session;worldData:root.worldData;backdrop:root.backdrop
+            session:root.session;worldData:root.worldData;backdrop:root.browseBackdrop
             artistPicker:root.artistSearchOpen;initialState:root.searchSnapshot
             onBackRequested:root.closeSearch()
             onItemRequested:item=>root.activateSearchItem(item)

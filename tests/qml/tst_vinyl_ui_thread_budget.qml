@@ -30,6 +30,7 @@ TestCase {
         property var homeListeningCards: []
         property var homeQuickPicks: []
         property var homeSnapshot: ({historyEnabled: true})
+        function beginTasteEdit() { onboardingState = "editing"; }
         function beginHomeVisit() {}
         function leaveHome() {}
         function setCratePin(item, pinned, generation) {
@@ -41,6 +42,8 @@ TestCase {
     }
     QtObject {
         id: preferences
+        property bool vinylTasteAnswered: true
+        property var vinylTasteArtistIds: ["one", "two", "three", "four", "five"]
         function setVinylTasteSelections() { return true; }
     }
     QtObject {
@@ -155,6 +158,33 @@ TestCase {
         var elapsed = Date.now()-start;
         console.info("UI budget: " + label + " = " + elapsed + " ms (limit " + budgetMs + " ms)");
         verify(elapsed < budgetMs, label + " took " + elapsed + " ms");
+    }
+    function test_returningTasteNeverOpensOnboarding() {
+        world.selectTab("home");
+        var flashes = 0;
+        function recordPicker() { if (world.tastePickerOpen) ++flashes; }
+        world.tastePickerOpenChanged.connect(recordPicker);
+        try {
+            world.tasteStateReady = false;
+            verify(!world.tastePickerOpen, "Construction is not an unanswered profile");
+            recommendations.selectedArtists = [];
+            recommendations.onboardingState = "unanswered";
+            world.tasteStateReady = true;
+            verify(world.tastePresentationPending && !world.tastePickerOpen);
+            wait(300); // Let the deferred gate check run while persisted taste is still being published.
+            compare(recommendations.onboardingState, "unanswered");
+            recommendations.selectedArtists = [1, 2, 3, 4, 5];
+            recommendations.onboardingState = "answered";
+            verify(world.pickerAnswered && !world.tastePickerOpen);
+            compare(flashes, 0);
+            recommendations.beginTasteEdit();
+            verify(world.tastePickerOpen, "Intentional editing still opens the picker");
+        } finally {
+            world.tastePickerOpenChanged.disconnect(recordPicker);
+            world.tasteStateReady = true;
+            recommendations.selectedArtists = [1, 2, 3, 4, 5];
+            recommendations.onboardingState = "answered";
+        }
     }
     function test_selectTab() {
         timed("selectTab Spin", function() { world.selectTab("albums"); });

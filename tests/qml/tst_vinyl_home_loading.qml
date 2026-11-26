@@ -60,6 +60,8 @@ TestCase {
             property string homeStatus:"ready"
             property var homeSourcePool:({pendingCount:0})
             property string homeError:""
+            property int retryCount:0
+            function retryHomeRecommendations(){++retryCount;}
             property var homeListSnapshot:null
             signal listRequested(string key,bool home)
             signal artistSearchFocusRequested()
@@ -125,6 +127,29 @@ TestCase {
         view.setTab("home"); verify(loading.visible);
         gateData.crateItems=[{id:"ready-album",kind:"albums",title:"Ready album",artist:"Artist",cover:""}]; gateData.homeStatus="ready";
     }
+    function source(path) {
+        var request = new XMLHttpRequest();
+        request.open("GET", Qt.resolvedUrl("../../qml/" + path), false);
+        request.send();
+        verify(request.responseText.length > 0, "Read production " + path);
+        return request.responseText;
+    }
+    function makeHostLoading() {
+        // Main's data and native services are not linked by the QML runner.
+        // Execute its actual Loader presentation bindings with controlled states.
+        var main = source("Main.qml");
+        var start = main.indexOf("// Android reports loading outside Universes.");
+        var end = main.indexOf("// Pass the initial activation state", start);
+        verify(start >= 0 && end > start, "Find Main's production loading presentation");
+        return Qt.createQmlObject('import QtQuick; import "../../qml"; Item {\n'
+            + 'id: worldLoader; property string mode: "Vinyl"; property int status: Loader.Loading; property Item item;\n'
+            + 'QtObject { id: win; property bool androidHost: false; property bool televisionMode: false; property bool vinylColdRippleBackdrop: true;'
+            + 'property var pendingVinylResume: null; function hasPendingVinylResume() { return !!pendingVinylResume; }'
+            + 'function holdVinylResumePresentation(world) { return hasPendingVinylResume(); } }\n'
+            + 'property alias pendingVinylResume: win.pendingVinylResume; property alias androidHost: win.androidHost;\n'
+            + 'QtObject { id: topbar; property real implicitHeight: 56 }\n'
+            + main.slice(start, end) + '\n}', test, "hostLoadingUnderTest.qml");
+    }
     function test_01_refreshKeepsContent() {
         var loading=findChild(view,"vinylHomeLoading");
         var album={id:"ready-album",kind:"albums",title:"Ready album",artist:"Artist",cover:""};
@@ -182,5 +207,130 @@ TestCase {
         gateData.heroSlides=[]; gateData.v1HomeRows=[];
         gateData.homeStatus="ready"; gateData.homeSourcePool={pendingCount:0};
         view.pageFlickable.contentY=0;
+    }
+    function test_02_oneLoader() {
+        var host = makeHostLoading();
+        var data = dataFactory.createObject(test, {homeStatus:"loading"});
+        var shell;
+        try {
+            host.width = test.width;
+            host.height = test.height;
+            for (var child of host.children)
+                verify(!(child.visible && child.text === "Loading Vinyl…"),
+                       "The shell must never present a separate Loading Vinyl message on desktop");
+            var message = findChild(host, "vinylHomeLoadingMessage");
+            var bar = findChild(host, "vinylHomeLoadingBar");
+            verify(message && message.visible && bar && bar.visible && bar.indeterminate);
+            shell = shellFactory.createObject(test, {worldData:data, contentBottomInset:0});
+            verify(shell);
+            var localMessage = findChild(shell, "vinylHomeLoadingMessage");
+            var localBar = findChild(shell, "vinylHomeLoadingBar");
+            function geometry(item) {
+                var point = item.mapToItem(host, 0, 0);
+                return [point.x, point.y, item.width, item.height];
+            }
+            verify(waitForRendering(shell));
+            var messageBefore = geometry(message), barBefore = geometry(bar);
+            compare(messageBefore, geometry(localMessage));
+            compare(barBefore, geometry(localBar));
+            compare(message.text, localMessage.text);
+            compare(message.color, localMessage.color);
+            compare(message.font.pixelSize, localMessage.font.pixelSize);
+            compare(bar.palette.dark, localBar.palette.dark);
+
+            shell.hostedHomeLoading = true;
+            host.item = shell;
+            host.status = Loader.Ready;
+            verify(waitForRendering(shell));
+            verify(message.visible && bar.visible && bar.indeterminate);
+            verify(!localMessage.visible && !localBar.visible);
+            compare(messageBefore, geometry(message));
+            compare(barBefore, geometry(bar));
+
+            host.pendingVinylResume = {entry:{title:"Test song"}};
+            verify(!message.visible && !bar.visible);
+            verify(host.children.some(child => child.visible && child.text === "Opening Test song…"));
+            host.pendingVinylResume = null;
+            data.homeStatus = "error";
+            verify(!message.visible && localMessage.visible && !localBar.visible);
+            compare(localMessage.text, "Could not load your music.");
+            var retry = localMessage.parent.children.find(child => child.label === "Retry");
+            verify(retry && retry.visible);
+            retry.triggered();
+            compare(data.retryCount, 1);
+            data.crateItems = [{id:"ready-album",kind:"albums",title:"Ready album",cover:""}];
+            data.homeStatus = "ready";
+            verify(!message.visible && !localMessage.visible);
+
+            host.androidHost = true;
+            host.status = Loader.Loading;
+            verify(host.children.some(child => child.visible && child.text === "Loading Vinyl…"));
+        } finally {
+            host.destroy();
+            if (shell) shell.destroy();
+            wait(0);
+            data.destroy();
+        }
+    }
+
+    function test_coldRippleForBrowseOnly() {
+        // Exercise the production wallpaper item and runtime selection expressions without
+        // the native audio module. The artwork backdrop itself is the real QML item.
+        var main = source("Main.qml");
+        var runtime = source("vinyl/VinylRuntime.qml");
+        var wallpaper = /    component WallpaperVeil: Rectangle \{[^]*?WallpaperVeil \{ source: vinylWallArt.source \}\s*\}/.exec(main);
+        var route = /    readonly property bool detailPage:[^]*?readonly property Item chromeBackdrop:[^\r\n]+/.exec(runtime);
+        var browse = /    readonly property Item browseBackdrop:[^\r\n]+/.exec(runtime);
+        var artwork = /    VinylBackdrop \{id:vinylBackdrop;[^\r\n]+/.exec(runtime);
+        verify(wallpaper && route && browse && artwork);
+        var albumArt = Qt.resolvedUrl("../../tests/fixtures/vinyl-generated-art/artist-media/eminem-early.jpg");
+        var songArt = Qt.resolvedUrl("../../tests/fixtures/vinyl-generated-art/artist-media/eminem-hood.jpg");
+        var fixture = Qt.createQmlObject(`import QtQuick; import "../../qml/vinyl";
+            Item {
+                id: root
+                property string page: "home"
+                property bool canEnterVinyl: true
+                property Item backdrop: wall
+                property Item coldRippleBackdrop: win.vinylColdRippleBackdrop ? vinylWall : null
+                property alias world: worldStack.current
+                property alias experiment: win.vinylColdRippleBackdrop
+                component WallpaperLuma: Item { property url source; property real luma: 0.5 }
+                QtObject { id: win; property bool vinylEnabled: true; property bool vinylColdRippleBackdrop: true
+                    property url defaultWallpaperSource: Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg") }
+                QtObject { id: worldStack; property string current: "Vinyl" }
+                QtObject { id: song; property var pageData: ({playingEdition:{cover:"${songArt}"}}) }
+                QtObject { id: session; property var shownEdition: ({cover:"${albumArt}"}) }
+                Item { id: dockScene; anchors.fill: parent }
+                Item { id: wall; objectName: "userWallpaper"; parent: dockScene }
+                ${wallpaper[0]}
+                ${browse[0]}
+                ${route[0]}
+                ${artwork[0]}
+            }`, test, "vinylBackdropUnderTest.qml");
+        try {
+            var cold = findChild(fixture, "vinylColdRippleWall");
+            var image = findChild(cold, "vinylColdRippleImage");
+            verify(cold.visible && image.source.toString().endsWith("assets/wallpaper/cold-ripple.jpg"));
+            compare(image.fillMode, Image.PreserveAspectCrop);
+            tryCompare(image, "status", Image.Ready);
+            for (var page of ["home", "discover", "library", "songs", "albums", "artists", "artist"]) {
+                fixture.page = page;
+                compare(fixture.chromeBackdrop, cold, page);
+            }
+            for (var detail of ["album", "song"]) {
+                fixture.page = detail;
+                compare(fixture.chromeBackdrop.objectName, "vinylBackdrop");
+                compare(fixture.chromeBackdrop.source.toString(), (detail === "album" ? albumArt : songArt).toString());
+            }
+            fixture.world = "Theatre";
+            verify(!cold.visible && fixture.backdrop.visible);
+            fixture.world = "Vinyl";
+            fixture.page = "home";
+            fixture.experiment = false;
+            verify(!cold.visible);
+            compare(fixture.chromeBackdrop, fixture.backdrop);
+        } finally {
+            fixture.destroy();
+        }
     }
 }
