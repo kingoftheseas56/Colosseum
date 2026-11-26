@@ -278,7 +278,7 @@ def verify(repo, work):
     require(installed_version() == "1.5.0" and digest(exe) == identities["1.5.0"]["exe_sha256"],
             "Initial fixture install identity mismatch")
     tag = f"staged-windows-upgrade-{os.environ['GITHUB_RUN_ID']}"
-    os.environ.update(COLOSSEUM_APPDATA_TAG=tag, COLOSSEUM_LANISTA_PIPE=tag, COLOSSEUM_LANISTA_DRIVE="1",
+    os.environ.update(COLOSSEUM_APPDATA_TAG=tag + "-bad-feed", COLOSSEUM_LANISTA_PIPE=tag, COLOSSEUM_LANISTA_DRIVE="1",
                       COLOSSEUM_AUTOMATION_FOCUS_SEAMS="0", QT_QUICK_BACKEND="software")
     app = App(evidence)
     server, configure = fixture_feed(repo, work)
@@ -294,13 +294,16 @@ def verify(repo, work):
         app.visible("colosseumTopbarUpdateButton", True)
         app.visible("bootSplash", False)
         app.click("colosseumTopbarUpdateButton")
-        rejected = app.check_state("VerificationFailure")
+        rejected = app.until("Corrupt release signature rejected", "qml-get",
+                             lambda row: row.get("props", {}).get("text") == "Could not verify the release",
+                             object="colosseumUpdateStatusText", props=["text"])["props"]["text"]
+        app.visible("colosseumTopbarUpdateBadge", False)
         app.screenshot("01-invalid-signature")
-        require(rejected["primaryLabel"] == "Check again", "Corrupt fixture offered a download")
         bad.terminate()
         bad.wait(20)
 
         configure()
+        os.environ["COLOSSEUM_APPDATA_TAG"] = tag
         prior = start("valid-feed")
         boot = app.booted("1.5.0 fixture booted")
         app.visible("bootSplash", False)
@@ -331,10 +334,14 @@ def verify(repo, work):
         process_version = run(exe, "--version", cwd=install, capture_output=True, text=True).stdout.strip()
         require(process_version == "Colosseum 1.5.1", f"Installed build reported {process_version!r}")
         require(digest(record) == record_sha, "Prior user data changed across the upgrade")
+        require(not install.with_name("Colosseum.__update-old").exists(), "Healthy restart did not clean its prior payload")
         app.visible("colosseumTopbarUpdateBadge", False)
         app.screenshot("04-after-restart-no-badge")
         app.click("colosseumTopbarUpdateButton")
-        current = app.check_state("UpToDate")
+        current = app.check_state("UpToDate", "1.5.1")
+        require(current["primaryLabel"] == "Check again", "Same version offered a download")
+        app.click("colosseumUpdatePrimaryAction")
+        app.check_state("UpToDate", "1.5.1")
         app.screenshot("05-same-version")
         (evidence / "windows-rehearsal.json").write_text(json.dumps({
             "status": "pass", "installed_version": process_version, "invalid_signature": rejected,

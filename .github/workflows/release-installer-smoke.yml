@@ -191,11 +191,11 @@ jobs:
           retention-days: 3
           if-no-files-found: warn
       - name: Upload staging-only installer pair
-        if: success()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Windows-staging-only-installer-pair
           path: ${{ runner.temp }}/colosseum-update-rehearsal/fixtures/*.exe
           compression-level: 0
           retention-days: 3
-          if-no-files-found: error
+          if-no-files-found: warn
