@@ -76,6 +76,8 @@ function makePlayback(positionSec, manuallyPaused) {
         starting: false,
         errored: false,
         homePlaybackActive: false,
+        homeReconnectWaiting: false,
+        homeReconnectState: null,
         playbackEnded: false,
         audioHandoffPaused: false,
         playbackRequested() {},

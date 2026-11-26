@@ -138,7 +138,8 @@ public final class Media3PlayerHost {
         });
     }
 
-    public void load(long generation, String sourceUrl, Map<String, String> headers) {
+    public void load(long generation, String sourceUrl, Map<String, String> headers,
+                     long positionMs, boolean autoplay) {
         final String url = sourceUrl == null ? "" : sourceUrl.trim();
         final Map<String, String> safeHeaders = copySafeHeaders(headers);
         final boolean sourceAllowed = isAllowedSource(url);
@@ -167,7 +168,11 @@ public final class Media3PlayerHost {
                 new DefaultMediaSourceFactory(dataSourceFactory);
             MediaItem mediaItem = MediaItem.fromUri(url);
             MediaSource mediaSource = mediaSourceFactory.createMediaSource(mediaItem);
-            player.setMediaSource(new SubtitlePrerollMediaSource(mediaSource, embeddedSubtitles));
+            player.setPlayWhenReady(false);
+            player.setMediaSource(new SubtitlePrerollMediaSource(mediaSource, embeddedSubtitles),
+                    Math.max(0L, positionMs));
+            userWantsPlay = autoplay;
+            player.setPlayWhenReady(autoplay);
             player.prepare();
             startTelemetry();
         });

@@ -76,7 +76,8 @@ public:
     Q_INVOKABLE int itemCount(const QString &id) const;
     Q_INVOKABLE QVariantList sources(const QVariantMap &identity) const;
     Q_INVOKABLE bool loadPlayback(QObject *backend, const QString &sourceKey,
-                                  qint64 resumeMs = 0, bool forceTranscode = false);
+                                  qint64 resumeMs = 0, bool forceTranscode = false,
+                                  bool reconnect = false);
     Q_INVOKABLE void cancelPlayback(QObject *backend);
     Q_INVOKABLE void reportPlayback(QObject *backend, const QString &sourceKey,
                                     qint64 positionMs, qint64 durationMs,
@@ -90,7 +91,7 @@ signals:
     void profileChanged();
     void connectionAdded(const QString &id);
     void playbackResolved(const QString &sourceKey, bool transcoded);
-    void playbackFailed(const QString &sourceKey, const QString &message);
+    void playbackFailed(const QString &sourceKey, const QString &message, bool retryable);
 
 private:
     void publish();

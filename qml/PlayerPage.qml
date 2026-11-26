@@ -336,6 +336,10 @@ Item {
     property bool homePlaybackReportedStart: false
     property bool homePlaybackReportedTerminal: false
     property bool homeTranscodeTried: false
+    property var homeReconnectState: null
+    property int homeReconnectAttempts: 0
+    property bool homeReconnectWaiting: false
+    readonly property var homeReconnectDelays: [1000, 2000, 4000, 8000, 16000, 24000]
     // Slice 2: one credential-free Player 1 → Watch Party source seam. The native
     // inspector mirrors playStreamAt's real route decision; unsupported direct URLs
     // stay unsupported until a provider owner supplies verified debrid semantics.
@@ -1249,8 +1253,15 @@ Item {
         root.wakeChrome()
     }
 
-    function invalidateHomeServerRoute() {
+    function clearHomeReconnect() {
+        root.homeReconnectWaiting = false
+        root.homeReconnectAttempts = 0
+        root.homeReconnectState = null
+    }
+
+    function invalidateHomeServerRoute(keepReconnect) {
         if (root.homePlaybackKey) root.reportHomeServerPlayback("stop")
+        if (!keepReconnect) root.clearHomeReconnect()
         root.homePlaybackActive = false
         var owner = root.homePlaybackService
         root.homePlaybackService = null
@@ -1281,11 +1292,11 @@ Item {
             !!mpv.pause, event)
     }
 
-    function loadHomeServerCandidate(candidate, forceTranscode) {
+    function loadHomeServerCandidate(candidate, forceTranscode, reconnect) {
         var c = candidate || ({})
         var key = String(c.infoHash || root.currentPlaybackUrl || "")
         if (key.indexOf("home-server:") !== 0) return false
-        if (root.homePlaybackKey) root.invalidateHomeServerRoute()
+        if (root.homePlaybackKey) root.invalidateHomeServerRoute(reconnect)
         root.streamRouteUrl = ""
         root.streamDemandActive = false
         root.streamDemandEpoch++
@@ -1305,20 +1316,110 @@ Item {
         root.homePlaybackReportedTerminal = false
         root.starting = true
         root.fileReady = false
+        var positionSec = reconnect ? root.homeReconnectState.positionSec : root.pendingSeekSec
         if (!root.homeServerSourceService || !root.homeServerSourceService.loadPlayback(
-                    mpv, key, Math.max(0, root.pendingSeekSec) * 1000, !!forceTranscode)) {
+                    mpv, key, Math.round(Math.max(0, positionSec) * 1000), !!forceTranscode, !!reconnect)) {
             root.failHomeServerPlayback(qsTr("This home server source is no longer available."))
             return false
         }
         return true
     }
 
-    function homePlaybackContextCurrent(sourceKey) {
-        return root.homePlaybackActive && sourceKey === root.homePlaybackKey
+    function homePlaybackRouteCurrent(sourceKey) {
+        return !!sourceKey && sourceKey === root.homePlaybackKey
                 && sourceKey === root.currentPlaybackUrl
                 && sourceKey === String(root.currentStreamCandidate().infoHash || "")
                 && root.homeServerSourceService
+                && root.homePlaybackService === root.homeServerSourceService
                 && root.homePlaybackProfileGeneration === root.homeServerSourceService.profileGeneration
+    }
+
+    function homePlaybackContextCurrent(sourceKey) {
+        return root.homePlaybackActive && root.homePlaybackRouteCurrent(sourceKey)
+    }
+
+    function homeReconnectForeground() {
+        return root.visible && !root.windowMinimized
+                && String(PlatformRuntime.applicationState).toLowerCase() === "active"
+    }
+
+    function scheduleHomeReconnect() {
+        if (Qt.platform.os !== "android" || !root.homePlaybackContextCurrent(root.homePlaybackKey)
+                || (!root.homePlaybackReportedStart && !root.homeReconnectState))
+            return false
+        if (!root.homeReconnectState) {
+            var position = Number(mpv.position)
+            root.homeReconnectState = {
+                "positionSec": isFinite(position) ? Math.max(0, position) : 0,
+                "paused": root.recoveryPauseIntent(),
+                "audio": root.selectedAudioRow(),
+                "subtitle": root.selectedSubtitleRow(),
+                "sidecar": root.captureSelectedSidecarSubtitle(),
+                "subtitleDelay": mpv.subDelay
+            }
+        }
+        if (root.homeReconnectAttempts >= root.homeReconnectDelays.length) {
+            root.failHomeServerPlayback(qsTr("Could not reconnect to your home server. Try again."))
+            return true
+        }
+        if (root.homeReconnectWaiting)
+            return true
+        streamWatchdog.stop()
+        root.errored = false
+        root.starting = true
+        root.fileReady = false
+        root.statusMsg = qsTr("Reconnecting to your home server…")
+        root.homeReconnectWaiting = true
+        root.wakeChrome()
+        return true
+    }
+
+    function reconnectHomeServer() {
+        if (!root.homeReconnectState || !root.homePlaybackRouteCurrent(root.homePlaybackKey)) {
+            root.clearHomeReconnect()
+            return
+        }
+        if (!root.homeReconnectForeground())
+            return
+        root.homeReconnectWaiting = false
+        root.homeReconnectAttempts++
+        root.errored = false
+        root.starting = true
+        root.statusMsg = qsTr("Reconnecting to your home server…")
+        root.loadHomeServerCandidate(root.currentStreamCandidate(),
+                                     root.homePlaybackTranscoded || root.homeTranscodeTried, true)
+    }
+
+    function findReconnectTrack(track, rows) {
+        if (!track)
+            return ""
+        var match = ""
+        var ambiguous = false
+        for (var i = 0; i < rows.length; ++i) {
+            var row = rows[i]
+            if (row.external || row.lang !== track.lang || row.label !== track.label
+                    || row.codec !== track.codec || row.channels !== track.channels)
+                continue
+            if (row.id === track.id)
+                return row.id
+            ambiguous = ambiguous || !!match
+            match = row.id
+        }
+        return ambiguous ? "" : match
+    }
+
+    function restoreHomeReconnectTracks(state) {
+        var audio = root.findReconnectTrack(state.audio, root.audioRows)
+        if (audio) {
+            root.userTouchedAudio = true
+            mpv.audioTrack = audio
+        }
+        root.restoreSelectedSidecarSubtitle(state.sidecar)
+        root.userTouchedSubs = true
+        root.autoSubDone = true
+        mpv.subDelay = state.subtitleDelay
+        if (!state.sidecar)
+            mpv.subtitleTrack = root.findReconnectTrack(state.subtitle, root.subRows)
     }
 
     function homeServerPlaybackResolved(sourceKey, transcoded) {
@@ -1328,8 +1429,9 @@ Item {
         streamWatchdog.restart()
     }
 
-    function homeServerPlaybackFailed(sourceKey, message) {
+    function homeServerPlaybackFailed(sourceKey, message, retryable) {
         if (!root.homePlaybackContextCurrent(sourceKey)) return
+        if (retryable && root.homeReconnectState && root.scheduleHomeReconnect()) return
         root.failHomeServerPlayback(message)
     }
 
@@ -1905,6 +2007,11 @@ Item {
             return
         if (root.currentStreamIndex < 0 || root.currentStreamIndex >= root.streamCandidates.length)
             return
+        if (root.homeReconnectState && root.homePlaybackRouteCurrent(root.homePlaybackKey)) {
+            root.homeReconnectAttempts = 0
+            root.reconnectHomeServer()
+            return
+        }
         var c = root.streamCandidates[root.currentStreamIndex] || ({})
         root.prepareRecoveryResume()
         root.streamRetryCount += 1
@@ -2025,7 +2132,8 @@ Item {
         }
         root.lastPlaybackErrorCode = code || "unknown"
         root.lastPlaybackErrorMessage = message || ""
-        if (root.lastPlaybackErrorCode === "network")
+        if (root.lastPlaybackErrorCode === "network"
+                || (root.lastPlaybackErrorCode === "network_error" && root.homePlaybackKey))
             root.handlePlaybackFailure("network")
         else if (root.lastPlaybackErrorCode === "decode" || root.lastPlaybackErrorCode === "codec")
             root.handlePlaybackFailure(root.lastPlaybackErrorCode)
@@ -2209,6 +2317,13 @@ Item {
         root.recordProgress()
         if (root.currentPlaybackUrl.indexOf("home-server:") === 0) {
             if (!root.homePlaybackActive) return
+            if ((reason === "network" || (root.homeReconnectState && reason === "source did not start"))
+                    && root.scheduleHomeReconnect())
+                return
+            if (root.homeReconnectState) {
+                root.failHomeServerPlayback(qsTr("Could not reconnect to your home server. Try again."))
+                return
+            }
             root.prepareRecoveryResume()
             if (!root.homeTranscodeTried && !root.homePlaybackTranscoded) {
                 root.homeTranscodeTried = true
@@ -4422,6 +4537,8 @@ Item {
             root.syncWatchPartyPlayerObservation()
         }
         onFileLoaded: {
+            if (root.homeReconnectWaiting)
+                return
             if (root.streamRouteRestoreLoadPending && !root.streamRestoreContextCurrent()) {
                 root.clearStreamRouteRestore()
                 return
@@ -4445,7 +4562,16 @@ Item {
             root.seekPreview = mpv.position
             root.fileReady = true
             var startupOwnedByUi = root.audioHandoffPaused
-            if (root.streamRouteRestoreLoadPending) {
+            if (root.homeReconnectState && root.homePlaybackContextCurrent(root.homePlaybackKey)) {
+                var reconnect = root.homeReconnectState
+                var reconnectPaused = reconnect.paused || root.audioHandoffPaused || !root.homeReconnectForeground()
+                root.clearHomeReconnect()
+                root.resetRecoveryResume()
+                root.pendingSeekSec = -1
+                root.restoreHomeReconnectTracks(reconnect)
+                mpv.pause = reconnectPaused
+                startupOwnedByUi = reconnectPaused
+            } else if (root.streamRouteRestoreLoadPending) {
                 // Re-demanded after the background quiesce: reopen where it was,
                 // parked unless the user explicitly pressed Play during recovery.
                 var restoreSec = root.streamRouteRestoreSec
@@ -4525,7 +4651,7 @@ Item {
             root.handlePlaybackIssue(code, message)
         }
         onEndFile: function(reason) {
-            root.starting = false
+            root.starting = reason === "error" && root.homeReconnectWaiting
             root.fileReady = false
             root.syncPowerInhibit()
             root.syncWatchPartyPlayerObservation()
@@ -4712,7 +4838,7 @@ Item {
     Connections {
         target: root.homeServerSourceService
         function onPlaybackResolved(sourceKey, transcoded) { root.homeServerPlaybackResolved(sourceKey, transcoded) }
-        function onPlaybackFailed(sourceKey, message) { root.homeServerPlaybackFailed(sourceKey, message) }
+        function onPlaybackFailed(sourceKey, message, retryable) { root.homeServerPlaybackFailed(sourceKey, message, retryable) }
         function onProfileChanged() {
             if (root.homePlaybackKey) {
                 root.invalidateHomeServerRoute()
@@ -4810,6 +4936,12 @@ Item {
         interval: root.streamWatchdogSeconds * 1000
         repeat: false
         onTriggered: root.handleStreamWatchdog()
+    }
+
+    Timer {
+        interval: root.homeReconnectDelays[root.homeReconnectAttempts] || 1000
+        running: root.homeReconnectWaiting && root.homeReconnectForeground()
+        onTriggered: root.reconnectHomeServer()
     }
 
     // Recovery watch (Feature 3): while a non-local, non-live stream is actually playing,
