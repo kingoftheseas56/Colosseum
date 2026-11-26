@@ -26,9 +26,9 @@ class AndroidMedia3JavaHostContract(unittest.TestCase):
 
     def test_per_load_source_factories_and_header_isolation(self):
         text = host_text()
-        self.assertIn(
-            "public void load(long generation, String sourceUrl, Map<String, String> headers)",
-            text,
+        self.assertRegex(
+            text, r"public void load\(long generation, String sourceUrl, Map<String, String> headers,"
+                  r"\s+long positionMs, boolean autoplay\)",
         )
         self.assertIn("new LinkedHashMap<>()", text)
         self.assertIn("Collections.unmodifiableMap", text)

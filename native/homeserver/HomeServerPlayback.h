@@ -24,6 +24,7 @@ public:
     bool transcoded = false;
     QString error;
     bool expired = false;
+    bool retryable = false;
     QList<PlayerExternalSubtitle> subtitles;
     bool ok() const { return error.isEmpty() && !url.isEmpty(); }
   };
@@ -44,7 +45,7 @@ private:
   void jellyfin();
   void plex();
   void finish(Result result);
-  void fail(QString error, bool expired = false);
+  void fail(QString error, bool expired = false, bool retryable = false);
   QVariantMap playbackHeaders() const;
   QList<PlayerExternalSubtitle> externalSubtitles(const QJsonArray &streams,
                                                   const QString &item, const QString &source,
