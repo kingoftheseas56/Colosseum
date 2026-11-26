@@ -1,0 +1,189 @@
+file	line	kind	source-only anchor
+qml/Main.qml	103	gate	readonly property bool feriaComingSoon: typeof FeriaLiveEnabled === "undefined" || !FeriaLiveEnabled
+qml/Main.qml	105	gate	readonly property alias televisionMode: phoneShell.televisionMode
+qml/Main.qml	186	gate	readonly property bool vinylEnabled: typeof VinylLiveEnabled !== "undefined" && VinylLiveEnabled
+qml/Main.qml	199	entry	function openVinylResume(entry, play) {
+qml/Main.qml	249	gate	readonly property bool feriaAvailable: Qt.platform.os !== "android"
+qml/Main.qml	272	gate	property alias androidHost: phoneShell.androidHost
+qml/Main.qml	273	gate	readonly property real browseBottomInset: win.androidHost ? phoneShell.contentBottomInset : 0
+qml/Main.qml	282	gate	readonly property real headerOuterMargin: win.androidHost ? presentationPolicy.headerMargin : theme.margin
+qml/Main.qml	339	entry	function openStremioSyncPanel(nuvio) {
+qml/Main.qml	342	entry	function openTheatreSyncFromAccount(invoker) {
+qml/Main.qml	1000	entry	function openNamedCollectionsPicker(reference, opener) {
+qml/Main.qml	1006	entry	function openNamedCollectionsPage() {
+qml/Main.qml	1090	entry	function openNamedCollectionReference(saved) {
+qml/Main.qml	1522	entry	function goHomeTop() {
+qml/Main.qml	1703	entry	function openWorld(medium, biblioTab) {
+qml/Main.qml	1728	entry	function openVaultIdentity(identity) {
+qml/Main.qml	1765	entry	function openGenre(name) {
+qml/Main.qml	1775	entry	function openGenreIndex() { genreIndexLayer.active = true }
+qml/Main.qml	1780	entry	function openContinueSeeAll(scope) {
+qml/Main.qml	1809	entry	function openBiblioGenre(name) {
+qml/Main.qml	1818	entry	function openBiblioGenreIndex() { biblioGenreIndexLayer.active = true }
+qml/Main.qml	1823	entry	function openTheatreGenre(kind, name) {
+qml/Main.qml	1832	entry	function openTheatreGenreIndex(kind) {
+qml/Main.qml	1894	entry	function openSeries(title, malId, profile, requestedVolumeNumber, pickerIntent) {
+qml/Main.qml	1915	entry	function openWeebCentralSeries(title, requestedVolumeNumber) {
+qml/Main.qml	1931	entry	function openSeriesAt(title, seriesId, chapterId) {
+qml/Main.qml	2008	entry	function openWestern(d) {
+qml/Main.qml	2061	entry	function openWesternAt(title, tagSlug, chapterId) { win.cancelCatalogueRoute();
+qml/Main.qml	2105	entry	function openGcdSeries(d) {
+qml/Main.qml	2199	entry	function openPackSeries(d) { win.cancelCatalogueRoute();
+qml/Main.qml	2229	entry	function openUniverseComic(d) {
+qml/Main.qml	2313	entry	function openComicSeries(d, pickerIntent) {
+qml/Main.qml	2352	entry	function openLocgPublisher(box) {
+qml/Main.qml	2360	entry	function openComicArchiveBoard() { comicBoardLayer.active = true }
+qml/Main.qml	2366	entry	function openComicArchive(box) {
+qml/Main.qml	2382	entry	function openTheatreSeries(item, pickerIntent) {
+qml/Main.qml	2398	entry	function openMissingDownloadSources(entry, r, presentation, title, cover) {
+qml/Main.qml	2766	entry	function openFeriaPage() {
+qml/Main.qml	2790	entry	function openSyncCenterPage() {
+qml/Main.qml	2808	entry	function openVaultServerConnections() {
+qml/Main.qml	2842	entry	function openHistoryStatsPage() {
+qml/Main.qml	2857	entry	function openYourFeriaPage(section) {
+qml/Main.qml	2879	entry	function openDownloadsPage() {
+qml/Main.qml	2901	entry	function openVaultPage() {
+qml/Main.qml	2923	surface	id: yourFeriaLayer
+qml/Main.qml	2932	surface	source: "feria/YourFeriaPage.qml"
+qml/Main.qml	2973	entry	function openUniverse(extensionId, name, plain, pickerIntent) {
+qml/Main.qml	2990	entry	function openArchivedUniverse(name, page, pickerIntent) {
+qml/Main.qml	3009	entry	function openRosterUniverse(entry, pickerIntent) {
+qml/Main.qml	3017	entry	function openTribute(entry, pickerIntent) {
+qml/Main.qml	3022	entry	function openUniverseByName(name) {
+qml/Main.qml	3037	entry	function openOnePieceArc(arc) {
+qml/Main.qml	3061	entry	function openOnePaceArc(arc) { win.openExtensionsPage("theatre") }
+qml/Main.qml	3069	entry	function openStreamExtensionSetup() {
+qml/Main.qml	3072	entry	function openPlaySourcesExtensions() {
+qml/Main.qml	3075	entry	function openPendingStreamExtensionSetup() {
+qml/Main.qml	3080	entry	function openPendingPlaySourcesBrowse() {
+qml/Main.qml	3085	entry	function openExtensionsPage(world, configurationId, suggestedStreamSource) {
+qml/Main.qml	3107	entry	function openPendingExtensionConfiguration() {
+qml/Main.qml	3121	entry	function openUpdatePage() {
+qml/Main.qml	3156	entry	function openFeedback(invoker, homeFeedbackKind = "") {
+qml/Main.qml	3307	entry	function openPlayer(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates, playbackContext) {
+qml/Main.qml	3320	entry	function openWatchPartyRoomSource() {
+qml/Main.qml	3656	entry	function openBook(b, pickerIntent) {
+qml/Main.qml	3686	entry	function openBookReader(path, book) {
+qml/Main.qml	3702	entry	function openSearch() {
+qml/Main.qml	3744	entry	function openWallpaperSearch(world) {
+qml/Main.qml	3917	entry	function openCollectionEntry(e) {
+qml/Main.qml	3945	entry	function openMovieSession(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates, playbackContext, position) {
+qml/Main.qml	3986	entry	function openLocalVideoSession(v) {
+qml/Main.qml	3999	entry	function openComicSession(title, seriesId, chapterId, entryKind) {
+qml/Main.qml	4006	entry	function openBookSession(path, book) {
+qml/Main.qml	4028	entry	function openReadAlong(ebook, recordingKey) {
+qml/Main.qml	4044	entry	function openAudiobookBridge(bridge, recordingKey, jump, fromReader) {
+qml/Main.qml	4138	entry	function openDockPick(medium, entry, returnState) {
+qml/Main.qml	4159	entry	function openDroppedMedia(urls) {
+qml/Main.qml	4172	entry	function openLocalMedia(paths) {
+qml/Main.qml	4177	entry	function openNextToOpen(index) {
+qml/Main.qml	4230	entry	function openVaultComic(path, vaultId, title) {
+qml/Main.qml	4237	entry	function showLocalRejection(r) {
+qml/Main.qml	4246	entry	function showFolderDropExplain() {
+qml/Main.qml	4373	entry	function activateMovieSession(rec) {
+qml/Main.qml	4411	entry	function activateSession(rec) {
+qml/Main.qml	5153	surface	id: homeContinueRailLoader
+qml/Main.qml	5173	surface	id: homeBookshelfLoader
+qml/Main.qml	5192	surface	id: homeTheatreStripLoader
+qml/Main.qml	5206	surface	id: homeReadingDeskLoader
+qml/Main.qml	5231	surface	id: homeVaultWidgetLoader
+qml/Main.qml	5349	surface	id: worldLoader
+qml/Main.qml	5576	surface	id: phoneShell
+qml/Main.qml	5601	surface	id: genreLayer
+qml/Main.qml	5609	surface	source: "GenrePage.qml"
+qml/Main.qml	5627	surface	id: genreIndexLayer
+qml/Main.qml	5634	surface	source: "GenreIndex.qml"
+qml/Main.qml	5650	surface	id: biblioGenreIndexLayer
+qml/Main.qml	5657	surface	source: "BiblioGenreIndex.qml"
+qml/Main.qml	5671	surface	id: biblioGenreLayer
+qml/Main.qml	5679	surface	source: "BiblioGenrePage.qml"
+qml/Main.qml	5697	surface	id: theatreGenreLayer
+qml/Main.qml	5706	surface	source: "TheatreGenrePage.qml"
+qml/Main.qml	5725	surface	id: theatreGenreIndexLayer
+qml/Main.qml	5733	surface	source: "TheatreGenreIndex.qml"
+qml/Main.qml	5751	surface	id: seriesLayer
+qml/Main.qml	5787	surface	source: legacyWeebCentral ? "MangaSeriesThumbnailMock.qml"
+qml/Main.qml	5840	surface	id: westernLayer
+qml/Main.qml	5852	surface	source: "ComicSeries.qml"
+qml/Main.qml	5892	surface	id: comicSeriesLayer
+qml/Main.qml	5908	surface	source: "ComicSeriesPage.qml"
+qml/Main.qml	5931	surface	id: comicsDbLoader
+qml/Main.qml	5933	surface	source: "ComicsDbLoader.qml"
+qml/Main.qml	5939	surface	id: bakeoffStripLayer
+qml/Main.qml	5945	surface	source: "BakeoffStripHost.qml"
+qml/Main.qml	5952	surface	id: continueSeeAllLayer
+qml/Main.qml	5960	surface	source: "ContinueSeeAllPage.qml"
+qml/Main.qml	5978	surface	id: locgPublisherLayer
+qml/Main.qml	5985	surface	source: "LocgPublisherPage.qml"
+qml/Main.qml	5999	surface	id: comicBoardLayer
+qml/Main.qml	6005	surface	source: "ComicArchiveBoard.qml"
+qml/Main.qml	6019	surface	id: comicIndexLayer
+qml/Main.qml	6029	surface	source: "ComicArchiveIndex.qml"
+qml/Main.qml	6047	surface	id: theatreSeriesLayer
+qml/Main.qml	6060	surface	source: viewSettings.rebuiltTitlePages ? "TheatreSeriesView.qml" : "TheatreSeries.qml"
+qml/Main.qml	6125	surface	id: playerLayer
+qml/Main.qml	6137	surface	source: win.usePlayer2 ? "player2host/Player2Page.qml" : "PlayerPage.qml"
+qml/Main.qml	6183	surface	id: bookLayer
+qml/Main.qml	6198	surface	source: "BiblioBook.qml"
+qml/Main.qml	6293	surface	id: bookReaderLayer
+qml/Main.qml	6313	surface	source: "reader2/ReaderShell.qml"
+qml/Main.qml	6337	surface	id: vaultComicLayer
+qml/Main.qml	6346	surface	source: "comicreader/VaultComicReader.qml"
+qml/Main.qml	6366	surface	id: worldSearchLayer
+qml/Main.qml	6374	surface	source: "SearchSurface.qml"
+qml/Main.qml	6389	surface	id: searchLayer
+qml/Main.qml	6397	surface	source: "BiblioSearch.qml"
+qml/Main.qml	6445	surface	id: downloadsLayer
+qml/Main.qml	6460	surface	source: "DownloadsPage.qml"
+qml/Main.qml	6493	surface	id: vaultLayer
+qml/Main.qml	6504	surface	source: "VaultLibraryPage.qml"
+qml/Main.qml	6556	surface	id: universeLayer
+qml/Main.qml	6586	surface	source: templatePage.length ? (templateSources[templatePage] || "SagaUniversePage.qml")
+qml/Main.qml	6678	surface	id: onePieceArcLayer
+qml/Main.qml	6707	surface	id: feriaLayer
+qml/Main.qml	6727	surface	source: "feria/FeriaWorld.qml"
+qml/Main.qml	6821	entry	function open(descriptor, fresh, navigate) {
+qml/Main.qml	6881	surface	id: extensionsLayer
+qml/Main.qml	6889	surface	source: "ExtensionsStorePage.qml"
+qml/Main.qml	6925	surface	id: syncCenterLayer
+qml/Main.qml	6932	surface	source: "TrackerSyncCenterPage.qml"
+qml/Main.qml	6960	surface	id: historyStatsLayer
+qml/Main.qml	6967	surface	source: "HistoryHighlightsStatsPage.qml"
+qml/Main.qml	6994	surface	id: updateLayer
+qml/Main.qml	7001	surface	source: "UpdatePage.qml"
+qml/Main.qml	7016	surface	id: feedbackLayer
+qml/Main.qml	7087	gate	readonly property bool desktopPickerUtilities: !win.androidHost && taskbar.visible && !!taskbar.pickerScene
+qml/Main.qml	7221	surface	id: watchPartyJoinSheet
+qml/Main.qml	7241	surface	id: openMediaDialog
+qml/Main.qml	7308	surface	id: vaultFolderDialog
+qml/Main.qml	7319	surface	id: accountExportDialog
+qml/Main.qml	7437	surface	id: identityCeremonyDialog
+qml/Main.qml	7491	surface	id: wallpaperLayer
+qml/Main.qml	7497	surface	source: "WallpaperSearch.qml"
+qml/Main.qml	7610	surface	id: accountFlyout
+qml/PhoneShellHost.qml	38	gate	readonly property bool televisionMode: (typeof PlatformRuntime !== "undefined")
+qml/PhoneShellHost.qml	51	gate	property bool androidHost: Qt.platform.os === "android" || phoneShellArg.length > 0
+qml/PhoneShellHost.qml	53	gate	readonly property bool phonePresentation: host.androidHost && !host.desktopPresentation
+qml/PhoneShellHost.qml	89	gate	readonly property bool phoneImeVisible: host.androidHost && Qt.inputMethod.visible
+qml/PhoneShellHost.qml	109	entry	function openProfilePage() { profileLayer.active = true }
+qml/PhoneShellHost.qml	121	entry	function openProfileRow(key) {
+qml/PhoneShellHost.qml	271	surface	id: profileLayer
+qml/PhoneShellHost.qml	277	surface	source: "PhoneProfilePage.qml"
+qml/PhoneShellHost.qml	308	surface	id: wideWorldRail
+qml/DockPicker.qml	62	entry	function showMap(show, keyboard) {
+qml/DockPicker.qml	219	surface	id: shortcutRail
+qml/TheatreWorld.qml	49	gate	property string activeTab: "discover"
+qml/TheatreWorld.qml	176	entry	function activateContent() {
+qml/TheatreWorld.qml	246	surface	id: theatreTabBar
+qml/TheatreTabBar.qml	25	gate	readonly property bool televisionMode: {
+qml/TheatreSeriesView.qml	29	gate	readonly property bool phoneNarrow: !!(page.Window.window && page.Window.window.androidHost && page.Window.window.desktopPresentation !== true
+qml/TheatreSeriesView.qml	301	entry	function openSeasonMenu(invoker) {
+qml/TheatreSeriesView.qml	313	entry	function activateSeasonMenu(index) {
+qml/TheatreSeriesView.qml	378	entry	function openSeasonPicker() {
+qml/TheatreSeriesView.qml	490	entry	function openHeroForPlay() {
+qml/TheatreSeriesView.qml	506	entry	function openResumeSources(request) {
+qml/TheatreSeriesView.qml	514	entry	function openEpisodeForPlay(v) {
+qml/TheatreSeriesView.qml	521	entry	function openEpisodeDownload(v) {
+qml/TheatreSeriesView.qml	550	entry	function openEpisodeContext(index) {
+qml/TheatreSeriesView.qml	569	entry	function activateEpisodeContext(choice) {
+qml/TheatreSeriesView.qml	2284	surface	id: episodeContextMenu
