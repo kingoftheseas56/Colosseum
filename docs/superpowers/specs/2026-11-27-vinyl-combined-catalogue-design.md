@@ -1,158 +1,73 @@
-# Vinyl combined catalogue — design
+# Vinyl catalogue sources — lean design
 
-Status: approved shape (Hemanth, 2026-11-27). Author: Agent 0 (Claude). Evidence:
-`Brotherhood/agents/vinyl-combined-catalogue-providers-20261127.md` (live probes, 24 English artists).
+Status: shape decided by Hemanth, 2026-11-27. Author: Agent 0 (Claude). Supersedes the earlier "combined catalogue"
+draft of the same day (a cross-source merge layer), which Hemanth rejected as spaghetti: **every source must serve one
+function; no source without a job.** Evidence: `Brotherhood/agents/vinyl-combined-catalogue-providers-20261127.md`,
+`C:\b\vinyl-s0-temp\discovery\coverage.json`.
 
-## Promise
-Open Vinyl's Discover and browse **one** music catalogue — the best of every service, ranked by Colosseum, with a
-plain reason on each card — without knowing or choosing which service it came from. The same idea as Tankoyomi,
-applied to the catalogue instead of download sources.
+## Two surfaces, kept separate (Hemanth: "don't confuse discover with explore")
+Same split as Theatre (Discover poster wall vs Movies/Shows/Anime shelf tabs) and Biblio (Discover vs Explore):
+- **Discover** — one endless catalogue grid (the shared house `DiscoverBrowser`), a **genre filter**, and an index if
+  there is indexing to do. **No rows.**
+- **Explore** — editorial shelf rows with the row-index sidebar. **Vinyl has no Explore tab today** (tabs are Home,
+  Discover, Library); where it lives is a separate decision. The rows below are specified so they are ready for it.
 
-## Scope (first version)
-- Discover's per-service sources are **replaced** by one source, **Vinyl** (Hemanth: option B).
-- Colosseum computes the ranking from service evidence (the Brainz rule, 2026-10-07): services say what is popular,
-  trending, new or related; Vinyl decides the order and writes the reason.
-- Artist pages gain **Essentials** (most-played songs and albums from ListenBrainz popularity).
-- One app-wide **identity memory** (MusicBrainz IDs) replaces per-request MusicBrainz lookups.
-- Out of scope now: a configuration page (Hemanth: only if needed, later), Home changes, a shared Cloudflare Worker,
-  personal listening statistics, mood mixes, reviews, ReccoBeats/FreqBlog/MusicAtlas.
+## Sources and the one job each does
+| Source | Job | Where |
+|---|---|---|
+| YouTube Music | Plays anything tapped (resolve on tap); New releases; YouTube's own chart | Base for both |
+| Last.fm | Endless depth: deep songs/albums/artists per genre tag | Discover |
+| Wikipedia (MediaWiki API) | Filter values (genre, era, "#1s", "Year-end") and editorial rows from sourced chart lists (incl. Billboard facts) | Discover filter, Explore rows |
+| Kworb | "This week, worldwide": Spotify, Apple Music, iTunes, Shazam, Deezer charts, balancing YouTube's India/Latin America skew (Hemanth chose B) | Discover "This week" list, Explore chart rows |
+| JioSaavn | Indian-language depth (existing) | Discover, Language filter |
 
-## Inclusion rule and evidence (Hemanth, 2026-11-27)
-A service joins only if it **adds** to the catalogue (artists, albums, genres, metadata) beyond the base. Base =
-**YouTube Music** (ruling R17, 2026-10-07: Vinyl's main catalogue). MusicBrainz is **enrichment only** (R18): used
-where it matches, never awaited, never required. Measured 2026-11-27 (`C:\b\vinyl-s0-temp\discovery\coverage.json`):
-| Service | What it adds |
-|---|---|
-| YouTube Music | Base: official discographies, every reissue/compilation (Miles Davis 1,685 entries), playback |
-| Apple RSS | Current hits: 74 of Apple's top 100 are absent from Last.fm's top 1,000 -> Trending |
-| MusicBrainz | Release dates and album types (Last.fm has neither); 24-66 extra albums per artist; 2,227 curated genres; rock-tagged albums 372,451 vs Last.fm 44,820. Search can pick the wrong release, so match by artist MBID + title + track count, never top hit. Throttled (503) - non-blocking |
-| Last.fm | Long-run popularity (listeners/playcount), genre tags, album description |
-| ListenBrainz | Per-artist most-played (Essentials), similar artists |
-| TheAudioDB | Album mood, genre/style, art, year (no descriptions on the free key) |
-| JioSaavn | Indian-language depth (5 Nov probe) |
-Excluded: ReccoBeats (junk similarity), FreqBlog, MusicAtlas (key quotas).
+**Not catalogue sources** (kept only where they already work elsewhere, or dropped): MusicBrainz (no cross-source
+merge, so no identity matching needed here; still used by Home/artist pages), ListenBrainz (Home radio, artist pages),
+Apple RSS (Kworb covers it), TheAudioDB (artist art only), ReccoBeats, FreqBlog, MusicAtlas (junk or key quotas).
+**Billboard.com is never fetched**: PMC's terms forbid robots, scraping, aggregation, reproduction and derivative
+works; its robots.txt blocks AI agents by name. Billboard chart facts come only from Wikipedia's sourced lists.
+**No merge layer**: each list comes from one source; no blended cross-source ranking.
 
-**Kworb is the chart layer** (Hemanth, 2026-11-27: "THE aggregator of charts"). kworb.net aggregates iTunes,
-Spotify, Apple Music, YouTube, Shazam and Deezer charts per country for songs, albums and artists, plus artist
-rankings and Spotify all-time stream totals. It has **no genre charts**. Static HTML, no API; its FAQ invites using
-the data and says pages are static so spikes can't overload the server; robots.txt allows all. Use: each install
-reads a small fixed set of pages (global + the user's country, per service, songs/albums/artists) **at most once a
-day**, parsed in the provider process, cached 24 h; a shared Worker cache can replace this later. Kworb's earlier
-rejection (5 Nov) was our prototype's serial YouTube matching before display, not Kworb's data; cards now show first
-and YouTube resolves on tap. Kworb supersedes the separate YouTube/Apple chart fetches below, which remain only as a
-fallback when Kworb is unreachable or its page layout changes (parser fails closed, logs once).
+## Discover (endless grid)
+- Rail: one source, "Vinyl". Tabs: Songs · Albums · Artists.
+- List filter: **This week** (Kworb worldwide + YouTube chart, interleaved by rank, de-duplicated by normalised
+  artist+title) · **Popular** (Last.fm genre/global charts, endless) · **New** (YouTube Music new releases).
+- Genre filter: the existing genre list (Last.fm tags), plus "All". Language filter: All, English, Indian languages
+  (JioSaavn when an Indian language is chosen).
+- Index: only if it helps the current list (e.g. A–Z jump for artists); otherwise none.
+- Cards and tap behaviour unchanged (YouTube resolves on tap). Paging: endless via Last.fm/JioSaavn cursors; "This
+  week" ends at the chart length.
 
-**YouTube Charts and Kworb do different jobs** (Hemanth asked "kworbs or this?", 2026-11-27): YouTube Charts (via
-ytmusicapi `get_charts`, global + per country: top songs / top videos playlists, top 40 artists; the charts.youtube.com
-site itself is reCAPTCHA-guarded, do not scrape it) is the YouTube side — official and instantly playable with no
-matching. Kworb supplies every other service (Spotify, Apple Music, iTunes, Shazam, Deezer). YouTube alone skews to
-India/Latin America (its global #1 song and artist on 2026-11-27 were Guzarish and Alka Yagnik); "Popular worldwide"
-needs both. "Biggest movers" / "Highest debut" are computed by Vinyl from stored week-over-week snapshots.
+## Explore rows (ready for when Vinyl has an Explore tab)
+From Wikipedia chart lists, proven live via the MediaWiki API: "Every #1 of 2025" (Hot 100 #1s), "Global #1s",
+"The year-end 100" (Year-End Hot 100), per-genre "#1s this decade" (e.g. Mainstream Rock #1s of the 2020s, 144 songs),
+"#1 hits of the '90s". From Kworb: "This week on Spotify", "Most streamed ever". Page titles are discovered through the
+API's list/category pages, never guessed; attribute Wikipedia (CC BY-SA); lists refresh weekly.
 
-**Vinyl's own genre charts, Billboard-style** (Hemanth pointed at billboard.com's genre charts as "what we wanted",
-2026-11-27). Billboard is not a source (no API; terms forbid reuse). Vinyl computes: per genre (Pop, Hip-hop, Rock &
-Alternative, Country, R&B, Latin, Afrobeats, Electronic, Metal, Jazz, ...), songs ranked by combined chart strength from
-YouTube Charts + Kworb positions, genre from Last.fm/MusicBrainz tags; each entry shows last week, peak, weeks at #1,
-weeks on chart, from Vinyl's own weekly snapshots (columns fill in as history accrues; first weeks show "New").
-"Greatest of all time" per genre from long-run listening (ListenBrainz/Last.fm playcounts, Spotify totals via Kworb).
-Surfaced in Discover as a **Charts** entry in the List filter alongside Popular/Trending/New/Essentials.
+## Fetching and politeness
+- Kworb: a small fixed page set (global + user's country; songs/albums/artists), at most once a day, parsed in the
+  provider process, cached 24 h; parser fails closed (log once), "This week" then falls back to YouTube's chart.
+- Wikipedia: official API with a descriptive User-Agent, cached 7 days.
+- Last.fm: existing key file (`COLOSSEUM_VINYL_LASTFM_KEY_FILE`); a missing key logs once and the message says the
+  catalogue key is missing, not "couldn't reach the catalogue".
+- No UI-thread work: all fetching and parsing in the provider process.
 
-**Billboard via Wikipedia, never billboard.com** (Hemanth: "prove we can reliably use billboard to enrich our filters
-and explore's editorial rows", 2026-11-27). Proven: billboard.com's terms (pmc.com/terms-of-use) forbid robots,
-crawlers, scraping or aggregating its content or data, reproduction and derivative works, and limit use to personal
-non-commercial; its robots.txt blocks AI agents by name (ClaudeBot, anthropic-ai, GPTBot, ...). Do not fetch
-billboard.com. Chart facts are taken from Wikipedia's sourced chart lists via the official MediaWiki API (CC BY-SA,
-attribute Wikipedia), proven live: "List of Billboard Hot 100 number ones of 2025" (12 #1s), "Billboard Year-End Hot
-100 singles of 2025" (full 100), "List of Billboard Global 200 number ones of 2025", "List of Billboard Mainstream
-Rock number-one songs of the 2020s" (144 songs). Exact page titles vary by chart: discover them via the API's
-category/list pages, never guess. Uses: (1) filters — "Billboard #1s", "Year-end top 100", per-genre #1s by year or
-decade (Rock, Country, Rap, Dance, Latin, ...); (2) Explore editorial rows — "Every #1 of 2025", "The year-end 100",
-"Rock's #1s this decade", "#1 hits of the '90s". Lists refresh weekly; entries resolve to YouTube on tap.
+## States
+Loading/empty/error use the house browser's existing states. A list whose source fails shows the retry state for that
+list only; other lists keep working. Offline: last cached pages, marked stale.
 
-Charts (Hemanth's links, 2026-11-27, now fallback): **YouTube Charts global** (top songs/videos playlists + 40 top artists via
-ytmusicapi `get_charts("ZZ")`, no key) and a **Vinyl global chart** computed from Apple's free per-country RSS feeds
-(US, GB, CA, AU, IN, ...; Apple's "Top 100: Global" playlist needs the paid Apple Music API, and the RSS has no global
-feed) feed Popular/Trending. **Billboard Global 200 is excluded**: no API, terms forbid scraping and reuse. Charts
-cover only the top ~100-200 songs, mostly pop/hip-hop, so genre depth, New and Essentials still come from Last.fm tags,
-MusicBrainz and ListenBrainz.
-
-## What the user sees
-Discover keeps today's house browser layout (left rail, Songs · Albums · Artists tabs, filter row, card grid,
-"Now browsing" corner):
-- The rail shows **one** source, "Vinyl". The corner reads "Now browsing **Vinyl**" with the lens as its subtitle
-  (e.g. "Popular").
-- Filter row, in this order: **List** (Popular · Trending · New · Essentials), **Genre** (today's genre list, plus
-  "All"), **Language** (All, English, and today's Indian languages: Tamil, Telugu, Malayalam, Kannada, Hindi, Punjabi,
-  Bengali, Marathi).
-- Each card keeps today's caption and gains one reason line in plain words, e.g. "Top 10 on 3 charts this week",
-  "Rising fast this week", "Out this month", "A classic of metal". Never a service name, never "#7 on Apple".
-- Tapping a card behaves exactly as today (song plays via YouTube resolve on tap; album/artist open their pages).
-- Artist page: a new **Essentials** shelf (top songs, then top albums) placed with the existing house shelf
-  components, above the discography, when the artist has ListenBrainz popularity data; absent otherwise.
-
-## How it works (technical shape for the builder)
-Lives in the existing music engine (`scripts/vinyl/provider.py`) and the existing adapter
-(`qml/vinyl/VinylMusicDiscoverAdapter.qml`). No new process, no server.
-
-1. **Adapters return evidence, not pages.** Per service, a function returns candidate cards with raw signals:
-   - Last.fm: chart rank (global, per genre tag), tag list, listeners/playcount.
-   - YouTube Music: trending/new-release rank (existing `get_charts`/`get_explore` paths), playable video id.
-   - Apple RSS: most-played rank (existing endpoint).
-   - ListenBrainz: per-artist popularity (`/1/popularity/top-recordings-for-artist`,
-     `top-release-groups-for-artist`) for Essentials and for de-duplicating canon.
-   - JioSaavn: Indian-language charts/editorial (existing `_jio_page`) — used only when a Language filter selects
-     an Indian language, or blended at low weight under "All".
-   - MusicBrainz: identity, release date, album type, genres — enrichment via the identity memory, never awaited.
-   - TheAudioDB: album mood and genre/style (enrichment; existing artist-art integration).
-2. **Identity merge.** Candidates merge into one card by, in order: MusicBrainz ID (from the identity memory) → ISRC
-   → normalised artist + title (existing `_catalogue_match_title` rules). If unsure, keep two cards rather than merge
-   two different recordings.
-3. **Ranking per List.**
-   - Popular: weighted sum of normalised chart presence across services (more services = stronger), long-run
-     playcount (Last.fm/ListenBrainz).
-   - Trending: rank movement / presence on "this week" charts (YouTube trending, Apple most-played) outweighs
-     long-run popularity.
-   - New: release date within ~60 days (albums: MusicBrainz release-group date when known), ranked by Popular score.
-   - Essentials: per genre, highest long-run listening (ListenBrainz/Last.fm playcount), older than ~2 years.
-   Weights are constants in one place, documented; scores from different services are normalised to rank
-   percentiles before combining (never raw scores).
-4. **Reason line.** Generated from the strongest evidence of that card (templates, plain English, no service names).
-5. **Paging.** Each request asks every contributing service for its next slice (existing per-service cursors kept in
-   one composite cursor), merges, ranks, de-duplicates against items already shown, returns 50. Order is stable for
-   the same inputs (deterministic tie-break by identity key).
-6. **Identity memory.** One local table (artist and recording → MBID, with "not found" entries and their retry time),
-   shared by Discover, Home, and artist pages. All MusicBrainz calls go through one app-wide queue at 1 request/second
-   with back-off on 503; reads never block the UI thread.
-7. **Caching.** Per-service evidence cached with each service's existing TTLs; merged pages cached ~1 hour.
-
-## States and recovery
-- First open: "Vinyl" selected, Songs, Popular, Genre All, Language All. Loading uses the house browser's existing
-  loading state.
-- One or more services fail: show the merged result from the rest; drop their reason lines silently. Only when
-  **every** contributing service fails: the existing "Couldn't reach the catalogue. Click to try again." state.
-- Missing Last.fm key: Last.fm simply contributes nothing (log once); the error message names the key only in logs.
-- Offline: last cached merged pages, marked stale as today.
-- Indian language selected: JioSaavn + YouTube evidence only; Genre filter hidden (as today for JioSaavn).
-
-## Acceptance criteria
-- Discover shows exactly one source, "Vinyl"; Last.fm and JioSaavn no longer appear as sources.
-- For the 24-artist benchmark, Popular/Trending/New/Essentials each return ≥ 50 songs, albums and artists under
-  Genre All, with no duplicate recordings on a page and none across the first three pages.
-- Every card has a reason line; no reason line contains a service name.
-- Killing any single service (test seam) still returns a full first page; killing all shows the retry state.
-- No UI-thread work > 50 ms per page in the QML profiler; merging runs in the provider process.
-- Artist pages show Essentials for artists with ListenBrainz data (e.g. Adele) and no empty shelf otherwise.
-- MusicBrainz is called at most 1/s app-wide; a repeated artist lookup is answered from the identity memory.
-- Existing Discover tests updated; new provider tests cover merge, ranking determinism, partial failure and paging.
-
-## Non-goals
-Configuration page; Home; a server/Worker; new providers beyond those listed; changing playback resolution.
+## Acceptance
+- Discover shows one source, no rows; Songs/Albums/Artists × This week/Popular/New × Genre all populate for the
+  24-artist benchmark genres; Popular pages endlessly.
+- "This week" contains both Kworb and YouTube entries, no duplicates.
+- No request to billboard.com anywhere in the code.
+- Explore row data functions return the listed Wikipedia/Kworb rows (tested), ready for an Explore surface.
 
 ## Ledger
-**Decided by Hemanth:** combine all music catalogue APIs into one Vinyl catalogue like Tankoyomi (2026-11-27);
-replace the per-service sources (option B); configuration only if necessary, later.
-**Calls by Claude:** merge in-app first, Worker later; partial results when a service is down; merge order MBID → ISRC
-→ artist+title, keep two when unsure; plain reason lines with no service names; lenses Popular/Trending/New/
-Essentials; Language filter carries the Indian languages (JioSaavn) so they are not lost under option B; artist-page
-Essentials from ListenBrainz popularity; one app-wide identity memory and MusicBrainz queue; Home untouched.
-**Left out:** configuration page, shared Worker, listening stats, mood mixes, reviews, ReccoBeats, FreqBlog, MusicAtlas.
+**Decided by Hemanth (2026-11-27):** one catalogue front instead of per-service sources; every source serves one
+function, no spaghetti; Kworb in (B); Discover = endless grid + genre filter + index, no rows; editorial rows belong
+to Explore; use Billboard only legitimately (Wikipedia).
+**Calls by Claude:** source/job table above; "This week" interleave + de-dup; JioSaavn kept for Indian languages;
+MusicBrainz/ListenBrainz/TheAudioDB stay out of the catalogue; daily Kworb, weekly Wikipedia caching.
+**Open (Hemanth's):** where Vinyl's Explore lives (new tab vs part of Home).
+**Left out:** configuration page, shared Worker, merge layer, mood, reviews.
