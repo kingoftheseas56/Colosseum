@@ -104,6 +104,7 @@ TestCase {
             signal revisionChanged()
             signal requestFailed(string method, string reason)
             property string shelfState: "pending"
+            property var genreRows: []
             property var retries: []
 
             function shelves() { return [{ key: "new-releases", title: "New releases" },
@@ -113,7 +114,7 @@ TestCase {
                     ? { items: [testCase.item(key === "new-releases" ? 1 : 2)], hasMore: false }
                     : {}
             }
-            function genres() { return [] }
+            function genres() { return genreRows }
             function remoteQueryState(method, args) {
                 if (method !== "shelf" || args[0] !== "dramatized")
                     return { cached: true, status: "success" }
@@ -189,6 +190,107 @@ TestCase {
         for (var i = 0; i < rows.length; i++)
             lastRowBottom = Math.max(lastRowBottom, rows[i].mapToItem(t, 0, 0).y + rows[i].height)
         verify(mosaic.mapToItem(t, 0, 0).y >= lastRowBottom)
+    }
+
+    Component {
+        id: coverViewportComponent
+        Flickable {
+            id: flick
+            width: 330
+            height: 250
+            contentWidth: width
+            contentHeight: landing.height
+            clip: true
+            property alias landing: landing
+
+            Colosseum.BiblioAudiobooksTab {
+                id: landing
+                active: true
+                pageFlick: flick
+            }
+        }
+    }
+
+    function test_covers_follow_viewport_without_eager_loading() {
+        const viewport = createTemporaryObject(coverViewportComponent, win.contentItem)
+        verify(viewport)
+        const tab = viewport.landing
+        const icon = String(Qt.resolvedUrl("../../assets/icons/book-library.svg"))
+        tab.catalog = {
+            shelves: function() {
+                return [ {key: "new-releases", title: "New releases"}, {key: "dramatized", title: "Fully dramatized"},
+                         {key: "narrator:p3", title: "Narrated by Simon Vance"} ]
+            },
+            shelf: function(key) {
+                const offset = key === "new-releases" ? 0 : key === "dramatized" ? 20 : 40
+                return { items: Array.from({ length: 20 }, (_, i) => item(offset + i, {coverUrl: icon + "#" + (offset + i)})) }
+            },
+            genres: function() {
+                return Array.from({ length: 25 }, (_, i) => ({genre: "genre-" + i, count: 25, covers: [icon]}))
+            }
+        }
+        const firstRail = find(tab, "audiobooksRow_new_releases")
+        const lastRail = find(tab, "audiobooksRow_narrator_p3")
+        const mosaic = find(tab, "audiobooksGenreMosaic")
+        verify(firstRail && lastRail && mosaic)
+        function railArt(rail, id) { return find(rail, "theatreCatalogCard_r" + id + "_art") }
+        function genreArt(index) { return find(mosaic, "audiobooksGenreMosaic_cover_" + index) }
+
+        tryVerify(() => railArt(firstRail, 0) && String(railArt(firstRail, 0).activeSource) === icon + "#0")
+        tryVerify(() => railArt(firstRail, 3) && railArt(lastRail, 40))
+        compare(String(railArt(firstRail, 3).activeSource), "")
+        compare(String(railArt(lastRail, 40).activeSource), "")
+        compare(String(genreArt(0).source), "")
+        compare(String(genreArt(20).source), "")
+
+        viewport.width = 520
+        tryVerify(() => String(railArt(firstRail, 3).activeSource) === icon + "#3")
+        firstRail.testSetContentX(1700)
+        tryVerify(() => railArt(firstRail, 11) && String(railArt(firstRail, 11).activeSource) === icon + "#11")
+        viewport.contentY = lastRail.y
+        tryVerify(() => String(railArt(lastRail, 40).activeSource) === icon + "#40")
+        compare(String(genreArt(20).source), "")
+
+        viewport.contentY = mosaic.y
+        tryCompare(genreArt(0), "status", Image.Ready)
+        compare(String(genreArt(20).source), "")
+        genreSpy.target = tab
+        const firstGenre = genreArt(0)
+        mouseClick(firstGenre, firstGenre.width / 2, firstGenre.height / 2)
+        compare(genreSpy.signalArguments[0][0], "genre-0")
+
+        tab.active = false
+        viewport.contentY = viewport.contentHeight - viewport.height
+        wait(0)
+        compare(String(genreArt(20).source), "")
+        tab.active = true
+        tryCompare(genreArt(20), "status", Image.Ready)
+    }
+
+    function test_genres_wait_for_preceding_shelves_before_loading_covers() {
+        const viewport = createTemporaryObject(coverViewportComponent, win.contentItem, { height: 410 })
+        verify(viewport)
+        const icon = String(Qt.resolvedUrl("../../assets/icons/book-library.svg"))
+        const catalog = createTemporaryObject(remoteCatalogComponent, testCase, {
+            genreRows: [{genre: "fantasy", count: 1, covers: [icon]}]
+        })
+        const tab = viewport.landing
+        tab.catalog = catalog
+        const mosaic = find(tab, "audiobooksGenreMosaic")
+        const art = find(mosaic, "audiobooksGenreMosaic_cover_0")
+        verify(tab._waiting && art)
+        tryVerify(() => mosaic.y > 0)
+        verify(mosaic.y < viewport.height)
+        wait(100)
+        compare(String(art.source), "")
+
+        catalog.shelfState = "success"
+        catalog.revisionChanged()
+        tryVerify(() => mosaic.y > viewport.height + tab.artworkPrefetch)
+        compare(String(art.source), "")
+
+        viewport.contentY = mosaic.y
+        tryCompare(art, "status", Image.Ready)
     }
 
     function test_signals_carry_the_right_payloads() {

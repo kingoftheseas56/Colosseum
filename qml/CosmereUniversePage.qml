@@ -9,6 +9,7 @@ import "Universes.js" as UDB
 
 Item {
     id: root
+    property real contentBottomInset: 0
     onUniverseContentGenerationChanged: reload()
     readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
     anchors.fill: parent
@@ -81,7 +82,7 @@ Item {
         id: page
         anchors.fill: parent
         contentWidth: width
-        contentHeight: contentColumn.implicitHeight
+        contentHeight: contentColumn.implicitHeight + root.contentBottomInset
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: HouseScrollBar { flick: page }

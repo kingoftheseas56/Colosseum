@@ -18,6 +18,7 @@ Item {
     property string emptyMessage: qsTr("This shelf answered with nothing.")
     property bool squareArtwork: false
     property bool fitArtwork: false
+    property real contentBottomInset: 0
     signal itemRequested(var item)
     signal backRequested()
 
@@ -190,6 +191,7 @@ Item {
         visualProfile: "gallery"
         squareArtwork: seeAll.squareArtwork
         fitArtwork: seeAll.fitArtwork
+        bottomMargin: seeAll.contentBottomInset
         visible: !seeAll.missing
         items: seeAll.items
         loading: seeAll.loading

@@ -63,24 +63,21 @@ class ContentPublisherTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "missing or outside"):
             self.build()
 
-    def test_native_neutral_backgrounds_are_published_without_uploading_other_local_art(self):
-        backgrounds = ["captured-motion.jpg", "cold-ripple.jpg"]
-        for name in backgrounds:
-            Image.new("RGB", (40, 24), "green").save(self.native / "assets/wallpaper" / name)
+    def test_default_background_is_published_without_uploading_other_local_art(self):
+        relative = "assets/wallpaper/cold-ripple.jpg"
+        background = self.native / relative
+        Image.new("RGB", (40, 24), "green").save(background)
         private = self.native / "assets/wallpaper/unrelated-local.jpg"
         Image.new("RGB", (40, 24), "yellow").save(private)
         self.build()
         bundle = json.loads((self.root / "starter/bundle.json").read_text())
         assets = bundle["manifest"]["assets"]
-        for name in backgrounds:
-            relative = "assets/wallpaper/" + name
-            self.assertIn(relative, assets)
-            asset = assets[relative]
-            original = (self.native / relative).read_bytes()
-            self.assertEqual(asset["sourceSha256"], hashlib.sha256(original).hexdigest())
-            delivered = (self.root / "output" / asset["path"].lstrip("/")).read_bytes()
-            self.assertEqual(hashlib.sha256(delivered).hexdigest(), asset["sha256"])
-        self.assertNotIn("assets/wallpaper/unrelated-local.jpg", assets)
+        self.assertEqual({key for key in assets if key.startswith("assets/wallpaper/")},
+                         {relative, "assets/wallpaper/sagas/story.jpg"})
+        asset = assets[relative]
+        self.assertEqual(asset["sourceSha256"], hashlib.sha256(background.read_bytes()).hexdigest())
+        delivered = (self.root / "output" / asset["path"].lstrip("/")).read_bytes()
+        self.assertEqual(hashlib.sha256(delivered).hexdigest(), asset["sha256"])
 
     def test_declared_traversal_is_rejected(self):
         (self.native / "private.png").write_bytes(b"private")

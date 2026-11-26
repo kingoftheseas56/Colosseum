@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import ".."
+import "../WallpaperApi.js" as Wallpapers
 
 Item {
     id: root
@@ -54,7 +55,7 @@ Item {
         Image {
             anchors.fill: parent
             visible: root.backdrop === null
-            source: "../../assets/wallpaper/captured-motion.jpg"
+            source: Wallpapers.defaultBackgroundSource(typeof Content !== "undefined" ? Content : null)
             fillMode: Image.PreserveAspectCrop
             cache: true
         }

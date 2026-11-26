@@ -219,6 +219,7 @@ WorldPage {
         width: parent.width
         height: visible ? implicitHeight : 0
         active: biblio.lifecycleActive && visible
+        pageFlick: biblio.pageFlickable
         onAudiobookRequested: (item) => biblio.audiobookRequested(item)
         onAudiobookGenreRequested: (genre) => biblio.audiobookGenreRequested(genre)
         onAudiobookShelfRequested: (key) => biblio.audiobookShelfRequested(key)

@@ -5,6 +5,7 @@ import "Catalogue.js" as Catalogue
 
 Item {
     id: root
+    property real contentBottomInset: 0
     objectName: "tribute"
     focus: true
     // Inside Colosseum the app's own back button and chrome replace the tribute's brand bar
@@ -97,7 +98,7 @@ Item {
             }
         }
         Item {
-            y:root.narrow?64:72; width:parent.width; height:parent.height-y
+            y:root.narrow?64:72; width:parent.width; height:parent.height-y-root.contentBottomInset
             Canvas {
                 id:aureole; objectName:"hoverTint"
                 width:Math.min(parent.width*.85,1050); height:width; anchors.centerIn:parent
@@ -110,7 +111,7 @@ Item {
             Item {
                 id: gauntlet
                 anchors.centerIn:parent
-                width:Math.min(660,parent.width*.93,Math.max(200,root.height-80)*.535)
+                width:Math.min(660,parent.width*.93,Math.max(200,root.height-root.contentBottomInset-80)*.535)
                 height:width*985/525
                 Image { anchors.fill:parent; source:"assets/gauntlet.webp"; fillMode:Image.PreserveAspectFit; smooth:true }
                 Repeater {
@@ -181,7 +182,7 @@ Item {
         }
         Flickable {
             id:phaseScroll;objectName:"phaseScroll";anchors.fill:parent;clip:true
-            contentWidth:width; contentHeight:pageColumn.height; boundsBehavior:Flickable.StopAtBounds
+            contentWidth:width; contentHeight:pageColumn.height + root.contentBottomInset; boundsBehavior:Flickable.StopAtBounds
             ScrollBar.vertical:HouseScrollBar {flick:phaseScroll}
             Column {
                 id:pageColumn;width:phaseScroll.width

@@ -43,18 +43,19 @@ class LinuxReleasePolicyTests(unittest.TestCase):
         self.assertIn('ar t "release-output/$deb" > release-output/deb-archive-members.txt', workflow)
         self.assertIn("control.tar.xz\\ndata.tar.xz", workflow)
 
-    def test_140_shipping_cache_requires_both_worlds_explicitly_off(self):
+    def test_shipping_cache_requires_both_worlds_explicitly_off(self):
         cache = ("CMAKE_BUILD_TYPE:STRING=Release\n"
                  "COLOSSEUM_NO_ACCOUNT_EDITION:BOOL=OFF\n"
                  "COLOSSEUM_FERIA_IN_APP:BOOL=OFF\n"
                  "COLOSSEUM_VINYL_IN_APP:BOOL=OFF\n"
                  "COLOSSEUM_CONTENT_API_URL:STRING=https://colosseum-content-api.colosseum-watchparty-relay.workers.dev\n")
-        assembly.validate_shipping_cache(cache, "1.4.0")
-        for flag in ("COLOSSEUM_FERIA_IN_APP", "COLOSSEUM_VINYL_IN_APP"):
-            for replacement in (flag + ":BOOL=ON\n", "", flag + ":BOOL=FALSE\n"):
-                with self.subTest(flag=flag, replacement=replacement):
-                    with self.assertRaisesRegex(ValueError, "explicitly disabled"):
-                        assembly.validate_shipping_cache(cache.replace(flag + ":BOOL=OFF\n", replacement), "1.4.0")
+        for version in ("1.4.0", "1.5.0", "1.5.1"):
+            assembly.validate_shipping_cache(cache, version)
+            for flag in ("COLOSSEUM_FERIA_IN_APP", "COLOSSEUM_VINYL_IN_APP"):
+                for replacement in (flag + ":BOOL=ON\n", "", flag + ":BOOL=FALSE\n"):
+                    with self.subTest(version=version, flag=flag, replacement=replacement):
+                        with self.assertRaisesRegex(ValueError, "explicitly disabled"):
+                            assembly.validate_shipping_cache(cache.replace(flag + ":BOOL=OFF\n", replacement), version)
 
     def test_positioning_keeps_its_matching_serialport_sdk_dependency(self):
         workflow = (ROOT / ".github/workflows/release-linux-deb.yml").read_text()

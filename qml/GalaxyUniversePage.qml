@@ -6,6 +6,7 @@ import "UniverseExtApi.js" as UniverseExtApi
 
 Item {
     id: root
+    property real contentBottomInset: 0
     readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
     onUniverseContentGenerationChanged: reload()
     readonly property var contentLayout: { root.universeContentGeneration; return UniverseContent.resolveAssets(UniverseContent.document("tribute-star-wars")) }
@@ -140,6 +141,7 @@ Item {
     Rectangle { anchors.fill: parent; color: "#03050a" }
     StarWarsGalaxySystem {
         id: galaxyView
+        contentBottomInset: root.contentBottomInset
         anchors.fill: parent
         visible: root.selectedDestinationId === ""
         destinations: root.destinations
@@ -196,7 +198,7 @@ Item {
             id: destinationPage
             anchors.fill: parent
             contentWidth: width
-            contentHeight: destinationColumn.implicitHeight + 90
+            contentHeight: destinationColumn.implicitHeight + 90 + root.contentBottomInset
             clip: true
             boundsBehavior: Flickable.StopAtBounds
             ScrollBar.vertical: HouseScrollBar { flick: destinationPage }

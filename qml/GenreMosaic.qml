@@ -23,10 +23,17 @@ Column {
     property string moreLabel: "Explore"
     property var genres: []
     property var covers: []
+    // Optional vertical cover-loading band in mosaic coordinates.
+    property var artworkViewport: null
     property int columns: 5
     property bool navigable: true            // show the header's "Explore ›" affordance
     signal genreClicked(int index)
     signal exploreClicked()                  // tapped "Explore ›" → host opens the full genre index
+
+    function layoutArtworkGrid() {
+        grid.forceLayout()
+        gm.forceLayout()
+    }
 
     width: parent ? parent.width : 800
     spacing: 14
@@ -59,10 +66,26 @@ Column {
                 }
                 border.width: 1; border.color: theme.edge
 
+                property bool artworkRequested: false
+                readonly property real topInMosaic: grid.y
+                    + Math.floor(cell.index / grid.columns) * (cell.height + grid.rowSpacing)
+                readonly property bool inArtworkViewport: gm.artworkViewport !== null && gm.artworkViewport.height > 0
+                    && topInMosaic < gm.artworkViewport.y + gm.artworkViewport.height
+                    && topInMosaic + height > gm.artworkViewport.y
+
+                function requestArtwork() {
+                    if (cell.inArtworkViewport)
+                        cell.artworkRequested = true
+                }
+                onInArtworkViewportChanged: if (inArtworkViewport) Qt.callLater(cell.requestArtwork)
+
                 Image {
+                    objectName: gm.objectName.length > 0 ? gm.objectName + "_cover_" + cell.index : ""
                     anchors.fill: parent
-                    source: cell.modelData.cover !== undefined ? cell.modelData.cover
-                          : (gm.covers.length > 0 ? gm.covers[cell.index % gm.covers.length] : "")
+                    source: gm.artworkViewport === null || cell.artworkRequested
+                            ? (cell.modelData.cover !== undefined ? cell.modelData.cover
+                               : (gm.covers.length > 0 ? gm.covers[cell.index % gm.covers.length] : ""))
+                            : ""
                     asynchronous: true; cache: true
                     fillMode: Image.PreserveAspectCrop
                     verticalAlignment: Image.AlignTop

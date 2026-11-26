@@ -26,6 +26,7 @@ import "CollectionsReferences.js" as CollectionsReferences
 
 Item {
     id: page
+    property real contentBottomInset: 0
     focus: true
     activeFocusOnTab: true
     property Item backdrop
@@ -262,7 +263,7 @@ Item {
         id: flick
         anchors.fill: parent
         contentWidth: width
-        contentHeight: pageCol.height + 96
+        contentHeight: pageCol.height + 96 + page.contentBottomInset
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: HouseScrollBar { flick: flick }   // gold sliver, same as every page

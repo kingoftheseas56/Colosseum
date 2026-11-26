@@ -485,8 +485,7 @@ void HomeServerService::cancelPlaybacks(const QString &connectionId) {
 }
 
 bool HomeServerService::loadPlayback(QObject *backend, const QString &sourceKey,
-                                    qint64 resumeMs, bool forceTranscode) {
-    Q_UNUSED(resumeMs); // The existing player seeks on the full VOD timeline after load.
+                                    qint64 resumeMs, bool forceTranscode, bool reconnect) {
     if (!available() || !backend || backend->thread() != thread() || !dynamic_cast<PlayerBackendContract *>(backend)) return false;
     const QPointer<QObject> guard(backend);
     const auto profileGeneration = m_profileGeneration;
@@ -534,7 +533,8 @@ bool HomeServerService::loadPlayback(QObject *backend, const QString &sourceKey,
     const auto backendGeneration = m_backendGenerations.value(backend);
     connection.insert("serverMajor", m_serverMajor.value(id));
     job->start(connection, item, versionId, token, {m_android, m_videoDecodeCapabilities, forceTranscode},
-        [this, guard, job, sourceKey, id, item, connection, token, profileGeneration, backendGeneration](HomeServerPlaybackJob::Result result) {
+        [this, guard, job, sourceKey, id, item, connection, token, profileGeneration, backendGeneration,
+         reconnect, resumeMs](HomeServerPlaybackJob::Result result) {
         job->deleteLater();
         if (!guard || profileGeneration != m_profileGeneration
             || m_backendGenerations.value(guard.data()) != backendGeneration
@@ -550,7 +550,8 @@ bool HomeServerService::loadPlayback(QObject *backend, const QString &sourceKey,
                 hideUnavailableProgress();
                 publish();
             }
-            emit playbackFailed(sourceKey, result.error.isEmpty() ? tr("Could not play this server copy.") : result.error);
+            emit playbackFailed(sourceKey, result.error.isEmpty() ? tr("Could not play this server copy.") : result.error,
+                                result.retryable);
             return;
         }
         auto *player = dynamic_cast<PlayerBackendContract *>(guard.data());
@@ -560,7 +561,10 @@ bool HomeServerService::loadPlayback(QObject *backend, const QString &sourceKey,
         playback.connection = connection;
         playback.token = token;
         m_playbacks.insert(guard.data(), playback);
-        player->loadSourceWithSubtitles(result.url, result.headers, result.subtitles);
+        if (reconnect)
+            player->reloadSourceForRecovery(result.url, result.headers, result.subtitles, resumeMs);
+        else
+            player->loadSourceWithSubtitles(result.url, result.headers, result.subtitles);
         if (guard && profileGeneration == m_profileGeneration
             && m_backendGenerations.value(guard.data()) == backendGeneration)
             emit playbackResolved(sourceKey, result.transcoded);

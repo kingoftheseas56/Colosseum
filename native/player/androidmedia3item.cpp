@@ -345,8 +345,10 @@ void AndroidMedia3Item::setAudioDelay(double value)
 
 void AndroidMedia3Item::setSubDelay(double value)
 {
-    if (m_subDelay == value) return;
+    if (!std::isfinite(value) || m_subDelay == value) return;
     m_subDelay = value;
+    if (m_host.isValid())
+        m_host.callMethod<void>("setSubtitleDelay", "(D)V", jdouble(value));
     emit subDelayChanged();
     updateSidecarCues();
 }
@@ -379,6 +381,20 @@ void AndroidMedia3Item::loadSource(const QString &url)
 
 void AndroidMedia3Item::loadSource(const QString &url, const QVariantMap &headers)
 {
+    openSource(url, headers, 0, true);
+}
+
+void AndroidMedia3Item::reloadSourceForRecovery(const QString &url, const QVariantMap &headers,
+                                                const QList<PlayerExternalSubtitle> &subtitles,
+                                                qint64 positionMs)
+{
+    Q_UNUSED(subtitles);
+    openSource(url, headers, positionMs, false);
+}
+
+void AndroidMedia3Item::openSource(const QString &url, const QVariantMap &headers,
+                                   qint64 positionMs, bool autoplay)
+{
     const auto before = m_state.snapshot();
     const bool hadTracks = !m_state.audioTracks().isEmpty() || !m_state.subtitleTracks().isEmpty()
             || !m_externalSubtitles.isEmpty();
@@ -387,7 +403,8 @@ void AndroidMedia3Item::loadSource(const QString &url, const QVariantMap &header
     clearExternalSubtitles();
     const quint64 generation = m_state.beginLoad(url, headers);
     if (m_seekable) { m_seekable = false; emit seekableChanged(); }
-    m_state.noteUserPlay(generation);
+    if (autoplay)
+        m_state.noteUserPlay(generation);
     m_fileLoadedEmitted = false;
     m_resumeAfterEnd = false;
     m_restoreLifecycleEpoch = 0;
@@ -419,9 +436,9 @@ void AndroidMedia3Item::loadSource(const QString &url, const QVariantMap &header
 
     const QJniObject javaUrl = QJniObject::fromString(m_state.snapshot().currentUrl);
     const QJniObject headerMap = javaHeaders(headers);
-    m_host.callMethod<void>("load", "(JLjava/lang/String;Ljava/util/Map;)V",
-                            jlong(generation), javaUrl.object<jstring>(), headerMap.object<jobject>());
-    callHost("play");
+    m_host.callMethod<void>("load", "(JLjava/lang/String;Ljava/util/Map;JZ)V",
+                           jlong(generation), javaUrl.object<jstring>(), headerMap.object<jobject>(),
+                           jlong(positionMs), jboolean(autoplay));
 }
 
 void AndroidMedia3Item::stopPlayback()

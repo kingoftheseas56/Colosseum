@@ -14,6 +14,7 @@ import re
 from pathlib import Path
 from urllib.parse import quote, urlsplit, urlunsplit
 
+from generate_update_manifest import requires_platform_manifest
 from verify_update_release import verify
 
 _MANIFEST = "colosseum-update-v1.json"
@@ -67,6 +68,8 @@ def build_stable_feed(*, manifest: Path, signature: Path, installer: Path,
     checked = verify(manifest, signature, installer, public_key_der, artwork_dir)
     release = json.loads(manifest.read_bytes())
     tag = release.get("tag")
+    if requires_platform_manifest(checked["version"]):
+        raise ValueError("1.5.0 and later use the signed GitHub release for the stable feed")
     if (not isinstance(tag, str) or not _TAG.fullmatch(tag)
         or tag != "v" + checked["version"]):
         raise ValueError("invalid stable tag")

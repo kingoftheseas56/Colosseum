@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 # RC = compile the Windows .rc that carries the app/exe icon. Windows-only: enabled below via
 # enable_language(RC) once WIN32 is known, instead of unconditionally in the base project()
 # declaration (arc-17 Linux port, first configure pass).
-project(colosseum VERSION 1.4.0 LANGUAGES C CXX)
+project(colosseum VERSION 1.5.0 LANGUAGES C CXX)
 if(WIN32)
     enable_language(RC)
 endif()
@@ -29,6 +29,11 @@ endif()
 option(COLOSSEUM_UPDATE_TESTING
     "Use the test-only update public key for isolated fixture builds"
     OFF)
+set(COLOSSEUM_UPDATE_TEST_FEED_URL "" CACHE STRING "HTTPS stable JSON URL for updater fixture builds")
+if(COLOSSEUM_UPDATE_TEST_FEED_URL AND (NOT COLOSSEUM_UPDATE_TESTING
+   OR NOT COLOSSEUM_UPDATE_TEST_FEED_URL MATCHES "^https://[A-Za-z0-9.-]+(:[0-9]+)?/[A-Za-z0-9._/-]+$"))
+    message(FATAL_ERROR "An HTTPS update test feed requires COLOSSEUM_UPDATE_TESTING")
+endif()
 
 # Minimal focused-test project for the opt-in Android Nuvio playback backend:
 # returns before every unrelated desktop dependency while still compiling the
@@ -927,9 +932,30 @@ if(WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Linux" OR (ANDROID AND COLOSSEUM_NUVIO_A
         endif()
     endif()
 endif()
-if(ANDROID)
-    target_sources(colosseum PRIVATE update/UpdateTrust.cpp)
-    target_link_libraries(colosseum PRIVATE colosseum_update_crypto)
+target_sources(colosseum PRIVATE
+    update/UpdateVersion.cpp
+    update/UpdateVersion.h
+    update/UpdateManifest.cpp
+    update/UpdateManifest.h
+    update/UpdateTrust.cpp
+    update/UpdateTrust.h
+    update/UpdatePublicKey.h
+    update/UpdateTestPublicKey.h
+    update/InstalledChronicle.cpp
+    update/InstalledChronicle.h
+    update/UpdateCache.cpp
+    update/UpdateCache.h
+    update/UpdateDownload.cpp
+    update/UpdateDownload.h
+    update/UpdateReleaseClient.cpp
+    update/UpdateReleaseClient.h
+    update/UpdateService.cpp
+    update/UpdateService.h
+)
+target_link_libraries(colosseum PRIVATE colosseum_update_crypto)
+
+if(WIN32)
+    target_sources(colosseum PRIVATE update/UpdateInstallBridge.cpp update/UpdateInstallBridge.h)
 endif()
 
 # Vault engine: built on every platform (Android reads real folder paths after All files access).
@@ -997,26 +1023,6 @@ if(NOT ANDROID)
         account/WindowsAccountSensitiveClipboard.cpp
         account/WindowsAccountCredentialStore.h
         account/WindowsAccountSensitiveClipboard.h
-        update/UpdateVersion.cpp
-        update/UpdateVersion.h
-        update/UpdateManifest.cpp
-        update/UpdateManifest.h
-        update/UpdateTrust.cpp
-        update/UpdateTrust.h
-        update/UpdatePublicKey.h
-        update/UpdateTestPublicKey.h
-        update/InstalledChronicle.cpp
-        update/InstalledChronicle.h
-        update/UpdateCache.cpp
-        update/UpdateCache.h
-        update/UpdateDownload.cpp
-        update/UpdateDownload.h
-        update/UpdateReleaseClient.cpp
-        update/UpdateReleaseClient.h
-        update/UpdateService.cpp
-        update/UpdateService.h
-        update/UpdateInstallBridge.cpp
-        update/UpdateInstallBridge.h
         installed_chronicle.qrc
         player/MediaAdmissionProbe.cpp
         player/MediaAdmissionProbe.h
@@ -1185,6 +1191,10 @@ else()
 endif()
 if(COLOSSEUM_UPDATE_TESTING)
     target_compile_definitions(colosseum PRIVATE COLOSSEUM_UPDATE_TESTING=1)
+    if(COLOSSEUM_UPDATE_TEST_FEED_URL)
+        target_compile_definitions(colosseum PRIVATE
+            COLOSSEUM_UPDATE_TEST_FEED_URL="${COLOSSEUM_UPDATE_TEST_FEED_URL}")
+    endif()
 endif()
 if(COLOSSEUM_CONTENT_API_URL)
     if(NOT COLOSSEUM_CONTENT_API_URL MATCHES "^https://[A-Za-z0-9.-]+(:[0-9]+)?$")
@@ -1235,7 +1245,7 @@ if(NOT ANDROID)
     # Desktop-only links: the Android Qt kit ships no WebEngine/MpvQt. MediaAdmissionProbe
     # links libmpv directly, not via MpvQt (Slice 8); Feria (Portico/WebEngineQuick) is
     # desktop-only too, so its target and WebView2 loader stay off the Android graph.
-    target_link_libraries(colosseum PRIVATE colosseum_update_crypto MpvQt::MpvQt
+    target_link_libraries(colosseum PRIVATE MpvQt::MpvQt
         Qt6::WebEngineQuick Qt6::WebChannel
         ${Libmpv_LIBRARIES})
 

@@ -12,6 +12,8 @@ import shutil
 from pathlib import Path
 from typing import Any, NoReturn
 
+from generate_update_manifest import package_metadata, platform_asset_names
+
 REPO = "kingoftheseas56/Colosseum"
 VERSION_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
 
@@ -62,14 +64,27 @@ def verify_signature(manifest: Path, signature: Path, public_der: Path) -> None:
 
 
 def verify(manifest_path: Path, signature_path: Path, installer_path: Path,
-           public_der: Path, artwork_dir: Path | None = None) -> dict[str, Any]:
+           public_der: Path, artwork_dir: Path | None = None,
+           platform_dir: Path | None = None) -> dict[str, Any]:
     raw = manifest_path.read_bytes()
     if raw.startswith(b"\xef\xbb\xbf"):
         fail("manifest must be UTF-8 without BOM")
     data = json.loads(raw.decode("utf-8"))
-    if data.get("schemaVersion") != 1:
+    schema = data.get("schemaVersion")
+    if type(schema) is not int or schema not in {1, 2}:
         fail("unsupported schema")
     release_version = version(data.get("version"), "version")
+    if schema == 2:
+        if platform_dir is None:
+            fail("schema v2 verification requires --platform-dir")
+        expected = {
+            kind: package_metadata(platform_dir / name)
+            for kind, name in platform_asset_names(release_version).items()
+        }
+        if data.get("downloads") != expected:
+            fail("platform package metadata mismatch")
+    elif "downloads" in data:
+        fail("legacy manifest cannot include platform downloads")
     if data.get("tag") != f"v{release_version}":
         fail("tag/version mismatch")
     notes_urls = {
@@ -114,10 +129,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--installer", required=True)
     parser.add_argument("--public-key-der", required=True)
     parser.add_argument("--artwork-dir")
+    parser.add_argument("--platform-dir", type=Path)
     args = parser.parse_args(argv)
     try:
         result = verify(Path(args.manifest), Path(args.signature), Path(args.installer),
-                        Path(args.public_key_der), Path(args.artwork_dir) if args.artwork_dir else None)
+                        Path(args.public_key_der), Path(args.artwork_dir) if args.artwork_dir else None,
+                        args.platform_dir)
         print("UPDATE_RELEASE_OK")
         for key, value in result.items():
             print(f"{key.upper()}={value}")

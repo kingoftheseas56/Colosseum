@@ -12,6 +12,7 @@ TestCase {
     when: windowShown
     width: 960; height: 540
     property var view: null
+    readonly property url bundledDefault: Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg")
     readonly property string redImage: "data:image/svg+xml," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><rect width='20' height='20' fill='red'/></svg>")
     readonly property string blueImage: "data:image/svg+xml," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><rect width='20' height='20' fill='blue'/></svg>")
 
@@ -50,8 +51,7 @@ TestCase {
         }
     }
     function init() {
-        content.assets = ({"assets/wallpaper/captured-motion.jpg":redImage,
-                           "assets/wallpaper/cold-ripple.jpg":redImage})
+        content.assets = ({"assets/wallpaper/cold-ripple.jpg":redImage})
     }
     function cleanup() {
         if (view) { view.destroy(); view = null }
@@ -60,10 +60,13 @@ TestCase {
         view = gallery.createObject(testCase)
         verify(view !== null)
         compare(view.fallbackSource, redImage)
-        content.assets["assets/wallpaper/captured-motion.jpg"] = blueImage
+        content.assets["assets/wallpaper/cold-ripple.jpg"] = blueImage
         compare(view.fallbackSource, redImage)
         content.generation++
         tryCompare(view, "fallbackSource", blueImage)
+        content.assets = ({})
+        content.generation++
+        tryCompare(view, "fallbackSource", String(bundledDefault))
     }
     function test_vinyl_uses_the_same_content_owner() {
         view = backdrop.createObject(testCase)
@@ -92,13 +95,12 @@ TestCase {
             verify(image !== null)
             tryCompare(image, "status", Image.Ready)
             content.assets["assets/wallpaper/cold-ripple.jpg"] = blueImage
-            content.assets["assets/wallpaper/captured-motion.jpg"] = blueImage
             content.generation++
             tryCompare(view, "fallbackWallpaperSource", blueImage)
             tryCompare(image, "source", Qt.resolvedUrl(blueImage))
             tryCompare(image, "status", Image.Ready)
             view.contentStore = null
-            compare(view.fallbackWallpaperSource, "")
+            compare(view.fallbackWallpaperSource, component === accountFrame ? String(bundledDefault) : "")
             view.destroy()
             view = null
             init()

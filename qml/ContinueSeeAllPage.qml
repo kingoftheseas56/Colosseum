@@ -9,9 +9,11 @@
 import QtQuick
 import QtQuick.Controls
 import "ContinueSeeAll.js" as SeeAll
+import "WallpaperApi.js" as Wallpapers
 
 Item {
     id: root
+    property real contentBottomInset: 0
     anchors.fill: parent
 
     // shell contract (mirrors the genre-page layers)
@@ -74,7 +76,7 @@ Item {
             visible: root.backdrop !== null
         }
         Image { anchors.fill: parent; visible: root.backdrop === null
-                source: "../assets/wallpaper/captured-motion.jpg"
+                source: Wallpapers.defaultBackgroundSource(typeof Content !== "undefined" ? Content : null)
                 fillMode: Image.PreserveAspectCrop; cache: true }
         Rectangle { anchors.fill: parent; color: Qt.rgba(0.03, 0.04, 0.07, 0.86) }
     }
@@ -113,7 +115,7 @@ Item {
         id: page
         anchors.fill: parent
         contentWidth: width
-        contentHeight: col.implicitHeight + 50
+        contentHeight: col.implicitHeight + 50 + root.contentBottomInset
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: HouseScrollBar { flick: page }

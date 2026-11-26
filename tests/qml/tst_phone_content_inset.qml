@@ -75,6 +75,33 @@ TestCase {
         downloads.destroy()
     }
 
+    function test_loaded_browse_pages_clear_the_dock_data() {
+        return [
+            { tag: "genre-index", page: "TheatreGenreIndex" },
+            { tag: "continue", page: "ContinueSeeAllPage" },
+            { tag: "ebook", page: "BiblioBook" },
+            { tag: "comic", page: "ComicSeries" }
+        ]
+    }
+
+    function test_loaded_browse_pages_clear_the_dock(data) {
+        const component = Qt.createComponent(Qt.resolvedUrl("../../qml/" + data.page + ".qml"))
+        compare(component.status, Component.Ready, component.errorString())
+        const page = createTemporaryObject(component, testWindow.contentItem, {
+            width: testWindow.width, height: testWindow.height
+        })
+        verify(page)
+        const scroll = page.children.find(child => child.flickableDirection !== undefined)
+        verify(scroll)
+        const unpaddedHeight = scroll.contentHeight
+        const viewportBottom = scroll.mapToItem(page, 0, scroll.height).y
+        compare(viewportBottom, testWindow.height)
+
+        page.contentBottomInset = 120
+        compare(scroll.mapToItem(page, 0, scroll.height).y, viewportBottom)
+        compare(scroll.contentHeight, unpaddedHeight + 120)
+    }
+
     function test_universe_detail_dock_clearance_data() {
         return [
             { tag: "shelves", page: "ShelvesUniversePage", scroll: "shelvesScroll" },

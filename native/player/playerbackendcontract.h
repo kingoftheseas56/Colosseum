@@ -28,6 +28,12 @@ public:
         Q_UNUSED(subtitles);
         loadSource(url, headers);
     }
+    virtual void reloadSourceForRecovery(const QString &url, const QVariantMap &headers,
+                                         const QList<PlayerExternalSubtitle> &subtitles, qint64 positionMs)
+    {
+        Q_UNUSED(positionMs);
+        loadSourceWithSubtitles(url, headers, subtitles);
+    }
     virtual void stopPlayback() = 0;
 
     // Android uses these when the Activity/surface is recreated and when audio

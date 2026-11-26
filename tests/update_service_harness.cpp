@@ -207,6 +207,71 @@ int main()
                 "manual-only policy survives a signed offline restart");
     }
 
+    {
+        const auto platformResult = [] {
+            auto result = validResult(manifestFor("1.5.1"));
+            result.status = ReleaseCheckResult::Status::ManualUpdateRequired;
+            result.manifest.schemaVersion = 2;
+            result.manifest.downloads = {
+                {QStringLiteral("android-arm64-apk"),
+                 {QStringLiteral("Colosseum-Android-1.5.1-arm64-v8a.apk"), 9, QByteArray(32, 'a')}},
+                {QStringLiteral("linux-x64-appimage"),
+                 {QStringLiteral("Colosseum-1.5.1-x86_64.AppImage"), 9, QByteArray(32, 'b')}},
+                {QStringLiteral("linux-x64-deb"),
+                 {QStringLiteral("Colosseum-1.5.1-linux-amd64.deb"), 9, QByteArray(32, 'c')}},
+                {QStringLiteral("macos-arm64-dmg"),
+                 {QStringLiteral("Colosseum-1.5.1-macOS-arm64.dmg"), 9, QByteArray(32, 'd')}},
+            };
+            return result;
+        }();
+        UpdateServiceHooks platformHooks;
+        QUrl opened;
+        platformHooks.openUrl = [&opened](const QUrl& url) { opened = url; return true; };
+        platformHooks.checkLatest = [&platformResult](const QString&, UpdateReleaseClient::Callback done) {
+            done(platformResult);
+        };
+        const auto expectPlatform = [&](const QStringList& kinds, const QStringList& labels,
+                                        const QString& expectedAsset) {
+            QTemporaryDir root;
+            require(root.isValid(), "platform update temp root");
+            platformHooks.manualPackageKinds = kinds;
+            UpdateService updater(version("1.5.0"), root.path(), platformHooks);
+            updater.startAutomaticChecks();
+            require(updater.state() == UpdateService::ManualUpdateRequired && updater.updateAvailable()
+                        && updater.unseenUpdate() && updater.manualDownloadLabels() == labels,
+                    "startup discovers the correct newer package and lights the update badge");
+            opened = QUrl();
+            updater.openManualDownload(labels.size());
+            require(opened.isEmpty(), "an out-of-range package cannot be opened");
+            updater.openManualDownload(labels.size() - 1);
+            require(opened.toString() == QStringLiteral("https://github.com/kingoftheseas56/Colosseum/"
+                                                        "releases/download/v1.5.1/") + expectedAsset,
+                    "the action opens the official compatible package");
+            updater.markSeen();
+            require(updater.updateAvailable() && !updater.unseenUpdate(), "opening Updates marks the offer seen");
+            UpdateService installed(version("1.5.1"), root.path(), platformHooks);
+            installed.checkNow();
+            require(installed.state() == UpdateService::UpToDate && !installed.updateAvailable()
+                        && installed.manualDownloadLabels().isEmpty(),
+                    "an installed version is not offered again");
+        };
+        expectPlatform({QStringLiteral("android-arm64-apk")}, {QStringLiteral("Download APK")},
+                       QStringLiteral("Colosseum-Android-1.5.1-arm64-v8a.apk"));
+        expectPlatform({QStringLiteral("macos-arm64-dmg")}, {QStringLiteral("Download DMG")},
+                       QStringLiteral("Colosseum-1.5.1-macOS-arm64.dmg"));
+        expectPlatform({QStringLiteral("linux-x64-appimage"), QStringLiteral("linux-x64-deb")},
+                       {QStringLiteral("Download AppImage"), QStringLiteral("Download .deb")},
+                       QStringLiteral("Colosseum-1.5.1-linux-amd64.deb"));
+
+        QTemporaryDir root;
+        UpdateServiceHooks unsupportedHooks = platformHooks;
+        unsupportedHooks.manualPackageKinds.clear();
+        UpdateService unsupported(version("1.5.0"), root.path(), unsupportedHooks);
+        unsupported.checkNow();
+        require(!unsupported.updateAvailable() && unsupported.manualDownloadLabels().isEmpty(),
+                "unsupported architectures are never offered a foreign package");
+    }
+
     QTemporaryDir lifecycleRoot;
     require(lifecycleRoot.isValid(), "lifecycle temp root");
     UpdateService service(version("1.1.0"), lifecycleRoot.path(), hooks);

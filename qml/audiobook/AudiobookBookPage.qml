@@ -7,6 +7,7 @@ FocusScope {
     id: root
     objectName: "audiobookBookPage"
     property real backdropBottomInset: 0
+    property real contentBottomInset: 0
     property bool androidHost: Qt.platform.os === "android"
     property var work: ({})
     // Enriched catalogue recordings may supply canonical recordingKey/local state.
@@ -161,7 +162,8 @@ FocusScope {
         width: root.width; height: Math.max(0, root.height - y)
         contentWidth: width
         contentHeight: Math.max(height, Math.max(artColumn.y + artColumn.height,
-            root.hasSeries ? shelf.y + shelf.height : details.y + details.height) + (root.compact ? 100 : 24))
+            root.hasSeries ? shelf.y + shelf.height : details.y + details.height) + (root.compact ? 100 : 24)
+            + root.contentBottomInset)
         boundsBehavior: Flickable.StopAtBounds
         clip: true
         ScrollBar.vertical: ScrollBar {}

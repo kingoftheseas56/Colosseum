@@ -15,7 +15,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts" / "update"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from generate_update_manifest import (DER_PREFIX, cpp_header_key, manifest_bytes, sign_raw)  # noqa: E402
+from generate_update_manifest import (  # noqa: E402
+    DER_PREFIX, LEGACY_MANIFEST, PLATFORM_MANIFEST, cpp_header_key, manifest_bytes,
+    platform_asset_names, sign_raw, write_signed_manifests,
+)
 from verify_update_release import verify, verify_signature  # noqa: E402
 from publish_app_release import publish_draft, publish_verified_draft  # noqa: E402
 from generate_installed_chronicle import generate  # noqa: E402
@@ -28,25 +31,28 @@ class FakeGitHub:
     draft is discoverable only through the /releases *list* endpoint, never through
     /releases/tags/{tag} — matching real GitHub, where drafts have no tag ref."""
 
-    def __init__(self, published: bool = False, has_draft: bool = False):
+    def __init__(self, published: bool = False, has_draft: bool = False,
+                 tag: str = "v1.1.0", assets: list[dict] | None = None):
         self.published = published
         self.has_draft = has_draft
         self.calls = []
+        self.tag = tag
+        self.assets = [] if assets is None else assets
 
     def __call__(self, path, token, payload=None, method=None, raw_url=None,
                  content_type="application/json", data=None):
         self.calls.append((path, method, content_type, data))
         if method is None and "/releases?" in path:  # list endpoint (find_release_by_tag)
             if self.published:
-                return [{"id": 7, "draft": False, "tag_name": "v1.1.0",
-                         "assets": [], "html_url": "published"}]
+                return [{"id": 7, "draft": False, "tag_name": self.tag,
+                         "assets": self.assets, "html_url": "published"}]
             if self.has_draft:
-                return [{"id": 7, "draft": True, "tag_name": "v1.1.0",
+                return [{"id": 7, "draft": True, "tag_name": self.tag,
                          "upload_url": "https://upload.test/assets{?name}",
-                         "assets": [], "html_url": "draft"}]
+                         "assets": self.assets, "html_url": "draft"}]
             return []
         if method == "POST" and path.endswith("/releases"):
-            return {"id": 7, "draft": True, "tag_name": "v1.1.0",
+            return {"id": 7, "draft": True, "tag_name": self.tag,
                     "upload_url": "https://upload.test/assets{?name}",
                     "assets": [], "html_url": "draft"}
         if method == "PATCH" and path.endswith("/releases/7"):
@@ -188,6 +194,70 @@ class UpdateReleaseToolingTests(unittest.TestCase):
             publish_verified_draft("v1.1.0", "token", FakeGitHub())
         with self.assertRaises(SystemExit):
             publish_verified_draft("v1.1.0", "token", FakeGitHub(published=True))
+
+    def test_current_release_requires_both_signed_manifests_and_all_packages(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            version = "1.5.1"
+            tag = f"v{version}"
+            installer = root / f"Colosseum-{version}-setup.exe"
+            installer.write_bytes(b"Windows fixture")
+            platform_dir = root / "packages"
+            platform_dir.mkdir()
+            packages = [platform_dir / name for name in platform_asset_names(version).values()]
+            for path in packages:
+                path.write_bytes(path.name.encode("ascii"))
+            presentation = root / "presentation.json"
+            presentation.write_text(json.dumps({
+                "eyebrow": "Update", "title": "Colosseum 1.5.1", "summary": "Signed test update.",
+                "notes_url": f"https://github.com/kingoftheseas56/Colosseum/releases/tag/{tag}",
+                "highlights": [{"kind": "feature", "section": "Updates",
+                                "title": "Update discovery", "body": "New package."}],
+            }), encoding="utf-8")
+            private_key, public = root / "test.pem", root / "test.der"
+            subprocess.run([OPENSSL, "genpkey", "-algorithm", "ED25519",
+                            "-out", str(private_key)], check=True)
+            subprocess.run([OPENSSL, "pkey", "-in", str(private_key), "-pubout",
+                            "-outform", "DER", "-out", str(public)], check=True)
+
+            manifests = root / "manifests"
+            with self.assertRaisesRegex(ValueError, "--platform-dir"):
+                write_signed_manifests(version, installer, presentation, private_key, manifests)
+            self.assertFalse(manifests.exists())
+            write_signed_manifests(version, installer, presentation, private_key, manifests, platform_dir)
+            legacy = manifests / LEGACY_MANIFEST
+            platform = manifests / PLATFORM_MANIFEST
+            platform_sig = manifests / (PLATFORM_MANIFEST + ".sig")
+            self.assertEqual(legacy.read_bytes(), manifest_bytes(version, installer, presentation))
+            self.assertEqual(
+                verify(platform, platform_sig, installer, public, platform_dir=platform_dir)["version"],
+                version,
+            )
+
+            before = packages[0].read_bytes()
+            packages[0].write_bytes(b"changed")
+            fake = FakeGitHub(tag=tag)
+            with self.assertRaisesRegex(ValueError, "platform package metadata mismatch"):
+                publish_draft(tag, installer, manifests, "token", fake, public, platform_dir)
+            self.assertEqual(fake.calls, [])
+            packages[0].write_bytes(before)
+            publish_draft(tag, installer, manifests, "token", fake, public, platform_dir)
+            self.assertEqual(len([call for call in fake.calls if call[3] is not None]), 9)
+
+            release_assets = [installer, legacy, manifests / (LEGACY_MANIFEST + ".sig"),
+                              platform, platform_sig, *packages]
+            remote = [{"name": path.name, "size": path.stat().st_size,
+                       "digest": "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()}
+                      for path in release_assets]
+            publish_options = dict(installer=installer, manifest_dir=manifests,
+                                   public_der=public, platform_dir=platform_dir)
+            incomplete = FakeGitHub(has_draft=True, tag=tag, assets=remote[:-1])
+            with self.assertRaisesRegex(SystemExit, "draft asset missing"):
+                publish_verified_draft(tag, "token", incomplete, **publish_options)
+            self.assertFalse(any(call[1] == "PATCH" for call in incomplete.calls))
+            complete = FakeGitHub(has_draft=True, tag=tag, assets=remote)
+            self.assertEqual(publish_verified_draft(tag, "token", complete, **publish_options), 0)
+            self.assertEqual(sum(call[1] == "PATCH" for call in complete.calls), 1)
 
     def test_schema_and_bootstrap_presentation_are_present(self):
         schema = json.loads((ROOT / "scripts/update/update-manifest-v1.schema.json").read_text(encoding="utf-8"))

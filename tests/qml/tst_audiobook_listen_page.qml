@@ -88,6 +88,19 @@ TestCase {
 
     function cleanup() { destroyPage() }
 
+    function test_android_dock_reserves_space_above_the_playback_controls() {
+        makePage()
+        page.width = 950
+        page.height = 520
+        page.androidHost = true
+        const bar = find("audiobookListenBar")
+        verify(bar)
+        compare(bar.y + bar.height, page.height - 18)
+
+        page.contentBottomInset = 60
+        compare(bar.y + bar.height, page.height - 18 - 60)
+    }
+
     function test_titleAuthorAndNarratorShow() {
         makePage()
         compare(find("audiobookIdentity").text, "Becky Chambers · The Long Way")

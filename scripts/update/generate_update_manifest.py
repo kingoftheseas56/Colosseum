@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate and sign Colosseum's deterministic update manifest v1."""
+"""Generate and sign Colosseum release metadata for each updater generation."""
 from __future__ import annotations
 
 import argparse
@@ -17,6 +17,8 @@ REPO = "kingoftheseas56/Colosseum"
 VERSION_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
 TAG_RE = re.compile(r"^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
 DER_PREFIX = bytes.fromhex("302a300506032b6570032100")
+LEGACY_MANIFEST = "colosseum-update-v1.json"
+PLATFORM_MANIFEST = "colosseum-update-v2.json"
 ROOT_KEYS = {"eyebrow", "title", "summary", "notes_url", "highlights", "artwork", "sequence"}
 HIGHLIGHT_KEYS = {
     "kind", "section", "title", "body", "value", "context",
@@ -181,6 +183,51 @@ def manifest_bytes(version: str, installer: Path, presentation: Path) -> bytes:
     return (json.dumps(manifest, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8")
 
 
+def requires_platform_manifest(version: str) -> bool:
+    return tuple(map(int, canonical_version(version).split("."))) >= (1, 5, 0)
+
+
+def platform_asset_names(version: str) -> dict[str, str]:
+    version = canonical_version(version)
+    return {
+        "android-arm64-apk": f"Colosseum-Android-{version}-arm64-v8a.apk",
+        "linux-x64-appimage": f"Colosseum-{version}-x86_64.AppImage",
+        "linux-x64-deb": f"Colosseum-{version}-linux-amd64.deb",
+        "macos-arm64-dmg": f"Colosseum-{version}-macOS-arm64.dmg",
+    }
+
+
+def package_metadata(path: Path) -> dict[str, Any]:
+    size, digest = sha256_file(path)
+    if not size:
+        fail(f"empty platform package: {path.name}")
+    return {"asset": path.name, "size": size, "sha256": digest}
+
+
+def write_signed_manifests(version: str, installer: Path, presentation: Path,
+                           private_key: Path, output: Path,
+                           platform_dir: Path | None = None) -> None:
+    if requires_platform_manifest(version) and platform_dir is None:
+        fail("1.5.0 and later require --platform-dir with APK, AppImage, DEB and DMG")
+    legacy = manifest_bytes(version, installer, presentation)
+    manifests = {LEGACY_MANIFEST: legacy}
+    if platform_dir is not None:
+        platform_manifest = json.loads(legacy)
+        platform_manifest["schemaVersion"] = 2
+        platform_manifest["downloads"] = {
+            kind: package_metadata(platform_dir / name)
+            for kind, name in platform_asset_names(version).items()
+        }
+        manifests[PLATFORM_MANIFEST] = (
+            json.dumps(platform_manifest, ensure_ascii=False, separators=(",", ":")) + "\n"
+        ).encode("utf-8")
+    signed = {name: sign_raw(data, private_key) for name, data in manifests.items()}
+    output.mkdir(parents=True, exist_ok=True)
+    for name, data in manifests.items():
+        (output / name).write_bytes(data)
+        (output / (name + ".sig")).write_bytes(signed[name])
+
+
 def sign_raw(manifest: bytes, private_key: Path) -> bytes:
     if not private_key.is_file():
         fail(f"private key not found: {private_key}")
@@ -223,6 +270,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--presentation")
     parser.add_argument("--private-key")
     parser.add_argument("--output-dir")
+    parser.add_argument("--platform-dir", type=Path)
     parser.add_argument("--public-key-der")
     parser.add_argument("--check-cpp-header")
     args = parser.parse_args(argv)
@@ -236,15 +284,15 @@ def main(argv: list[str] | None = None) -> int:
         required = (args.version, args.installer, args.presentation, args.private_key, args.output_dir)
         if any(value is None for value in required):
             parser.error("generation requires --version, --installer, --presentation, --private-key, and --output-dir")
-        manifest = manifest_bytes(args.version, Path(args.installer), Path(args.presentation))
-        signature = sign_raw(manifest, Path(args.private_key))
         output = Path(args.output_dir)
-        output.mkdir(parents=True, exist_ok=True)
-        (output / "colosseum-update-v1.json").write_bytes(manifest)
-        (output / "colosseum-update-v1.json.sig").write_bytes(signature)
-        print(f"MANIFEST_PATH={output / 'colosseum-update-v1.json'}")
-        print(f"SIGNATURE_PATH={output / 'colosseum-update-v1.json.sig'}")
-        print(f"MANIFEST_SHA256={hashlib.sha256(manifest).hexdigest()}")
+        write_signed_manifests(args.version, Path(args.installer), Path(args.presentation),
+                               Path(args.private_key), output, args.platform_dir)
+        print(f"MANIFEST_PATH={output / LEGACY_MANIFEST}")
+        print(f"SIGNATURE_PATH={output / (LEGACY_MANIFEST + '.sig')}")
+        print(f"MANIFEST_SHA256={hashlib.sha256((output / LEGACY_MANIFEST).read_bytes()).hexdigest()}")
+        if args.platform_dir is not None:
+            print(f"PLATFORM_MANIFEST_PATH={output / PLATFORM_MANIFEST}")
+            print(f"PLATFORM_SIGNATURE_PATH={output / (PLATFORM_MANIFEST + '.sig')}")
         return 0
     except (OSError, ValueError, subprocess.CalledProcessError) as exc:
         print(f"generate_update_manifest: {exc}", file=__import__("sys").stderr)

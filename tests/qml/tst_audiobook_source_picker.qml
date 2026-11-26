@@ -69,10 +69,15 @@ TestCase {
         compare(selections[0].request.recordingKey, "11")
     }
 
-    function test_compact_hero_leaves_room_for_a_complete_release() {
+    function test_compact_hero_leaves_room_for_a_complete_release_data() {
+        return [{ tag: "desktop", inset: 0 }, { tag: "android", inset: 50 }]
+    }
+
+    function test_compact_hero_leaves_room_for_a_complete_release(data) {
         const page = make([{ title: "Dune", request: { recordingKey: "dune-1" } }])
         page.width = 950
-        page.height = 490
+        page.height = 490 + data.inset
+        page.contentBottomInset = data.inset
         const banner = visual(page, "audiobookSourcesBanner")
         const table = visual(page, "audiobookSourcesTable")
         const list = visual(page, "audiobookSourcesScroll")
@@ -80,6 +85,7 @@ TestCase {
         verify(banner, "Expected the same artwork banner pattern as the comic Sources page")
         verify(table, "Expected releases to use the glass table")
         verify(banner.height < 300)
+        verify(table.y + table.height <= page.height - page.contentBottomInset)
         verify(list.height > release.height + 44)
     }
 

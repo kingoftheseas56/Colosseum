@@ -23,7 +23,7 @@ constexpr qint64 kApiBodyCap = 2 * 1024 * 1024;
 constexpr qint64 kManifestBodyCap = 512 * 1024;
 constexpr qint64 kSignatureBodyCap = 128;
 constexpr auto kManifestAsset = "colosseum-update-v1.json";
-constexpr auto kSignatureAsset = "colosseum-update-v1.json.sig";
+constexpr auto kPlatformManifestAsset = "colosseum-update-v2.json";
 
 struct ApiAsset {
     QUrl url;
@@ -36,6 +36,8 @@ struct DiscoveryState {
     QString etag;
     QHash<QString, ApiAsset> assets;
     QByteArray manifestBytes;
+    QString signatureAssetName;
+    int expectedSchema = 1;
 };
 
 void reject(ReleaseCheckResult* result, const QString& code)
@@ -269,14 +271,30 @@ void UpdateReleaseClient::checkLatest(const QString& priorEtag, Callback done)
                   }
                   state->assets.insert(name, ApiAsset{url, size, digest});
               }
-              if (!state->assets.contains(QString::fromLatin1(kManifestAsset))
-                  || !state->assets.contains(QString::fromLatin1(kSignatureAsset))) {
+              QString manifestAssetName = QString::fromLatin1(kManifestAsset);
+              const QString platformManifestAssetName = QString::fromLatin1(kPlatformManifestAsset);
+              if (!m_config.automaticInstallerSupported
+                  && (state->assets.contains(platformManifestAssetName)
+                      || state->assets.contains(platformManifestAssetName + QStringLiteral(".sig")))) {
+                  manifestAssetName = platformManifestAssetName;
+                  state->expectedSchema = 2;
+              }
+              const auto firstPlatformRelease = Version::parseCanonical(QStringLiteral("1.5.0"));
+              if (!m_config.automaticInstallerSupported && state->expectedSchema == 1
+                  && apiVersion->compare(*firstPlatformRelease) >= 0) {
+                  reject(&result, QStringLiteral("missing_platform_manifest"));
+                  finish(result);
+                  return;
+              }
+              state->signatureAssetName = manifestAssetName + QStringLiteral(".sig");
+              if (!state->assets.contains(manifestAssetName)
+                  || !state->assets.contains(state->signatureAssetName)) {
                   reject(&result, QStringLiteral("missing_manifest_or_signature"));
                   finish(result);
                   return;
               }
 
-              const ApiAsset manifestAsset = state->assets.value(QString::fromLatin1(kManifestAsset));
+              const ApiAsset manifestAsset = state->assets.value(manifestAssetName);
               fetch(manifestAsset.url, kManifestBodyCap, {},
                     [this, state](const FetchResult& manifest) {
                         if (m_cancelled)
@@ -292,7 +310,7 @@ void UpdateReleaseClient::checkLatest(const QString& priorEtag, Callback done)
                         }
                         state->manifestBytes = manifest.body;
                         const ApiAsset signatureAsset =
-                            state->assets.value(QString::fromLatin1(kSignatureAsset));
+                            state->assets.value(state->signatureAssetName);
                         fetch(signatureAsset.url, kSignatureBodyCap, {},
                               [this, state](const FetchResult& signature) {
                                   if (m_cancelled)
@@ -318,7 +336,7 @@ void UpdateReleaseClient::checkLatest(const QString& priorEtag, Callback done)
                                       return;
                                   }
                                   const auto manifest = parseManifest(state->manifestBytes, &error);
-                                  if (!manifest) {
+                                  if (!manifest || manifest->schemaVersion != state->expectedSchema) {
                                       reject(&result, QStringLiteral("invalid_manifest"));
                                       finish(result);
                                       return;
@@ -335,8 +353,23 @@ void UpdateReleaseClient::checkLatest(const QString& priorEtag, Callback done)
                                       result.manifest = *manifest;
                                       result.verifiedManifestBytes = state->manifestBytes;
                                       result.verifiedSignatureBytes = signature.body;
-                                      // Deliberately return no asset URLs. In particular the legacy
-                                      // schema's Windows .exe is never handed to the Linux downloader.
+                                      for (const PlatformDownload& download : manifest->downloads) {
+                                          const auto asset = state->assets.constFind(download.assetName);
+                                          if (asset == state->assets.constEnd()
+                                              || asset->size != download.size
+                                              || asset->sha256 != download.sha256
+                                              || asset->url != platformDownloadUrl(*manifest, download)) {
+                                              reject(&result, QStringLiteral("platform_asset_mismatch"));
+                                              finish(result);
+                                              return;
+                                          }
+                                      }
+                                      for (const Artwork& artwork : manifest->artwork) {
+                                          const auto asset = state->assets.constFind(artwork.assetName);
+                                          if (asset != state->assets.constEnd()
+                                              && asset->sha256 == artwork.sha256)
+                                              result.assetUrls.insert(artwork.assetName, asset->url);
+                                      }
                                       finish(result);
                                       return;
                                   }
