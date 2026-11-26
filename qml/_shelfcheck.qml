@@ -4,6 +4,7 @@
 import QtQuick
 import QtQuick.Window
 import "Catalog.js" as Catalog
+import "WallpaperApi.js" as Wallpapers
 
 Window {
     width: 1320; height: 440
@@ -18,7 +19,7 @@ Window {
         anchors.fill: parent
         Image {
             anchors.fill: parent
-            source: "../assets/wallpaper/captured-motion.jpg"
+            source: Wallpapers.defaultBackgroundSource(typeof Content !== "undefined" ? Content : null)
             fillMode: Image.PreserveAspectCrop
             cache: true
         }

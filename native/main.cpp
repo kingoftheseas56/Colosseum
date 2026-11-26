@@ -828,8 +828,7 @@ int main(int argc, char *argv[]) {
         QStringLiteral("itunes.apple.com"),
         QStringLiteral("openlibrary.org"),
         // Wallpaper CDN (WallpaperApi.js): unpinned, its requests rode the same dead-AAAA
-        // ISP stall as the Jikan scar, so walls silently fell back to the packaged
-        // captured-motion asset (humbled-current recap 2026-07-24). Same scar, same fix.
+        // ISP stall as Jikan, so wallpaper requests silently fell back to the default.
         QStringLiteral("wsrv.nl")
     };
     auto *pinStore = new Ipv4PinStore(QString(), Ipv4PinStore::Lookup(), &backendServices);

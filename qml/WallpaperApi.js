@@ -17,14 +17,25 @@
 var WALLHAVEN = "https://wallhaven.cc/api/v1";
 var PAGE_LIMIT = 24;   // Wallhaven serves 24/page
 
+var DEFAULT_WALLPAPER = "../assets/wallpaper/cold-ripple.jpg";
+
 // Owned stills are online assets, including the default and legacy saved picks.
 // Provider URLs and native QML scenes retain their existing identity.
 function imageSource(pick, contentStore) {
     var source = pick && pick.image_url ? String(pick.image_url)
-                                       : "../assets/wallpaper/cold-ripple.jpg";
+                                       : DEFAULT_WALLPAPER;
     if (source.indexOf("../assets/") === 0)
         return contentStore ? contentStore.assetUrl(source.substring(3)) : "";
     return source;
+}
+
+// Page backgrounds share the shell's default and track content publications.
+function defaultBackgroundSource(contentStore) {
+    if (contentStore) {
+        var source = (contentStore.generation, imageSource(null, contentStore));
+        if (source) return source;
+    }
+    return Qt.resolvedUrl(DEFAULT_WALLPAPER);
 }
 
 // ---- Colosseum-native living wallpapers (2026-07-18) ----
@@ -154,7 +165,6 @@ function nativeSceneFor(url) {
 // path as any remote pick: the full image + the grid thumbnail both ride the
 // keyless wsrv.nl proxy over a jsDelivr CDN origin, so a 5K source lands as a
 // crisp capped jpeg and a ~40 KB thumb with nothing committed to the repo.
-// (This replaced the Captured Motion shelf — those were Microsoft-copyrighted.)
 
 // encodeURIComponent leaves ()! literal; the CDN is happy either way, but we
 // pin parens too so the emitted URL is byte-stable across encoders.

@@ -11,6 +11,7 @@ import QtQuick.Controls as Controls
 import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import "GenreApi.js" as Api
+import "WallpaperApi.js" as Wallpapers
 
 Item {
     id: root
@@ -105,7 +106,7 @@ Item {
             visible: root.backdrop !== null
         }
         Image { anchors.fill: parent; visible: root.backdrop === null
-                source: "../assets/wallpaper/captured-motion.jpg"
+                source: Wallpapers.defaultBackgroundSource(typeof Content !== "undefined" ? Content : null)
                 fillMode: Image.PreserveAspectCrop; cache: true }
         Rectangle { anchors.fill: parent; color: Qt.rgba(0.03,0.04,0.07,0.84) }
     }

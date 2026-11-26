@@ -4,6 +4,7 @@ import QtQuick.Controls
 import QtQuick.Effects
 import QtQuick.Window
 import "../"
+import "../WallpaperApi.js" as Wallpapers
 
 // The release chronicle is deliberately one stage: artwork, a monochrome wash,
 // directional scrims, and editorial copy. State actions live in the persistent taskbar.
@@ -63,14 +64,7 @@ Item {
     }
     readonly property bool hasArtwork: selectedArtwork.length > 0
     readonly property string versionText: String(release.version || "")
-    readonly property string fallbackSource: {
-        if (root.contentStore) {
-            const remote = (root.contentStore.generation,
-                            root.contentStore.assetUrl("assets/wallpaper/captured-motion.jpg"))
-            if (remote) return remote
-        }
-        return Qt.resolvedUrl("../../assets/wallpaper/captured-motion.jpg")
-    }
+    readonly property string fallbackSource: Wallpapers.defaultBackgroundSource(root.contentStore)
     // The back capsule owns the first 86px of the chrome row. Keep the release masthead in
     // its own editorial lane so the navigation control never sits on top of its lettering.
     readonly property int chromeSafeLeft: 126
