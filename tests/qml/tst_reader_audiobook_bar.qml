@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Window
+import QtCore
 import QtTest
 import "../../qml/reader2/Reader2Logic.js" as Logic
 
@@ -187,11 +188,12 @@ TestCase {
     }
     function test_renderEvidence() {
         var bar = named("readerAudiobookBar"); verify(bar !== null)
-        var done = false
-        win.contentItem.grabToImage(function(result) {
-            verify(result.saveToFile("C:/Users/Suprabha/Desktop/Brotherhood/agents/audiobook-discovery-20261116/mocks/qml-render/reader-bar.png"))
-            done = true
-        })
-        tryVerify(function() { return done })
+        const captureUrl = Qt.resolvedUrl(StandardPaths.writableLocation(StandardPaths.TempLocation)
+                                          + "/colosseum-reader-audiobook-bar-" + Date.now() + ".png")
+        var saved = false
+        verify(win.contentItem.grabToImage(function(result) {
+            saved = result.saveToFile(captureUrl)
+        }))
+        tryVerify(function() { return saved }, 5000, "Could not save reader bar capture to " + captureUrl)
     }
 }
