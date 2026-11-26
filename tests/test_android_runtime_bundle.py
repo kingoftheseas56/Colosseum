@@ -74,7 +74,9 @@ class AndroidRuntimeBundleTest(unittest.TestCase):
         # The retired pre-library pages stay out of the APK; nothing instantiates them.
         self.assertFalse((self.runtime / "qml/+android/VaultPage.qml").exists())
         self.assertFalse((self.runtime / "qml/VaultPage.qml").exists())
-        self.assertTrue((self.runtime / "qml/+android/LocalIdentityDialog.qml").is_file())
+        self.assertFalse((self.runtime / "qml/+android/LocalIdentityDialog.qml").exists())
+        self.assertEqual((ROOT / "qml/LocalIdentityDialog.qml").read_bytes(),
+                         (self.runtime / "qml/LocalIdentityDialog.qml").read_bytes())
         self.assertTrue((self.runtime / "qml/reader2/AndroidPaper.qml").is_file())
 
     def test_coming_soon_desktop_worlds_are_absent(self):
