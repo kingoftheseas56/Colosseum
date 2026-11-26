@@ -23,12 +23,12 @@ function nearbySeriesIds(slug:string):string[]{
   return candidates;
 }
 const page = (v:any) => Math.min(100000, Math.max(0, integer(v)));
-const workRow = (r:Row) => ({
+export const workRow = (r:Row) => ({
   id:text(r.id), title:text(r.title), sortTitle:text(r.sort_title),
   originalLanguage:text(r.original_language), firstYear:r.first_year==null?null:integer(r.first_year)
 });
 const personRow = (r:Row) => ({id:text(r.id),name:text(r.name)});
-const recordingRow = (r:Row) => ({
+export const recordingRow = (r:Row) => ({
   id:text(r.id),workId:text(r.work_id),language:text(r.language),
   runtimeMin:r.runtime_min==null?null:integer(r.runtime_min),
   releaseYear:r.release_year==null?null:integer(r.release_year),
@@ -49,12 +49,12 @@ const listPage = (v:any) => page(v)*24;
 // Match AudiobookCatalog.cpp. Discovery has one language policy; direct lookups
 // and released search/person listings intentionally allow any language.
 const discoveryLanguages = "'en','eng','english'";
-const released = (alias: string) => `${alias}.release_date<=date('now')
+export const released = (alias: string) => `${alias}.release_date<=date('now')
   AND date(${alias}.release_date,'+0 days')=${alias}.release_date`;
-const discoverable = (alias: string) => `${released(alias)}
+export const discoverable = (alias: string) => `${released(alias)}
   AND lower(trim(${alias}.language)) IN (${discoveryLanguages})`;
-const usableCover = "COALESCE(r.cover_url LIKE 'https://_%' OR r.cover_url LIKE 'http://_%',0)";
-const releaseOrder = 'r.release_date DESC,r.added_at DESC,r.work_id,r.id';
+export const usableCover = "COALESCE(r.cover_url LIKE 'https://_%' OR r.cover_url LIKE 'http://_%',0)";
+export const releaseOrder = 'r.release_date DESC,r.added_at DESC,r.work_id,r.id';
 async function narrators(db:CatalogueDb,r:Row) {
   return (await query(db,'SELECT p.id,p.name FROM recording_narrators n JOIN people p ON p.id=n.person_id WHERE n.work_id=? AND n.recording_id=? ORDER BY n.ord,p.id',[r.work_id,r.id])).map(personRow);
 }
@@ -126,7 +126,7 @@ async function byPerson(db:CatalogueDb,key:string,offset:number){
 }
 
 const ROW_SIZE=20;
-const itemSql=`
+export const itemSql=`
  SELECT r.work_id AS work_id,r.id AS recording_id,w.title,
         r.cover_url,r.runtime_min,r.release_date,r.dramatized,
         (SELECT json_group_array(name) FROM (
@@ -141,7 +141,7 @@ const itemSql=`
         (SELECT CASE WHEN COUNT(*)=1 THEN MAX(ws.number_text) END
          FROM work_series ws WHERE ws.work_id=r.work_id) AS series_number
  FROM recordings r JOIN works w ON w.id=r.work_id`;
-function item(r:Row):Row {
+export function item(r:Row):Row {
   const value:Row={
     workId:text(r.work_id),recordingId:text(r.recording_id),title:text(r.title),
     dramatized:integer(r.dramatized)!==0

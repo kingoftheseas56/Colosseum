@@ -475,6 +475,374 @@ std::optional<QJsonValue> lookupRangeValue(const QJsonObject &index, const QStri
     return values.value(key);
 }
 
+struct AudioRange {
+    QString first, last, path;
+};
+
+AudioRange audioRange(const QJsonValue &value) {
+    const auto row = array(value);
+    if (row.size() != 3 || !row.at(0).isString() || !row.at(1).isString() ||
+        !row.at(2).isString() || row.at(0).toString() > row.at(1).toString())
+        throw QStringLiteral("STATIC_INVALID_AUDIOBOOK_RANGE");
+    return {row.at(0).toString(), row.at(1).toString(), row.at(2).toString()};
+}
+
+QString audioPath(const QJsonArray &ranges, const QString &key) {
+    qsizetype first = 0, last = ranges.size();
+    while (first < last) {
+        const auto middle = first + (last - first) / 2;
+        if (audioRange(ranges.at(middle)).last < key)
+            first = middle + 1;
+        else
+            last = middle;
+    }
+    if (first == ranges.size())
+        return {};
+    const auto ref = audioRange(ranges.at(first));
+    return ref.first <= key ? ref.path : QString();
+}
+
+QJsonValue audioLookup(const QJsonObject &records, const QString &method, const QString &key,
+                       const Read &read) {
+    if (key.isEmpty())
+        return QJsonValue::Undefined;
+    const auto path = audioPath(array(read(records.value(method).toString())), key);
+    return path.isEmpty() ? QJsonValue(QJsonValue::Undefined) : object(read(path)).value(key);
+}
+
+QJsonArray audioWindow(const QJsonArray &rows, qint64 start, int pageSize) {
+    QJsonArray out;
+    for (auto i = start; i < std::min<qint64>(start + pageSize, rows.size()); ++i)
+        out.append(rows.at(i));
+    return out;
+}
+
+QJsonArray audioSlice(const QJsonObject &descriptor, qint64 offset, int pageSize, const Read &read) {
+    const auto length = descriptor.value("length").toInteger(-1);
+    const auto width = descriptor.value("width").toInteger(0);
+    const auto parts = array(descriptor.value("parts"));
+    if (length < 0 || width < pageSize || width % pageSize != 0 ||
+        (length > 0 ? (length - 1) / width + 1 : 0) != parts.size())
+        throw QStringLiteral("STATIC_INVALID_AUDIOBOOK_SEQUENCE");
+    if (offset >= length)
+        return {};
+    const auto part = array(read(parts.at(offset / width).toString()));
+    if (part.size() != qMin(width, length - (offset / width) * width))
+        throw QStringLiteral("STATIC_INVALID_AUDIOBOOK_PAGE");
+    return audioWindow(part, offset % width, pageSize);
+}
+
+void audioBatch(const QStringList &paths, const Read &read) {
+    QStringList missing;
+    for (const auto &path : paths) {
+        try {
+            read(path);
+        } catch (const Need &need) {
+            missing.append(need.path);
+        }
+    }
+    if (!missing.isEmpty())
+        throw NeedBatch{missing, 0};
+}
+
+QString audioDocKey(int id) {
+    return QString::number(id).rightJustified(8, QLatin1Char('0'));
+}
+
+QJsonArray audioSummaries(const QJsonObject &records, const QList<int> &ids, const Read &read) {
+    if (ids.isEmpty())
+        return {};
+    const auto ranges = array(read(records.value("summaries").toString()));
+    QStringList paths, keys;
+    QSet<QString> uniquePaths;
+    for (int id : ids) {
+        keys.append(audioDocKey(id));
+        const auto path = audioPath(ranges, keys.last());
+        if (!uniquePaths.contains(path)) {
+            uniquePaths.insert(path);
+            paths.append(path);
+        }
+    }
+    audioBatch(paths, read);
+    QJsonArray out;
+    for (const auto &key : keys)
+        out.append(object(object(read(audioPath(ranges, key))).value(key)));
+    return out;
+}
+
+int audioVarint(const QByteArray &bytes, qsizetype &offset) {
+    quint32 output = 0;
+    for (int shift = 0; shift <= 21 && offset < bytes.size(); shift += 7) {
+        const auto value = uchar(bytes.at(offset++));
+        output |= quint32(value & 127) << shift;
+        if (!(value & 128))
+            return int(output);
+    }
+    throw QStringLiteral("STATIC_INVALID_AUDIOBOOK_POSTING");
+}
+
+QStringList audioWords(const QString &input) {
+    static const QRegularExpression pattern(QStringLiteral("[\\p{L}\\p{N}]+"));
+    QStringList words;
+    auto it = pattern.globalMatch(input.normalized(QString::NormalizationForm_KC));
+    while (it.hasNext() && words.size() < 8)
+        words.append(it.next().captured().left(96));
+    return words;
+}
+
+QString audioSlug(const QString &input) {
+    static const QRegularExpression marks(QStringLiteral("[\\p{M}'’]+"));
+    static const QRegularExpression word(QStringLiteral("[\\p{L}\\p{N}]+"));
+    auto clean = input.normalized(QString::NormalizationForm_KD).toLower().remove(marks);
+    QStringList parts;
+    auto it = word.globalMatch(clean);
+    while (it.hasNext())
+        parts.append(it.next().captured());
+    return parts.join(QLatin1Char('-'));
+}
+
+QString audioCorrectedSeries(QString slug, const QJsonObject &records, const Read &read) {
+    if (slug.startsWith("the-"))
+        slug.remove(0,4);
+    static const QRegularExpression pattern(QStringLiteral("^[a-z]+(?:-[a-z]+)+$"));
+    if (slug.size() < 8 || slug.size() > 48 || !pattern.match(slug).hasMatch())
+        return {};
+    auto keys = array(read(records.value("seriesKeys").toString()));
+    QSet<QString> candidates;
+    auto add = [&](const QString &candidate) {
+        candidates.insert(candidate);
+        candidates.insert("the-" + candidate);
+    };
+    for (qsizetype i = 0; i <= slug.size(); ++i) {
+        const auto left = slug.left(i), right = slug.mid(i);
+        const bool letter = !right.isEmpty() && right.at(0) != QLatin1Char('-');
+        for (char c = 'a'; c <= 'z'; ++c) {
+            const QLatin1Char ch(c);
+            add(left + ch + right);
+            if (letter && right.at(0) != ch)
+                add(left + ch + right.mid(1));
+        }
+        if (letter) {
+            add(left + right.mid(1));
+            if (right.size() > 1 && right.at(1) != QLatin1Char('-') && right.at(0) != right.at(1))
+                add(left + right.at(1) + right.at(0) + right.mid(2));
+        }
+    }
+    QString result;
+    for (const auto &key : keys) {
+        const auto id = key.toString();
+        if (candidates.contains(id)) {
+            if (!result.isEmpty())
+                return {};
+            result = id;
+        }
+    }
+    return result;
+}
+
+QList<int> audioSeriesDocs(const QJsonArray &series, int limit) {
+    QList<int> docs;
+    for (const auto &doc : series) {
+        if (docs.size() == limit)
+            break;
+        const int id = doc.toInt();
+        if (id < 1)
+            throw QStringLiteral("STATIC_INVALID_AUDIOBOOK_DOCUMENT");
+        docs.append(id);
+    }
+    return docs;
+}
+
+QList<int> audioFts(const QJsonObject &layout, const QStringList &words, int limit,
+                    const Read &read) {
+    const auto search = object(read(layout.value("search").toString()));
+    const auto ranges = array(read(search.value("postings").toString()));
+    const int docs = search.value("docs").toInt();
+    const double tokens = search.value("tokens").toDouble();
+    if (docs < 1 || docs > 2000000 || tokens < 1 || !std::isfinite(tokens))
+        throw QStringLiteral("STATIC_INVALID_AUDIOBOOK_STATS");
+    const auto tokenizer = object(read(search.value("tokenizer").toString()));
+    QStringList prefixes, paths;
+    QSet<QString> visited;
+    for (const auto &word : words) {
+        QString prefix;
+        for (auto cp : word.toUcs4()) {
+            const auto ch = QString::fromUcs4(&cp, 1);
+            prefix += tokenizer.value(ch).toString(fold(ch));
+        }
+        if (prefix.isEmpty())
+            return {};
+        prefixes.append(prefix);
+        const QString end = prefix + QChar(0xffff);
+        for (const auto &value : ranges) {
+            const auto ref = audioRange(value);
+            if (ref.first <= end && ref.last >= prefix && !visited.contains(ref.path)) {
+                visited.insert(ref.path);
+                paths.append(ref.path);
+            }
+        }
+    }
+    if (paths.isEmpty())
+        return {};
+    audioBatch(paths, read);
+
+    // SQLite FTS5 bm25: phrase count and document frequency include all indexed
+    // rows. Only works with a release in the published window can be returned.
+    const double averageLength = tokens / docs;
+    QVector<double> scores(docs + 1, 0);
+    QVector<int> previous(docs + 1, 0);
+    QList<int> matches;
+    int wordNumber = 0;
+    for (const auto &prefix : prefixes) {
+        QVector<int> frequencies(docs + 1, 0);
+        QVector<int> lengths(docs + 1, 0);
+        QList<int> occupied;
+        for (const auto &path : paths) {
+            const auto terms = object(read(path));
+            for (auto it = terms.constBegin(); it != terms.constEnd(); ++it) {
+                if (!it.key().startsWith(prefix))
+                    continue;
+                if (!it.value().isString())
+                    throw QStringLiteral("STATIC_INVALID_AUDIOBOOK_POSTING");
+                const auto decoded = QByteArray::fromBase64Encoding(it.value().toString().toLatin1(),
+                                                                    QByteArray::AbortOnBase64DecodingErrors);
+                if (!decoded)
+                    throw QStringLiteral("STATIC_INVALID_AUDIOBOOK_POSTING");
+                int id = 0;
+                qsizetype offset = 0;
+                while (offset < decoded.decoded.size()) {
+                    const auto delta = audioVarint(decoded.decoded, offset);
+                    const auto frequency = audioVarint(decoded.decoded, offset);
+                    const auto length = audioVarint(decoded.decoded, offset);
+                    id += delta;
+                    if (delta < 1 || id > docs || frequency < 1 || (length != 0 && frequency > length))
+                        throw QStringLiteral("STATIC_INVALID_AUDIOBOOK_POSTING");
+                    if (!frequencies[id])
+                        occupied.append(id);
+                    frequencies[id] += frequency;
+                    lengths[id] = length;
+                }
+            }
+        }
+        if (occupied.isEmpty())
+            return {};
+        const double n = occupied.size();
+        const double inverse = std::max(1e-6, std::log((docs - n + 0.5) / (n + 0.5)));
+        for (int id : occupied) {
+            if (!lengths[id] || previous[id] != wordNumber)
+                continue;
+            ++previous[id];
+            const double f = frequencies[id];
+            scores[id] += inverse * ((f * (1.2 + 1.0)) /
+                                     (f + 1.2 * (1 - 0.75 + 0.75 * lengths[id] / averageLength)));
+            if (wordNumber + 1 == prefixes.size())
+                matches.append(id);
+        }
+        ++wordNumber;
+    }
+    const auto length = std::min<qsizetype>(matches.size(), limit);
+    std::partial_sort(matches.begin(), matches.begin() + length, matches.end(), [&](int a, int b) {
+        return scores[a] != scores[b] ? scores[a] > scores[b] : a < b;
+    });
+    matches.resize(length);
+    return matches;
+}
+
+std::optional<QJsonValue> audioCatalogue(const QJsonObject &index, const QString &method,
+                                         const QJsonArray &args, const Read &read) {
+    if (!index.contains("audiobooks"))
+        return std::nullopt;
+    const auto feature = object(index.value("audiobooks"));
+    if (feature.value("version") != 1)
+        throw QStringLiteral("STATIC_UNSUPPORTED_AUDIOBOOKS");
+    const auto layout = object(read(feature.value("path").toString()));
+    const auto records = object(layout.value("records"));
+    const auto at = [&](int n) { return n < args.size() ? args.at(n) : QJsonValue(QJsonValue::Undefined); };
+    const auto key = text(at(0)).trimmed().left(256);
+    const auto page = [&](int i) { return std::clamp<qint64>(integer(at(i)), 0, 100000); };
+    const auto start = [&] { return object(read(layout.value("start").toString())); };
+    if (method == "shelves" || method == "genres")
+        return array(start().value(method));
+    if (method == "work" || method == "series") {
+        const auto value = audioLookup(records, method, key, read);
+        if (value.isUndefined())
+            return QJsonObject();
+        return object(value);
+    }
+    if (method == "recordingByAsin" || method == "recordingByIsbn") {
+        const auto match = audioLookup(records, method, method == "recordingByAsin" ? key.toUpper() : key, read);
+        if (match.isUndefined())
+            return QJsonObject();
+        const auto pair = array(match);
+        if (pair.size() != 2 || !pair.at(0).isString() || !pair.at(1).isString())
+            throw QStringLiteral("STATIC_INVALID_AUDIOBOOK_RECORDING_KEY");
+        const auto work = object(audioLookup(records, "work", pair.at(0).toString(), read));
+        for (const auto &value : array(work.value("recordings"))) {
+            if (object(value).value("id") == pair.at(1))
+                return value;
+        }
+        throw QStringLiteral("STATIC_INVALID_AUDIOBOOK_RECORDING_REF");
+    }
+    if (method == "latest")
+        return audioSlice(object(read(layout.value("latest").toString())), page(0) * 24, 24, read);
+    if (method == "byPerson") {
+        const auto entry = audioLookup(records, method, key, read);
+        if (entry.isUndefined())
+            return QJsonArray();
+        if (entry.isArray())
+            return audioWindow(entry.toArray(), page(1) * 24, 24);
+        return audioSlice(object(entry), page(1) * 24, 24, read);
+    }
+    if (method == "shelf" || method == "genre") {
+        const auto number = page(1);
+        const double outputPage = double(number);
+        if (method == "shelf" && number == 0) {
+            const auto first = object(start().value("first")).value(key);
+            if (!first.isUndefined())
+                return object(first);
+            return QJsonObject{{"items",QJsonArray()},{"page",outputPage},{"hasMore",false}};
+        }
+        const auto entry = audioLookup(layout, method, key, read);
+        if (entry.isUndefined())
+            return QJsonObject{{"items",QJsonArray()},{"page",outputPage},{"hasMore",false}};
+        const auto desc = object(entry);
+        if (method == "genre" && number == 0)
+            return QJsonObject{{"items",array(desc.value("first"))},{"page",outputPage},
+                               {"hasMore",object(desc.value("more")).value("length").toInteger()>0}};
+        const auto seq = method == "genre" ? object(desc.value("more")) : desc;
+        const qint64 offset = (number - (method == "genre" ? 1 : 0)) * 20;
+        const auto items = audioSlice(seq, offset, 20, read);
+        return QJsonObject{{"items",items},{"page",outputPage},
+                           {"hasMore",offset+20<seq.value("length").toInteger()}};
+    }
+    if (method == "search") {
+        const auto input = text(at(0));
+        const auto words = audioWords(input);
+        if (words.isEmpty())
+            return QJsonArray();
+        const int limit = clamp(at(1));
+        const auto slug = audioSlug(input);
+        auto matched = audioLookup(records, "seriesSearch", slug, read);
+        if (matched.isUndefined())
+            matched = audioLookup(records, "seriesSearch", slug.startsWith("the-") ? slug.mid(4) : "the-" + slug, read);
+        auto result = matched.isUndefined() ? QList<int>() : audioSeriesDocs(array(matched), limit);
+        if (result.size() < limit) {
+            const auto hits = audioFts(layout, words, limit, read);
+            for (int id : hits) {
+                if (!result.contains(id) && result.size() < limit)
+                    result.append(id);
+            }
+        }
+        if (result.isEmpty() && matched.isUndefined()) {
+            const auto corrected = audioCorrectedSeries(slug, records, read);
+            if (!corrected.isEmpty())
+                result = audioSeriesDocs(array(audioLookup(records, "seriesSearch", corrected, read)), limit);
+        }
+        return audioSummaries(records, result, read);
+    }
+    return std::nullopt;
+}
+
 // Pure I01 resolver. A missing local file suspends this evaluation; it is resumed
 // only after asynchronous verified loading. No nested event loops or GUI blocking.
 std::optional<QJsonValue> evaluate(const QJsonObject &index, const QString &ds,
@@ -510,9 +878,8 @@ std::optional<QJsonValue> evaluate(const QJsonObject &index, const QString &ds,
     const auto fixedPath = fixed.value(selection(ds, method, fixedArgs)).toString();
     if (!fixedPath.isEmpty())
         return read(fixedPath);
-    // Audiobook queries without a fixed static response use the semantic Worker.
     if (ds == "audiobooks")
-        return std::nullopt;
+        return audioCatalogue(index, method, args, read);
     if (ds == "comics" && method == "curatedGenreShelves") {
         const auto path = fixed.value(selection(ds, method, {-1})).toString();
         if (path.isEmpty())

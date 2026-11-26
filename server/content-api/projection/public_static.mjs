@@ -9,6 +9,8 @@ import {loadOwnedCovers} from './cover_publication.mjs';
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
 const encode=value=>Buffer.from(JSON.stringify(value));
 const hashPattern=/^[a-f0-9]{64}$/;
+export const audioContract='audiosilo-static-v1';
+const audioShard=/^\/internal\/audiobooks\/([a-f0-9]{64})\.json$/;
 export const PUBLIC_HEADERS=`/catalogue/*
   X-Content-Type-Options: nosniff
   Access-Control-Allow-Origin: *
@@ -54,9 +56,21 @@ export function retainArtwork({previous,output,verifyOnly=false}){
  return{requiredFiles:inventory.length,copiedFiles,inventorySha256:sha(encode(inventory)),entries:inventory};
 }
 
-export function buildPublicCatalogue({source,content,output,previous,maxFiles=20000,maxFileBytes=25*1024*1024,ownedCoverManifest,ownedCoverRoot,requireOwnedLandingCovers=false}){
+export function buildPublicCatalogue({source,content,output,previous,audiobooks,maxFiles=20000,maxFileBytes=25*1024*1024,ownedCoverManifest,ownedCoverRoot,requireOwnedLandingCovers=false}){
  if(existsSync(output))throw Error('OUTPUT_EXISTS');
  const ownedCovers=loadOwnedCovers({manifest:ownedCoverManifest,root:ownedCoverRoot,requireOwnedLandingCovers});
+ const audioReportRaw=audiobooks?file(audiobooks,'audiobook-static-report.json'):null;
+ const audioReport=audioReportRaw?JSON.parse(audioReportRaw):null;
+ const audioEntries=new Map();
+ if(audioReport){
+  if(audioReport.contract!==audioContract||!hashPattern.test(audioReport.provenance?.sha256)||
+     !Array.isArray(audioReport.entries)||!audioShard.test(audioReport.layout))throw Error('AUDIOBOOK_STATIC_REPORT');
+  for(const {path,bytes} of audioReport.entries){
+   if(!audioShard.test(path)||audioEntries.has(path)||!Number.isSafeInteger(bytes)||bytes<0)
+    throw Error('AUDIOBOOK_STATIC_ENTRY');
+   audioEntries.set(path,bytes);
+  }
+ }
  if(!previous||(Array.isArray(previous)&&!previous.length))throw Error('RETENTION_BASELINE_REQUIRED');
  const reportBytes=file(source,'static-catalogue-report.json'),report=JSON.parse(reportBytes);
  if(!hashPattern.test(report.revision)||!/^\d{4}-\d{2}-\d{2}$/.test(report.date)||!/^[0-9]{4}$/.test(report.year))throw Error('SOURCE_INVALID_REPORT');
@@ -97,7 +111,7 @@ export function buildPublicCatalogue({source,content,output,previous,maxFiles=20
  // Publication identity includes the exact source index, date policy and content.
  // LIBRARY's source revision remains unchanged for old authenticated clients.
  const retention=retainArtwork({previous,output});
- const revision=sha(encode({contract:'i05-static-v1',sourceManifestSha256:sha(manifestRaw),contentManifestSha256:sha(contentRaw),retainedArtworkSha256:retention.inventorySha256,date:report.date,year:report.year,...(ownedCovers?{ownedCoverMapSha256:ownedCovers.identity}:{}),...(publishFacts?{factsContract:'imdb-v1',factsHashContract:'imdb-sha256-utf8-prefix2'}:{})}));
+ const revision=sha(encode({contract:'i05-static-v1',sourceManifestSha256:sha(manifestRaw),contentManifestSha256:sha(contentRaw),retainedArtworkSha256:retention.inventorySha256,date:report.date,year:report.year,...(ownedCovers?{ownedCoverMapSha256:ownedCovers.identity}:{}),...(publishFacts?{factsContract:'imdb-v1',factsHashContract:'imdb-sha256-utf8-prefix2'}:{}),...(audioReport?{audiobooksContract:audioContract,audiobooksReportSha256:sha(audioReportRaw)}:{})}));
  const publicPrefix='/catalogue/'+revision+'/',written=new Map(),converted=new Map(),loading=new Set();
  function write(path,raw){
   if(raw.length>maxFileBytes)throw Error('FREE_FILE_SIZE');
@@ -122,6 +136,25 @@ export function buildPublicCatalogue({source,content,output,previous,maxFiles=20
   if(raw.length!==listed.get(path)||sha(raw)!==path.slice(-69,-5))throw Error('SOURCE_HASH_MISMATCH');
   const parsed=JSON.parse(raw);
   const result=put(rewrite(ownedCovers?ownedCovers.transform(parsed):parsed));converted.set(path,result);loading.delete(path);return result;
+ }
+ const audioConverted=new Map(),audioLoading=new Set();
+ function convertAudio(path){
+  if(!audioEntries.has(path)||audioLoading.has(path))throw Error('AUDIOBOOK_STATIC_REFERENCE');
+  if(audioConverted.has(path))return audioConverted.get(path);
+  audioLoading.add(path);
+  const raw=file(audiobooks,path);
+  if(raw.length!==audioEntries.get(path)||sha(raw)!==audioShard.exec(path)[1])
+   throw Error('AUDIOBOOK_STATIC_HASH');
+  function rewriteAudio(value){
+   if(typeof value==='string'&&value.startsWith('/internal/audiobooks/'))return convertAudio(value);
+   if(Array.isArray(value))return value.map(rewriteAudio);
+   if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).map(([key,v])=>[key,rewriteAudio(v)]));
+   return value;
+  }
+  const result=put(rewriteAudio(JSON.parse(raw)));
+  audioConverted.set(path,result);
+  audioLoading.delete(path);
+  return result;
  }
  const prepared=rewrite(manifest);
  // Verify and retain every declared source file, including any deduplicated leaf.
@@ -172,9 +205,12 @@ export function buildPublicCatalogue({source,content,output,previous,maxFiles=20
  const publicDocuments={};
  for(const [id,raw]of Object.entries(documents))publicDocuments[id]={...cm.documents[id],path:putRaw(Buffer.from(raw))};
  const contentManifestPath=putRaw(contentRaw),contentBundlePath=putRaw(bundleRaw);
+ const audio=audioReport?{version:1,path:convertAudio(audioReport.layout)}:null;
+ if(audioConverted.size!==audioEntries.size)throw Error('AUDIOBOOK_STATIC_UNREACHABLE');
  const index={...prepared,revision,schemaVersion:1,sourceRevision:report.revision,publicationDate:report.date,publicationYear:report.year,
   timePolicy:{comics:'publisher-year',malNewReleases:'not-before-no-future-titles',theatreRotation:'client-utc-day'},
   ...(facts?{facts}:{}),
+  ...(audio?{audiobooks:audio}:{}),
   content:{manifest:{path:contentManifestPath,sha256:contentManifestPath.slice(-69,-5)},bundle:{path:contentBundlePath,sha256:contentBundlePath.slice(-69,-5)},documents:publicDocuments}};
  const indexRaw=encode(index),indexPath=write(publicPrefix+'index-'+sha(indexRaw)+'.json',indexRaw);
  write(oldManifestPath,encode({...prepared,publicRevision:revision}));
@@ -190,7 +226,8 @@ export function buildPublicCatalogue({source,content,output,previous,maxFiles=20
  return{schemaVersion:1,revision,sourceRevision:report.revision,index:entry.index,sourceReportSha256:sha(reportBytes),sourceManifestSha256:sha(manifestRaw),contentManifestSha256:sha(contentRaw),date:report.date,year:report.year,
   files:written.size,totalBytes:[...written.values()].reduce((a,b)=>a+b,0),largestFileBytes:Math.max(...written.values()),freeFileLimit:maxFiles,freeFileBytes:maxFileBytes,
   artworkFiles:[...written.keys()].filter(p=>p.startsWith('/assets/content/')).length,retention,contentDocuments:Object.keys(documents).length,listSelections:report.listSelections,sourceFilesReused:listed.size-1,factsImdbBlocks:facts?.imdb.blocks.length??0,factsImdbHashBuckets:facts?Object.keys(facts.imdb.hashBuckets.paths).length:0,factsImdbHashBucketFiles:facts?new Set(Object.values(facts.imdb.hashBuckets.paths)).size:0,d1Writes:0,deployed:false,
-  ...(ownedCovers?{ownedCovers:ownedCovers.report}:{}),
+  ...(ownedCovers?{ownedCovers:ownedCovers.report}:{}),...(audio?{audiobooks:{
+   ...audioReport.provenance,date:audioReport.date,files:audioConverted.size,root:audio.path}}:{}),
   entries:[...written].map(([path,bytes])=>({path,bytes}))};
 }
 
@@ -198,15 +235,15 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  const positional=[],options={};
  const args=process.argv.slice(2);
  for(let i=0;i<args.length;i++){
-  if(args[i]==='--owned-cover-manifest'||args[i]==='--owned-cover-root'){
-   const key=args[i]==='--owned-cover-manifest'?'ownedCoverManifest':'ownedCoverRoot';
+  if(args[i]==='--owned-cover-manifest'||args[i]==='--owned-cover-root'||args[i]==='--audiobooks'){
+   const key=args[i]==='--owned-cover-manifest'?'ownedCoverManifest':args[i]==='--owned-cover-root'?'ownedCoverRoot':'audiobooks';
    if(options[key]||!args[i+1]||args[i+1].startsWith('--'))throw Error('OWNED_COVERS_OPTION_VALUE');options[key]=args[++i];
   }else if(args[i]==='--require-owned-landing-covers')options.requireOwnedLandingCovers=true;
   else if(args[i].startsWith('--'))throw Error('UNKNOWN_OPTION: '+args[i]);
   else positional.push(args[i]);
  }
  const [source,content,output,evidence,...previous]=positional;
- if(!source||!content||!output||!evidence||!previous.length)throw Error('Usage: node projection/public_static.mjs I01-publication content-publication fresh-output report-outside-output.json previous-publication [other-previous-publications...] [--owned-cover-manifest manifest.json --owned-cover-root prepared] [--require-owned-landing-covers]');
+ if(!source||!content||!output||!evidence||!previous.length)throw Error('Usage: node projection/public_static.mjs I01-publication content-publication fresh-output report-outside-output.json previous-publication [other-previous-publications...] [--owned-cover-manifest manifest.json --owned-cover-root prepared] [--require-owned-landing-covers] [--audiobooks prepared-audiobooks]');
  if(resolve(evidence).startsWith(resolve(output)))throw Error('REPORT_MUST_STAY_OUTSIDE_ASSETS');
  const result=buildPublicCatalogue({source,content,output,previous,...options});writeFileSync(evidence,JSON.stringify(result,null,2));
  console.log(JSON.stringify({...result,entries:undefined,retention:{...result.retention,entries:undefined},...(result.ownedCovers?{ownedCovers:{...result.ownedCovers,inventory:undefined}}:{})}));

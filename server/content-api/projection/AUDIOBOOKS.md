@@ -23,10 +23,9 @@ Each bake refuses existing output and emits an adjacent
 rights/provenance per table and field, and exact row counts. The SQL exporter
 refuses a modified or incorrectly licensed bake and emits `*.report.json`,
 the bounded statement size and all publication row counts. It produces an
-offline SQL artifact only. A publisher must review it, import to the
-content API's `LIBRARY` binding, and only then advance library readiness /
-revision through the separately owned publication transaction. No import,
-Cloudflare deployment, upload or publication is performed here.
+offline SQL artifact for the semantic Worker backend. The public-static
+publisher described below consumes the verified bake directly. The
+SQL exporter performs no import, deployment, or upload.
 
 The CC0 core contains factual work/recording/person/series records and
 relationships, with `recording_asins`/`recording_isbns` retaining all source
@@ -91,6 +90,35 @@ offline verification; it does not download or replace a user's library.
 Consumer QML screens and user-to-work identity matching belong to subsequent
 slices. The actual hosted D1 import, server availability, storage budget and
 Cloudflare publication are **not** qualified by this local pipeline.
+
+### Public static assets
+
+Prepare the complete verified bake, then pass its output to the existing public
+publisher.
+
+```sh
+node projection/audiobook_static.mjs /path/to/audiobooks-cc0.sqlite /path/to/fresh-audio-assets YYYY-MM-DD
+node projection/public_static.mjs /path/to/i01 /path/to/content /path/to/fresh-public /path/to/public-report.json /path/to/previous-public --audiobooks /path/to/fresh-audio-assets
+node projection/verify_public_static.mjs /path/to/fresh-public /path/to/public-report.json /path/to/verification.json /path/to/previous-public
+```
+
+Pass each known retained artwork source as an additional previous-publication
+argument to both commands. The public index advertises a versioned audiobook
+root. The report records the exact bake hash and logical row counts. The
+audiobook graph contributes to the public generation SHA-256 and the total file
+count. The existing LIBRARY source revision and compatibility manifest retain
+their meaning for older clients.
+
+Discovery, search availability, and person listings use the supplied UTC
+publication date. Publishing a new snapshot advances that date. Work details
+retain every recording, including future and undated entries. Search uses
+SQLite's indexed title and people tokens, work eligibility, and BM25 ranking.
+Slugs retain exact-series priority and the single unambiguous typo fallback.
+Work, person, series, ASIN and ISBN lookups use string keys. Ambiguous identifiers
+return an empty result. Recording and publisher cover fields remain URLs.
+The client loads selected hash-verified shards through the existing static
+resolver and may reuse those shards offline. Older publications continue to use
+the semantic RPC. Static reads use the asset route without a guest session.
 
 Focused tests:
 
