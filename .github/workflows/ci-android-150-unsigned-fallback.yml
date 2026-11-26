@@ -1,0 +1,182 @@
+name: Android 1.5.0 unsigned ARM64 candidate
+
+on:
+  push:
+    branches:
+      - codex/ci-android-150-unsigned-fallback
+    paths:
+      - .github/workflows/ci-android-150-unsigned-fallback.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-150-unsigned-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 195
+    env:
+      SOURCE_REVISION: d73111cddfef5728aa6b714fdb52fdf030b96ec6
+      QT_VERSION: "6.11.1"
+      COLOSSEUM_ANDROID_TOOLCHAIN: ${{ github.workspace }}/../colosseum-android
+      COLOSSEUM_ANDROID_DEPS: ${{ github.workspace }}/../colosseum-android-deps
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: d73111cddfef5728aa6b714fdb52fdf030b96ec6
+          persist-credentials: false
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build binutils patch \
+            libegl1 libgl1 libxkbcommon0 libfontconfig1 libx11-6 libdbus-1-3 libglib2.0-0t64
+          df -h "$GITHUB_WORKSPACE"
+
+      - name: Normalize Android cache paths
+        id: android-paths
+        run: bash scripts/android/prepare_cache_paths.sh
+
+      - name: Restore pinned toolchain
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ${{ steps.android-paths.outputs.toolchain }}/Qt
+            ${{ steps.android-paths.outputs.sdk }}/ndk/27.2.12479018
+          key: android-toolchain-v1-${{ hashFiles('scripts/android/install_toolchain.sh') }}
+
+      - name: Install Android toolchain
+        run: bash scripts/android/install_toolchain.sh
+
+      - name: Restore SDK dependency prefix
+        id: deps-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ steps.android-paths.outputs.deps }}
+          key: android-deps-v1-${{ hashFiles('scripts/android/build_deps.sh') }}
+
+      - name: Build missing Android ARM64 dependencies
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        run: |
+          source "$COLOSSEUM_ANDROID_TOOLCHAIN/env.sh"
+          bash scripts/android/build_deps.sh arm64-v8a
+
+      - name: Prepare and verify hardened Android Nuvio engine
+        run: |
+          set -euo pipefail
+          source "$COLOSSEUM_ANDROID_TOOLCHAIN/env.sh"
+          repo="$PWD"
+          donor="$RUNNER_TEMP/nuvio-engine-v015"
+          pin=99a18601fa12858cc8c62576dc72b87edbd81b9a
+          git clone --depth 1 --branch v0.1.5 https://github.com/NuvioMedia/nuvio-engine.git "$donor"
+          test "$(git -C "$donor" rev-parse HEAD)" = "$pin"
+          test "$(git -C "$donor" rev-parse 'v0.1.5^{commit}')" = "$pin"
+          git -C "$donor" -c core.autocrlf=false apply --binary --index \
+            "$repo/native/third_party/nuvio-engine/patches/0001-android-hardening.patch"
+          python -B scripts/android/prepare_nuvio_engine.py --source "$donor" \
+            --ndk "$ANDROID_NDK_ROOT" --prefix "$RUNNER_TEMP/nuvio-prefix" --abi arm64-v8a --api 28
+          python -B scripts/android/verify_nuvio_hardened_artifact.py \
+            --prefix "$RUNNER_TEMP/nuvio-prefix" --source "$donor" --abi arm64-v8a
+
+      - name: Build unsigned production APK
+        env:
+          COLOSSEUM_TMDB_KEY: ${{ secrets.COLOSSEUM_TMDB_KEY }}
+        run: |
+          set -euo pipefail
+          source "$COLOSSEUM_ANDROID_TOOLCHAIN/env.sh"
+          test "$(git rev-parse HEAD)" = "$SOURCE_REVISION"
+          test -n "$COLOSSEUM_TMDB_KEY"
+          build="$RUNNER_TEMP/android-150-unsigned"
+          evidence="$RUNNER_TEMP/android-150-receipt"
+          deps="$COLOSSEUM_ANDROID_DEPS/arm64-v8a"
+          engine="$RUNNER_TEMP/nuvio-prefix"
+          qt="$COLOSSEUM_ANDROID_TOOLCHAIN/Qt/$QT_VERSION/android_arm64_v8a"
+          mkdir -p "$evidence"
+          python -B scripts/android/qualify_apk.py snapshot --repo "$PWD" \
+            --output "$evidence/source-before.json"
+          "$qt/bin/qt-cmake" -S native -B "$build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DQT_HOST_PATH="$COLOSSEUM_QT_HOST_ROOT" \
+            -DANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" -DANDROID_NDK_ROOT="$ANDROID_NDK_ROOT" \
+            -DQT_ANDROID_ABIS=arm64-v8a -DCMAKE_PREFIX_PATH="$deps" -DCMAKE_FIND_ROOT_PATH="$deps" \
+            -DOPENSSL_ROOT_DIR="$deps" -DOPENSSL_USE_STATIC_LIBS=ON \
+            -DOPENSSL_INCLUDE_DIR="$deps/include" -DOPENSSL_SSL_LIBRARY="$deps/lib/libssl.a" \
+            -DOPENSSL_CRYPTO_LIBRARY="$deps/lib/libcrypto.a" -DBoost_ROOT="$deps" \
+            -DCOLOSSEUM_NO_COMPILER_CACHE=ON -DBUILD_TESTING=OFF \
+            -DCOLOSSEUM_UPDATE_TESTING:BOOL=OFF -DCOLOSSEUM_UPDATE_TEST_FEED_URL:STRING= \
+            -DQT_ANDROID_DEPLOYMENT_TYPE:STRING=RELEASE -DQT_ANDROID_SIGN_APK:BOOL=OFF \
+            -DCOLOSSEUM_ANDROID_APPLICATION_ID=world.getcolosseum.app \
+            -DCOLOSSEUM_ANDROID_VERSION_NAME=1.5.0 -DCOLOSSEUM_ANDROID_VERSION_CODE=1500000 \
+            -DCOLOSSEUM_CONTENT_API_URL=https://colosseum-content-api.colosseum-watchparty-relay.workers.dev \
+            -DCOLOSSEUM_ACCOUNT_SERVICE_URL=https://colosseum-account-service.onrender.com \
+            -DCOLOSSEUM_ANDROID_NUVIO_BACKEND=ON -DCOLOSSEUM_ANDROID_NUVIO_X86_64_DIAGNOSTIC=OFF \
+            -DCOLOSSEUM_NUVIO_ENGINE_PREFIX="$engine" -DCOLOSSEUM_NUVIO_ANDROID=ON \
+            -DCOLOSSEUM_NUVIO_ANDROID_PROOF=OFF
+          python -c 'import os, pathlib, sys; assert os.environ["COLOSSEUM_TMDB_KEY"] in pathlib.Path(sys.argv[1]).read_text()' \
+            "$build/nuvio/CMakeFiles/NuvioBundledTmdbKey.cpp"
+          grep -Fx 'COLOSSEUM_UPDATE_TESTING:BOOL=OFF' "$build/CMakeCache.txt"
+          grep -Fx 'COLOSSEUM_UPDATE_TEST_FEED_URL:STRING=' "$build/CMakeCache.txt"
+          cmake --build "$build" --target apk --parallel 4 2>&1 | tee "$RUNNER_TEMP/android-150-build.log"
+          if grep -Eq 'Unable to strip|Unable to extract native debug metadata' "$RUNNER_TEMP/android-150-build.log"; then
+            exit 1
+          fi
+
+      - name: Qualify Android payload and source
+        run: |
+          set -euo pipefail
+          source "$COLOSSEUM_ANDROID_TOOLCHAIN/env.sh"
+          build="$RUNNER_TEMP/android-150-unsigned"
+          evidence="$RUNNER_TEMP/android-150-receipt"
+          sdk_tools="$ANDROID_SDK_ROOT/build-tools/36.0.0"
+          engine="$RUNNER_TEMP/nuvio-prefix/android/arm64-v8a/lib/libnuvio_engine.so"
+          mapfile -t unsigned < <(find "$build/android-build/build/outputs/apk/release" -type f -name '*-unsigned.apk')
+          test "${#unsigned[@]}" -eq 1
+          apk="$evidence/Colosseum-Android-1.5.0-arm64-v8a-unsigned.apk"
+          cp "${unsigned[0]}" "$apk"
+          cp "$engine" "$evidence/libnuvio_engine.so"
+          cp "$RUNNER_TEMP/nuvio-prefix/.colosseum-nuvio-hardened-stamp" "$evidence/nuvio-hardened-provenance.json"
+          "$sdk_tools/aapt" dump badging "$apk" > "$evidence/unsigned-badging.txt"
+          "$sdk_tools/aapt" dump xmltree "$apk" AndroidManifest.xml > "$evidence/unsigned-xmltree.txt"
+          if grep -Eq 'application-debuggable' "$evidence/unsigned-badging.txt" ||
+             grep -Eq 'android:(debuggable|testOnly)\([^)]*\)=\(type 0x12\)0x[fF1-9][0-9a-fA-F]*' "$evidence/unsigned-xmltree.txt"; then
+            exit 1
+          fi
+          grep -q 'org\.colosseum\.nuvio\.' "$evidence/unsigned-xmltree.txt"
+          python -B scripts/android/qualify_apk.py identity --aapt-output "$evidence/unsigned-badging.txt" \
+            --package world.getcolosseum.app --version-name 1.5.0 --version-code 1500000 \
+            --output "$evidence/unsigned-identity.json"
+          python -B scripts/android/qualify_apk.py inspect --apk "$apk" --engine-library "$engine" \
+            --require-stripped-app-libs --require-unsigned --output "$evidence/unsigned-qualification.json"
+          "$sdk_tools/zipalign" -c -P 16 4 "$apk"
+          python -B tests/verify_android_apk_runtime_bundle.py "$apk" \
+            --qmlcachegen "$COLOSSEUM_QT_HOST_ROOT/libexec/qmlcachegen" | tee "$evidence/packaged-qml.txt"
+          bash scripts/android/verify_apk_openssl_pair.sh "$apk" arm64-v8a | tee "$evidence/openssl-pair.txt"
+          runtime_root="$build/android-package/assets/colosseum-runtime"
+          test -f "$runtime_root/runtime-files.manifest"
+          (cd "$runtime_root" && find . -type f -print0 | sort -z | xargs -0 sha256sum) \
+            > "$evidence/runtime-overlay-sha256.txt"
+          python -B scripts/android/qualify_apk.py snapshot --repo "$PWD" \
+            --output "$evidence/source-after.json"
+          python -B scripts/android/qualify_apk.py provenance --apk "$apk" \
+            --inspection "$evidence/unsigned-qualification.json" --identity "$evidence/unsigned-identity.json" \
+            --before "$evidence/source-before.json" --after "$evidence/source-after.json" \
+            --output "$evidence/build-provenance.json"
+          (cd "$evidence" && sha256sum Colosseum-Android-1.5.0-arm64-v8a-unsigned.apk libnuvio_engine.so > SHA256SUMS.txt)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: colosseum-android-150-arm64-unsigned
+          path: ${{ runner.temp }}/android-150-receipt
+          if-no-files-found: error
+          retention-days: 3
