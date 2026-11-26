@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Controls
 import ".."
-import "../vinyl" as Vinyl
 import "AudiobookBookPageData.js" as BookData
 
 FocusScope {
@@ -72,7 +71,7 @@ FocusScope {
 
     Theme { id: theme }
 
-    Vinyl.VinylBackdrop {
+    MediaArtworkBackdrop {
         objectName: "audiobookDetailBackdrop"
         width: root.width
         height: root.height + root.backdropBottomInset
@@ -227,7 +226,7 @@ FocusScope {
                                 root.primary.kind === "listen" || root.primary.kind === "download" ? 28 : 0
                             width: Math.min(primaryLabel.implicitWidth + iconSpace, parent.width - 16)
                             spacing: 10
-                            Vinyl.VinylControlIcon {
+                            MediaControlIcon {
                                 width: 18; height: 18; anchors.verticalCenter: parent.verticalCenter
                                 visible: root.primary.kind === "listen"
                                 symbol: "play"; color: "#181408"

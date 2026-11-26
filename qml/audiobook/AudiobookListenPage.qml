@@ -2,7 +2,6 @@ import QtQuick
 import QtQuick.Controls
 import ".."
 import "../collections"
-import "../vinyl"
 import "../CollectionsReferences.js" as CollectionsReferences
 import "AudiobookListenPageData.js" as Data
 import "AudiobookChapterLabels.js" as ChapterLabels
@@ -86,7 +85,7 @@ Item {
         Row {
             anchors.centerIn: parent
             spacing: 7
-            VinylControlIcon {
+            MediaControlIcon {
                 visible: action.symbol.length > 0
                 width: 17
                 height: 17
@@ -113,7 +112,7 @@ Item {
         }
     }
 
-    VinylBackdrop {
+    MediaArtworkBackdrop {
         anchors.fill: parent
         source: root.coverSource
         recoverMissingArtwork: true
