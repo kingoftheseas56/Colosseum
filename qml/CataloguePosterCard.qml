@@ -29,6 +29,7 @@ Item {
     property bool fitArtwork: false
     property real artworkRatio: card.squareArtwork ? 1 : card._m.posterRatio
     property string artworkObjectName: ""
+    property bool artworkEnabled: true
     // optional source attribution, revealed bottom-right on gallery hover only (Theatre supplies "IMDb").
     property string hoverSourceText: ""
     // Biblio hook (Discover shared-shell, Task 5, arc 2026-08-01): when true, the reveal
@@ -150,7 +151,7 @@ Item {
             radius: card._m.posterRadius
             revealDuration: card._m.imageRevealDuration
             hovered: card.effectiveHovered
-            sources: card.coverCandidates
+            sources: card.artworkEnabled ? card.coverCandidates : []
             fitArtwork: card.fitArtwork
             placeholderTitle: card.squareArtwork || card.fitArtwork ? card.capText : ""
         }

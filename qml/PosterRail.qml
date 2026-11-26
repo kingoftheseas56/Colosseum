@@ -44,6 +44,11 @@ Column {
     readonly property int posterWidth: rail._m.posterWidth
     property bool squareArtwork: false
     property bool fitArtwork: false
+    // Optional vertical cover-loading band in rail coordinates. The ListView supplies the horizontal band.
+    property var artworkViewport: null
+    readonly property bool artworkRowInView: artworkViewport !== null && artworkViewport.height > 0
+        && list.y < artworkViewport.y + artworkViewport.height
+        && list.y + posterHeight > artworkViewport.y
     readonly property int posterHeight: rail.squareArtwork ? rail.posterWidth
                                                            : Math.floor(rail.posterWidth * rail._m.posterRatio)
     readonly property int cardGap: rail.ranked ? 30 : rail._m.cardGap
@@ -151,6 +156,30 @@ Column {
             width: rail.cellWidth
             height: list.height
 
+            property bool pooled: false
+            property bool artworkRequested: false
+            readonly property real artworkLeft: list.originX + cell.index * (cell.width + list.spacing) + poster.x
+            readonly property bool inArtworkViewport: rail.artworkRowInView && !pooled && list.width > 0
+                && artworkLeft + poster.width > list.contentX - 64
+                && artworkLeft < list.contentX + list.width + 64
+
+            function requestArtwork() {
+                if (cell.inArtworkViewport)
+                    cell.artworkRequested = true
+            }
+
+            // Positioners and ListView reuse can briefly expose the previous geometry.
+            onInArtworkViewportChanged: if (inArtworkViewport) Qt.callLater(cell.requestArtwork)
+            onModelDataChanged: {
+                artworkRequested = false
+                if (inArtworkViewport) Qt.callLater(cell.requestArtwork)
+            }
+            ListView.onPooled: pooled = true
+            ListView.onReused: {
+                pooled = false
+                Qt.callLater(cell.requestArtwork)
+            }
+
             Text {
                 id: rankNum
                 visible: rail.ranked
@@ -165,6 +194,8 @@ Column {
             }
 
             CataloguePosterCard {
+                id: poster
+                artworkEnabled: rail.artworkViewport === null || cell.artworkRequested
                 // Automation identity (Lanista): theatre catalogue cards keep the
                 // provider identity, so a production capture can open a real title
                 // without a presentation-only card shell.
