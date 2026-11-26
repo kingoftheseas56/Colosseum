@@ -1,0 +1,301 @@
+name: Staging-only Linux and Apple Silicon upgrade rehearsal
+
+on:
+  push:
+    branches: [codex/staging-150-package-rehearsal]
+    paths:
+      - '.github/workflows/staging-150-linux-macos-rehearsal.yml'
+      - 'tools/staging-update/rehearse.py'
+
+permissions:
+  contents: read
+
+env:
+  CANONICAL_SHA: 590f0dc6ae88b890b26b972d8b8354b83bd7c3ea
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 110
+    env:
+      ECM_VERSION: '6.15.0'
+      ECM_SHA256: f7cd022095a9e6bdbe5897720a24bfda81d211757b7c08b173061962bf2ee0b2
+      MPVQT_VERSION: '1.2.0'
+      MPVQT_SHA256: 8660ad79c0d60fed77f29b36e1742841466af5405de702c81a121e6eeb625ebb
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Isolate the exact release source and stage-only scripts
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/staging-receipts" "$RUNNER_TEMP/staging-packages"
+          cp tools/staging-update/rehearse.py "$RUNNER_TEMP/rehearse.py"
+          git fetch --depth=1 origin "$CANONICAL_SHA"
+          git checkout --detach "$CANONICAL_SHA"
+          test "$(git rev-parse HEAD)" = "$CANONICAL_SHA"
+          git config user.name 'Colosseum isolated rehearsal'
+          git config user.email 'noreply@colosseum.invalid'
+          printf 'canonical=%s\nworkflow=%s\n' "$CANONICAL_SHA" "$GITHUB_SHA" > "$RUNNER_TEMP/staging-receipts/source.txt"
+      - name: Install build and package tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential ninja-build pkg-config patchelf binutils dpkg-dev \
+            libmpv-dev libtorrent-rasterbar-dev libboost-all-dev libssl-dev libsecret-1-dev \
+            libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev libxcb-cursor0 ffmpeg \
+            libgdk-pixbuf-2.0-dev librsvg2-common \
+            gnome-keyring dbus-daemon
+      - name: Install Qt 6.11.1
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730 # v4.3.1
+        with:
+          version: '6.11.1'
+          host: linux
+          target: desktop
+          arch: linux_gcc_64
+          modules: 'qtwebengine qtwebchannel qtwebsockets qtpositioning qtserialport qtimageformats qtquick3d qtquicktimeline qtshadertools'
+          aqtsource: 'git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b'
+          cache: true
+      - name: Verify Quick3D Timeline runtime dependency is installed
+        run: test -f "$QT_ROOT_DIR/lib/libQt6QuickTimeline.so.6"
+      - name: Build pinned ECM and MpvQt
+        run: |
+          curl --fail --location --retry 3 "https://download.kde.org/Attic/frameworks/6.15/extra-cmake-modules-$ECM_VERSION.tar.xz" -o "$RUNNER_TEMP/ecm.tar.xz"
+          echo "$ECM_SHA256  $RUNNER_TEMP/ecm.tar.xz" | sha256sum --check --strict
+          mkdir "$RUNNER_TEMP/ecm-source"
+          tar -xf "$RUNNER_TEMP/ecm.tar.xz" -C "$RUNNER_TEMP/ecm-source" --strip-components=1
+          cmake -S "$RUNNER_TEMP/ecm-source" -B "$RUNNER_TEMP/ecm-build" -G Ninja -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX="$RUNNER_TEMP/ecm-install"
+          cmake --build "$RUNNER_TEMP/ecm-build" --target install --parallel 2
+          curl --fail --location --retry 3 "https://download.kde.org/stable/mpvqt/mpvqt-$MPVQT_VERSION.tar.xz" -o "$RUNNER_TEMP/mpvqt.tar.xz"
+          echo "$MPVQT_SHA256  $RUNNER_TEMP/mpvqt.tar.xz" | sha256sum --check --strict
+          mkdir "$RUNNER_TEMP/mpvqt-source"
+          tar -xf "$RUNNER_TEMP/mpvqt.tar.xz" -C "$RUNNER_TEMP/mpvqt-source" --strip-components=1
+          cmake -S "$RUNNER_TEMP/mpvqt-source" -B "$RUNNER_TEMP/mpvqt-build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=OFF \
+            -DCMAKE_INSTALL_PREFIX="$RUNNER_TEMP/mpvqt-install" \
+            -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR;$RUNNER_TEMP/ecm-install"
+          cmake --build "$RUNNER_TEMP/mpvqt-build" --target install --parallel 2
+      - name: Build matching Qt TIFF plugin with bundled libtiff
+        run: |
+          git init "$RUNNER_TEMP/qtimageformats"
+          git -C "$RUNNER_TEMP/qtimageformats" remote add origin https://github.com/qt/qtimageformats.git
+          git -C "$RUNNER_TEMP/qtimageformats" fetch --depth 1 origin 77f35e5694885844c3eb3a737769b5ed290b8ccc
+          git -C "$RUNNER_TEMP/qtimageformats" checkout --detach FETCH_HEAD
+          cmake -S "$RUNNER_TEMP/qtimageformats" -B "$RUNNER_TEMP/qtimageformats-build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" \
+            -DFEATURE_system_tiff=OFF -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF
+          cmake --build "$RUNNER_TEMP/qtimageformats-build" --target QTiffPlugin --parallel 2
+      - name: Prepare isolated Linux rehearsal
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y --no-install-recommends zstd desktop-file-utils xvfb xauth xdg-utils libgl1-mesa-dri libglx-mesa0
+          export STAGING_OPENSSL="${STAGING_OPENSSL:-openssl}"
+          export STAGING_TLS_URL=https://localhost:18443/updates/stable.json
+          python3 "$RUNNER_TEMP/rehearse.py" prepare "$GITHUB_WORKSPACE" "$RUNNER_TEMP/staging-private"
+          git add -- native/main.cpp native/update/UpdateReleaseClient.cpp native/update/UpdateTestPublicKey.h
+          git commit -m 'Disposable localhost updater fixture'
+          # This copy of the assembly entrypoint is confined to the disposable checkout.
+          sed -i "s/('COLOSSEUM_UPDATE_TESTING','COLOSSEUM_ENABLE_VINYL_QUALIFICATION'/('COLOSSEUM_ENABLE_VINYL_QUALIFICATION'/" tools/linux-release/assemble.py
+          git add -- tools/linux-release/assemble.py
+          git commit -m 'Permit instrumented assembly in rehearsal only'
+      - name: Build and audit both isolated DEB and AppImage payloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for VERSION in 1.5.0 1.5.1; do
+            if [ "$VERSION" != 1.5.0 ]; then
+              sed -i "s/project(colosseum VERSION 1.5.0 /project(colosseum VERSION $VERSION /" native/CMakeLists.txt
+              git add -- native/CMakeLists.txt
+              git commit -m "Disposable rehearsal version $VERSION"
+            fi
+            export STAGING_TLS_URL=https://localhost:18443/updates/stable.json
+            echo "$VERSION=$(git rev-parse HEAD)" >> "$RUNNER_TEMP/staging-receipts/source.txt"
+            out="$RUNNER_TEMP/staging-packages/$VERSION"
+            cmake -S native -B "$RUNNER_TEMP/app-build" -G Ninja \
+              -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
+              -DCOLOSSEUM_BUILD_PLAYER2=OFF -DCOLOSSEUM_PLAYER2_IN_APP=OFF \
+              -DCOLOSSEUM_NO_ACCOUNT_EDITION=OFF -DCOLOSSEUM_UPDATE_TESTING=ON -DCOLOSSEUM_UPDATE_TEST_FEED_URL="$STAGING_TLS_URL" \
+              -DCOLOSSEUM_FERIA_IN_APP=OFF -DCOLOSSEUM_VINYL_IN_APP=OFF \
+              -DCOLOSSEUM_ENABLE_VINYL_QUALIFICATION=OFF -DCOLOSSEUM_ENABLE_VINYL_TEST_FIXTURES=OFF \
+              -DCOLOSSEUM_CONTENT_API_URL=https://colosseum-content-api.colosseum-watchparty-relay.workers.dev \
+              -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR;$RUNNER_TEMP/ecm-install;$RUNNER_TEMP/mpvqt-install" \
+              -DMPVQT_PREFIX="$RUNNER_TEMP/mpvqt-install"
+            cmake --build "$RUNNER_TEMP/app-build" --target colosseum_runtime_ready --parallel 2
+
+            notices="$RUNNER_TEMP/notices-$VERSION"
+            mkdir -p "$notices/host-copyrights" "$RUNNER_TEMP/layout-$VERSION"
+            cp -r "$RUNNER_TEMP/mpvqt-source/LICENSES" "$notices/MpvQt-LICENSES"
+            cp -r "$RUNNER_TEMP/qtimageformats/LICENSES" "$notices/QtImageFormats-LICENSES"
+            cp "$RUNNER_TEMP/qtimageformats/src/3rdparty/libtiff/COPYRIGHT" "$notices/libtiff-COPYRIGHT"
+            cp "$RUNNER_TEMP/qtimageformats/src/3rdparty/libtiff/qt_attribution.json" "$notices/libtiff-qt_attribution.json"
+            find /usr/share/doc -name copyright -type f -exec cp --parents '{}' "$notices/host-copyrights/" ';'
+            dpkg-query -W -f='${Package}\t${Version}\t${source:Package}\t${source:Version}\n' > "$notices/ubuntu-package-provenance.tsv"
+            printf '%s\n' 'Private review candidate. Bundled libmpv/FFmpeg/Qt dependencies retain their own licenses. Corresponding-source and redistribution obligations remain a public-release gate.' > "$notices/NOTICE-CANDIDATE.txt"
+            args=()
+            # The app uses SQLite, not the SDK's optional external database clients.
+            for plugin in "$QT_ROOT_DIR"/plugins/sqldrivers/*.so; do
+              [[ "$(basename "$plugin")" == libqsqlite.so ]] || args+=(--exclude-plugin "sqldrivers/$(basename "$plugin")")
+            done
+            tiff="$(find "$RUNNER_TEMP/qtimageformats-build" -name libqtiff.so -type f -print -quit)"
+            test -n "$tiff"
+            args+=(--plugin-override "imageformats/libqtiff.so=$tiff")
+            pixbuf_loaders="$(pkg-config --variable=gdk_pixbuf_moduledir gdk-pixbuf-2.0)"
+            pixbuf_query="$(pkg-config --variable=gdk_pixbuf_query_loaders gdk-pixbuf-2.0)"
+            test -d "$pixbuf_loaders"
+            test -x "$pixbuf_query"
+            args+=(--gdk-pixbuf-loaders-dir "$pixbuf_loaders" --gdk-pixbuf-query-loaders "$pixbuf_query")
+            python3 tools/linux-release/assemble.py \
+              --source "$GITHUB_WORKSPACE" --build "$RUNNER_TEMP/app-build" --qt "$QT_ROOT_DIR" \
+              --stage "$RUNNER_TEMP/layout-$VERSION/AppDir" --commit "$(git rev-parse HEAD)" --patchelf "$(command -v patchelf)" \
+              --dep-lib "$RUNNER_TEMP/mpvqt-install/lib" --dep-lib "$RUNNER_TEMP/mpvqt-install/lib/x86_64-linux-gnu" \
+              --binary /usr/bin/ffmpeg --binary /usr/bin/ffprobe --dependency-notices "$notices" "${args[@]}"
+            mkdir -p "$out"
+            python3 tools/linux-release/check_package.py "$RUNNER_TEMP/layout-$VERSION/AppDir" --report "$out/package-check.json"
+            python3 scripts/linux_runtime_dependency_gate.py --appdir "$RUNNER_TEMP/layout-$VERSION/AppDir"
+            cp "$RUNNER_TEMP/layout-$VERSION/AppDir/BUILD-IDENTITY.json" $out/
+            test "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$out/BUILD-IDENTITY.json")" = "$VERSION"
+            # Preserve this exact checked payload for the post-publication AppImage.
+            appdir_archive="Colosseum-$VERSION-linux-AppDir.tar.zst"
+            deb="Colosseum-$VERSION-linux-amd64.deb"
+            tar --zstd -cf "$out/$appdir_archive" -C "$RUNNER_TEMP/layout-$VERSION" AppDir
+            (cd "$out" && sha256sum "$appdir_archive" > "$appdir_archive.sha256")
+            python3 tools/linux-release/package_deb.py --stage "$RUNNER_TEMP/layout-$VERSION/AppDir" --output "$out/$deb"
+            ar t "$out/$deb" > "$out/deb-archive-members.txt"
+            printf 'debian-binary\ncontrol.tar.xz\ndata.tar.xz\n' | diff -u - "$out/deb-archive-members.txt"
+
+
+            python3 - tools/linux-release/appimage-pins.json "$out/$appdir_archive" "$VERSION" <<'PY'
+          import json, sys
+          from pathlib import Path
+          path, archive, version = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3]
+          pins = json.loads(path.read_text())
+          identity = json.loads((archive.parent / 'BUILD-IDENTITY.json').read_text())
+          pins.update(version=version, application_source_commit=identity['source_commit'],
+                      appdir_sha256=archive.with_suffix(archive.suffix + '.sha256').read_text().split()[0],
+                      appdir_run='disposable-local-staging')
+          path.write_text(json.dumps(pins) + '\n')
+          PY
+            python3 tools/linux-release/package_appimage.py --archive "$out/$appdir_archive" \
+              --baseline-report "$out/package-check.json" --output "$out"
+            cp "$out/BUILD-IDENTITY.json" "$RUNNER_TEMP/staging-receipts/linux-$VERSION.json"
+            cp "$out/AppImage-identity.json" "$RUNNER_TEMP/staging-receipts/appimage-$VERSION.json"
+          done
+      - name: Rehearse update with Linux installers and a real virtual display
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          dbus-run-session -- xvfb-run -a -s '-screen 0 1920x1080x24' python3 "$RUNNER_TEMP/rehearse.py" exercise \
+            --private "$RUNNER_TEMP/staging-private" --packages "$RUNNER_TEMP/staging-packages" \
+            --output "$RUNNER_TEMP/staging-receipts" --source "$CANONICAL_SHA" deb appimage
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: staging-only-rehearsal-linux
+          retention-days: 14
+          if-no-files-found: warn
+          path: ${{ runner.temp }}/staging-receipts/
+
+  macos:
+    runs-on: macos-26
+    timeout-minutes: 110
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '26.1'
+      COLOSSEUM_BUILD_JOBS: '2'
+      COLOSSEUM_MAC_BUNDLE: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Isolate the exact release source and stage-only scripts
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/staging-receipts" "$RUNNER_TEMP/staging-packages"
+          cp tools/staging-update/rehearse.py "$RUNNER_TEMP/rehearse.py"
+          git fetch --depth=1 origin "$CANONICAL_SHA"
+          git checkout --detach "$CANONICAL_SHA"
+          test "$(git rev-parse HEAD)" = "$CANONICAL_SHA"
+          git config user.name 'Colosseum isolated rehearsal'
+          git config user.email 'noreply@colosseum.invalid'
+          printf 'canonical=%s\nworkflow=%s\n' "$CANONICAL_SHA" "$GITHUB_SHA" > "$RUNNER_TEMP/staging-receipts/source.txt"
+      - name: Select the qualified Apple Silicon SDK and record the console session
+        run: |
+          if [[ -d /Applications/Xcode_26.1.1.app ]]; then
+            sudo xcode-select --switch /Applications/Xcode_26.1.1.app/Contents/Developer
+          fi
+          uname -a
+          sw_vers
+          xcodebuild -version
+          stat -f '%Su' /dev/console
+          df -h
+      - name: Install native build dependencies
+        run: |
+          brew install cmake ninja pkgconf clang-format libtorrent-rasterbar boost openssl@3 mpv ffmpeg libarchive python
+      - name: Build both staging DMG versions from isolated source
+        run: |
+          set -euo pipefail
+          export STAGING_OPENSSL="$(brew --prefix openssl@3)/bin/openssl"
+          export STAGING_OPENSSL="${STAGING_OPENSSL:-openssl}"
+          export STAGING_TLS_URL=https://localhost:18443/updates/stable.json
+          python3 "$RUNNER_TEMP/rehearse.py" prepare "$GITHUB_WORKSPACE" "$RUNNER_TEMP/staging-private"
+          git add -- native/main.cpp native/update/UpdateReleaseClient.cpp native/update/UpdateTestPublicKey.h
+          git commit -m 'Disposable localhost updater fixture'
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          wrapper = Path('tools/macos-build/build-m1-preview.sh').read_text()
+          old = '-DCOLOSSEUM_UPDATE_TESTING=OFF'
+          assert wrapper.count(old) == 1
+          replacement = '-DCOLOSSEUM_UPDATE_TESTING=ON -DCOLOSSEUM_UPDATE_TEST_FEED_URL="$STAGING_TLS_URL"'
+          Path(os.environ['RUNNER_TEMP'], 'staging-build-m1.sh').write_text(wrapper.replace(old, replacement))
+          PY
+          export COLOSSEUM_MAC_WORK_ROOT="$RUNNER_TEMP/mac-work"
+          first="$RUNNER_TEMP/staging-packages/1.5.0"
+          second="$RUNNER_TEMP/staging-packages/1.5.1"
+          mkdir -p "$first" "$second"
+          pin=$(git rev-parse HEAD)
+          echo "1.5.0=$pin" >> "$RUNNER_TEMP/staging-receipts/source.txt"
+          export COLOSSEUM_MAC_RECEIPT_PATH="$first/build-receipt.json"
+          bash "$RUNNER_TEMP/staging-build-m1.sh" "$GITHUB_WORKSPACE" "$pin"
+          python3 tools/macos-build/package-preview.py package --receipt "$first/build-receipt.json" --output "$first"
+          python3 tools/macos-build/package-preview.py release-dmg --receipt "$first/build-receipt.json" --output "$first"
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('native/CMakeLists.txt')
+          source = path.read_text()
+          assert source.count('project(colosseum VERSION 1.5.0 ') == 1
+          path.write_text(source.replace('project(colosseum VERSION 1.5.0 ', 'project(colosseum VERSION 1.5.1 '))
+          PY
+          git add -- native/CMakeLists.txt
+          git commit -m 'Disposable rehearsal version 1.5.1'
+          pin=$(git rev-parse HEAD)
+          echo "1.5.1=$pin" >> "$RUNNER_TEMP/staging-receipts/source.txt"
+          build=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["build"])' "$first/build-receipt.json")
+          cmake -S native -B "$build" -DMACOSX_BUNDLE_BUNDLE_VERSION=1.5.1 -DMACOSX_BUNDLE_SHORT_VERSION_STRING=1.5.1
+          cmake --build "$build" --target colosseum_runtime_ready --parallel "$COLOSSEUM_BUILD_JOBS"
+          python3 - "$first/build-receipt.json" "$second/build-receipt.json" "$pin" <<'PY'
+          import json, sys
+          from pathlib import Path
+          old, new, pin = sys.argv[1:]
+          receipt = json.loads(Path(old).read_text())
+          receipt.update(version='1.5.1', source_sha=pin)
+          Path(new).write_text(json.dumps(receipt) + '\n')
+          PY
+          python3 tools/macos-build/package-preview.py package --receipt "$second/build-receipt.json" --output "$second"
+          python3 tools/macos-build/package-preview.py release-dmg --receipt "$second/build-receipt.json" --output "$second"
+          cp "$first/BUILD-IDENTITY.json" "$RUNNER_TEMP/staging-receipts/mac-1.5.0.json"
+          cp "$second/BUILD-IDENTITY.json" "$RUNNER_TEMP/staging-receipts/mac-1.5.1.json"
+      - name: Rehearse update from mounted DMGs in the Apple Silicon GUI session
+        run: |
+          export STAGING_OPENSSL="$(brew --prefix openssl@3)/bin/openssl"
+          python3 "$RUNNER_TEMP/rehearse.py" exercise --private "$RUNNER_TEMP/staging-private" \
+            --packages "$RUNNER_TEMP/staging-packages" --output "$RUNNER_TEMP/staging-receipts" \
+            --source "$CANONICAL_SHA" dmg
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: staging-only-rehearsal-apple-silicon
+          retention-days: 14
+          if-no-files-found: warn
+          path: ${{ runner.temp }}/staging-receipts/
