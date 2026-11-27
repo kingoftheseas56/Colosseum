@@ -5,6 +5,7 @@ import json
 import os
 import pathlib
 import tempfile
+import threading
 import unittest
 from unittest.mock import Mock, patch
 
@@ -232,6 +233,196 @@ class MusicDiscoverTest(unittest.TestCase):
             self.tap("albumhint", client, album="Film")
         self.assertTrue(self.tap("albumhint", client, album="Film")["matched"])
         self.assertEqual(client.search.call_count, 2)
+
+
+class WeeklyArtworkTest(unittest.TestCase):
+    def setUp(self):
+        cache = self.enterContext(tempfile.TemporaryDirectory())
+        self.enterContext(patch.dict(os.environ, {"COLOSSEUM_VINYL_DISCOVER_CACHE_DIR": cache}))
+        self.key = self.enterContext(patch.object(p, "_lastfm_key", return_value="0" * 32))
+        self.http = self.enterContext(patch.object(p, "_discover_http"))
+        self.youtube = Mock()
+        self.make_youtube = self.enterContext(patch.object(p, "_ytmusic_client", return_value=self.youtube))
+        self.enterContext(patch.object(p, "_ENRICHMENT_RATE_LIMITS", {}))
+        self.enterContext(patch.object(p, "_GENRE_RETRY_AT", 0))
+        self.addCleanup(self.drain)
+
+    def drain(self):
+        with p._GENRE_LOCK:
+            worker = p._GENRE_WORKER
+        if worker is not None:
+            worker.join(5)
+            self.assertFalse(worker.is_alive())
+
+    def card(self, kind="songs", **hints):
+        title = {"songs": "Song", "albums": "Release", "artists": "Artist"}[kind]
+        card = p._chart_card("kworb", kind, title, ["Artist"], 1)
+        card["hints"].update(hints)
+        return card
+
+    def art(self, card):
+        request = dict(operation="resolveCatalogueArt", value="kworb", items=[card])
+        answer = p._wire_answer(json.dumps(request).encode())
+        self.assertTrue(answer["ok"], answer)
+        return answer["data"]
+
+    def test_art_poll_starts_worker_and_next_poll_returns_cover(self):
+        card = self.card()
+        image = "https://is1-ssl.mzstatic.com/song/100x100bb.jpg"
+        started = threading.Event()
+        release = threading.Event()
+
+        def lookup(*args, **kwargs):
+            started.set()
+            if not release.wait(5):
+                raise p.ProviderTimeoutError()
+            return response({"results": [{"artistName": "Artist", "trackName": "Song",
+                                          "collectionName": "Release", "artworkUrl100": image}]})
+
+        self.http.side_effect = lookup
+        try:
+            cold = self.art(card)
+            self.assertEqual(cold["covers"], {})
+            self.assertEqual(cold["settled"], [])
+            self.assertTrue(started.wait(2), "A cold art poll never enqueued work")
+            self.assertEqual(self.art(card)["settled"], [])  # In-flight polls must not duplicate work.
+        finally:
+            release.set()
+        self.drain()
+        warm = self.art(card)
+        self.assertEqual(warm["covers"], {card["id"]: image.replace("100x100bb", "600x600bb")})
+        self.assertEqual(warm["albums"], {card["id"]: "Release"})
+        self.assertEqual(warm["settled"], [card["id"]])
+        self.http.assert_called_once()
+        self.make_youtube.assert_not_called()
+
+
+    def test_youtube_song_and_album_fallback_choose_largest_exact_thumbnail(self):
+        best = "https://lh3.googleusercontent.com/large"
+        for kind, title, entity in (("songs", "Song", "song"), ("albums", "Release", "album")):
+            with self.subTest(kind=kind):
+                self.http.reset_mock()
+                self.http.side_effect = p.ProviderTimeoutError()
+                image_options = [{"url": best, "width": 600},
+                                 {"url": "https://lh3.googleusercontent.com/small", "width": 120},
+                                 {"url": "https://unrelated.invalid/image", "width": 800}]
+                self.youtube.search.return_value = [
+                    {"title": title, "artists": [{"name": "Different Artist"}], "thumbnails": image_options[1:]},
+                    {"title": title, "artists": [{"name": "Artist"}], "thumbnails": image_options,
+                     "album": {"name": "Release"}}]
+                card = self.card(kind)
+                self.art(card)
+                self.drain()
+                self.assertEqual(self.art(card)["covers"], {card["id"]: best})
+                self.http.assert_called_once_with("itunes", "search", {"term": "Artist " + title,
+                                                   "media": "music", "entity": entity, "limit": 5}, timeout=4)
+                self.youtube.search.assert_called_with("Artist " + title, filter=kind, limit=6)
+                self.make_youtube.assert_called_with("", bounded=True, user_agent=p._CHART_USER_AGENT, reuse=False)
+
+    def test_itunes_chart_hits_match_title_and_artist_and_rewrite_size(self):
+        samples = {
+            "songs": [("Tate McRae", "Housewife", "housewife"), ("KAROL G", "BbY WOW", "bby-wow"),
+                      ("sombr", "back to friends", "back-to-friends"), ("Olivia Rodrigo", "the cure", "the-cure"),
+                      ("ADÉLA", "Nicole Kidman", "nicole-kidman")],
+            "albums": [("Stray Kids", "SUIATSU", "suiatsu"), ("Duran Duran", "Greatest", "greatest")],
+        }
+        for kind, cases in samples.items():
+            responses = fixture("itunes-" + kind)
+            for artist, title, slug in cases:
+                with self.subTest(title=title):
+                    self.http.reset_mock()
+                    self.http.return_value = response(responses[artist + " " + title])
+                    params = p._vinyl_genre_lookup(kind, title, [artist])
+                    art = p._kworb_art(kind, params, self.make_youtube)
+                    self.assertEqual(art["source"], "itunes")
+                    self.assertEqual(art["cover"], f"https://is1-ssl.mzstatic.com/{slug}/600x600bb.jpg")
+                    self.http.assert_called_once_with("itunes", "search", {"term": artist + " " + title,
+                                                      "media": "music", "entity": kind[:-1], "limit": 5}, timeout=4)
+        self.make_youtube.assert_not_called()
+        self.key.assert_not_called()
+
+    def test_itunes_rejects_carnaval_de_luz_wrong_album(self):
+        self.http.return_value = response(fixture("itunes-wrong-album"))
+        params = p._vinyl_genre_lookup("albums", "Carnaval De Luz", ["U2"])
+        self.assertEqual(p._kworb_itunes_art("albums", params), ("", ""))
+        image = "https://lh3.googleusercontent.com/carnaval.jpg"
+        self.youtube.search.return_value = [{"title": "Carnaval De Luz", "artists": [{"name": "U2"}],
+                                              "thumbnails": [{"url": image, "width": 600}]}]
+        art = p._kworb_art("albums", params, self.make_youtube)
+        self.assertEqual(art, {"source": "youtube-music", "cover": image, "album": ""})
+
+    def test_deezer_exact_artist_prefers_xl_then_big(self):
+        responses = fixture("deezer-artists")
+        for name, slug in [("Bad Bunny", "bad-bunny"), ("Olivia Rodrigo", "olivia-rodrigo"), ("Drake", "drake"),
+                           ("The Weeknd", "the-weeknd"), ("KAROL G", "karol-g"), ("Taylor Swift", "taylor-swift")]:
+            with self.subTest(name=name):
+                self.http.reset_mock()
+                self.http.return_value = response(responses[name])
+                art = p._kworb_art("artists", {"artist": name.upper()}, self.make_youtube)
+                size = 500 if name == "Drake" else 1000
+                self.assertEqual(art, {"source": "deezer", "album": "",
+                                       "cover": f"https://cdn-images.dzcdn.net/{slug}/{size}x{size}.jpg"})
+                self.http.assert_called_once_with("deezer", "search/artist", {"q": name.upper(), "limit": 5}, timeout=4)
+        self.make_youtube.assert_not_called()
+        self.key.assert_not_called()
+
+    def test_deezer_miss_uses_youtube_artist_thumbnail(self):
+        calls = Mock()
+        calls.attach_mock(self.http, "http")
+        calls.attach_mock(self.youtube.search, "search")
+        tribute = fixture("deezer-artists")["Bad Bunny"]["data"][0]
+        self.http.return_value = response({"data": [tribute]})
+        image = "https://lh3.googleusercontent.com/artist.jpg"
+        self.youtube.search.return_value = [{"artist": "Bad Bunny", "browseId": CHANNEL,
+                                              "thumbnails": [{"url": image, "width": 600}]}]
+        art = p._kworb_art("artists", {"artist": "Bad Bunny"}, self.make_youtube)
+        self.assertEqual(art, {"source": "youtube-music", "cover": image, "album": ""})
+        self.assertEqual([call[0] for call in calls.mock_calls], ["http", "search"])
+
+    def test_timeout_in_genre_does_not_suppress_art_without_a_lastfm_key(self):
+        entered, release = threading.Event(), threading.Event()
+        image = "https://lh3.googleusercontent.com/new-cover"
+        self.youtube.search.return_value = [{"title": "Release", "artists": [{"name": "Artist"}],
+                                              "thumbnails": [{"url": image, "width": 600}]}]
+
+        def timeout(*args, **kwargs):
+            entered.set()
+            release.wait(5)
+            raise p.ProviderTimeoutError()
+
+        self.http.side_effect = timeout
+        card = self.card("albums")
+        params = {"artist": "Artist", "album": "Release", "autocorrect": 1}
+        p._vinyl_queue_enrichment({p._vinyl_genre_cache_key("albums", params): ("albums", params, None)})
+        try:
+            self.assertTrue(entered.wait(2))
+            self.key.return_value = ""
+            self.assertEqual(self.art(card)["settled"], [])
+        finally:
+            release.set()
+        self.drain()
+        self.assertEqual(self.art(card)["covers"], {card["id"]: image})
+        self.assertEqual([call.args[:2] for call in self.http.call_args_list],
+                         [("lastfm", "album.getTopTags"), ("itunes", "search")])
+
+    def test_miss_is_settled_for_one_day_then_retried(self):
+        card = p._chart_card("kworb", "albums", "Live in Mexico City", ["Rammstein"], 1)
+        self.http.return_value = response(fixture("itunes-albums")["Rammstein Live in Mexico City"])
+        self.youtube.search.return_value = []
+        clock = Mock(return_value=2000000000)
+        with patch.object(p.time, "time", clock):
+            self.art(card)
+            self.drain()
+            self.assertEqual(self.art(card)["settled"], [card["id"]])
+            self.assertEqual(self.art(card)["covers"], {})
+            clock.return_value += 86399
+            self.assertEqual(self.art(card)["settled"], [card["id"]])
+            self.assertEqual(self.http.call_count, 1)
+            clock.return_value += 1
+            self.assertEqual(self.art(card)["settled"], [])
+            self.drain()
+            self.assertEqual(self.http.call_count, 2)
+        self.assertEqual(self.youtube.search.call_count, 2)
 
 
 if __name__ == "__main__":

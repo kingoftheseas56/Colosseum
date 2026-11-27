@@ -49,16 +49,6 @@ def serve_editorial_fixtures():
                 assert params["api_key"] == fake_lastfm_key
                 method = params["method"]
                 print("Last.fm method: " + method + " " + params.get("tag", ""), file=sys.stderr)
-                if method in ("track.getInfo", "album.getInfo"):
-                    wait_for_page_reply("VINYL_TEST_ART_WAIT_FOR_REPLY")
-                    assert params["autocorrect"] == "1"
-                    if params.get("track") == "BbY WOW":
-                        assert params["artist"] == "KAROL G"
-                        return Response(b'{"track":{"album":{"title":"Fixture song album","image":[{"#text":"https://lastfm.freetls.fastly.net/bad.jpg"},{"#text":"https://lastfm-img.freetls.fastly.net/song.jpg"}]}}}')
-                    if params.get("album") == "Grand Theft Auto VI: The Album":
-                        assert params["artist"] == "Various Artists"
-                        return Response(b'{"album":{"image":[{"#text":"https://lastfm-img.freetls.fastly.net/album.jpg"}]}}')
-                    return Response(b'{"track":{}}' if method.startswith("track") else b'{"album":{}}')
                 if method in ("track.getTopTags", "album.getTopTags", "artist.getTopTags"):
                     wait_for_page_reply("VINYL_TEST_TAGS_WAIT_FOR_REPLY")
                     leaf = method.split(".")[0]
@@ -81,7 +71,32 @@ def serve_editorial_fixtures():
                 rows = [{"name": f"Fixture {leaf} {page}-{i}", "artist": {"name": "Fixture artist"}}
                         for i in range(int(params["limit"]))] if page <= 22 else []
                 return Response(json.dumps({root: {leaf: rows}}).encode())
+            if url.netloc == "itunes.apple.com":
+                assert request.get_header("User-agent") == (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                    "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
+                assert url.path == "/search" and timeout == 4
+                params = parse_qs(url.query)
+                assert set(params) == {"term", "entity", "limit", "media"}
+                assert params["limit"] == ["5"] and params["media"] == ["music"]
+                entity, term = params["entity"][0], params["term"][0]
+                assert entity in ("song", "album")
+                print(f"iTunes {entity} artwork: {term}", file=sys.stderr)
+                wait_for_page_reply("VINYL_TEST_ART_WAIT_FOR_REPLY")
+                if entity == "album" and term == "U2 Carnaval De Luz":
+                    return Response(fixture("itunes-wrong-album.json"))
+                data = json.loads(fixture(f"itunes-{entity}s.json")).get(term, {"resultCount": 0, "results": []})
+                return Response(json.dumps(data).encode())
             assert request.get_header("User-agent") == ua
+            if url.netloc == "api.deezer.com":
+                assert url.path == "/search/artist" and timeout == 4
+                params = parse_qs(url.query)
+                assert set(params) == {"q", "limit"} and params["limit"] == ["5"]
+                name = params["q"][0]
+                print("Deezer artist artwork: " + name, file=sys.stderr)
+                wait_for_page_reply("VINYL_TEST_ART_WAIT_FOR_REPLY")
+                data = json.loads(fixture("deezer-artists.json")).get(name, {"total": 0, "data": []})
+                return Response(json.dumps(data).encode())
             if url.netloc == "kworb.net":
                 print("chart path: " + url.path, file=sys.stderr)
                 kind = {"/spotify/country/global_weekly.html": "songs", "/spotify/country/us_weekly.html": "songs",
@@ -134,9 +149,14 @@ def serve_editorial_fixtures():
                          "thumbnails": [{"url": "https://lh3.googleusercontent.com/unrelated.jpg"}]},
                         {"artist": query, "browseId": "UCedvOgsKFzcK3hA5taf3KoQ",
                          "thumbnails": [{"url": "https://lh3.googleusercontent.com/artist.jpg"}]}]
-            assert filter == "songs" and query == "Ashe Stop The Wedding!"
-            return [{"title": "Stop The Wedding!", "artists": [{"name": "Ashe"}], "videoId": "zyxwvutsrqp",
-                     "videoType": "MUSIC_VIDEO_TYPE_ATV"}]
+            if filter == "albums" and query == "Various Artists Grand Theft Auto VI: The Album":
+                print("YouTube Music album artwork: " + query, file=sys.stderr)
+                return [{"title": "Grand Theft Auto VI: The Album", "artists": [{"name": "Various Artists"}],
+                         "thumbnails": [{"url": "https://lh3.googleusercontent.com/album.jpg"}]}]
+            if filter == "songs" and query == "Ashe Stop The Wedding!":
+                return [{"title": "Stop The Wedding!", "artists": [{"name": "Ashe"}], "videoId": "zyxwvutsrqp",
+                         "videoType": "MUSIC_VIDEO_TYPE_ATV"}]
+            return []
 
     def make_youtube(region, *, bounded=False, user_agent=None, reuse=True):
         assert region in ("", "US") and (not bounded or user_agent == ua)
@@ -144,6 +164,7 @@ def serve_editorial_fixtures():
 
     with patch.object(provider.urllib.request, "build_opener", return_value=FixtureHttp()), \
          patch.object(provider, "_ytmusic_client", side_effect=make_youtube), \
+         patch.object(provider, "_ITUNES_MIN_INTERVAL", 0), \
          patch.dict(os.environ, {"COLOSSEUM_VINYL_LASTFM_API_KEY": "" if os.environ.get("VINYL_TEST_MISSING_LASTFM") else fake_lastfm_key,
                                  "COLOSSEUM_VINYL_LASTFM_KEY_FILE": ""}):
         provider.serve()

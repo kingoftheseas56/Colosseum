@@ -200,6 +200,10 @@ TestCase {
         tryVerify(function(){return findChild(browser,"discoverCard_week_widget")!==null;});
         var widget=findChild(browser,"discoverCard_week_widget");
         compare(widget.captionTitle,"Singer");
+        var artwork=findChild(widget,"vinylSongArtwork");
+        verify(artwork!==null);
+        compare(page.items[0].cover,"");
+        compare(artwork.ready,false);
         tryVerify(function(){return last().operation==="resolveCatalogueArt";});
         var call=last();compare(call.value,"kworb");
         source.completed(call.lane,call.id,{version:1,covers:{},settled:[]},"");
@@ -210,7 +214,7 @@ TestCase {
         compare(page.items[0].cover,cover);
         compare(findChild(browser,"discoverCard_week_widget"),widget);
         compare(widget.captionTitle,"Singer · from Debut");
-        tryCompare(findChild(widget,"vinylSongArtwork"),"ready",true);
+        tryCompare(artwork,"ready",true);
     }
     function test_next_page_cancels_art() {
         pick("List","popular");

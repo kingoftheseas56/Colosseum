@@ -1,0 +1,20 @@
+{
+  "Tate McRae Housewife": {"resultCount": 3, "results": [
+    {"artistName": "Tate McRae", "trackName": "Housewife (Live)", "artworkUrl100": "https://is1-ssl.mzstatic.com/live/100x100bb.jpg"},
+    {"artistName": "Tate McRae Tribute", "trackName": "Housewife (Karaoke Version)", "artworkUrl100": "https://is1-ssl.mzstatic.com/karaoke/100x100bb.jpg"},
+    {"artistName": "Tate McRae", "trackName": "Housewife", "collectionName": "Housewife - Single", "artworkUrl100": "https://is1-ssl.mzstatic.com/housewife/100x100bb.jpg"}
+  ]},
+  "KAROL G BbY WOW": {"resultCount": 2, "results": [
+    {"artistName": "KAROL GRANT", "trackName": "BbY WOW", "artworkUrl100": "https://is1-ssl.mzstatic.com/wrong-artist/100x100bb.jpg"},
+    {"artistName": "KAROL G, Judeline & Pabllo Vittar", "trackName": "BbY WOW (feat. Judeline & Pabllo Vittar)", "collectionName": "Fixture song album", "artworkUrl100": "https://is1-ssl.mzstatic.com/bby-wow/100x100bb.jpg"}
+  ]},
+  "sombr back to friends": {"resultCount": 1, "results": [
+    {"artistName": "sombr", "trackName": "back to friends", "artworkUrl100": "https://is1-ssl.mzstatic.com/back-to-friends/100x100bb.jpg"}
+  ]},
+  "Olivia Rodrigo the cure": {"resultCount": 1, "results": [
+    {"artistName": "Olivia Rodrigo", "trackName": "the cure", "artworkUrl100": "https://is1-ssl.mzstatic.com/the-cure/100x100bb.jpg"}
+  ]},
+  "ADÉLA Nicole Kidman": {"resultCount": 1, "results": [
+    {"artistName": "ADÉLA", "trackName": "Nicole Kidman", "artworkUrl100": "https://is1-ssl.mzstatic.com/nicole-kidman/100x100bb.jpg"}
+  ]}
+}

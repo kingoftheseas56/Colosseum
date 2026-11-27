@@ -264,11 +264,14 @@ private slots:
             vinylBrowse("albums","chartWeek","all",1),vinylBrowse("artists","chartWeek","all",1)};
         const auto cold=runEditorialFixtures(cache.path(),pages,"VINYL_TEST_ART_WAIT_FOR_REPLY");
         QVERIFY2(cold.answers.size()==3,cold.diagnostics.constData());
-        QVERIFY(cold.diagnostics.contains("track.getInfo"));
-        QVERIFY(cold.diagnostics.contains("album.getInfo"));
-        QVERIFY(cold.diagnostics.contains("YouTube Music artist artwork: Bad Bunny"));
-        const QStringList expected{"https://lastfm-img.freetls.fastly.net/song.jpg",
-            "https://lastfm-img.freetls.fastly.net/album.jpg","https://lh3.googleusercontent.com/artist.jpg"};
+        QVERIFY(cold.diagnostics.contains("iTunes song artwork: KAROL G BbY WOW"));
+        const auto primary=cold.diagnostics.indexOf("iTunes album artwork: Various Artists Grand Theft Auto VI");
+        QVERIFY(primary>=0);
+        QVERIFY(cold.diagnostics.indexOf("YouTube Music album artwork: Various Artists Grand Theft Auto VI")>primary);
+        QVERIFY(cold.diagnostics.contains("Deezer artist artwork: Bad Bunny"));
+        QVERIFY(!cold.diagnostics.contains("YouTube Music artist artwork: Bad Bunny"));
+        const QStringList expected{"https://is1-ssl.mzstatic.com/bby-wow/600x600bb.jpg",
+            "https://lh3.googleusercontent.com/album.jpg","https://cdn-images.dzcdn.net/bad-bunny/1000x1000.jpg"};
         QJsonArray items;
         for(int i=0;i<3;++i){
             QCOMPARE(cold.items(i).size(),1);
@@ -301,6 +304,27 @@ private slots:
             ++entries;
         }
         QCOMPARE(entries,3);
+    }
+    void vinylWeekArtPollRestartsMissingWorkWithoutBrowse(){
+        QTemporaryDir cache;
+        QVERIFY(cache.isValid());
+        // A raw chart has not seeded the browse helper's artwork queue.
+        const auto chart=runEditorialFixtures(cache.path(),{chartWeek("albums")});
+        QVERIFY2(chart.items(0).size()>1,chart.diagnostics.constData());
+        const auto item=chart.items(0).at(1);
+        const auto id=item.toObject().value("id").toString();
+        const QJsonObject poll{{"operation","resolveCatalogueArt"},{"value","kworb"},{"items",QJsonArray{item}}};
+        const auto cold=runEditorialFixtures(cache.path(),{poll});
+        QVERIFY2(cold.answers.size()==1,cold.diagnostics.constData());
+        QVERIFY(cold.answers.at(0).value("ok").toBool());
+        QVERIFY(cold.data(0).value("covers").toObject().isEmpty());
+        QVERIFY2(cold.diagnostics.contains("iTunes album artwork: Stray Kids SUIATSU"),cold.diagnostics.constData());
+        const auto warm=runEditorialFixtures(cache.path(),{poll});
+        QVERIFY2(warm.answers.size()==1,warm.diagnostics.constData());
+        QCOMPARE(warm.data(0).value("settled").toArray(),QJsonArray{id});
+        QCOMPARE(warm.data(0).value("covers").toObject().value(id).toString(),
+            QString("https://is1-ssl.mzstatic.com/suiatsu/600x600bb.jpg"));
+        QVERIFY2(warm.diagnostics.isEmpty(),warm.diagnostics.constData());
     }
     void vinylNewGenresUseTrackAlbumAndArtistTopTags(){
         QTemporaryDir cache;

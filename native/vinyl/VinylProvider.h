@@ -238,6 +238,7 @@ public:
         const bool discoverBrowse=operation=="browseCatalogue"
             &&QStringList{"vinyl","lastfm","jiosaavn"}.contains(payload.value("catalogueSource").toString());
         const bool discoverResolver=operation=="resolveCatalogueItem"||operation=="resolveCatalogueArt";
+        const bool weekArt=operation=="resolveCatalogueArt"&&value=="kworb";
         const bool cacheable=!warming&&operation!="resolve"&&operation!="resolveVideo"&&!discoverBrowse&&!discoverResolver;
         if(home&&!metadata){
             const QSet<QString> allowed{"seed","recording","refresh","region","fetchedAt","limit"};
@@ -263,16 +264,18 @@ public:
         else if(lane.startsWith("home-listening-"))warm=&m_homeListeningWarm;
         else if(QStringList{"search","catalogueSearch","artist","artistReleases","artistVideos","artistArtwork"}.contains(operation))
             warm=&m_browseWarm;
-        else if((operation=="resolveCatalogueArt"&&value=="kworb")
-            ||QStringList{"browseCategories","browseCatalogue","resolveCatalogueItem","cataloguePage","album","relatedVideo"}.contains(operation))
+        else if(weekArt||QStringList{"browseCategories","browseCatalogue","resolveCatalogueItem","cataloguePage","album","relatedVideo"}.contains(operation))
             warm=&m_catalogueWarm;
         // Home cannot occupy a foreground warm worker. Overlap beyond the
         // warm pool and external helpers retain the one-shot contract.
         const bool server=warm&&!warm->busy&&reuseHelpers();
-        // A bundled snapshot helper must be able to reply before its tag queue
-        // drains, even if the warm slot is busy or helper reuse is disabled.
-        const bool transientTagger=!server&&discoverBrowse&&payload.value("catalogueSource")=="vinyl"
-            &&QStringList{"chartWeek","new"}.contains(payload.value("list").toString())
+        // Bundled enrichment can outlive the reply even without a free warm slot.
+        // While a transient art worker drains, later one-shot polls only read,
+        // rather than replacing that worker on every timer tick.
+        const bool artReader=!server&&weekArt&&m_tagging.contains(lane);
+        const bool snapshotEnrichment=discoverBrowse&&payload.value("catalogueSource")=="vinyl"
+            &&QStringList{"chartWeek","new"}.contains(payload.value("list").toString());
+        const bool transientTagger=!server&&(snapshotEnrichment||(weekArt&&!artReader))
             &&QFileInfo(m_helper).fileName()=="provider.py";
         const bool lineProtocol=server||transientTagger;
         QProcess *process=nullptr;
@@ -288,6 +291,7 @@ public:
         if(process->state()!=QProcess::Running){
             auto environment=QProcessEnvironment::systemEnvironment();
             environment.insert("COLOSSEUM_VINYL_DISCOVER_CACHE_DIR",QDir(m_cacheRoot).filePath("discover-v1"));
+            if(artReader)environment.insert("COLOSSEUM_VINYL_ART_POLL_ONLY","1");
             process->setProcessEnvironment(environment);
         }
         m_active.insert(lane,process);auto output=std::make_shared<QByteArray>();
@@ -372,7 +376,8 @@ public:
                 }
             }
             const auto result=data.toMap();
-            const auto count=data.metaType().id()==QMetaType::QVariantList?data.toList().size()
+            const auto count=operation=="resolveCatalogueArt"?result.value("covers").toMap().size()
+                :data.metaType().id()==QMetaType::QVariantList?data.toList().size()
                 :result.value("items",result.value("tracks",result.value("albums"))).toList().size();
             QJsonObject replyTrace{{"operation",operation},{"lane",lane},
                 {"requestId",id},{"cacheHit",result.value("_cached").toBool()},{"stale",result.value("_stale").toBool()},
@@ -381,6 +386,7 @@ public:
                 replyTrace["source"]="vinyl";
                 replyTrace["stale"]=result.value("stale").toBool();
             }
+            if(operation=="resolveCatalogueArt")replyTrace["source"]=value;
             if(traceEnabled){
                 replyTrace["dispatched"]=ran;
                 if(ran){

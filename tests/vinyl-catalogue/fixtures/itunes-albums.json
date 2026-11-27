@@ -1,0 +1,11 @@
+{
+  "Stray Kids SUIATSU": {"resultCount": 2, "results": [
+    {"artistName": "Stray Kids", "collectionName": "SUIATSU - Single", "artworkUrl100": "https://is1-ssl.mzstatic.com/suiatsu/100x100bb.jpg"},
+    {"artistName": "Stray Kids", "collectionName": "SKZ2021", "artworkUrl100": "https://is1-ssl.mzstatic.com/skz2021/100x100bb.jpg"}
+  ]},
+  "Duran Duran Greatest": {"resultCount": 2, "results": [
+    {"artistName": "Duran Duran", "collectionName": "Greatest Hits", "artworkUrl100": "https://is1-ssl.mzstatic.com/greatest-hits/100x100bb.jpg"},
+    {"artistName": "Duran Duran", "collectionName": "Greatest (Deluxe Edition)", "artworkUrl100": "https://is1-ssl.mzstatic.com/greatest/100x100bb.jpg"}
+  ]},
+  "Rammstein Live in Mexico City": {"resultCount": 0, "results": []}
+}

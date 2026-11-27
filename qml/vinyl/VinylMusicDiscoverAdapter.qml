@@ -148,14 +148,15 @@ QtObject {
         }
     }
 
-    // This week already queued its network work with genre tagging. This lane
-    // only reads completed cache entries, including across transient helpers.
+    // Browse queues artwork optimistically. Polls read completed covers and
+    // re-request missing work if the original helper did not finish it.
     function resumeWeekArt() {
         if(!source || !browser.active || browser.loading || pendingArt || artPoll.running
             || (browser.filters[listGroup] || "chartWeek")!=="chartWeek") return;
         var missing=browser.items.filter(item=>item.raw.artPending===true).map(item=>item.raw);
+        // A cold 50-card page of iTunes requests takes ~155s at Apple's search limit.
         if(missing.length)
-            requestArt({source:source,generation:browser.fetchGen,week:true,deadline:Date.now()+90000},missing);
+            requestArt({source:source,generation:browser.fetchGen,week:true,deadline:Date.now()+180000},missing);
     }
 
     property Timer artPoll: Timer {

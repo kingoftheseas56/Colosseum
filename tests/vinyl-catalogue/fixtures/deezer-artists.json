@@ -1,0 +1,21 @@
+{
+  "Bad Bunny": {"total": 2, "data": [
+    {"name": "Bad Bunny Tribute", "picture_xl": "https://cdn-images.dzcdn.net/tribute/1000x1000.jpg"},
+    {"name": "Bad Bunny", "picture_big": "https://cdn-images.dzcdn.net/bad-bunny/500x500.jpg", "picture_xl": "https://cdn-images.dzcdn.net/bad-bunny/1000x1000.jpg"}
+  ]},
+  "Olivia Rodrigo": {"total": 1, "data": [
+    {"name": "Olivia Rodrigo", "picture_xl": "https://cdn-images.dzcdn.net/olivia-rodrigo/1000x1000.jpg"}
+  ]},
+  "Drake": {"total": 1, "data": [
+    {"name": "Drake", "picture_big": "https://cdn-images.dzcdn.net/drake/500x500.jpg"}
+  ]},
+  "The Weeknd": {"total": 1, "data": [
+    {"name": "The Weeknd", "picture_xl": "https://cdn-images.dzcdn.net/the-weeknd/1000x1000.jpg"}
+  ]},
+  "KAROL G": {"total": 1, "data": [
+    {"name": "KAROL G", "picture_xl": "https://cdn-images.dzcdn.net/karol-g/1000x1000.jpg"}
+  ]},
+  "Taylor Swift": {"total": 1, "data": [
+    {"name": "Taylor Swift", "picture_xl": "https://cdn-images.dzcdn.net/taylor-swift/1000x1000.jpg"}
+  ]}
+}

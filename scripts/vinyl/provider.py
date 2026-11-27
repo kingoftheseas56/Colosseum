@@ -1817,12 +1817,16 @@ def _parse_releases_request(request, raw_value):
     return channel_id or raw_value, kind
 
 
+_AUDIODB_API = 'https://www.theaudiodb.com/api/v1/json/123/'
+_AUDIODB_IMAGE_HOSTS = ('www.theaudiodb.com', 'r2.theaudiodb.com')
+
+
 def fetch_artist_artwork(mbid, get_json=None):
     """Public artist fanart metadata; media bytes use Colosseum's image owner."""
     if not MBID_RE.fullmatch(mbid) or uuid.UUID(mbid).int == 0:
         raise InvalidArgumentError("Artwork needs a canonical artist identity")
     mbid = mbid.lower()
-    url = 'https://www.theaudiodb.com/api/v1/json/123/artist-mb.php?i=' + mbid
+    url = _AUDIODB_API + 'artist-mb.php?i=' + mbid
     if get_json is None:
         def get_json(target):
             import requests
@@ -1849,7 +1853,7 @@ def fetch_artist_artwork(mbid, get_json=None):
     for slot in ('strArtistFanart', 'strArtistFanart2', 'strArtistFanart3', 'strArtistFanart4'):
         photo = str(artist.get(slot) or '')
         parsed = urlparse(photo)
-        if (parsed.scheme != 'https' or parsed.hostname not in ('www.theaudiodb.com', 'r2.theaudiodb.com')
+        if (parsed.scheme != 'https' or parsed.hostname not in _AUDIODB_IMAGE_HOSTS
                 or not parsed.path.startswith('/images/media/artist/fanart/') or parsed.query
                 or parsed.username or parsed.password or parsed.port not in (None,443) or photo in seen):
             continue
@@ -3041,6 +3045,14 @@ _DISCOVER_ART_TTL = 30 * 24 * 3600
 _VINYL_GENRE_TTL = 30 * 24 * 3600
 _LASTFM_TOP_TAGS = {"songs": "track.getTopTags", "albums": "album.getTopTags", "artists": "artist.getTopTags"}
 _CHART_USER_AGENT = "Colosseum-Vinyl/1.0 (open-source music app)"
+# Match the browser UA stamped by CachingNam for the app's iTunes requests.
+_ITUNES_USER_AGENT = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                      "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
+_ITUNES_MIN_INTERVAL = 3.1  # Apple Search API asks for about 20 requests/minute.
+_ITUNES_LOCK = threading.Lock()
+_ITUNES_NEXT_REQUEST = 0.0
+_WEEK_ART_HOSTS = {"itunes": ("mzstatic.com",), "deezer": ("dzcdn.net",),
+                   "youtube-music": ("ytimg.com", "ggpht.com", "googleusercontent.com")}
 _CHART_TTL = 24 * 3600
 _WIKIPEDIA_TTL = 7 * _CHART_TTL
 
@@ -3144,7 +3156,7 @@ def _lastfm_missing_key():
 
 
 def _discover_http(source, method, params, language="", *, transport=None, timeout=8):
-    global _LASTFM_NEXT_REQUEST
+    global _LASTFM_NEXT_REQUEST, _ITUNES_NEXT_REQUEST
     top_tags = source == "lastfm" and method in _LASTFM_TOP_TAGS.values()
     if source == "lastfm":
         key = _lastfm_key()
@@ -3163,11 +3175,21 @@ def _discover_http(source, method, params, language="", *, transport=None, timeo
         url = "https://en.wikipedia.org/w/api.php?" + urllib.parse.urlencode(
             dict(params, action=method, format="json", formatversion=2))
         headers = {"User-Agent": _CHART_USER_AGENT}
+    elif source == "itunes":
+        url = "https://itunes.apple.com/search?" + urllib.parse.urlencode(params)
+        headers = {"User-Agent": _ITUNES_USER_AGENT, "Accept": "application/json"}
+        with _ITUNES_LOCK:
+            time.sleep(max(0, _ITUNES_NEXT_REQUEST - time.monotonic()))
+            _ITUNES_NEXT_REQUEST = time.monotonic() + _ITUNES_MIN_INTERVAL
+    elif source == "deezer":
+        url = "https://api.deezer.com/search/artist?" + urllib.parse.urlencode(params)
+        headers = {"User-Agent": _CHART_USER_AGENT, "Accept": "application/json"}
     else:
         url = "https://www.jiosaavn.com/api.php?" + urllib.parse.urlencode(
             dict(params, _format="json", _marker=0, api_version=4, ctx="web6dot0", __call=method))
         headers = {"User-Agent": "Mozilla/5.0", "Cookie": "L=" + language}
-    label = {"lastfm": "Last.fm", "kworb": "Kworb", "wikipedia": "Wikipedia"}.get(source, "JioSaavn")
+    label = {"lastfm": "Last.fm", "kworb": "Kworb", "wikipedia": "Wikipedia",
+             "itunes": "iTunes", "deezer": "Deezer"}.get(source, "JioSaavn")
     try:
         opener = transport or urllib.request.build_opener(_DiscoverNoRedirect())
         with opener.open(urllib.request.Request(url, headers=headers), timeout=timeout) as response:
@@ -3808,6 +3830,7 @@ _GENRE_LOCK = threading.Lock()
 _GENRE_QUEUE = {}
 _GENRE_WORKER = None
 _GENRE_RETRY_AT = 0
+_ENRICHMENT_RATE_LIMITS = {}
 
 
 def _vinyl_genre_key(value):
@@ -3825,11 +3848,9 @@ def _vinyl_top_genres(data):
                    if (genre := _vinyl_genre_key(tag.get("name")))})
 
 
-def _vinyl_genre_lookup(kind, item):
-    title = item["title"]
+def _vinyl_genre_lookup(kind, title, credits):
     if kind == "artists":
         return {"artist": title, "autocorrect": 1}
-    credits = item["hints"]["artists"]
     if credits:
         # Last.fm identifies tracks/albums by one artist, not a display byline.
         return {"artist": credits[0], _LASTFM_TOP_TAGS[kind].split(".")[0]: title, "autocorrect": 1}
@@ -3855,46 +3876,145 @@ def _vinyl_cached_genres(key):
 
 
 def _kworb_art_key(kind, params):
-    return _discover_hash(["kworb-art", _vinyl_genre_cache_key(kind, params)])
+    # Re-probe old hits and misses with the new artwork chain.
+    return _discover_hash(["kworb-art-v3", _vinyl_genre_cache_key(kind, params)])
 
 
-def _kworb_art_cover(kind, url):
-    return (_discover_cover(url, ("ytimg.com", "ggpht.com", "googleusercontent.com"))
-            if kind == "artists" else _lastfm_cover(url))
+def _art_bucket(key):
+    return "art/" + key[0]
 
 
-def _kworb_cached_art(kind, key):
+def _kworb_cached_art(key):
     def valid(value):
-        return (isinstance(value, dict) and isinstance(value.get("cover"), str)
-                and (not value["cover"] or bool(_kworb_art_cover(kind, value["cover"])))
-                and isinstance(value.get("album"), str) and len(value["album"]) <= 600)
+        if not isinstance(value, dict) or not isinstance(value.get("album"), str) or len(value["album"]) > 600:
+            return False
+        url, source = value.get("cover"), value.get("source")
+        if not isinstance(source, str):
+            return False
+        if hosts := _WEEK_ART_HOSTS.get(source):
+            return bool(_discover_cover(url, hosts))
+        return source == "" and url == ""
 
-    entry = _discover_read(key, valid, bucket="art/" + key[0])
+    entry = _discover_read(key, valid, bucket=_art_bucket(key))
     if entry and time.time() < entry["time"] + entry["ttl"]:
         return entry["value"]
     return None
 
 
-def _kworb_art(kind, params, youtube):
-    if kind == "artists":
-        rows = _call_provider(youtube().search, params["artist"], filter="artists", limit=6)
-        name = _catalogue_text_key(params["artist"])
-        for row in _discover_rows(rows):
-            if (_catalogue_text_key(row.get("artist") or row.get("title")) == name
-                    and re.fullmatch(r"UC[A-Za-z0-9_-]{22}", str(row.get("browseId") or ""))
-                    and isinstance(row.get("thumbnails"), list)):
-                image = cover({"thumbnails": _catalogue_safe_thumbnails(row)})
-                if image:
-                    return {"cover": image, "album": ""}
-        return {"cover": "", "album": ""}
+# Artwork matching has its own narrow allowances; tap/playback matching is unchanged.
+_ITUNES_FEATURE = re.compile(r"\s*\(feat(?:\.|uring)?\s+[^()]+\)", re.IGNORECASE)
+_ITUNES_TITLE_SUFFIX = re.compile(
+    r"\s+[-–—]\s+((?:(?!\s+[-–—]\s+)[^()\[\]])+)$|\s*\(([^()]+)\)$|\s*\[([^\[\]]+)\]$")
+_ITUNES_EDITION = re.compile(
+    r"(?:(?:super\s+)?deluxe|expanded|(?:\d+(?:st|nd|rd|th)\s+)?anniversary)(?:\s+edition)?"
+    r"|(?:\d{4}\s+)?remaster(?:ed)?(?:\s+\d{4})?"
+    r"|(?:standard|special|collector s|limited)\s+edition")
+
+
+def _itunes_title_key(title):
+    title = _ITUNES_FEATURE.sub("", unicodedata.normalize("NFKC", _discover_text(title)))
+    while match := _ITUNES_TITLE_SUFFIX.search(title):
+        suffix = _catalogue_text_key(next(part for part in match.groups() if part is not None))
+        if not (_ITUNES_EDITION.fullmatch(suffix) or (match[1] and suffix == "single")):
+            break
+        title = title[:match.start()].rstrip()
+    return _catalogue_text_key(title)
+
+
+def _kworb_itunes_art(kind, params):
+    song = kind == "songs"
+    name = params["artist"]
+    title = params["track" if song else "album"]
+    artist_key, title_key = _catalogue_text_key(name), _itunes_title_key(title)
+    if not artist_key or not title_key:
+        return "", ""
+    query = {"term": name + " " + title, "media": "music", "entity": "song" if song else "album", "limit": 5}
+    data, *_ = _discover_http("itunes", "search", query, timeout=4)
+    for row in _discover_rows(data.get("results") if isinstance(data, dict) else None, 5):
+        artist = _catalogue_text_key(_discover_text(row.get("artistName")))
+        # Match a complete credit within a collaboration, not a partial word.
+        padded = f" {artist} "
+        wanted = f" {artist_key} "
+        if (_itunes_title_key(row.get("trackName" if song else "collectionName")) != title_key
+                or not artist or (wanted not in padded and padded not in wanted)):
+            continue
+        if image := _discover_cover(row.get("artworkUrl100"), _WEEK_ART_HOSTS["itunes"]):
+            image = re.sub(r"(?<=/)100x100bb(?=[.?#-]|$)", "600x600bb", image, count=1)
+            return image, _discover_text(row.get("collectionName")) if song else ""
+    return "", ""
+
+
+def _kworb_deezer_art(name):
+    artist = _catalogue_text_key(name)
+    if not artist:
+        return "", ""
+    data, *_ = _discover_http("deezer", "search/artist", {"q": name, "limit": 5}, timeout=4)
+    for row in _discover_rows(data.get("data") if isinstance(data, dict) else None, 5):
+        if _catalogue_text_key(_discover_text(row.get("name"))) == artist:
+            for field in ("picture_xl", "picture_big"):
+                if image := _discover_cover(row.get(field), _WEEK_ART_HOSTS["deezer"]):
+                    return image, ""
+    return "", ""
+
+
+def _kworb_youtube_art(kind, params, youtube, album_hint):
+    artist = _catalogue_text_key(params["artist"])
     leaf = "track" if kind == "songs" else "album"
-    data, *_ = _discover_http("lastfm", leaf + ".getInfo", params, timeout=4)
-    info = data.get(leaf) if isinstance(data, dict) else None
-    if not isinstance(info, dict):
-        raise ProviderUnavailableError("Last.fm changed its artwork format.")
-    album = info.get("album") if kind == "songs" else info
-    return {"cover": _lastfm_image(album) if isinstance(album, dict) else "",
-            "album": _discover_text(album.get("title"))[:600] if kind == "songs" and isinstance(album, dict) else ""}
+    title = params.get(leaf, "")
+    query = " ".join(filter(None, (params["artist"], title)))[:600]
+    client = _call_provider(youtube)
+    rows = _call_provider(client.search, query, filter=kind, limit=6)
+    found_album = ""
+    for row in _discover_rows(rows):
+        if kind == "artists":
+            if (_catalogue_text_key(row.get("artist") or row.get("title")) != artist
+                    or not re.fullmatch(r"UC[A-Za-z0-9_-]{22}", str(row.get("browseId") or ""))):
+                continue
+        else:
+            credits = row.get("artists")
+            if (not isinstance(credits, list) or not any(isinstance(a, dict)
+                    and _catalogue_text_key(a.get("name")) == artist for a in credits)
+                    or _catalogue_text_key(row.get("title"), kind == "albums") != _catalogue_text_key(title, kind == "albums")):
+                continue
+        album = row.get("album")
+        album = _discover_text(album.get("name")) if kind == "songs" and isinstance(album, dict) else ""
+        if album_hint and album and _catalogue_text_key(album_hint, True) != _catalogue_text_key(album, True):
+            continue
+        image = cover({"thumbnails": _catalogue_safe_thumbnails(row)}) if isinstance(row.get("thumbnails"), list) else ""
+        if image:
+            return image, album
+        found_album = found_album or album
+    return "", found_album
+
+
+def _enrichment_available(source):
+    return time.monotonic() >= _ENRICHMENT_RATE_LIMITS.get(source, 0)
+
+
+def _enrichment_rate_limit(source, error):
+    _ENRICHMENT_RATE_LIMITS[source] = time.monotonic() + error.retry_after
+
+
+def _kworb_art(kind, params, youtube, album_hint=""):
+    album = params.get("album", "") or album_hint
+
+    primary = (("deezer", lambda: _kworb_deezer_art(params["artist"])) if kind == "artists"
+               else ("itunes", lambda: _kworb_itunes_art(kind, params)))
+    lookups = (primary, ("youtube-music", lambda: _kworb_youtube_art(kind, params, youtube, album)))
+    for source, lookup in lookups:
+        if not _enrichment_available(source):
+            continue
+        try:
+            image, found_album = lookup()
+        except RateLimitError as exc:
+            _enrichment_rate_limit(source, exc)
+            continue
+        except (ProviderError, ImportError):
+            continue
+        album = found_album or album
+        if image:
+            return {"cover": image, "album": album if kind == "songs" else "", "source": source}
+    return {"cover": "", "album": album if kind == "songs" else "", "source": ""}
 
 
 def _vinyl_tag_worker():
@@ -3912,46 +4032,51 @@ def _vinyl_tag_worker():
             if not _GENRE_QUEUE:
                 _GENRE_WORKER = None
                 return
-            key = next(iter(_GENRE_QUEUE))
-            kind, params, artwork = _GENRE_QUEUE[key]
+            # A pending cover should not wait behind a full chart's tag scan.
+            # None is a genre job; artwork jobs carry a (possibly empty) album hint.
+            key = next((k for k, job in _GENRE_QUEUE.items() if job[2] is not None), next(iter(_GENRE_QUEUE)))
+            kind, params, album_hint = _GENRE_QUEUE[key]
         try:
-            if artwork:
-                if _kworb_cached_art(kind, key) is None:
-                    art = _kworb_art(kind, params, youtube)
-                    _discover_write(key, {"time": time.time(), "ttl": _DISCOVER_ART_TTL, "staleAllowed": False,
-                                          "value": art}, bucket="art/" + key[0], file_limit=256)
-            elif _vinyl_cached_genres(key) is None:
+            if album_hint is not None:
+                if _kworb_cached_art(key) is None:
+                    art = _kworb_art(kind, params, youtube, album_hint)
+                    ttl = _DISCOVER_ART_TTL if art["cover"] else _LASTFM_TTL
+                    _discover_write(key, {"time": time.time(), "ttl": ttl, "staleAllowed": False,
+                                          "value": art}, bucket=_art_bucket(key), file_limit=256)
+            elif (time.monotonic() >= _GENRE_RETRY_AT and _enrichment_available("lastfm")
+                  and _vinyl_cached_genres(key) is None):
                 data, *_ = _discover_http("lastfm", _LASTFM_TOP_TAGS[kind], params, timeout=4)
                 genres = _vinyl_top_genres(data)
                 _discover_write(key, {"time": time.time(), "ttl": _VINYL_GENRE_TTL, "staleAllowed": False,
                                       "value": genres}, bucket=_vinyl_genre_bucket(key), file_limit=256)
-        except (RateLimitError, ProviderTimeoutError) as exc:
-            with _GENRE_LOCK:
-                _GENRE_RETRY_AT = time.monotonic() + getattr(exc, "retry_after", 30)
-                _GENRE_QUEUE.clear()
+        except RateLimitError as exc:
+            _enrichment_rate_limit("lastfm", exc)
+        except ProviderTimeoutError:
+            _GENRE_RETRY_AT = time.monotonic() + 30
         except (ProviderError, ImportError):
-            # A request failure is not a successful empty enrichment result.
+            # A failed genre lookup is not an empty genre result.
             pass
+        except Exception as exc:
+            # Never let one bad job strand later jobs behind a dead worker.
+            print(f"Vinyl: background enrichment failed ({type(exc).__name__}).", file=sys.stderr, flush=True)
         finally:
             with _GENRE_LOCK:
                 _GENRE_QUEUE.pop(key, None)
 
 
-def _vinyl_queue_genres(jobs):
+def _vinyl_queue_enrichment(jobs):
     global _GENRE_WORKER
     if not jobs or not os.environ.get("COLOSSEUM_VINYL_DISCOVER_CACHE_DIR"):
         return
     with _GENRE_LOCK:
-        if time.monotonic() < _GENRE_RETRY_AT:
-            return
         for key, job in jobs.items():
             if len(_GENRE_QUEUE) >= 1024:
                 break
             _GENRE_QUEUE.setdefault(key, job)
-        if _GENRE_WORKER is None:
-            # One enrichment pass, using the same Last.fm throttle as Popular.
-            _GENRE_WORKER = threading.Thread(target=_vinyl_tag_worker, name="vinyl-enrichment")
-            _GENRE_WORKER.start()
+        if _GENRE_QUEUE and _GENRE_WORKER is None:
+            worker = threading.Thread(target=_vinyl_tag_worker, name="vinyl-enrichment")
+            worker.start()
+            _GENRE_WORKER = worker
 
 
 def _vinyl_snapshot_page(snapshot, kind, list_key, genre, cursor, page_size, can_tag):
@@ -3963,22 +4088,22 @@ def _vinyl_snapshot_page(snapshot, kind, list_key, genre, cursor, page_size, can
         raise InvalidArgumentError("Invalid Vinyl catalogue cursor.")
     matches, jobs, art_jobs = [], {}, {}
     for index, item in enumerate(items):
-        params = _vinyl_genre_lookup(kind, item)
+        params = _vinyl_genre_lookup(kind, item["title"], item["hints"]["artists"])
         key = _vinyl_genre_cache_key(kind, params) if params else None
         genres = _vinyl_cached_genres(key) if key else []
         if genres is None and can_tag:
-            jobs[key] = (kind, params, False)
+            jobs[key] = (kind, params, None)
         if index >= offset and (genre == "all" or genre in (genres or [])):
             card = dict(item, genres=genres or [])
             if (len(matches) < page_size and params and item["source"] == "kworb" and not item["cover"]):
                 art_key = _kworb_art_key(kind, params)
-                art = _kworb_cached_art(kind, art_key)
+                art = _kworb_cached_art(art_key)
                 if art is not None:
                     card["cover"] = art["cover"]
                     if art["album"]:
                         card["hints"] = dict(card["hints"], album=art["album"])
-                elif (can_tag or kind == "artists") and os.environ.get("COLOSSEUM_VINYL_DISCOVER_CACHE_DIR"):
-                    art_jobs[art_key] = (kind, params, True)
+                elif os.environ.get("COLOSSEUM_VINYL_DISCOVER_CACHE_DIR"):
+                    art_jobs[art_key] = (kind, params, item["hints"].get("album", ""))
                     card["artPending"] = True
             matches.append((index, card))
     # Offsets refer to the unfiltered snapshot, not the growing set of matches.
@@ -3986,7 +4111,7 @@ def _vinyl_snapshot_page(snapshot, kind, list_key, genre, cursor, page_size, can
     # selection sees newly tagged cards from the start of the list.
     page = [item for _, item in matches[:page_size]]
     next_cursor = {"binding": binding, "offset": matches[page_size - 1][0] + 1} if len(matches) > page_size else {}
-    _vinyl_queue_genres({**art_jobs, **jobs})
+    _vinyl_queue_enrichment({**art_jobs, **jobs})
     return dict(snapshot, source="vinyl", kind=kind, list=list_key, genre=genre, items=page,
                 genresPending=bool(jobs), artPending=bool(art_jobs), complete=not next_cursor, nextCursor=next_cursor)
 
@@ -4226,21 +4351,32 @@ def resolve_catalogue_art(request):
     if source not in ("lastfm", "kworb") or not isinstance(items, list) or len(items) > 12:
         raise InvalidArgumentError("Invalid music catalogue artwork request.")
     if source == "kworb":
-        covers, albums, settled = {}, {}, []
+        covers, albums, settled, jobs = {}, {}, [], {}
+        can_queue = (os.environ.get("COLOSSEUM_VINYL_DISCOVER_CACHE_DIR")
+                     and os.environ.get("COLOSSEUM_VINYL_ART_POLL_ONLY") != "1")
         for item in items:
             row = _catalogue_input(item)
             if row["source"] != source:
                 raise InvalidArgumentError("Invalid weekly chart artwork request.")
             kind, item_id = row["kind"], row["id"]
-            params = _vinyl_genre_lookup(kind, item)
-            art = _kworb_cached_art(kind, _kworb_art_key(kind, params)) if params else None
+            params = _vinyl_genre_lookup(kind, row["title"], row["artists"])
+            if not params:
+                settled.append(item_id)
+                continue
+            key = _kworb_art_key(kind, params)
+            art = _kworb_cached_art(key)
             if art is not None:
                 settled.append(item_id)
                 if art["cover"]:
                     covers[item_id] = art["cover"]
                 if art["album"]:
                     albums[item_id] = art["album"]
-        return {"version": 1, "covers": covers, "albums": albums, "settled": settled}
+            elif can_queue:
+                jobs[key] = (kind, params, row["album"])
+        # The original browse helper may have exited or dropped its queue.
+        # Cold polls re-request missing work, without doing network I/O here.
+        _vinyl_queue_enrichment(jobs)
+        return {"version": 1, "covers": covers, "albums": albums, "settled": settled, "artPending": bool(jobs)}
     rows = {}
     for item in items:
         row = _catalogue_input(item)
