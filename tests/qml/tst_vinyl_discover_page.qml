@@ -75,7 +75,62 @@ TestCase {
         browser.itemOpenRequested(page.items[0]);compare(world.activated.id,"one");verify(world.activated.catalogueCard);
         compare(world.activated.source,"kworb");
     }
+    function test_widget_faces_and_home_captions() {
+        var first=entry("known","kworb","");
+        first.artist="Singer";
+        first.hints={album:"Debut"};
+        var second=entry("unknown","kworb","");
+        second.artist="Other singer";
+        reply(last(),[first,second]);
+        tryVerify(function(){return findChild(browser,"discoverCard_known")!==null;});
+        tryVerify(function(){
+            var widget=findChild(browser,"discoverCard_known_widget");
+            return widget!==null && widget instanceof Vinyl.VinylItemCard;
+        },2000,"Discover must use the VinylItemCard widget face");
+        var song=findChild(browser,"discoverCard_known_widget");
+        compare(song.captionTitle,"Singer · from Debut");
+        var art=findChild(song,"vinylSongArtwork");
+        verify(art!==null,"Expected the Home jukebox face");
+        compare(art.imageStatus,Image.Null);
+        verify(art.children.some(child=>child.visible && child.opacity===0.35),"Home's no-artwork glyph is visible");
+        tryVerify(function(){return findChild(browser,"discoverCard_unknown_widget")!==null;});
+        var other=findChild(browser,"discoverCard_unknown_widget");
+        compare(other.captionTitle,"Other singer");
+        mouseClick(song,song.width/2,song.width/2);
+        tryVerify(function(){return world.activated && world.activated.id==="known";});
+        keyClick(Qt.Key_Right);
+        keyClick(Qt.Key_Return);
+        tryVerify(function(){return world.activated && world.activated.id==="unknown";});
+
+        browser.selectType("albums");
+        var album=entry("album","kworb","");
+        album.kind="albums";album.artist="Band";
+        reply(last(),[album]);
+        tryVerify(function(){return findChild(browser,"discoverCard_album_widget")!==null;});
+        var jewel=findChild(browser,"discoverCard_album_widget");
+        verify(jewel!==null && jewel instanceof Vinyl.VinylItemCard);
+        compare(jewel.captionDetail,"Band");
+        var albumFace=findChild(jewel,"discoverCard_album_widget_cover");
+        verify(albumFace.item instanceof Vinyl.VinylAlbumWidget);
+        var albumArt=findChild(albumFace,"vinylArtworkImage").parent;
+        compare(albumArt.imageStatus,Image.Null);
+        verify(albumArt.children.some(child=>child.visible && child.opacity===0.35));
+
+        browser.selectType("artists");
+        var artist=entry("artist","kworb","");
+        artist.kind="artists";artist.title="Band Name";artist.artist=artist.title;
+        reply(last(),[artist]);
+        tryVerify(function(){return findChild(browser,"discoverCard_artist_widget")!==null;});
+        var record=findChild(browser,"discoverCard_artist_widget");
+        verify(record!==null && record instanceof Vinyl.VinylItemCard);
+        compare(record.captionDetail,"Artist");
+        verify(findChild(record,"vinylRecordMaterial")!==null);
+        var initials=findChild(record,"vinylArtistInitials");
+        verify(initials.visible);compare(initials.text,"BN");
+    }
     function test_list_and_genre_picker_without_language() {
+        var byline=findChild(browser,"vinylDiscoverHeadingProvider");
+        compare(byline.text,"This week");
         compare(browser.filterGroups.map(group=>group.group),["List","Genre"]);
         compare(browser.filterGroups[0].options.map(choice=>choice.label),["This week","Popular","New"]);
         compare(browser.filterGroups[1].options.length,24);
@@ -84,7 +139,9 @@ TestCase {
         pick("Genre","metal");compare(last().options.list,"chartWeek");compare(last().options.genre,"metal");
         compare(browser.filters.Genre,"metal");
         pick("List","popular");compare(last().options.list,"popular");compare(last().options.genre,"metal");
+        compare(byline.text,"Popular");
         pick("List","new");compare(last().options.list,"new");compare(last().options.genre,"metal");
+        compare(byline.text,"New");
         pick("Genre","rock");compare(last().options.list,"new");compare(last().options.genre,"rock");
         compare(browser.filters.List,"new");compare(browser.filters.Genre,"rock");
         browser.selectType("albums");compare(last().options.list,"chartWeek");
@@ -133,6 +190,27 @@ TestCase {
         tryVerify(function(){return last().id>call.id;});
         compare(last().options.items[0].id,"song-12");
         compare(last().options.items.length,12);
+    }
+    function test_week_art_arrives_without_replacing_the_widget() {
+        var song=entry("week","kworb","");
+        song.artist="Singer";song.artPending=true;
+        reply(last(),[song]);
+        compare(last().operation,"browseCatalogue");
+        verify(!browser.loading);
+        tryVerify(function(){return findChild(browser,"discoverCard_week_widget")!==null;});
+        var widget=findChild(browser,"discoverCard_week_widget");
+        compare(widget.captionTitle,"Singer");
+        tryVerify(function(){return last().operation==="resolveCatalogueArt";});
+        var call=last();compare(call.value,"kworb");
+        source.completed(call.lane,call.id,{version:1,covers:{},settled:[]},"");
+        tryVerify(function(){return last().id>call.id;});
+        call=last();
+        var cover=String(Qt.resolvedUrl("../../qml/vinyl/assets/record-ring.svg"));
+        source.completed(call.lane,call.id,{version:1,covers:{week:cover},albums:{week:"Debut"},settled:["week"]},"");
+        compare(page.items[0].cover,cover);
+        compare(findChild(browser,"discoverCard_week_widget"),widget);
+        compare(widget.captionTitle,"Singer · from Debut");
+        tryCompare(findChild(widget,"vinylSongArtwork"),"ready",true);
     }
     function test_next_page_cancels_art() {
         pick("List","popular");

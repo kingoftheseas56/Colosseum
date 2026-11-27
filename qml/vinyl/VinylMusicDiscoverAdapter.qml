@@ -42,6 +42,11 @@ QtObject {
 
     function combinesFilters(type, catalogKey) { return true; }
 
+    function headingByline(filters) {
+        var list = lists.find(choice => choice.key === filters[listGroup]);
+        return (list || lists[0]).label;
+    }
+
     function filters(type, catalogKey) {
         return [{group:listGroup,options:lists},
                 {group:genreGroup,options:[{key:"all",label:qsTr("All")}].concat(genres)}];
@@ -60,6 +65,7 @@ QtObject {
     }
 
     function cancelArt() {
+        artPoll.stop();
         var request=pendingArt;
         if(!request) return;
         pendingArt=null;
@@ -133,35 +139,76 @@ QtObject {
         if(request.genre!=="all" && data.genresPending===true)
             notices.push(qsTr("Genre results may be incomplete. Select the genre again to check for more."));
         browser.noticeText=notices.join(" · ");
-        if(request.list==="popular" && request.kind!=="albums") {
+        if(request.list==="chartWeek") {
+            Qt.callLater(root.resumeWeekArt);
+        } else if(request.list==="popular" && request.kind!=="albums") {
             var missing=items.filter(item=>!item.cover && item.raw.source==="lastfm").map(item=>item.raw);
             if(missing.length)
                 Qt.callLater(function(){root.requestArt(request,missing);});
         }
     }
 
+    // This week already queued its network work with genre tagging. This lane
+    // only reads completed cache entries, including across transient helpers.
+    function resumeWeekArt() {
+        if(!source || !browser.active || browser.loading || pendingArt || artPoll.running
+            || (browser.filters[listGroup] || "chartWeek")!=="chartWeek") return;
+        var missing=browser.items.filter(item=>item.raw.artPending===true).map(item=>item.raw);
+        if(missing.length)
+            requestArt({source:source,generation:browser.fetchGen,week:true,deadline:Date.now()+90000},missing);
+    }
+
+    property Timer artPoll: Timer {
+        interval: 1200
+        property var request
+        property var items
+        onTriggered: root.requestArt(request,items)
+    }
+
     function requestArt(request, items) {
         if(!items.length || !browser.active || browser.fetchGen!==request.generation || source!==request.source)
             return;
-        var id=source.request("catalogue-art","resolveCatalogueArt","lastfm",{items:items.slice(0,12)});
+        var batch=items.slice(0,12);
+        var id=source.request("catalogue-art","resolveCatalogueArt",request.week ? "kworb" : "lastfm",{items:batch});
         if(id>=0)
-            pendingArt={id:id,source:source,generation:request.generation,remaining:items.slice(12)};
+            pendingArt=Object.assign({},request,{id:id,batch:batch,remaining:items.slice(12)});
     }
 
     function acceptArt(id, data, error) {
         var request=pendingArt;
         if(!request || request.id!==id) return;
         pendingArt=null;
-        if(error || !data || data.version!==1 || !data.covers || !browser.active
-            || browser.fetchGen!==request.generation || source!==request.source) return;
+        if(error || !browser.active || browser.fetchGen!==request.generation || source!==request.source) return;
+        try {data=JSON.parse(JSON.stringify(data));} catch(conversionError) {data=null;}
+        if(!data || data.version!==1 || !data.covers || (request.week && !Array.isArray(data.settled))) return;
         // The gallery's model is indexed by row count. Only replace the card
         // payload at the same index so existing delegates retain focus and scroll.
-        browser.items=browser.items.map(function(item) {
-            var cover=data.covers[item.id];
-            return !item.cover && typeof cover==="string" && cover.length ? Object.assign({},item,{cover:cover}) : item;
-        });
-        if(request.remaining.length)
+        var settled=new Set(data.settled || []);
+        if(Object.keys(data.covers).length || settled.size) {
+            browser.items=browser.items.map(function(item) {
+                var candidate=data.covers[item.id];
+                var cover=item.cover || (typeof candidate==="string" ? candidate : "");
+                var album=data.albums && data.albums[item.id];
+                if(cover===item.cover && !settled.has(item.id)) return item;
+                var raw=Object.assign({},item.raw,{cover:cover,artPending:false});
+                if(typeof album==="string" && album) raw.hints=Object.assign({},raw.hints,{album:album});
+                return Object.assign({},item,{cover:cover,raw:raw});
+            });
+        }
+        if(request.week) {
+            var retry=(request.retry || []).concat(request.batch.filter(item=>!settled.has(item.id)));
+            if(request.remaining.length) {
+                request.retry=retry;
+                root.requestArt(request,request.remaining);
+            } else if(retry.length && Date.now()<request.deadline) {
+                request.retry=[];
+                artPoll.request=request;
+                artPoll.items=retry;
+                artPoll.start();
+            }
+        } else if(request.remaining.length) {
             Qt.callLater(function(){root.requestArt(request,request.remaining);});
+        }
     }
 
     onProfileGenerationChanged: reset()

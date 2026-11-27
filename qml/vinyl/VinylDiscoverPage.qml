@@ -41,12 +41,31 @@ Item {
         backdrop: root.backdrop
         fallbackType: "songs"
         posterVisualProfile: "gallery"
+        cardDelegate: Component {
+            VinylItemCard {
+                id: widget
+                objectName: parent.objectName + "_widget"
+                item: {
+                    var raw = parent.modelItem && parent.modelItem.raw;
+                    return raw ? Object.assign({}, raw, {albumTitle: raw.hints && raw.hints.album || ""}) : ({});
+                }
+                focusEnabled: false
+                worldData: QtObject {
+                    readonly property var session: root.session
+                    function artwork(cover) { return cover || ""; }
+                    function activate(item) { widget.parent.open(); }
+                }
+            }
+        }
         textNoCatalogue: qsTr("No music charts are available.")
         textCatalogueEmpty: qsTr("This chart returned no music.")
         textFilterEmpty: filters[music.genreGroup] ? qsTr("No music matches this genre.") : textCatalogueEmpty
         onItemOpenRequested: item => root.worldData.activate(item.raw)
-        onFetchGenChanged: music.cancelArt()
-        onActiveChanged: if(!active) music.cancelArt()
+        onFetchGenChanged: {
+            music.cancelArt();
+            Qt.callLater(music.resumeWeekArt);
+        }
+        onActiveChanged: if(active) Qt.callLater(music.resumeWeekArt); else music.cancelArt()
 
         textPageRetry: music.catalogueKeyMissing ? qsTr("Try again.") : qsTr("Couldn't reach the catalogue. Click to try again.")
 

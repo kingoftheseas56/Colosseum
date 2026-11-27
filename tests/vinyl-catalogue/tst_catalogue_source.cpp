@@ -63,11 +63,11 @@ EditorialRun runEditorialFixtures(const QString &cache, const QList<QJsonObject>
                   {"-I","-B",QStringLiteral(VINYL_FAKE_TRANSPORT),"--editorial-fixtures"});
     if(!process.waitForStarted(5000)) return {{},process.errorString().toUtf8()};
     for(const auto &request:requests) process.write(QJsonDocument(request).toJson(QJsonDocument::Compact)+'\n');
-    if(mode=="VINYL_TEST_TAGS_WAIT_FOR_REPLY"){
+    if(mode=="VINYL_TEST_TAGS_WAIT_FOR_REPLY" || mode=="VINYL_TEST_ART_WAIT_FOR_REPLY"){
         if(process.bytesAvailable()==0 && !process.waitForReadyRead(3500)){
             process.kill();
             process.waitForFinished(5000);
-            return {{},"No page was published while the fixture tag request was blocked."};
+            return {{},"No page was published while the enrichment fixture was blocked."};
         }
         QFile release(QDir(cache).filePath("page-replied"));
         if(!release.open(QIODevice::WriteOnly)) return {{},release.errorString().toUtf8()};
@@ -139,23 +139,24 @@ signals:
 class CatalogueSourceTest : public QObject {
     Q_OBJECT
 private slots:
-    void chartWeekParsesAndInterleavesByRank_data(){
+    void chartWeekUsesKworbOnlyInRankOrder_data(){
         QTest::addColumn<QString>("kind");
         QTest::addColumn<int>("count");
         QTest::addColumn<QString>("kworbTitle");
-        QTest::addColumn<QString>("youtubeTitle");
-        QTest::newRow("songs")<<QString("songs")<<9<<QString("BbY WOW")<<QString("DAI DAI! (From \"Fixture Film\")");
-        QTest::newRow("albums")<<QString("albums")<<3<<QString("Grand Theft Auto VI: The Album")<<QString();
-        QTest::newRow("artists")<<QString("artists")<<6<<QString("Bad Bunny")<<QString("Alka Yagnik");
+        QTest::addColumn<QString>("artist");
+        QTest::newRow("songs")<<QString("songs")<<4<<QString("BbY WOW")<<QString("KAROL G, Judeline, rusowsky");
+        QTest::newRow("albums")<<QString("albums")<<3<<QString("Grand Theft Auto VI: The Album")<<QString("Various Artists");
+        QTest::newRow("artists")<<QString("artists")<<3<<QString("Bad Bunny")<<QString("Bad Bunny");
     }
-    void chartWeekParsesAndInterleavesByRank(){
+    void chartWeekUsesKworbOnlyInRankOrder(){
         QFETCH(QString,kind);
         QFETCH(int,count);
         QFETCH(QString,kworbTitle);
-        QFETCH(QString,youtubeTitle);
+        QFETCH(QString,artist);
         QTemporaryDir cache;
         QVERIFY(cache.isValid());
-        const auto run=runEditorialFixtures(cache.path(),{chartWeek(kind)},"VINYL_TEST_NORMALISED_DUPLICATE");
+        const auto run=runEditorialFixtures(cache.path(),{chartWeek(kind)});
+        QVERIFY2(!run.diagnostics.contains("chart country:"),run.diagnostics.constData());
         QVERIFY2(run.answers.size()==1,run.diagnostics.constData());
         const auto data=run.data(0);
         const auto items=run.items(0);
@@ -165,18 +166,17 @@ private slots:
         QVERIFY(data.value("warning").toString().isEmpty());
         QCOMPARE(items.at(0).toObject().value("title").toString(),kworbTitle);
         QCOMPARE(items.at(0).toObject().value("rank").toInt(),1);
-        QCOMPARE(items.at(0).toObject().value("source").toString(),QString("kworb"));
-        if(!youtubeTitle.isEmpty()){
-            QCOMPARE(items.at(1).toObject().value("title").toString(),youtubeTitle);
-            QCOMPARE(items.at(1).toObject().value("rank").toInt(),1);
-            QCOMPARE(items.at(1).toObject().value("source").toString(),QString("youtube-music"));
-            QCOMPARE(items.at(2).toObject().value("rank").toInt(),2);
-            QCOMPARE(items.at(2).toObject().value("source").toString(),QString("kworb"));
+        QCOMPARE(items.at(0).toObject().value("artist").toString(),artist);
+        QCOMPARE(items.at(0).toObject().value("subtitle").toString(),artist);
+        QVERIFY(!items.at(0).toObject().value("hints").toObject().value("artists").toArray().isEmpty());
+        int rank=0;
+        for(const auto &item:items){
+            const auto card=item.toObject();
+            QCOMPARE(card.value("source").toString(),QString("kworb"));
+            QVERIFY(card.value("rank").toInt()>rank);
+            rank=card.value("rank").toInt();
         }
-        if(kind=="songs"){
-            QCOMPARE(items.at(0).toObject().value("artist").toString(),QString("KAROL G, Judeline, rusowsky"));
-            for(const auto &item:items) QVERIFY(item.toObject().value("rank").toInt()!=56); // Kworb's duplicate
-        }
+        if(kind=="songs") QCOMPARE(rank,56); // Preserve Kworb ranks even when the fixture has gaps.
     }
     void vinylRoutesThisWeekAndNewForEveryKind(){
         QTemporaryDir cache;
@@ -194,7 +194,7 @@ private slots:
         }
         QCOMPARE(run.items(0).size(),2);
         QCOMPARE(run.items(0).at(0).toObject().value("source").toString(),QString("kworb"));
-        QCOMPARE(run.items(0).at(1).toObject().value("source").toString(),QString("youtube-music"));
+        QCOMPARE(run.items(0).at(1).toObject().value("source").toString(),QString("kworb"));
         QVERIFY(!run.data(0).value("complete").toBool());
         for(int i=1;i<6;++i) QVERIFY(run.data(i).value("complete").toBool());
         QCOMPARE(run.items(3).first().toObject().value("title").toString(),QString("Fixture new track"));
@@ -256,6 +256,51 @@ private slots:
         QCOMPARE(next.items(0).first().toObject().value("title").toString(),QString("Dai Dai"));
         QVERIFY(next.data(0).value("complete").toBool());
         QCOMPARE(next.answers.at(1).value("errorCode").toString(),QString("invalid_argument"));
+    }
+    void vinylWeekArtFillsFromBackgroundAndReusesThirtyDayCache(){
+        QTemporaryDir cache;
+        QVERIFY(cache.isValid());
+        const QList<QJsonObject> pages{vinylBrowse("songs","chartWeek","all",1),
+            vinylBrowse("albums","chartWeek","all",1),vinylBrowse("artists","chartWeek","all",1)};
+        const auto cold=runEditorialFixtures(cache.path(),pages,"VINYL_TEST_ART_WAIT_FOR_REPLY");
+        QVERIFY2(cold.answers.size()==3,cold.diagnostics.constData());
+        QVERIFY(cold.diagnostics.contains("track.getInfo"));
+        QVERIFY(cold.diagnostics.contains("album.getInfo"));
+        QVERIFY(cold.diagnostics.contains("YouTube Music artist artwork: Bad Bunny"));
+        const QStringList expected{"https://lastfm-img.freetls.fastly.net/song.jpg",
+            "https://lastfm-img.freetls.fastly.net/album.jpg","https://lh3.googleusercontent.com/artist.jpg"};
+        QJsonArray items;
+        for(int i=0;i<3;++i){
+            QCOMPARE(cold.items(i).size(),1);
+            const auto item=cold.items(i).first().toObject();
+            QVERIFY(item.value("artPending").toBool());
+            QVERIFY(item.value("cover").toString().isEmpty());
+            items.append(item);
+        }
+        auto requests=pages;
+        requests.append(QJsonObject{{"operation","resolveCatalogueArt"},{"value","kworb"},{"items",items}});
+        const auto warm=runEditorialFixtures(cache.path(),requests);
+        QVERIFY2(warm.answers.size()==4,warm.diagnostics.constData());
+        QVERIFY2(warm.diagnostics.isEmpty(),warm.diagnostics.constData());
+        QCOMPARE(warm.data(3).value("settled").toArray().size(),3);
+        for(int i=0;i<3;++i){
+            const auto item=warm.items(i).first().toObject();
+            QCOMPARE(item.value("id"),items.at(i).toObject().value("id"));
+            QCOMPARE(item.value("cover").toString(),expected.at(i));
+            QCOMPARE(warm.data(3).value("covers").toObject().value(item.value("id").toString()).toString(),expected.at(i));
+        }
+        const auto track=warm.items(0).first().toObject();
+        QCOMPARE(track.value("hints").toObject().value("album").toString(),QString("Fixture song album"));
+        QCOMPARE(warm.data(3).value("albums").toObject().value(track.value("id").toString()).toString(),QString("Fixture song album"));
+        QDirIterator art(QDir(cache.path()).filePath("art"),{"discover-v1-*.json"},QDir::Files,QDirIterator::Subdirectories);
+        int entries=0;
+        while(art.hasNext()){
+            QFile file(art.next());
+            QVERIFY(file.open(QIODevice::ReadOnly));
+            QCOMPARE(QJsonDocument::fromJson(file.readAll()).object().value("ttl").toInt(),30*86400);
+            ++entries;
+        }
+        QCOMPARE(entries,3);
     }
     void vinylNewGenresUseTrackAlbumAndArtistTopTags(){
         QTemporaryDir cache;
@@ -326,10 +371,8 @@ private slots:
         const auto first=runEditorialFixtures(cache.path(),requests);
         QVERIFY2(first.answers.size()==requests.size(),first.diagnostics.constData());
         for(const auto &answer:first.answers) QVERIFY2(answer.value("ok").toBool(),first.diagnostics.constData());
-        QCOMPARE(first.diagnostics.count("chart country: ZZ"),1);
-        QCOMPARE(first.diagnostics.count("chart country: US"),1);
+        QVERIFY(!first.diagnostics.contains("chart country:"));
         QCOMPARE(first.diagnostics.count("chart path: /spotify/country/us_weekly.html"),1);
-        QCOMPARE(first.diagnostics.count("fixture: youtube-zz-top100.json"),1);
         QCOMPARE(first.data(2).value("scope").toString(),QString("US"));
         const auto second=runEditorialFixtures(cache.path(),requests);
         QCOMPARE(second.answers,first.answers);
@@ -343,15 +386,18 @@ private slots:
             QVERIFY(ttl==86400 || ttl==604800);
             ttl==86400 ? ++daily : ++weekly;
         }
-        QCOMPARE(daily,6);
+        QCOMPARE(daily,3);
         QCOMPARE(weekly,2);
     }
     void chartWeekKworbLayoutChangeFailsClosedAndLogsOnce(){
         QTemporaryDir cache;
         QVERIFY(cache.isValid());
         const auto songs=chartWeek("songs");
-        const auto run=runEditorialFixtures(cache.path(),{songs,chartWeek("artists"),songs},"VINYL_TEST_KWORB_CHANGED");
-        QVERIFY2(run.answers.size()==3,run.diagnostics.constData());
+        const auto run=runEditorialFixtures(cache.path(),{songs,chartWeek("artists"),songs,
+            vinylBrowse("songs","chartWeek")},"VINYL_TEST_KWORB_CHANGED");
+        QVERIFY2(run.answers.size()==4,run.diagnostics.constData());
+        QVERIFY(run.answers.at(3).value("ok").toBool());
+        QCOMPARE(run.items(3).size(),run.items(0).size());
         QCOMPARE(run.items(0).size(),6);
         QCOMPARE(run.items(1).size(),3);
         QCOMPARE(run.answers.at(2),run.answers.at(0));
@@ -538,15 +584,17 @@ private slots:
         QCOMPARE(provider.requestPayload("catalogue-item","resolveCatalogueArt","lastfm",{{"items",artItems}}),-1);
         QCOMPARE(provider.requestPayload("catalogue-art","resolveCatalogueArt","jiosaavn",{{"items",artItems}}),-1);
         QVariantList tooManyArtItems;for(int i=0;i<13;++i)tooManyArtItems.append(QVariantMap{});
-        QCOMPARE(provider.requestPayload("catalogue-art","resolveCatalogueArt","lastfm",{{"items",tooManyArtItems}}),-1);
-        QVERIFY(source.request("catalogue-art","resolveCatalogueArt","lastfm",{{"items",artItems}})>0);
-        QTRY_COMPARE_WITH_TIMEOUT(done.size(),2,10000);QVERIFY(done.last()[3].toString().isEmpty());
-        QCOMPARE(done.last()[2].toMap().value("request").toMap().value("items").toList(),artItems);
-        QCOMPARE(cacheTreeFileCount(cacheRoot),0);
+        int replies=1;
+        for(const auto &artSource:{QString("lastfm"),QString("kworb")}){
+            QCOMPARE(provider.requestPayload("catalogue-art","resolveCatalogueArt",artSource,{{"items",tooManyArtItems}}),-1);
+            QVERIFY(source.request("catalogue-art","resolveCatalogueArt",artSource,{{"items",artItems}})>0);
+            ++replies;QTRY_COMPARE_WITH_TIMEOUT(done.size(),replies,10000);QVERIFY(done.last()[3].toString().isEmpty());
+            QCOMPARE(done.last()[2].toMap().value("request").toMap().value("items").toList(),artItems);
+            QCOMPARE(cacheTreeFileCount(cacheRoot),0);
+        }
 
         const QVariantMap browseOptions{{"catalogueSource","lastfm"},{"kind","songs"},{"list","tag:rock"},
             {"cursor",QVariantMap{{"offset",0},{"token","next"}}}};
-        int replies=2;
         for(const auto &catalogueSource:{QString("lastfm"),QString("jiosaavn"),QString("vinyl")}){
             auto options=browseOptions;options["catalogueSource"]=catalogueSource;
             for(int attempt=0;attempt<2;++attempt){

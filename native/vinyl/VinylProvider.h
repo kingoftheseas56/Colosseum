@@ -222,7 +222,7 @@ public:
                 ||!QStringList{"songs","albums","artists"}.contains(item.toMap().value("kind").toString()))return -1;
         }else if(operation=="resolveCatalogueArt"){
             const auto items=payload.value("items");
-            if(lane!="catalogue-art"||value!="lastfm"||payload.size()!=1
+            if(lane!="catalogue-art"||(value!="lastfm"&&value!="kworb")||payload.size()!=1
                 ||items.metaType().id()!=QMetaType::QVariantList||items.toList().size()>12)return -1;
         }else if(lane.startsWith("catalogue-"))return -1;
         const bool warming=operation=="mediaWarmup";
@@ -263,7 +263,8 @@ public:
         else if(lane.startsWith("home-listening-"))warm=&m_homeListeningWarm;
         else if(QStringList{"search","catalogueSearch","artist","artistReleases","artistVideos","artistArtwork"}.contains(operation))
             warm=&m_browseWarm;
-        else if(QStringList{"browseCategories","browseCatalogue","resolveCatalogueItem","cataloguePage","album","relatedVideo"}.contains(operation))
+        else if((operation=="resolveCatalogueArt"&&value=="kworb")
+            ||QStringList{"browseCategories","browseCatalogue","resolveCatalogueItem","cataloguePage","album","relatedVideo"}.contains(operation))
             warm=&m_catalogueWarm;
         // Home cannot occupy a foreground warm worker. Overlap beyond the
         // warm pool and external helpers retain the one-shot contract.
@@ -327,8 +328,8 @@ public:
                     retireProcess(process);
                     if(!warming&&(!error.isEmpty()||cleanReply))replaceWorker(warm);
                 }
-            }else if(transientTagger&&cleanReply&&data.toMap().value("genresPending").toBool()
-                     &&process->state()==QProcess::Running){
+            }else if(transientTagger&&cleanReply&&process->state()==QProcess::Running
+                     &&(data.toMap().value("genresPending").toBool()||data.toMap().value("artPending").toBool())){
                 if(auto *previous=m_tagging.take(lane))retireProcess(previous);
                 m_tagging.insert(lane,process);
                 connect(process,&QProcess::readyReadStandardError,process,[process]{process->readAllStandardError();});

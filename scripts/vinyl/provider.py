@@ -113,11 +113,11 @@ def _youtube_dl(kind):
     return contextlib.nullcontext(_SERVER_VIDEO_DL)
 
 
-def _ytmusic_client(region, *, bounded=False, user_agent=None):
+def _ytmusic_client(region, *, bounded=False, user_agent=None, reuse=True):
     from ytmusicapi import YTMusic
     global _SERVER_MUSIC_CLIENT, _SERVER_MUSIC_KEY
     key = (region, bounded, user_agent)
-    if _SERVER_MODE and _SERVER_MUSIC_CLIENT is not None and _SERVER_MUSIC_KEY == key:
+    if reuse and _SERVER_MODE and _SERVER_MUSIC_CLIENT is not None and _SERVER_MUSIC_KEY == key:
         return _SERVER_MUSIC_CLIENT
     options = ytmusic_location_options(region)
     if bounded:
@@ -129,7 +129,7 @@ def _ytmusic_client(region, *, bounded=False, user_agent=None):
     client = YTMusic(**options)
     if user_agent:
         client.headers["User-Agent"] = user_agent
-    if _SERVER_MODE:
+    if reuse and _SERVER_MODE:
         _SERVER_MUSIC_CLIENT, _SERVER_MUSIC_KEY = client, key
     return client
 
@@ -3781,30 +3781,22 @@ def fetch_chart_week(request, client=None):
             if not _KWORB_LAYOUT_LOGGED:
                 print("Vinyl: Kworb chart layout changed; discarding Kworb rows.", file=sys.stderr, flush=True)
                 _KWORB_LAYOUT_LOGGED = True
-    try:
-        youtube, youtube_stamp, youtube_stale = _youtube_week(kind, scope, client)
-    except (ProviderError, ImportError):
-        if not kworb:
-            raise ProviderUnavailableError("No weekly chart is available for this request.") from None
-        youtube, warning = [], "YouTube Music chart is unavailable."
-    stamps, items, seen = [], [], set()
-    stale = False
     if kworb:
-        stamps.append(kworb_stamp)
-        stale |= kworb_stale
-    if youtube:
-        stamps.append(youtube_stamp)
-        stale |= youtube_stale
-    if not stamps:
-        raise ProviderUnavailableError("No weekly chart is available for this request.")
-    # Python's stable sort puts Kworb first on ties, without renumbering or
-    # interleaving by index when either source has gaps in its ranks.
-    for item in sorted(kworb + youtube, key=lambda item: item["rank"]):
+        rows, stamp, stale = kworb, kworb_stamp, kworb_stale
+    else:
+        try:
+            rows, stamp, stale = _youtube_week(kind, scope, client)
+        except (ProviderError, ImportError):
+            raise ProviderUnavailableError("No weekly chart is available for this request.") from None
+        if not rows:
+            raise ProviderUnavailableError("No weekly chart is available for this request.")
+    items, seen = [], set()
+    for item in sorted(rows, key=lambda item: item["rank"]):
         key = _chart_key(kind, item["title"], item["hints"]["artists"])
         if key not in seen:
             seen.add(key)
             items.append(item)
-    return _editorial_envelope("chart-week", items, min(stamps), stale, kind=kind, scope=scope, warning=warning,
+    return _editorial_envelope("chart-week", items, stamp, stale, kind=kind, scope=scope, warning=warning,
                                kworbScope=kworb_scope if kworb else "")
 
 
@@ -3862,17 +3854,73 @@ def _vinyl_cached_genres(key):
     return None
 
 
+def _kworb_art_key(kind, params):
+    return _discover_hash(["kworb-art", _vinyl_genre_cache_key(kind, params)])
+
+
+def _kworb_art_cover(kind, url):
+    return (_discover_cover(url, ("ytimg.com", "ggpht.com", "googleusercontent.com"))
+            if kind == "artists" else _lastfm_cover(url))
+
+
+def _kworb_cached_art(kind, key):
+    def valid(value):
+        return (isinstance(value, dict) and isinstance(value.get("cover"), str)
+                and (not value["cover"] or bool(_kworb_art_cover(kind, value["cover"])))
+                and isinstance(value.get("album"), str) and len(value["album"]) <= 600)
+
+    entry = _discover_read(key, valid, bucket="art/" + key[0])
+    if entry and time.time() < entry["time"] + entry["ttl"]:
+        return entry["value"]
+    return None
+
+
+def _kworb_art(kind, params, youtube):
+    if kind == "artists":
+        rows = _call_provider(youtube().search, params["artist"], filter="artists", limit=6)
+        name = _catalogue_text_key(params["artist"])
+        for row in _discover_rows(rows):
+            if (_catalogue_text_key(row.get("artist") or row.get("title")) == name
+                    and re.fullmatch(r"UC[A-Za-z0-9_-]{22}", str(row.get("browseId") or ""))
+                    and isinstance(row.get("thumbnails"), list)):
+                image = cover({"thumbnails": _catalogue_safe_thumbnails(row)})
+                if image:
+                    return {"cover": image, "album": ""}
+        return {"cover": "", "album": ""}
+    leaf = "track" if kind == "songs" else "album"
+    data, *_ = _discover_http("lastfm", leaf + ".getInfo", params, timeout=4)
+    info = data.get(leaf) if isinstance(data, dict) else None
+    if not isinstance(info, dict):
+        raise ProviderUnavailableError("Last.fm changed its artwork format.")
+    album = info.get("album") if kind == "songs" else info
+    return {"cover": _lastfm_image(album) if isinstance(album, dict) else "",
+            "album": _discover_text(album.get("title"))[:600] if kind == "songs" and isinstance(album, dict) else ""}
+
+
 def _vinyl_tag_worker():
     global _GENRE_WORKER, _GENRE_RETRY_AT
+    client = None
+
+    def youtube():
+        # The background thread must not share the foreground HTTP session.
+        nonlocal client
+        if client is None:
+            client = _ytmusic_client("", bounded=True, user_agent=_CHART_USER_AGENT, reuse=False)
+        return client
     while True:
         with _GENRE_LOCK:
             if not _GENRE_QUEUE:
                 _GENRE_WORKER = None
                 return
             key = next(iter(_GENRE_QUEUE))
-            kind, params = _GENRE_QUEUE[key]
+            kind, params, artwork = _GENRE_QUEUE[key]
         try:
-            if _vinyl_cached_genres(key) is None:
+            if artwork:
+                if _kworb_cached_art(kind, key) is None:
+                    art = _kworb_art(kind, params, youtube)
+                    _discover_write(key, {"time": time.time(), "ttl": _DISCOVER_ART_TTL, "staleAllowed": False,
+                                          "value": art}, bucket="art/" + key[0], file_limit=256)
+            elif _vinyl_cached_genres(key) is None:
                 data, *_ = _discover_http("lastfm", _LASTFM_TOP_TAGS[kind], params, timeout=4)
                 genres = _vinyl_top_genres(data)
                 _discover_write(key, {"time": time.time(), "ttl": _VINYL_GENRE_TTL, "staleAllowed": False,
@@ -3881,8 +3929,8 @@ def _vinyl_tag_worker():
             with _GENRE_LOCK:
                 _GENRE_RETRY_AT = time.monotonic() + getattr(exc, "retry_after", 30)
                 _GENRE_QUEUE.clear()
-        except ProviderError:
-            # A request failure is not a successful empty tag result.
+        except (ProviderError, ImportError):
+            # A request failure is not a successful empty enrichment result.
             pass
         finally:
             with _GENRE_LOCK:
@@ -3901,8 +3949,8 @@ def _vinyl_queue_genres(jobs):
                 break
             _GENRE_QUEUE.setdefault(key, job)
         if _GENRE_WORKER is None:
-            # Only this worker tags items. It uses the same Last.fm throttle as Popular.
-            _GENRE_WORKER = threading.Thread(target=_vinyl_tag_worker, name="vinyl-genres")
+            # One enrichment pass, using the same Last.fm throttle as Popular.
+            _GENRE_WORKER = threading.Thread(target=_vinyl_tag_worker, name="vinyl-enrichment")
             _GENRE_WORKER.start()
 
 
@@ -3913,23 +3961,34 @@ def _vinyl_snapshot_page(snapshot, kind, list_key, genre, cursor, page_size, can
     if cursor and (set(cursor) != {"binding", "offset"} or cursor["binding"] != binding
                    or type(offset) is not int or not 0 < offset < len(items) or (genre == "all" and offset % page_size)):
         raise InvalidArgumentError("Invalid Vinyl catalogue cursor.")
-    matches, jobs = [], {}
+    matches, jobs, art_jobs = [], {}, {}
     for index, item in enumerate(items):
         params = _vinyl_genre_lookup(kind, item)
         key = _vinyl_genre_cache_key(kind, params) if params else None
         genres = _vinyl_cached_genres(key) if key else []
         if genres is None and can_tag:
-            jobs[key] = (kind, params)
+            jobs[key] = (kind, params, False)
         if index >= offset and (genre == "all" or genre in (genres or [])):
-            matches.append((index, dict(item, genres=genres or [])))
+            card = dict(item, genres=genres or [])
+            if (len(matches) < page_size and params and item["source"] == "kworb" and not item["cover"]):
+                art_key = _kworb_art_key(kind, params)
+                art = _kworb_cached_art(kind, art_key)
+                if art is not None:
+                    card["cover"] = art["cover"]
+                    if art["album"]:
+                        card["hints"] = dict(card["hints"], album=art["album"])
+                elif (can_tag or kind == "artists") and os.environ.get("COLOSSEUM_VINYL_DISCOVER_CACHE_DIR"):
+                    art_jobs[art_key] = (kind, params, True)
+                    card["artPending"] = True
+            matches.append((index, card))
     # Offsets refer to the unfiltered snapshot, not the growing set of matches.
     # New tags cannot move or duplicate cards in a continuation; a fresh filter
     # selection sees newly tagged cards from the start of the list.
     page = [item for _, item in matches[:page_size]]
     next_cursor = {"binding": binding, "offset": matches[page_size - 1][0] + 1} if len(matches) > page_size else {}
-    _vinyl_queue_genres(jobs)
+    _vinyl_queue_genres({**art_jobs, **jobs})
     return dict(snapshot, source="vinyl", kind=kind, list=list_key, genre=genre, items=page,
-                genresPending=bool(jobs), complete=not next_cursor, nextCursor=next_cursor)
+                genresPending=bool(jobs), artPending=bool(art_jobs), complete=not next_cursor, nextCursor=next_cursor)
 
 
 def _youtube_new(kind, client, refresh):
@@ -4163,8 +4222,25 @@ def resolve_catalogue_item(request, client):
 
 def resolve_catalogue_art(request):
     items = request.get("items")
-    if request.get("value") != "lastfm" or not isinstance(items, list) or len(items) > 12:
+    source = request.get("value")
+    if source not in ("lastfm", "kworb") or not isinstance(items, list) or len(items) > 12:
         raise InvalidArgumentError("Invalid music catalogue artwork request.")
+    if source == "kworb":
+        covers, albums, settled = {}, {}, []
+        for item in items:
+            row = _catalogue_input(item)
+            if row["source"] != source:
+                raise InvalidArgumentError("Invalid weekly chart artwork request.")
+            kind, item_id = row["kind"], row["id"]
+            params = _vinyl_genre_lookup(kind, item)
+            art = _kworb_cached_art(kind, _kworb_art_key(kind, params)) if params else None
+            if art is not None:
+                settled.append(item_id)
+                if art["cover"]:
+                    covers[item_id] = art["cover"]
+                if art["album"]:
+                    albums[item_id] = art["album"]
+        return {"version": 1, "covers": covers, "albums": albums, "settled": settled}
     rows = {}
     for item in items:
         row = _catalogue_input(item)

@@ -14,6 +14,7 @@
 //   resolvePin(pin)         -> { missing, type, catalogKey, filterGroup, filterKey, missingName }
 //                              (optionally `filters: { group: key }` instead of the single pair)
 //   combinesFilters(type, catalog) -> bool (optional; default false = one filter at a time)
+//   headingByline(filters) -> string (optional; defaults to the source name)
 //   fetchPage(state, cursor, generation, done)   // done(generation, page)
 //     state = { type, catalogKey, filters: { group: key }, filterGroup, filterKey }
 //     (filterGroup/filterKey = the first active pair, for single-filter sources)
@@ -73,6 +74,9 @@ Item {
 
     // ── injected world seam ──
     property var adapter: null
+    // Optional square-faced card with up to 64 px of caption. Its Loader parent
+    // supplies modelItem and open(); the grid remains the only keyboard stop.
+    property Component cardDelegate: null
     // Retained worlds stay instantiated for state preservation. The host drives this seam so a
     // hidden world does not start paging or keep accepting callbacks while another world is visible.
     property bool active: true
@@ -874,8 +878,8 @@ Item {
                 objectName: browser.automationPrefix.length ? browser.automationPrefix + "DiscoverHeadingProvider" : ""
                 anchors.right: parent.right
                 anchors.top: summary.bottom; anchors.topMargin: 7
-                // honest attribution — the owning source (as the sidebar names it). NO invented total.
-                text: browser.currentSource
+                text: browser.adapter && typeof browser.adapter.headingByline === "function"
+                      ? browser.adapter.headingByline(browser.filters) : browser.currentSource
                 color: theme.inkDim
                 font.family: theme.ui; font.pixelSize: 13; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
             }
@@ -1117,10 +1121,11 @@ Item {
                 // on EXACTLY wallPosterWidth, not floor(width/columnCount)'s residual-inflated value.
                 ? (browser.wallPosterWidth + 14)
                 : Math.floor(parent.width / columnCount)
-            cellHeight: browser._galleryPosters
-                ? (Math.floor((cellWidth - gapX) * browser._galleryMetrics.posterRatio)
-                   + 10 + browser._galleryMetrics.titleMinHeight + gapY + 6)
-                : (Math.floor(cellWidth * 1.62) + 34)
+            cellHeight: browser.cardDelegate ? cellWidth - gapX + 64 + gapY
+                : browser._galleryPosters
+                  ? (Math.floor((cellWidth - gapX) * browser._galleryMetrics.posterRatio)
+                     + 10 + browser._galleryMetrics.titleMinHeight + gapY + 6)
+                  : (Math.floor(cellWidth * 1.62) + 34)
             cacheBuffer: browser.pageFlow ? 0 : cellHeight * 2
             // in-grid skeletons reserve EXACT cell space (no layout jump when art lands):
             // fill the viewport on the first page, one trailing row while paging.
@@ -1191,9 +1196,36 @@ Item {
                 }
             }
 
-            // The poster tile is now the shared CataloguePosterCard (identical rendering);
-            // the wall keeps ownership of skeleton math, keyboard focus, and activation.
-            delegate: CataloguePosterCard {
+            delegate: browser.cardDelegate ? customCell : posterCell
+            function openCard(index, item) {
+                wall.forceActiveFocus()
+                browser.keyboardMode = false
+                wall.currentIndex = index
+                browser.itemOpenRequested(item)
+            }
+            Component {
+                id: customCell
+                Loader {
+                    id: face
+                    required property int index
+                    readonly property var modelItem: browser.items[index] || null
+                    objectName: modelItem ? "discoverCard_" + modelItem.id : ""
+                    width: wall.cellWidth - wall.gapX
+                    height: wall.cellHeight - wall.gapY
+                    sourceComponent: modelItem ? browser.cardDelegate : skeletonCell
+                    function open() { if (modelItem) wall.openCard(index, modelItem) }
+                    FocusRing {
+                        width: face.width; height: width
+                        radius: 10
+                        shown: !!face.modelItem && browser.keyboardMode && face.index === wall.currentIndex
+                    }
+                }
+            }
+            Component {
+                id: skeletonCell
+                CataloguePosterCard { skeleton: true; squareArtwork: true; visualProfile: browser.posterVisualProfile }
+            }
+            readonly property Component posterCell: CataloguePosterCard {
                 id: card
                 required property int index
                 readonly property bool isSkel: card.index >= browser.items.length
@@ -1225,12 +1257,7 @@ Item {
                 skeleton: card.isSkel
                 item: card.isSkel ? null : browser.items[card.index]
                 keyboardFocused: !card.isSkel && browser.keyboardMode && card.index === wall.currentIndex
-                onActivated: (it) => {
-                    wall.forceActiveFocus()
-                    browser.keyboardMode = false
-                    wall.currentIndex = card.index
-                    browser.itemOpenRequested(it)               // a click opens the title (Stremio)
-                }
+                onActivated: (it) => wall.openCard(card.index, it)
             }
 
             // honest empty state (skeletons now live in-grid, reserving exact cells). Data-vault

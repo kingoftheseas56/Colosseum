@@ -26,6 +26,15 @@ def serve_editorial_fixtures():
         print("fixture: " + name, file=sys.stderr)
         return (fixtures / name).read_bytes()
 
+    def wait_for_page_reply(mode):
+        if os.environ.get(mode):
+            marker = Path(os.environ["COLOSSEUM_VINYL_DISCOVER_CACHE_DIR"]) / "page-replied"
+            deadline = time.monotonic() + 5
+            while not marker.exists():
+                if time.monotonic() >= deadline:
+                    raise RuntimeError("The page did not reply before enrichment completed")
+                time.sleep(0.01)
+
     class Response(io.BytesIO):
         headers = {}
         status = 200
@@ -40,14 +49,18 @@ def serve_editorial_fixtures():
                 assert params["api_key"] == fake_lastfm_key
                 method = params["method"]
                 print("Last.fm method: " + method + " " + params.get("tag", ""), file=sys.stderr)
+                if method in ("track.getInfo", "album.getInfo"):
+                    wait_for_page_reply("VINYL_TEST_ART_WAIT_FOR_REPLY")
+                    assert params["autocorrect"] == "1"
+                    if params.get("track") == "BbY WOW":
+                        assert params["artist"] == "KAROL G"
+                        return Response(b'{"track":{"album":{"title":"Fixture song album","image":[{"#text":"https://lastfm.freetls.fastly.net/bad.jpg"},{"#text":"https://lastfm-img.freetls.fastly.net/song.jpg"}]}}}')
+                    if params.get("album") == "Grand Theft Auto VI: The Album":
+                        assert params["artist"] == "Various Artists"
+                        return Response(b'{"album":{"image":[{"#text":"https://lastfm-img.freetls.fastly.net/album.jpg"}]}}')
+                    return Response(b'{"track":{}}' if method.startswith("track") else b'{"album":{}}')
                 if method in ("track.getTopTags", "album.getTopTags", "artist.getTopTags"):
-                    if os.environ.get("VINYL_TEST_TAGS_WAIT_FOR_REPLY"):
-                        marker = Path(os.environ["COLOSSEUM_VINYL_DISCOVER_CACHE_DIR"]) / "page-replied"
-                        deadline = time.monotonic() + 5
-                        while not marker.exists():
-                            if time.monotonic() >= deadline:
-                                raise RuntimeError("The page did not reply before tagging completed")
-                            time.sleep(0.01)
+                    wait_for_page_reply("VINYL_TEST_TAGS_WAIT_FOR_REPLY")
                     leaf = method.split(".")[0]
                     assert params["autocorrect"] == "1"
                     if params.get("track") in ("BbY WOW", "Dai Dai", "Fixture new track"):
@@ -110,16 +123,23 @@ def serve_editorial_fixtures():
         def get_playlist(self, playlist_id, *, limit):
             playlist = json.loads(fixture("youtube-zz-top100.json"))
             assert playlist_id == playlist["id"] and limit == 100
-            if os.environ.get("VINYL_TEST_NORMALISED_DUPLICATE"):
-                # The same Spotify/YouTube hit, with a different spelling of
-                # the title and reverse credit order, to prove normalisation.
-                row = next(row for row in playlist["tracks"] if row["title"] == "Dai Dai")
-                row["title"] = 'DAI DAI! (From "Fixture Film")'
-                row["artists"].reverse()
             return playlist
 
-    def make_youtube(region, *, bounded, user_agent):
-        assert region in ("", "US") and bounded and user_agent == ua
+        def search(self, query, *, filter, limit):
+            assert limit == 6
+            if filter == "artists":
+                print("YouTube Music artist artwork: " + query, file=sys.stderr)
+                wait_for_page_reply("VINYL_TEST_ART_WAIT_FOR_REPLY")
+                return [{"artist": "Not the artist", "browseId": "UCaaaaaaaaaaaaaaaaaaaaaa",
+                         "thumbnails": [{"url": "https://lh3.googleusercontent.com/unrelated.jpg"}]},
+                        {"artist": query, "browseId": "UCedvOgsKFzcK3hA5taf3KoQ",
+                         "thumbnails": [{"url": "https://lh3.googleusercontent.com/artist.jpg"}]}]
+            assert filter == "songs" and query == "Ashe Stop The Wedding!"
+            return [{"title": "Stop The Wedding!", "artists": [{"name": "Ashe"}], "videoId": "zyxwvutsrqp",
+                     "videoType": "MUSIC_VIDEO_TYPE_ATV"}]
+
+    def make_youtube(region, *, bounded=False, user_agent=None, reuse=True):
+        assert region in ("", "US") and (not bounded or user_agent == ua)
         return FixtureYouTube()
 
     with patch.object(provider.urllib.request, "build_opener", return_value=FixtureHttp()), \
