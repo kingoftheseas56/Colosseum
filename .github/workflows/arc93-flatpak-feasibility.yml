@@ -1,0 +1,53 @@
+name: Arc 93 A - Flatpak feasibility (non-release)
+on:
+  push:
+    branches: ['preflight/arc93-a-flatpak-feasibility-20261127']
+    paths: ['.github/workflows/arc93-flatpak-feasibility.yml', 'tools/flatpak-feasibility/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: tools/flatpak-feasibility
+      - name: Install tools and inventory SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p arc93-output
+          uname -a | tee arc93-output/runner.txt
+          df -h | tee -a arc93-output/runner.txt
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends flatpak flatpak-builder xvfb xauth dbus-x11
+          flatpak --version | tee arc93-output/flatpak-version.txt
+          flatpak-builder --version | tee -a arc93-output/flatpak-version.txt
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak remote-info --user flathub org.kde.Sdk//6.11 | tee arc93-output/sdk-remote.txt
+          flatpak remote-info --user flathub io.qt.qtwebengine.BaseApp//6.11 | tee arc93-output/webengine-remote.txt
+          flatpak install --user --noninteractive -y flathub org.kde.Platform//6.11 org.kde.Sdk//6.11
+          flatpak info --user org.kde.Sdk//6.11 | tee arc93-output/sdk-installed.txt
+          flatpak run --command=sh org.kde.Sdk//6.11 -c 'qtpaths --qt-version || true; for pc in libsecret-1 libavcodec libavformat openssl mpv; do printf "%s: " "$pc"; pkg-config --modversion "$pc" || true; done; find /usr -name "Qt6Quick3DConfig.cmake" -o -name "Qt6QuickTimelineConfig.cmake"' | tee arc93-output/sdk-inventory.txt
+      - name: Build and export exact v1.5.0 source (candidate only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          flatpak-builder --user --install-deps-from=flathub --force-clean --jobs=2 --repo="$RUNNER_TEMP/arc93-repo" "$RUNNER_TEMP/arc93-build" tools/flatpak-feasibility/io.github.kingoftheseas56.Colosseum.json 2>&1 | tee arc93-output/build.log
+          flatpak info --user io.qt.qtwebengine.BaseApp//6.11 > arc93-output/webengine-installed.txt || true
+          flatpak build-bundle "$RUNNER_TEMP/arc93-repo" arc93-output/Colosseum-1.5.0-arc93-a-x86_64.flatpak io.github.kingoftheseas56.Colosseum arc93-a
+          sha256sum arc93-output/*.flatpak | tee arc93-output/SHA256SUMS
+          flatpak install --user --noninteractive -y arc93-output/Colosseum-1.5.0-arc93-a-x86_64.flatpak
+      - name: Installed app and WebEngine smoke
+        shell: bash
+        run: |
+          dbus-run-session -- xvfb-run -a -s '-screen 0 1366x900x24' bash tools/flatpak-feasibility/smoke.sh arc93-output
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Colosseum-1.5.0-arc93-A-feasibility
+          path: arc93-output/
+          retention-days: 7
+          if-no-files-found: error
