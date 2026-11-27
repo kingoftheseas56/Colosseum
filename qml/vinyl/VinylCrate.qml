@@ -14,7 +14,7 @@ Item {
     property int page: 0
     readonly property int count: items ? items.length : 0
     readonly property int columns: Math.max(1, Math.min(8, Math.floor(width / tileSize)))
-    readonly property int pageSize: columns * 2
+    readonly property int pageSize: columns // one row (Hemanth, 2026-11-28)
     readonly property int pageCount: Math.ceil(count / pageSize)
     readonly property var pageItems: items ? items.slice(page * pageSize, (page + 1) * pageSize) : []
     readonly property int currentPage: page

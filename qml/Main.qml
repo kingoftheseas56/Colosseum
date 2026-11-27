@@ -4686,7 +4686,8 @@ Window {
         id: vinylWall
         objectName: "vinylBrowseWall"
         parent: dockScene
-        z: -1
+        // Above the shared wallpaper (z -1, created after this item) and below the pages.
+        z: -0.5
         anchors.fill: parent
         color: theme.vinylBackground
         visible: worldStack.current === "Vinyl" && wall.visible

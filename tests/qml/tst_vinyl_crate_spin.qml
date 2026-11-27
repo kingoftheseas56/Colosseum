@@ -47,11 +47,11 @@ TestCase {
         page.contentY=0; mouseMove(test,width-2,height-2);
     }
     function click(node,x,y) { verify(node!==null); verify(node.visible && node.enabled); mouseMove(node,x===undefined ? node.width/2 : x,y===undefined ? node.height/2 : y); verify(waitForRendering(node)); mouseClick(node,x,y); }
-    function test_crateSixteenMixedSquareFacesInTwoRowsOfEight() {
+    function test_crateMixedSquareFacesInOneRowOfEight() {
         makeCrate(mixed(16)); compare(crate.objectName,"vinylCrate"); compare(crate.count,16);
-        compare(crate.columns,8); compare(crate.pageSize,16); compare(crate.pageCount,1);
+        compare(crate.columns,8); compare(crate.pageSize,8); compare(crate.pageCount,2);
         var kinds=[];
-        for(var i=0;i<16;++i){
+        for(var i=0;i<8;++i){
             var tile=findChild(crate,"vinylCrateTile_"+i); verify(tile!==null); kinds.push(tile.kind);
             var face=findChild(tile,"vinylCrateTile_"+i+"_card_cover");
             verify(face !== null);
@@ -61,9 +61,9 @@ TestCase {
             if(tile.kind==="songs") { compare(card.captionTitle,"Fixture "+i); compare(card.captionDetail,"Fixture artist · from Fixture album"); }
         }
         for(var kind of ["albums","artists","songs","mixes","radio"]) verify(kinds.indexOf(kind)>=0);
-        var first=findChild(crate,"vinylCrateTile_0"), eighth=findChild(crate,"vinylCrateTile_7"), ninth=findChild(crate,"vinylCrateTile_8");
-        compare(first.y,eighth.y); verify(ninth.y>first.y); compare(first.x,ninth.x);
-        compare(findChild(crate,"vinylCrateTile_16"),null);
+        var first=findChild(crate,"vinylCrateTile_0"), eighth=findChild(crate,"vinylCrateTile_7");
+        compare(first.y,eighth.y);
+        compare(findChild(crate,"vinylCrateTile_8"),null,"The Crate is a single row");
         compare(findChild(crate,"vinylCrateCaption"),null,"Hemanth removed the caption");
     }
     function test_crateResumeUsesExactOwnerTrackAndGoldCaption() {
@@ -111,8 +111,8 @@ TestCase {
         compare(opened.count,1); compare(activated.count,0);
     }
     function test_cratePagingAndNoTasteCard() {
-        makeCrate(mixed(17)); compare(crate.pageCount,2); click(findChild(crate,"vinylCrateNext"));
-        tryCompare(crate,"page",1); verify(findChild(crate,"vinylCrateTile_16")!==null); compare(findChild(crate,"vinylCrateTile_0"),null);
+        makeCrate(mixed(17)); compare(crate.pageCount,3); click(findChild(crate,"vinylCrateNext"));
+        tryCompare(crate,"page",1); verify(findChild(crate,"vinylCrateTile_8")!==null); compare(findChild(crate,"vinylCrateTile_0"),null);
         click(findChild(crate,"vinylCratePrevious")); tryCompare(crate,"page",0);
         crate.items=[]; tryCompare(crate,"count",0);
         compare(findChild(crate,"vinylCrateTasteCard"),null); // the taste card is gone; the gate owns the picker
