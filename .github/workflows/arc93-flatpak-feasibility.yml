@@ -22,7 +22,7 @@ jobs:
           uname -a | tee arc93-output/runner.txt
           df -h | tee -a arc93-output/runner.txt
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends flatpak flatpak-builder elfutils xvfb xauth dbus-x11
+          sudo apt-get install -y --no-install-recommends flatpak flatpak-builder elfutils xvfb xauth dbus-x11 ffmpeg pulseaudio pulseaudio-utils
           command -v eu-strip
           command -v eu-elfcompress
           flatpak --version | tee arc93-output/flatpak-version.txt
@@ -42,7 +42,7 @@ jobs:
           flatpak build-bundle "$RUNNER_TEMP/arc93-repo" arc93-output/Colosseum-1.5.0-arc93-a-x86_64.flatpak io.github.kingoftheseas56.Colosseum arc93-a
           sha256sum arc93-output/*.flatpak | tee arc93-output/SHA256SUMS
           flatpak install --user --noninteractive -y arc93-output/Colosseum-1.5.0-arc93-a-x86_64.flatpak
-      - name: Installed app and WebEngine smoke
+      - name: Installed Home, WebEngine, profile and Player 1 qualification
         shell: bash
         run: |
           dbus-run-session -- xvfb-run -a -s '-screen 0 1366x900x24' bash tools/flatpak-feasibility/smoke.sh arc93-output

@@ -7,7 +7,7 @@ proof="$HOME/.var/app/$id/data/arc93-proof"
 mkdir -p "$out" "$proof"
 flatpak info --user "$ref" > "$out/installed-info.txt"
 flatpak info --user --show-permissions "$ref" > "$out/permissions.txt"
-flatpak run --command=sh "$ref" -c 'set -e; cat /app/share/colosseum/SOURCE-COMMIT; ldd /app/share/colosseum/usr/bin/colosseum; ldd /app/share/colosseum/usr/bin/colosseum-nuvio-host; for t in ffmpeg ffprobe; do command -v "$t" || echo "MISSING_RUNTIME_TOOL=$t"; done; ls -ld /usr/lib/qml/QtQuick3D /app/lib/qml/QtQuick3D 2>/dev/null || true' > "$out/installed-closure.txt"
+flatpak run --command=sh "$ref" -c 'set -e; cat /app/share/colosseum/SOURCE-COMMIT; ldd /app/share/colosseum/usr/bin/colosseum; ldd /app/share/colosseum/usr/bin/colosseum-nuvio-host; for t in ffmpeg ffprobe; do p="/app/share/colosseum/usr/bin/$t"; test -x "$p" || { echo "MISSING_RUNTIME_TOOL=$p"; exit 1; }; ldd "$p"; done; find /app/lib -type f -name "*.so" -print -exec ldd {} \;; ls -ld /usr/lib/qml/QtQuick3D /app/lib/qml/QtQuick3D 2>/dev/null || true' > "$out/installed-closure.txt"
 if grep -q 'not found' "$out/installed-closure.txt"; then exit 1; fi
 flatpak run "$ref" --version | tee "$out/version.txt"
 grep -Fx 'Colosseum 1.5.0' "$out/version.txt"
@@ -39,7 +39,5 @@ for phase in ("first", "restart"):
         b=(p/f"{frame}-{phase}.png").read_bytes()
         assert b.startswith(b"\x89PNG\r\n\x1a\n") and len(b)>1024
 PY
-# This is an mpv decode smoke, not Colosseum Player 1 or audible-output acceptance.
-flatpak run --command=sh "$ref" -c 'test -s /app/share/colosseum/proofs/Colosseum.mp4; exec mpv --no-config --vo=null --ao=null --frames=30 --end=2 /app/share/colosseum/proofs/Colosseum.mp4' 2>&1 | tee "$out/mpv-decode.log"
-grep -q 'Video:' "$out/mpv-decode.log"
-echo "ARC93_A_RUNTIME_SMOKE_PASS (software display, null audio/video outputs; real Player 1 still unqualified)"
+echo "ARC93_A_INSTALLED_HOME_WEBENGINE_RESTART_PASS"
+bash "$(dirname "$0")/qualify-player.sh" "$out"
