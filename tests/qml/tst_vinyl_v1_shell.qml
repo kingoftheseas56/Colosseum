@@ -139,7 +139,10 @@ TestCase {
         view=shellFactory.createObject(test,{worldData:gateData,runtimeReady:true,hostReady:true});
         verify(view!==null);verify(waitForRendering(view));
         tryVerify(function(){
-            for(var n=0;n<8;++n){var tile=findChild(view,"vinylCrateTile_"+n);if(!tile||tile.height<=130)return false;}
+            for (var n=0;n<8;++n) {
+                var tile=findChild(view,"vinylCrateTile_"+n);
+                if (!tile || tile.height<=tile.width) return false;
+            }
             return true;
         });
         view.pageFlickable.contentY=0;
@@ -148,6 +151,7 @@ TestCase {
         gateData.actions=[];
         view.resetRouteState("home");
         var spin=findChild(view,"vinylSpin");spin.view="songs";spin.page=0;
+        findChild(view,"vinylCrate").page=0;
         view.pageFlickable.contentY=0;
         mouseMove(test,width-2,height-2);
         verify(waitForRendering(view));
@@ -174,9 +178,19 @@ TestCase {
         for(var kind of ["albums","artists","songs","mixes","radio"])verify(kinds.indexOf(kind)>=0);
         verify(fits(hero),"Full Hero must fit the initial visible component viewport");
         verify(hero.height>=260,"Hero must be tall (>=260) at 1280x700, got "+hero.height);
-        for(i=0;i<8;++i)verify(fits(findChild(crate,"vinylCrateTile_"+i)),"First-row Crate tile "+i+" including captions must fit");
-        compare(tiles[0].y,tiles[7].y);
-        compare(findChild(crate,"vinylCrateTile_8"),null,"The Crate is a single row (Hemanth, 2026-11-28)");
+        compare(findChild(crate,"vinylCrateTile_8"),null,"Page two must not add a second row");
+        for(i=0;i<8;++i) {
+            verify(fits(findChild(crate,"vinylCrateTile_"+i)),"Crate tile "+i+" including captions must fit");
+            compare(tiles[i].y,tiles[0].y);
+        }
+        mouseClick(findChild(crate,"vinylCrateNext"));
+        tryCompare(crate,"currentPage",1);
+        compare(findChild(crate,"vinylCrateTile_0"),null);
+        for(i=8;i<16;++i) {
+            tile=findChild(crate,"vinylCrateTile_"+i);
+            verify(fits(tile),"Second page tile "+i+" including captions must fit");
+            compare(bounds(tile).y,tiles[0].y);
+        }
     }
     function test_homeScrollsUnderFloatingFooterAndEndsClearOfPlayer() {
         var footer = createTemporaryObject(floatingFooterFactory, test, {shell:view});
@@ -450,6 +464,7 @@ TestCase {
                 ? Object.assign({},row,{items:[station]}) : row);
             var tile=findChild(view,"vinylCard_v1:mixes-radio_0");
             scrollToCard(tile);
+            verify(tile.wide);
             compare(tile.captionDetail,"Keeps going");
             compare(findChild(tile,tile.objectName+"_artistRadio"),null);
             mouseClick(tile,20,80);

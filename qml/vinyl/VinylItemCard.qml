@@ -16,6 +16,7 @@ KeyboardAction {
     property string feedbackError: ""
     property bool compactCaption: false
     property bool wide: false
+    property bool songLine: false
     property var artistRadioAction: null
     property var albumPlayAction: null
     property bool keyboardFocused: activeFocus
@@ -39,6 +40,7 @@ KeyboardAction {
         || (likeBadge.item && (likeBadge.item.hovered || likeBadge.item.activeFocus))
         || (hideBadge.item && (hideBadge.item.hovered || hideBadge.item.activeFocus)))
     readonly property bool engaged: hovered || keyboardFocused
+    readonly property int lineActionsWidth: (quickFeedbackAvailable ? 62 : 0) + (pinAvailable ? 31 : 0)
     property bool hintDismissed: false
     onEngagedChanged: if (!engaged) hintDismissed = false
     Keys.onEscapePressed: event => {
@@ -81,8 +83,8 @@ KeyboardAction {
     readonly property url artworkSource: worldData ? worldData.artwork(item.cover) : ""
     readonly property var mixArtworkSources: presentationKind === "mixes" && worldData
         ? (item.artworkCovers || []).slice(0, wide ? 3 : 4).map(cover => worldData.artwork(cover)) : []
-    implicitWidth: wide ? 260 : 196
-    implicitHeight: wide ? 124 : width + (compactCaption ? 42 : 55)
+    implicitWidth: wide ? 270 : 196
+    implicitHeight: songLine ? 56 : wide ? 124 : width + (compactCaption ? 42 : 55)
     accessibleName: captionTitle + (captionDetail ? ". " + captionDetail : "")
     accessibleDescription: secondaryText === captionDetail ? "" : secondaryText
     onTriggered: if(worldData) worldData.activate(item)
@@ -136,26 +138,27 @@ KeyboardAction {
     }
 
     Theme { id: theme }
-    Rectangle {
+    Item {
         id: tile
         objectName: root.objectName + "_tile"
         anchors.fill: parent
-        radius: 15
-        color: root.hovered ? theme.glassHi : theme.glassTint
-        border.width: 1
-        border.color: root.keyboardFocused ? theme.gold : root.hovered ? theme.edgeHi : theme.edge
-        transformOrigin: root.transformOrigin
-        property real motionScale: root.engaged ? 1.015 : 1
-        scale: root.reducedMotion ? 1 : motionScale
-        Behavior on motionScale {
-            enabled: !root.reducedMotion
-            NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
-        }
 
-        readonly property real artInset: root.wide ? 9 : root.compactCaption ? 4 : 8
+        Loader {
+            active: root.songLine && root.engaged
+            anchors.fill: parent
+            sourceComponent: Rectangle {
+                objectName: root.objectName + "_lineHighlight"
+                radius: 10
+                color: Qt.rgba(1, 1, 1, 0.06)
+                border.width: root.keyboardFocused ? 1 : 0
+                border.color: theme.gold
+            }
+        }
         Loader {
             id: art
-            width: root.wide ? 106 : Math.max(0, tile.width - 2 * tile.artInset)
+            x: root.songLine ? 7 : 0
+            y: root.songLine ? (tile.height - height) / 2 : 0
+            width: root.songLine ? 44 : root.wide ? 124 : tile.width
             height: width
             sourceComponent: root.wide ? listeningFace : squareArt
         }
@@ -163,19 +166,18 @@ KeyboardAction {
             id: squareArt
             VinylTileArt {
                 objectName: root.objectName + "_cover"
-                x: tile.artInset; y: x
                 title: root.captionTitle
                 artworkSource: root.artworkSource
                 artworkSources: root.mixArtworkSources
                 circular: root.presentationKind === "artists" || root.item.round === true
-                edgeColor: root.hovered ? theme.edgeHi : theme.edge
+                cornerRadius: root.songLine ? 6 : 10
+                surfaceColor: root.songLine ? theme.vaultSurfaceHi : circular ? theme.vaultSurface : "transparent"
             }
         }
         Component {
             id: listeningFace
             VinylListeningFace {
                 objectName: root.objectName + "_cover"
-                x: tile.artInset; y: x
                 cassette: root.presentationKind === "mixes"
                 title: root.captionTitle
                 portrait: root.artworkSource
@@ -183,13 +185,24 @@ KeyboardAction {
                 displayFont: theme.display
             }
         }
+        Loader {
+            active: !root.songLine && root.engaged
+            anchors.fill: art
+            sourceComponent: Rectangle {
+                objectName: root.objectName + "_artRing"
+                radius: root.wide || !art.item ? 10 : art.item.artRadius
+                color: "transparent"
+                border.width: 2
+                border.color: root.keyboardFocused ? theme.gold : Qt.rgba(1, 1, 1, 0.5)
+            }
+        }
         Item {
             id: copy
             objectName: root.objectName + "_caption"
-            x: root.wide ? tile.artInset + art.width + 12 : root.compactCaption ? 7 : 10
-            y: tile.artInset + (root.wide ? 6 : art.height + (root.compactCaption ? 4 : 7))
-            width: tile.width - x - (root.wide ? 9 : x)
-            height: root.wide ? tile.height - y - 12 : root.compactCaption ? 38 : 48
+            x: root.songLine ? art.x + art.width + 12 : root.wide ? art.width + 16 : 2
+            y: root.songLine ? 9 : root.wide ? 6 : art.height + (root.compactCaption ? 0 : 7)
+            width: Math.max(0, tile.width - x - (root.songLine ? 10 + root.lineActionsWidth : root.wide ? 0 : 2))
+            height: root.songLine ? 38 : root.wide ? tile.height - y - 12 : root.compactCaption ? 38 : 48
 
             Loader {
                 active: root.wide
@@ -210,21 +223,21 @@ KeyboardAction {
                 objectName: root.objectName + "_captionTitle"
                 y: root.wide ? 20 : 0
                 width: parent.width
-                height: root.compactCaption ? 18 : 22
+                height: root.songLine ? 20 : root.compactCaption ? 18 : 22
                 text: root.captionTitle
                 textFormat: Text.PlainText
                 color: root.playing ? theme.gold : theme.ink
-                font.family: theme.display
-                font.pixelSize: root.compactCaption ? 15 : 17
+                font.family: root.songLine ? theme.ui : theme.display
+                font.pixelSize: root.songLine || root.compactCaption ? 14 : 17
                 maximumLineCount: 1
                 elide: Text.ElideRight
                 verticalAlignment: Text.AlignVCenter
             }
             Text {
                 objectName: root.objectName + "_captionDetail"
-                y: root.wide ? 46 : root.compactCaption ? 18 : 24
-                width: Math.max(0, parent.width - (!root.wide && hint.active ? hint.width + 6 : 0))
-                height: root.wide ? 14 : root.compactCaption ? 20 : 24
+                y: root.songLine ? 20 : root.wide ? 46 : root.compactCaption ? 18 : 24
+                width: Math.max(0, parent.width - (!root.wide && !root.songLine && hint.active ? hint.width + 6 : 0))
+                height: root.songLine ? 16 : root.wide ? 14 : root.compactCaption ? 20 : 24
                 text: root.feedbackError || ((root.pinned ? "✓  " : "")
                     + (!root.wide && root.presentationKind === "radio" && !root.item.unavailable ? "((•))  " : "")
                     + root.captionDetail)
@@ -239,9 +252,9 @@ KeyboardAction {
             Loader {
                 id: hint
                 objectName: "vinylTileHint"
-                anchors.right: parent.right
-                anchors.rightMargin: root.wide ? 3 : 0
-                anchors.bottom: parent.bottom
+                x: root.songLine ? art.x + (art.width - width) / 2 - copy.x : parent.width - width - (root.wide ? 12 : 0)
+                y: root.songLine ? art.y + (art.height - height) / 2 - copy.y
+                    : root.wide ? tile.height - copy.y - height - 12 : parent.height - height
                 width: root.compactCaption ? 20 : 24
                 height: width
                 active: root.enabled && root.engaged && !root.playing && !root.hintDismissed
@@ -274,7 +287,7 @@ KeyboardAction {
         Loader {
             objectName: "vinylPlayingRail"
             x: copy.x
-            y: tile.artInset + art.height + 2
+            y: root.songLine ? copy.y + copy.height : art.height + 2
             width: copy.width
             height: 2
             active: root.playing
@@ -291,8 +304,8 @@ KeyboardAction {
         }
 
         Loader {
-            x: tile.artInset + (art.width - width) / 2
-            y: tile.artInset + (art.height - height) / 2
+            x: art.x + (art.width - width) / 2
+            y: art.y + (art.height - height) / 2
             z: 2
             active: root.albumPlayAvailable || root.artistRadioAvailable
             sourceComponent: VinylFeedbackBadge {
@@ -311,7 +324,9 @@ KeyboardAction {
         }
         Loader {
             id: likeBadge
-            x: tile.artInset + 1; y: tile.artInset + 1; z: 2
+            x: root.songLine ? tile.width - root.lineActionsWidth - 7 : art.x + 1
+            y: root.songLine ? (tile.height - height) / 2 : art.y + 1
+            z: 2
             active: root.quickFeedbackAvailable
             sourceComponent: VinylFeedbackBadge {
                 objectName: "vinylRecommendationLike_" + String(root.item.id || "item")
@@ -323,8 +338,8 @@ KeyboardAction {
             }
         }
         Loader {
-            x: tile.artInset + art.width - width
-            y: tile.artInset + art.height - height
+            x: root.songLine ? tile.width - width - 7 : art.x + art.width - width
+            y: root.songLine ? (tile.height - height) / 2 : art.y + art.height - height
             z: 2
             active: root.pinAvailable
             sourceComponent: VinylFeedbackBadge {
@@ -341,7 +356,9 @@ KeyboardAction {
         }
         Loader {
             id: hideBadge
-            x: tile.artInset + art.width - width - 1; y: tile.artInset + 1; z: 2
+            x: root.songLine ? likeBadge.x + 31 : art.x + art.width - width - 1
+            y: root.songLine ? (tile.height - height) / 2 : art.y + 1
+            z: 2
             active: root.quickFeedbackAvailable
             sourceComponent: VinylFeedbackBadge {
                 objectName: "vinylRecommendationHide_" + String(root.item.id || "item")

@@ -105,7 +105,7 @@ TestCase {
         tryVerify(function(){return world.activated && world.activated.id==="known";});
         keyClick(Qt.Key_Right);
         tryCompare(other, "keyboardFocused", true);
-        compare(findChild(other, other.objectName + "_tile").border.color, "#f0c44a");
+        compare(findChild(other, other.objectName + "_artRing").border.color, "#f0c44a");
         keyClick(Qt.Key_Return);
         tryVerify(function(){return world.activated && world.activated.id==="unknown";});
 
@@ -129,7 +129,10 @@ TestCase {
         var record=findChild(browser,"discoverCard_artist_widget");
         verify(record!==null && record instanceof Vinyl.VinylItemCard);
         compare(record.captionDetail,"Artist");
-        verify(findChild(record,"vinylArtistRing").visible);
+        var fallback=findChild(record,"vinylArtworkFallback");
+        verify(fallback.visible);
+        compare(fallback.border.width,0);
+        compare(fallback.radius,fallback.width/2);
         var initials=findChild(record,"vinylArtistInitials");
         verify(initials.visible);compare(initials.text,"BN");
     }

@@ -3,7 +3,7 @@ import QtQuick
 import QtQuick.Effects
 import ".."
 
-// Mask only the artwork; opaque corner overlays would show through the glass.
+// Mask only the artwork so the background stays visible outside its silhouette.
 Item {
     id: art
     property url artworkSource: ""
@@ -11,10 +11,10 @@ Item {
     property string title: ""
     property bool circular: false
     property string displayFont: theme.display
-    property color surfaceColor: "transparent"
-    property color edgeColor: theme.edge
+    property color surfaceColor: circular ? theme.vaultSurface : "transparent"
+    property real cornerRadius: 10
     readonly property bool softwareRendering: art.GraphicsInfo.api === GraphicsInfo.Software
-    readonly property real artRadius: circular ? width / 2 : 12
+    readonly property real artRadius: circular ? width / 2 : cornerRadius
     Theme { id: theme }
     readonly property string initials: title.trim().split(/\s+/).slice(0, 2)
         .map(word => word.charAt(0)).join("").toUpperCase()
@@ -70,13 +70,12 @@ Item {
         }
     }
     Rectangle {
-        objectName: art.circular ? "vinylArtistRing" : ""
+        objectName: "vinylArtworkFallback"
         anchors.fill: parent
-        visible: art.circular || (art.surfaceColor.a > 0 && !first.visible && !art.collage)
+        visible: art.surfaceColor.a > 0 && !first.visible && !art.collage
         radius: art.artRadius
-        color: first.visible || art.collage ? "transparent" : art.surfaceColor
-        border.width: 1
-        border.color: art.edgeColor
+        color: art.surfaceColor
+        border.width: 0
     }
     Text {
         objectName: art.circular ? "vinylArtistInitials" : "vinylArtworkPlaceholder"

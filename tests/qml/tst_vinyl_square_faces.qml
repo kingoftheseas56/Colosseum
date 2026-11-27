@@ -49,11 +49,11 @@ TestCase {
     }
     function test_restingFamily_data() {
         return [
-            {tag:"song", kind:"songs", pieces:4, detail:"Fixture artist"},
-            {tag:"album", kind:"albums", pieces:4, detail:"Fixture artist · 1977"},
-            {tag:"artist", kind:"artists", pieces:5, detail:"Artist"},
-            {tag:"station", kind:"radio", pieces:4, detail:"((•))  Personal radio"},
-            {tag:"mix", kind:"mixes", pieces:7, detail:"Made for you"}
+            {tag:"song", kind:"songs", pieces:3, detail:"Fixture artist"},
+            {tag:"album", kind:"albums", pieces:3, detail:"Fixture artist · 1977"},
+            {tag:"artist", kind:"artists", pieces:3, detail:"Artist"},
+            {tag:"station", kind:"radio", pieces:3, detail:"((•))  Personal radio"},
+            {tag:"mix", kind:"mixes", pieces:6, detail:"Made for you"}
         ];
     }
     function test_restingFamily(data) {
@@ -61,22 +61,20 @@ TestCase {
         compare(card.width, 196);
         compare(card.height, 251);
         const art = findChild(card, "testCard_cover");
-        compare([art.x, art.y, art.width, art.height], [8,8,180,180]);
+        compare([art.x, art.y, art.width, art.height], [0,0,196,196]);
+        compare(art.artRadius, data.kind === "artists" ? 98 : 10);
         const title = findChild(card, "testCard_captionTitle");
         compare(title.font.pixelSize, 17);
         compare(title.font.family, "Fraunces");
-        compare(card.captionTop, 195);
+        compare(card.captionTop, 203);
         compare(findChild(card, "testCard_captionDetail").text, data.detail);
         const artwork = findChild(art, "vinylArtworkImage");
         tryCompare(artwork, "visible", true);
         compare(artwork.cache, true);
         compare(artwork.asynchronous, true);
         compare(artwork.sourceSize.width, Math.ceil(artwork.width * card.Screen.devicePixelRatio));
-        if (data.kind === "artists") {
-            const ring = findChild(art, "vinylArtistRing");
-            verify(ring.visible);
-            compare(ring.width, ring.height);
-        }
+        verify(!findChild(art, "vinylArtworkFallback").visible);
+        compare(findChild(card, "testCard_artRing"), null);
         tryCompare(card, "hovered", false);
         tryVerify(() => painted(card) === data.pieces);
         compare(findChild(card, "vinylTileHint").item, null);
@@ -94,7 +92,14 @@ TestCase {
         mouseMove(card, 30, 30);
         tryVerify(() => hint.item !== null);
         tryCompare(hint.item, "opacity", 1);
-        tryCompare(tile, "scale", 1.015);
+        const ring = findChild(card, "testCard_artRing");
+        verify(ring !== null);
+        compare(ring.color.a, 0);
+        compare(ring.border.width, 2);
+        compare(ring.border.color, Qt.rgba(1, 1, 1, 0.5));
+        compare([ring.width, ring.height], [card.width, card.width]);
+        compare(tile instanceof Rectangle, false);
+        compare(tile.scale, 1);
         compare(hint.item.children[0].text, card.opensPage ? "→" : "▶");
         mouseClick(hint);
         compare(world.activations, 1, "The footer hint shares the primary card action");
@@ -105,7 +110,7 @@ TestCase {
         tryVerify(() => hint.item !== null);
         compare(hint.item.opacity, 1);
         compare(tile.scale, 1);
-        compare(tile.border.color, "#f0c44a");
+        compare(findChild(card, "testCard_artRing").border.color, "#f0c44a");
         keyClick(Qt.Key_Escape);
         tryCompare(hint, "item", null);
         keyClick(Qt.Key_Return);
@@ -123,7 +128,7 @@ TestCase {
         compare(rail.item.children[0].color, "#f0c44a");
         compare(rail.item.children[0].width, rail.width * 0.37);
         tryCompare(findChild(card,"vinylArtworkImage"), "visible", true);
-        compare(painted(card), 6);
+        compare(painted(card), 5);
         mouseMove(card, 30, 30);
         tryCompare(card, "hovered", true);
         const hint = findChild(card, "vinylTileHint");

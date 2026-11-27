@@ -97,11 +97,21 @@ Item {
                     KeyboardAction {
                         id:song
                         objectName:"vinylSpinSong_"+entry.itemIndex
-                        implicitHeight:54; focusRadius:10
+                        implicitHeight:54; showFocusFrame:false
                         enabled:entry.modelData.available!==false && entry.modelData.unavailable!==true
                         accessibleName:entry.modelData.title
                         onTriggered:root.activateRequested(entry.modelData)
-                        Rectangle { anchors.fill:parent; radius:10; color:song.hovered ? "#12ffffff" : "transparent" }
+                        Loader {
+                            anchors.fill: parent
+                            active: song.hovered || song.activeFocus
+                            sourceComponent: Rectangle {
+                                objectName: song.objectName + "_lineHighlight"
+                                radius: 10
+                                color: Qt.rgba(1, 1, 1, 0.06)
+                                border.width: song.activeFocus ? 1 : 0
+                                border.color: theme.gold
+                            }
+                        }
                         RoundedPosterImage { x:5; y:5; width:44; height:44; radius:7; sources:[root.artwork(entry.modelData.cover)] }
                         Column {
                             x:60; y:(parent.height-height)/2; width:Math.max(0,parent.width-x-94); spacing:4

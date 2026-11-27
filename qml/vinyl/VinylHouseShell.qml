@@ -399,7 +399,9 @@ WorldPage {
                         homePageVisible: root.contentVisible && homeContent.visible
                             && root.currentTab==="home" && !root.listKey && !picker.visible
                         backdrop: root.backdrop; pageFlick: root.pageFlickable
-                        cardSize: homeKey==="albums-for-you" ? 132 : 130; home: true
+                        cardSize: row.kind === "artists" ? 150 : 180
+                        squareSpacing: row.kind === "artists" ? 18 : 44
+                        home: true
                     }
                 }
             }

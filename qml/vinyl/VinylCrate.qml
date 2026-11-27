@@ -9,11 +9,11 @@ Item {
     property var worldData: null
     property Item backdrop: null
     property Flickable pageFlick: null
-    property real tileSize: width>=760 ? (width-126)/8 : 130
+    property real tileSize: width >= 760 ? Math.min(120, Math.floor((width - 126) / 8)) : 120
     property bool compact: false
     property int page: 0
     readonly property int count: items ? items.length : 0
-    readonly property int columns: Math.max(1, Math.min(8, Math.floor(width / tileSize)))
+    readonly property int columns: Math.max(1, Math.min(8, Math.floor((width + tiles.columnSpacing) / (tileSize + tiles.columnSpacing))))
     readonly property int pageSize: columns // one row (Hemanth, 2026-11-28)
     readonly property int pageCount: Math.ceil(count / pageSize)
     readonly property var pageItems: items ? items.slice(page * pageSize, (page + 1) * pageSize) : []
@@ -100,7 +100,7 @@ Item {
                     worldData: actions; item: root.presentation(tile.modelData)
                     artistRadioAction: function() { root.radioRequested(tile.modelData); }
                     albumPlayAction: function() { root.activateRequested(tile.modelData); }
-                    compactCaption: root.compact
+                    compactCaption: true
                     backdrop: root.backdrop; pageFlick:root.pageFlick
                     opacity: tile.available ? 1 : 0.38
                 }

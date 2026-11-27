@@ -181,7 +181,10 @@ TestCase {
             verify(art !== null);
             compare(art.height,art.width);
             verify(findChild(art,"vinylArtworkImage") !== null);
-            if (pair[1] === "artists") verify(findChild(art,"vinylArtistRing") !== null);
+            if (pair[1] === "artists") {
+                verify(art.circular);
+                compare(findChild(art,"vinylArtworkFallback").border.width,0);
+            }
             compare(card.captionTitle, card.item.title);
         }
     }

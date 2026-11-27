@@ -13,7 +13,9 @@ Item {
     property int exposureRevision: 0
     property real cardSize: 196
     readonly property bool wideListeningRow: home && (row.homeKey || row.key) === "mixes-radio"
-    property int previewCount: 8
+    readonly property bool songLines: home && ["quick-picks", "continue-listening"].includes(row.homeKey || row.key)
+    property real squareSpacing: home ? 18 : 24
+    property int previewCount: songLines ? 12 : 8
     property int currentIndex: 0
     property var openRowHandler: null
     property var retryRowHandler: null
@@ -46,7 +48,24 @@ Item {
     function exposureGeometryChanged() { exposureRevision++; }
     onRowChanged: exposureGeometryChanged()
     onHomePageVisibleChanged: exposureGeometryChanged()
-    Keys.onPressed: event => nav.handle(event)
+    function handleKeys(event) {
+        if (!songLines || ![Qt.Key_Left, Qt.Key_Right, Qt.Key_Up, Qt.Key_Down].includes(event.key)) {
+            nav.handle(event);
+            return;
+        }
+        // Lines are filled down each column in recommendation order.
+        const rows = cards.rows;
+        const offset = currentIndex % rows;
+        let target = -1;
+        if (event.key === Qt.Key_Left) target = currentIndex - rows;
+        if (event.key === Qt.Key_Right) target = currentIndex + rows;
+        if (event.key === Qt.Key_Up && offset > 0) target = currentIndex - 1;
+        if (event.key === Qt.Key_Down && offset < rows - 1) target = currentIndex + 1;
+        const backward = target < currentIndex;
+        event.accepted = target >= 0 && target < nav.count
+            && nav.moveTo(target, backward ? Qt.BacktabFocusReason : Qt.TabFocusReason);
+    }
+    Keys.onPressed: event => root.handleKeys(event)
     KeyboardCollectionController {
         id:nav;view:root;count:cardRepeater.count;orientation:"horizontal"
         positionIndexFn:function(index){root.reveal(index);Qt.callLater(function(){var card=cardRepeater.itemAt(index);if(card)card.forceActiveFocus()})}
@@ -120,11 +139,14 @@ Item {
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         visible: root.hasCards
-        Row {
+        Grid {
             id: cards
-            // Bleed for the 1.015× hover/focus scale at the clipped rail edges.
             x: 3; y: 3
-            spacing: root.wideListeningRow ? 17 : root.home ? 18 : 24
+            flow: root.songLines ? Grid.TopToBottom : Grid.LeftToRight
+            rows: root.songLines ? Math.max(1, Math.ceil(cardRepeater.count / 3)) : 1
+            columns: root.songLines ? 3 : Math.max(1, cardRepeater.count)
+            columnSpacing: root.songLines ? 22 : root.wideListeningRow ? 4 : root.squareSpacing
+            rowSpacing: 0
             Repeater {
                 id: cardRepeater
                 model: Math.min(root.previewCount,(root.row.items || []).length)
@@ -144,16 +166,22 @@ Item {
                     homePageVisible: root.homePageVisible
                     exposureRevision: root.exposureRevision
                     onActiveFocusChanged: if(activeFocus){root.currentIndex=index;root.reveal(index)}
-                    Keys.onPressed: event => {if([Qt.Key_Left,Qt.Key_Right,Qt.Key_Home,Qt.Key_End].indexOf(event.key)>=0)nav.handle(event)}
+                    Keys.onPressed: event => {
+                        if ([Qt.Key_Left, Qt.Key_Right, Qt.Key_Home, Qt.Key_End].includes(event.key)
+                            || (root.songLines && [Qt.Key_Up, Qt.Key_Down].includes(event.key)))
+                            root.handleKeys(event);
+                    }
                     wide: root.wideListeningRow && (presentationKind === "mixes" || presentationKind === "radio")
-                    width: wide ? implicitWidth : root.cardSize
+                    songLine: root.songLines
+                    width: songLine ? Math.max(220, (rail.width - 2 * cards.x - 2 * cards.columnSpacing) / 3)
+                        : wide ? implicitWidth : root.cardSize
                     height: implicitHeight
                 }
             }
         }
     }
     Rectangle {
-        visible:root.home && root.hasCards && !root.wideListeningRow
+        visible:root.home && root.hasCards && !root.wideListeningRow && !root.songLines
         x:root.width*0.92; y:rail.y; width:root.width*0.08; height:rail.height
         gradient:Gradient { orientation:Gradient.Horizontal; GradientStop { position:0; color:"transparent" } GradientStop { position:1; color:"#06070b" } }
     }

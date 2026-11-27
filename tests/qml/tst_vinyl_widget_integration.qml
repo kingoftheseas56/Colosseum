@@ -46,10 +46,16 @@ TestCase {
             count += labelCount(node.children[i], value);
         return count;
     }
-    function test_albumTileUsesGlassAtRest() {
+    function test_albumTileHasNoFillOrEdge() {
         mouseMove(test, width - 2, height - 2);
         const card = createTemporaryObject(factory, test, {item:{kind:"albums", title:"Album"}});
-        compare(findChild(card, "fixtureCard_tile").color, theme.glassTint);
+        const tile = findChild(card, "fixtureCard_tile");
+        verify(tile !== null);
+        verify(!(tile instanceof Rectangle) || tile.color.a === 0, "The album tile must not have a fill");
+        verify(!(tile instanceof Rectangle) || tile.border.width === 0 || tile.border.color.a === 0,
+            "The album tile must not have an edge");
+        verify(!tile.layer.enabled, "The album tile must not use a layer for glass blur");
+        compare(findChild(card, "fixtureCard_artRing"), null);
     }
     function test_libraryArtistKeepsHostCaptionAndActivation() {
         var page = createTemporaryObject(libraryFactory, test);
@@ -108,9 +114,13 @@ TestCase {
         compare(labelCount(card, "Singer"), 1);
         compare(labelCount(card, "Track"), 1);
         card.record = {title:"Artist"}; card.shape = "round";
-        compare(card.focusRadius, 19.6);
+        compare(card.focusRadius, 98);
         compare(labelCount(card, "Artist"), 1);
-        verify(findChild(card, "vinylArtistRing") !== null);
+        const fallback = findChild(card, "vinylArtworkFallback");
+        verify(fallback.visible);
+        compare(fallback.color, theme.vaultSurface);
+        compare(fallback.border.width, 0);
+        compare(fallback.radius, fallback.width / 2);
         card.shape = "wide";
         compare(card.artHeight, 196 * 9 / 16);
     }

@@ -442,7 +442,6 @@ Flickable {
                             record: modelData
                             artistData: root.artistData
                             shape: "square"
-                            darkCaptionSurface: true
                             onCardRequested: record => root.activateDiscographyCard(record, discogTile)
                             onActiveFocusChanged: if (activeFocus) root.reveal(discogTile)
 

@@ -238,7 +238,9 @@ TestCase {
         var mix={id:"mix-a",kind:"mixes",title:"Supplied mix",subtitle:"Made for you",cover:""}
         var radio={id:"radio-a",kind:"radio",title:"Artist radio",subtitle:"Radio",cover:""}
         var rows=[
-            {key:"quick-picks",title:"Quick Picks",kind:"songs",items:[{id:"song-a",kind:"songs",title:"Supplied song",subtitle:"Artist",cover:""}]},
+            {key:"quick-picks",title:"Quick Picks",kind:"songs",items:["a","b","c","d"].map(id=>({
+                id:"song-"+id,kind:"songs",title:"Supplied song "+id,subtitle:"Artist",cover:""
+            }))},
             {key:"mixes-radio",title:"Mixes & radio",kind:"mixes-radio",items:[mix,{id:"mix-b",kind:"mixes",title:"Second mix",cover:""},radio]},
             {key:"from-your-artists",title:"From your artists",kind:"artists",items:[{id:"artist-a",kind:"artists",title:"Supplied artist",cover:"",round:true}]},
             {key:"adjacent-albums",title:"Albums near your artists",kind:"albums",items:[{id:"album-a",kind:"albums",title:"Adjacent album",cover:""}]},
@@ -246,6 +248,7 @@ TestCase {
             {key:"new-releases",title:"New releases",kind:"albums",items:[{id:"album-b",kind:"albums",title:"New release",cover:""}]},
             {key:"rediscovery",title:"Rediscovery",kind:"songs",items:[{id:"song-b",kind:"songs",title:"Rediscovered song",cover:""}]},
             {key:"less-played",title:"Less played",kind:"songs",items:[{id:"song-c",kind:"songs",title:"Less played song",cover:""}]},
+            {key:"continue-listening",title:"Continue listening",kind:"resume",items:[{id:"resume-a",kind:"resume",title:"Resume song",cover:""}]},
             {key:"regional-charts",title:"Regional charts",kind:"songs",items:[{id:"region-a",kind:"songs",title:"Regional item",cover:""}]},
             {key:"trending",title:"Trending",kind:"songs",items:[{id:"trend-a",kind:"songs",title:"Trending item",cover:""}]},
             {key:"saved-playlists",title:"Saved playlists",kind:"playlists",items:[{id:"saved-a",kind:"mixes",title:"Saved playlist",cover:""}]},
@@ -253,7 +256,7 @@ TestCase {
         ]
         var probe=createHomeProbe(rows),page=probe.home
         var expected=["quick-picks","mixes-radio","from-your-artists","adjacent-albums",
-            "adjacent-artists","new-releases","rediscovery","less-played"]
+            "adjacent-artists","new-releases","rediscovery","less-played","continue-listening"]
         compare(JSON.stringify(page.rowKeys),JSON.stringify(expected))
         expected.forEach(function(key) {
             var shelf=findChild(page,"vinylHomeRow_"+key)
@@ -270,16 +273,41 @@ TestCase {
         compare(refresh.accessibleName,"Refresh Home")
         mouseClick(refresh)
         compare(probe.data.refreshCalls,1)
+        var quick=findChild(page,"vinylCard_quick-picks_0")
+        verify(quick.songLine)
+        compare(quick.height,56)
+        compare(findChild(quick,quick.objectName+"_lineHighlight"),null)
+        quick.forceActiveFocus(Qt.TabFocusReason)
+        var highlight=findChild(quick,quick.objectName+"_lineHighlight")
+        verify(highlight!==null)
+        compare(highlight.color,Qt.rgba(1,1,1,0.06))
+        compare(highlight.border.width,1)
+        compare(highlight.border.color,"#f0c44a")
+        keyClick(Qt.Key_Return)
+        compare(probe.data.activatedItem.id,"song-a")
+        var nextLine=findChild(page,"vinylCard_quick-picks_1")
+        var nextColumn=findChild(page,"vinylCard_quick-picks_3")
+        keyClick(Qt.Key_Down)
+        tryCompare(nextLine,"activeFocus",true)
+        compare(findChild(quick,quick.objectName+"_lineHighlight"),null)
+        keyClick(Qt.Key_Right)
+        tryCompare(nextColumn,"activeFocus",true)
+        var resume=findChild(page,"vinylCard_continue-listening_0")
+        verify(resume.songLine)
+        compare(resume.height,56)
+        compare(findChild(resume,resume.objectName+"_lineHighlight"),null)
         var mixCard=findChild(page,"vinylCard_mixes-radio_0")
         var stationCard=findChild(page,"vinylCard_mixes-radio_2")
         verify(mixCard!==null && stationCard!==null)
-        compare(stationCard.width,260)
+        compare(stationCard.width,270)
         compare(stationCard.height,124)
         compare(stationCard.captionDetail,"Keeps going")
         var stationFace=findChild(stationCard,stationCard.objectName+"_cover")
         compare(String(stationFace.source).split("/").pop(),"vinyl-radio-face.png")
-        compare(stationFace.width,106)
-        compare(stationFace.height,106)
+        compare(stationFace.width,124)
+        compare(stationFace.height,124)
+        compare(findChild(stationCard,stationCard.objectName+"_caption").x,140)
+        compare(findChild(stationCard,stationCard.objectName+"_tile") instanceof Rectangle,false)
         tryCompare(stationFace,"status",Image.Ready)
         var mixFace=findChild(mixCard,mixCard.objectName+"_cover")
         compare(String(mixFace.source).split("/").pop(),"vinyl-cassette-face.png")
@@ -288,6 +316,9 @@ TestCase {
         compare(probe.data.activatedItem.id,"mix-a")
         stationCard.forceActiveFocus()
         tryCompare(stationCard,"activeFocus",true)
+        var ring=findChild(stationCard,stationCard.objectName+"_artRing")
+        compare([ring.width,ring.height,ring.border.width],[124,124,2])
+        compare(ring.border.color,"#f0c44a")
         keyClick(Qt.Key_Return)
         compare(probe.data.activatedItem.id,"radio-a",
             "mixes and radio cards must use the same worldData.activate path")

@@ -10,15 +10,14 @@ KeyboardAction {
     property string shape: "square"
     property string badge: ""
     property string artObjectName: ""
-    property bool darkCaptionSurface: true
     readonly property bool reducedMotion: !!(Window.window && Window.window["reducedMotion"] === true)
     pointerEnabled: true
-    showFocusFrame: true
+    showFocusFrame: shape === "wide"
 
     readonly property bool songCard: !!record.song
     readonly property real artHeight: shape === "wide" ? width * 9 / 16
         : presentation.status === Loader.Ready ? (presentation.item as Item).implicitHeight : width
-    readonly property real artRadius: shape === "round" ? width * 0.1 : (shape === "wide" ? 9 : 13)
+    readonly property real artRadius: shape === "round" ? width / 2 : (shape === "wide" ? 9 : 10)
     readonly property string secondaryText: songCard
         ? Presentation.artist(record) || Presentation.secondary(record, "") : String(record.subtitle || "")
     readonly property bool hasCaption: true
@@ -47,8 +46,6 @@ KeyboardAction {
         title: String(card.record.title || "")
         artworkSource: card.artistData.artwork(card.record.cover)
         displayFont: theme.display
-        surfaceColor: card.hovered ? theme.glassHi : theme.glassTint
-        edgeColor: card.hovered ? theme.edgeHi : theme.edge
     } }
     Component { id: songPresentation; VinylSongWidget {
         objectName: card.artObjectName
@@ -62,6 +59,18 @@ KeyboardAction {
         title: String(card.record.title || "")
         artworkSource: card.artistData.artwork(card.record.cover)
     } }
+
+    Loader {
+        active: card.shape !== "wide" && (card.hovered || card.activeFocus)
+        anchors.fill: presentation
+        scale: presentation.scale
+        sourceComponent: Rectangle {
+            color: "transparent"
+            radius: card.artRadius
+            border.width: 2
+            border.color: card.activeFocus ? theme.gold : Qt.rgba(1, 1, 1, 0.5)
+        }
+    }
 
     // Artwork container with composed HTML-parity fallback (.cover-fallback / .film-fallback)
     Rectangle {
@@ -169,28 +178,25 @@ KeyboardAction {
         }
     }
 
-    // The discography captions use glass. Keep the existing video/live treatment.
+    // Only videos/live retain their existing caption treatment.
     Rectangle {
         id: captionPlate
         visible: card.hasCaption
         y: card.artHeight + (card.shape === "wide" ? 0 : 14)
         width: parent.width
         height: card.shape === "wide" ? Math.max(78, captionColumn.implicitHeight + 16)
-            : captionColumn.implicitHeight + (card.darkCaptionSurface ? 16 : 0)
+            : captionColumn.implicitHeight + captionColumn.y
         radius: 0
-        bottomLeftRadius: card.shape === "round" ? 0 : 13
-        bottomRightRadius: card.shape === "round" ? 0 : 13
-        color: !card.darkCaptionSurface || card.shape === "round" ? "transparent"
-            : card.shape === "wide" ? Qt.rgba(0.024, 0.027, 0.043, 0.84)
-            : card.hovered ? theme.glassHi : theme.glassTint
-        border.width: card.darkCaptionSurface && card.shape !== "round" ? 1 : 0
-        border.color: card.shape === "wide" ? (card.interactionActive ? theme.edge : theme.glassSubtle)
-            : card.hovered ? theme.edgeHi : theme.edge
+        bottomLeftRadius: 13
+        bottomRightRadius: 13
+        color: card.shape === "wide" ? Qt.rgba(0.024, 0.027, 0.043, 0.84) : "transparent"
+        border.width: card.shape === "wide" ? 1 : 0
+        border.color: card.interactionActive ? theme.edge : theme.glassSubtle
 
         Column {
             id: captionColumn
-            x: (card.darkCaptionSurface && card.shape !== "round") ? 10 : 0
-            y: (card.darkCaptionSurface && card.shape !== "round") ? 8 : 2
+            x: card.shape === "wide" ? 10 : 0
+            y: card.shape === "wide" ? 8 : 2
             width: parent.width - 2 * x
             spacing: card.shape === "wide" ? 4 : 6
 

@@ -55,8 +55,12 @@ TestCase {
             var tile=findChild(crate,"vinylCrateTile_"+i); verify(tile!==null); kinds.push(tile.kind);
             var face=findChild(tile,"vinylCrateTile_"+i+"_card_cover");
             verify(face !== null);
-            compare(face.width,tile.width - 8); compare(face.height,face.width);
+            compare(face.width,tile.width); compare(face.height,face.width);
+            compare(face.width,120);
+            compare(face.artRadius,tile.kind==="artists" ? 60 : 10);
             var card=findChild(tile,"vinylCrateTile_"+i+"_card");
+            compare(findChild(card,card.objectName+"_captionTitle").font.pixelSize,14);
+            compare(findChild(card,card.objectName+"_captionDetail").font.pixelSize,12);
             verify(card.captionDetail.length>0);
             if(tile.kind==="songs") { compare(card.captionTitle,"Fixture "+i); compare(card.captionDetail,"Fixture artist · from Fixture album"); }
         }
@@ -125,7 +129,16 @@ TestCase {
         var first=findChild(spin,"vinylSpinSong_0"), fourth=findChild(spin,"vinylSpinSong_3");
         var origin=first.mapToItem(spin,0,0), next=fourth.mapToItem(spin,0,0); compare(origin.x,next.x); verify(next.y>origin.y);
         compare(findChild(spin,"vinylSpinSong_12"),null);
-        click(first,65,24); compare(activated.count,1); compare(activated.signalArguments[0][0].id,"songs-0");
+        mouseMove(first,65,24);
+        tryVerify(() => findChild(first,first.objectName+"_lineHighlight") !== null);
+        var highlight=findChild(first,first.objectName+"_lineHighlight");
+        compare(highlight.color,Qt.rgba(1,1,1,0.06));
+        compare(highlight.border.width,0);
+        compare(findChild(fourth,fourth.objectName+"_lineHighlight"),null);
+        first.forceActiveFocus(Qt.TabFocusReason);
+        compare(highlight.border.width,1);
+        compare(highlight.border.color,"#f0c44a");
+        keyClick(Qt.Key_Return); compare(activated.count,1); compare(activated.signalArguments[0][0].id,"songs-0");
         click(findChild(spin,"vinylSpinNext")); tryCompare(spin,"page",1); verify(findChild(spin,"vinylSpinSong_12")!==null);
         compare(findChild(spin,"vinylSpinSong_0"),null);
     }
