@@ -3032,6 +3032,7 @@ def fetch_related_video(client, video, request):
 DISCOVER_KINDS = ("songs", "albums", "artists")
 DISCOVER_TAGS = tuple(("pop rock hip-hop rnb indie electronic dance metal jazz classical soul folk "
                        "punk alternative k-pop j-pop latin reggae blues country soundtrack lo-fi ambient").split())
+EXPLORE_TAGS = ("chill", "happy", "sad", "romantic", "party", "70s", "80s", "90s", "00s", "2010s")
 DISCOVER_LANGUAGES = tuple("tamil telugu malayalam kannada hindi punjabi bengali marathi".split())
 _DISCOVER_RESPONSE_LIMIT = 2 * 1024 * 1024
 _DISCOVER_CACHE_LIMIT = 64 * 1024 * 1024
@@ -3312,7 +3313,8 @@ def _discover_card(source, kind, key, title, credits, image, year="", **hints):
 
 def _lastfm_page(kind, list_key, cursor, page_size, refresh, *, deep=False):
     # Last.fm's documented global chart only has track and artist methods.
-    if list_key not in DISCOVER_TAGS and not (list_key == "chart" and kind != "albums"):
+    if (list_key not in DISCOVER_TAGS and list_key not in EXPLORE_TAGS
+            and not (list_key == "chart" and kind != "albums")):
         raise InvalidArgumentError("Unsupported Last.fm list.")
     binding = _discover_hash(["vinyl-popular" if deep else "lastfm", kind, list_key, page_size])[:24]
     max_page = 2**31 - 1 if deep else 20

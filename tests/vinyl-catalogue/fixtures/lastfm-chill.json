@@ -1,0 +1,8 @@
+{
+  "tracks": {
+    "track": [
+      {"name": "Sweater Weather", "artist": {"name": "The Neighbourhood"}},
+      {"name": "Knock Knock", "artist": {"name": "Mac Miller"}}
+    ]
+  }
+}

@@ -501,36 +501,64 @@ private slots:
         VinylProvider provider(QStringLiteral(VINYL_FAKE_TRANSPORT),nullptr,128LL*1024*1024,{},dir.filePath("cache"));
         VinylCatalogueSource source(&local,&provider,nullptr);
         QSignalSpy replies(&source,&VinylCatalogueSource::completed);
-        const auto week=source.request("explore-week-albums","chartWeek","albums",{});
+        const QVariantMap chillPage{{"catalogueSource","lastfm"},{"list","chill"},
+                                    {"cursor",QVariantMap{}},{"pageSize",50}};
+        const auto chill=source.request("explore-tag-chill","browseCatalogue","songs",chillPage);
         const auto wiki=source.request("explore-year-end-100-2025","wikipediaList","year-end-100-2025",{});
         const auto streamed=source.request("explore-most-streamed","mostStreamed","songs",{});
-        QVERIFY(week>0&&wiki>0&&streamed>0);
+        QVERIFY(chill>0&&wiki>0&&streamed>0);
+        QCOMPARE(source.request("explore-tag-happy","browseCatalogue","songs",chillPage),-1);
         QCOMPARE(source.request("catalogue-songs","wikipediaList","year-end-100-2025",{}),-1);
         QTRY_COMPARE_WITH_TIMEOUT(replies.size(),3,12000);
-        QHash<int,int> counts;
+        QHash<int,QVariantMap> pages;
         for(const auto &reply:replies){
             QVERIFY2(reply[3].toString().isEmpty(),qPrintable(reply[3].toString()));
-            counts.insert(reply[1].toInt(),reply[2].toMap().value("items").toList().size());
+            pages.insert(reply[1].toInt(),reply[2].toMap());
         }
-        QCOMPARE(counts.value(week),3);
-        QCOMPARE(counts.value(wiki),3);
-        QCOMPARE(counts.value(streamed),4);
+        const auto mood=pages.value(chill);
+        QCOMPARE(mood.value("version").toInt(),1);
+        QCOMPARE(mood.value("source").toString(),QString("lastfm"));
+        QCOMPARE(mood.value("kind").toString(),QString("songs"));
+        QCOMPARE(mood.value("list").toString(),QString("chill"));
+        const auto moodItems=mood.value("items").toList();
+        QCOMPARE(moodItems.size(),2);
+        const auto song=moodItems.first().toMap();
+        QCOMPARE(song.value("title").toString(),QString("Sweater Weather"));
+        QCOMPARE(song.value("source").toString(),QString("lastfm"));
+        QVERIFY(song.value("catalogueCard").toBool());
+        QVERIFY(song.value("cover").toString().isEmpty());
+        const auto wikiItems=pages.value(wiki).value("items").toList();
+        QCOMPARE(wikiItems.size(),3);
+        QCOMPARE(pages.value(streamed).value("items").toList().size(),4);
 
-        QVariantMap album;
-        for(const auto &reply:replies){
-            if(reply[1].toInt()==week)album=reply[2].toMap().value("items").toList().at(1).toMap();
-        }
-        const QVariantMap artwork{{"items",QVariantList{album}}};
-        QCOMPARE(source.request("catalogue-art","resolveCatalogueArt","editorial",artwork),-1);
-        QVERIFY(source.request("explore-art","resolveCatalogueArt","editorial",artwork)>0);
+        const QVariantMap artwork{{"items",QVariantList{song}}};
+        QVERIFY(source.request("explore-art","resolveCatalogueArt","lastfm",artwork)>0);
         QTRY_COMPARE_WITH_TIMEOUT(replies.size(),4,12000);
         QVERIFY2(replies.last()[3].toString().isEmpty(),qPrintable(replies.last()[3].toString()));
-        QVERIFY(source.request("explore-art","resolveCatalogueArt","editorial",artwork)>0);
+        const auto covers=replies.last()[2].toMap().value("covers").toMap();
+        QCOMPARE(covers.value(song.value("id").toString()).toString(),
+            QString("https://lastfm-img.freetls.fastly.net/chill.jpg"));
+
+        const QVariantMap editorialArtwork{{"items",QVariantList{wikiItems.first()}}};
+        QCOMPARE(source.request("catalogue-art","resolveCatalogueArt","editorial",editorialArtwork),-1);
+        QVERIFY(source.request("explore-art","resolveCatalogueArt","editorial",editorialArtwork)>0);
         QTRY_COMPARE_WITH_TIMEOUT(replies.size(),5,12000);
         QVERIFY2(replies.last()[3].toString().isEmpty(),qPrintable(replies.last()[3].toString()));
-        const auto covers=replies.last()[2].toMap().value("covers").toMap();
-        QCOMPARE(covers.value(album.value("id").toString()).toString(),
-            QString("https://is1-ssl.mzstatic.com/suiatsu/600x600bb.jpg"));
+    }
+    void exploreTagsDoNotOpenUnknownTagsOrDiscoverGenres(){
+        QTemporaryDir cache;
+        QVERIFY(cache.isValid());
+        const QJsonObject unknown{{"operation","browseCatalogue"},{"catalogueSource","lastfm"},
+                                  {"value","songs"},{"list","not-an-explore-tag"}};
+        const auto run=runEditorialFixtures(cache.path(),{unknown,vinylBrowse("songs","popular","chill")});
+        QVERIFY2(run.answers.size()==2,run.diagnostics.constData());
+        for(const auto &answer:run.answers){
+            QVERIFY(!answer.value("ok").toBool());
+            QCOMPARE(answer.value("errorCode").toString(),QString("invalid_argument"));
+        }
+        QCOMPARE(run.answers[0].value("error").toString(),QString("Unsupported Last.fm list."));
+        QCOMPARE(run.answers[1].value("error").toString(),QString("Unsupported Vinyl catalogue list or genre."));
+        QVERIFY(run.diagnostics.isEmpty());
     }
     void editorialProviderRejectsInvalidOrUndiscoveredLists(){
         QTemporaryDir cache;

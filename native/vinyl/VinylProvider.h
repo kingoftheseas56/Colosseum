@@ -208,10 +208,13 @@ public:
         static const QStringList wikiLists{"hot100-2025","global-200-2025","year-end-100-2025",
                                          "mainstream-rock-2020s","hot100-1990s"};
         const bool editorial=operation=="chartWeek"||operation=="wikipediaList"||operation=="mostStreamed";
-        const bool exploreArt=operation=="resolveCatalogueArt"&&value=="editorial";
+        const bool editorialArt=operation=="resolveCatalogueArt"&&value=="editorial";
+        const bool exploreArt=editorialArt||(operation=="resolveCatalogueArt"&&value=="lastfm"&&lane=="explore-art");
         const bool heroArt=operation=="resolveCatalogueArt"&&value=="hero";
-        const bool editorialLane=lane.startsWith("explore-");
-        if((editorial||exploreArt)!=editorialLane)return -1;
+        const bool exploreBrowse=operation=="browseCatalogue"&&value=="songs"
+            &&payload.value("catalogueSource")=="lastfm"&&lane=="explore-tag-"+payload.value("list").toString();
+        const bool exploreLane=lane.startsWith("explore-");
+        if((editorial||exploreArt||exploreBrowse)!=exploreLane)return -1;
         if(editorial){
             if(!payload.isEmpty())return -1;
             if(operation=="chartWeek"&&(!chartKinds.contains(value)||lane!="explore-week-"+value))return -1;
@@ -222,13 +225,13 @@ public:
         const bool downloadLane=lane=="download"&&operation=="resolve"&&payload.value("source")=="youtube";
         const bool metadataLane=lane=="home-metadata-0"||lane=="home-metadata-1";
         const bool metadata=VinylSourcePool::metadataOperation(operation);
-        if(!operations.contains(operation)||(!lanes.contains(lane)&&!songLane&&!metadataLane&&!downloadLane&&!editorialLane&&!heroArt)||value.size()>300)return -1;
+        if(!operations.contains(operation)||(!lanes.contains(lane)&&!songLane&&!metadataLane&&!downloadLane&&!exploreLane&&!heroArt)||value.size()>300)return -1;
         // Reject malformed enrichment before it can cancel an accepted request.
         if(metadata!=metadataLane||(metadata&&!VinylSourcePool::validMetadataRequest(operation,value,payload)))return -1;
         if(operation=="browseCategories"){
             if(lane!="catalogue-categories"||!value.isEmpty())return -1;
         }else if(operation=="browseCatalogue"){
-            if(!QStringList{"songs","albums","artists"}.contains(value)||lane!="catalogue-"+value)return -1;
+            if(!exploreBrowse&&(!QStringList{"songs","albums","artists"}.contains(value)||lane!="catalogue-"+value))return -1;
         }else if(operation=="resolveCatalogueItem"){
             const auto item=payload.value("item");
             if(lane!="catalogue-item"||value.isEmpty()||payload.size()!=1
@@ -253,7 +256,7 @@ public:
         const bool discoverBrowse=operation=="browseCatalogue"
             &&QStringList{"vinyl","lastfm","jiosaavn"}.contains(payload.value("catalogueSource").toString());
         const bool discoverResolver=operation=="resolveCatalogueItem"||operation=="resolveCatalogueArt";
-        const bool chartArt=operation=="resolveCatalogueArt"&&(value=="kworb"||exploreArt||heroArt);
+        const bool chartArt=operation=="resolveCatalogueArt"&&(value=="kworb"||editorialArt||heroArt);
         const bool cacheable=!warming&&!editorial&&operation!="resolve"&&operation!="resolveVideo"&&!discoverBrowse&&!discoverResolver;
         if(home&&!metadata){
             const QSet<QString> allowed{"seed","recording","refresh","region","fetchedAt","limit"};

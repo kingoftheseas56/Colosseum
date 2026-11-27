@@ -66,6 +66,12 @@ def serve_editorial_fixtures():
                     if params.get("track") == "Stop The Wedding!":
                         return Response(b'{"toptags":{"tag":[{"name":"pop","count":100}]}}')
                     return Response(b'{"toptags":{"tag":[]}}')
+                if method == "tag.gettoptracks" and params.get("tag") == "chill":
+                    assert params["page"] == "1" and params["limit"] == "50"
+                    return Response(fixture("lastfm-chill.json"))
+                if method == "track.getInfo":
+                    assert (params["artist"], params["track"]) == ("The Neighbourhood", "Sweater Weather")
+                    return Response(b'{"track":{"album":{"image":[{"#text":"https://lastfm-img.freetls.fastly.net/chill.jpg"}]}}}')
                 leaf = next(kind for kind in ("track", "artist", "album") if method.endswith(kind + "s"))
                 root = "topartists" if method == "tag.gettopartists" else leaf + "s"
                 page = int(params["page"])
