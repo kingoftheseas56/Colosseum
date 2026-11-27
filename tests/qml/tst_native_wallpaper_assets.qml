@@ -12,7 +12,7 @@ TestCase {
     width: 960; height: 540
     property var view: null
     property var pickerWindow: null
-    readonly property url bundledDefault: Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg")
+    readonly property url bundledDefault: Qt.resolvedUrl("../../assets/wallpaper/colosseum-tide.jpg")
     readonly property string redImage: "data:image/svg+xml," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><rect width='20' height='20' fill='red'/></svg>")
     readonly property string blueImage: "data:image/svg+xml," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><rect width='20' height='20' fill='blue'/></svg>")
 
@@ -64,7 +64,7 @@ TestCase {
         }
     }
     function init() {
-        content.assets = ({"assets/wallpaper/cold-ripple.jpg":redImage})
+        content.assets = ({"assets/wallpaper/colosseum-tide.jpg":redImage})
     }
     function cleanup() {
         if (view) { view.destroy(); view = null }
@@ -74,7 +74,7 @@ TestCase {
         view = gallery.createObject(testCase)
         verify(view !== null)
         compare(view.fallbackSource, redImage)
-        content.assets["assets/wallpaper/cold-ripple.jpg"] = blueImage
+        content.assets["assets/wallpaper/colosseum-tide.jpg"] = blueImage
         compare(view.fallbackSource, redImage)
         content.generation++
         tryCompare(view, "fallbackSource", blueImage)
@@ -86,16 +86,16 @@ TestCase {
         view = backdrop.createObject(testCase)
         verify(view !== null)
         compare(view.fallbackSource, redImage)
-        content.assets["assets/wallpaper/cold-ripple.jpg"] = blueImage
+        content.assets["assets/wallpaper/colosseum-tide.jpg"] = blueImage
         content.generation++
         tryCompare(view, "fallbackSource", blueImage)
     }
     function test_default_and_saved_owned_wallpaper_use_published_asset() {
         compare(Wallpapers.imageSource(null, content), redImage)
-        compare(Wallpapers.imageSource({image_url:"../assets/wallpaper/cold-ripple.jpg"}, content), redImage)
+        compare(Wallpapers.imageSource({image_url:"../assets/wallpaper/colosseum-tide.jpg"}, content), redImage)
         compare(Wallpapers.imageSource({image_url:"https://example.test/chosen.jpg"}, content),
                 "https://example.test/chosen.jpg")
-        content.assets["assets/wallpaper/cold-ripple.jpg"] = blueImage
+        content.assets["assets/wallpaper/colosseum-tide.jpg"] = blueImage
         content.generation++
         compare(Wallpapers.imageSource(null, content), blueImage)
     }
@@ -112,7 +112,7 @@ TestCase {
     }
     function test_picker_has_only_the_colosseum_shelf_before_wallhaven() {
         const names = ["Silk", "Folds", "Tide"]
-        const assets = {"assets/wallpaper/cold-ripple.jpg": redImage}
+        const assets = {}
         for (const name of names) {
             const stem = "assets/wallpaper/colosseum-" + name.toLowerCase()
             for (const suffix of [".jpg", "-thumb.jpg"])
@@ -132,7 +132,7 @@ TestCase {
                 "Only the Colosseum shelf may appear before Wallhaven results")
         compare(shelf.count, 3)
         compare(shelf.model.map(pick => pick.title), names)
-        compare(search.previewUrl, redImage, "Opening the picker keeps the inherited default")
+        compare(search.previewUrl, assets["assets/wallpaper/colosseum-tide.jpg"], "Opening the picker keeps the inherited default (Tide)")
         const preview = findChild(search, "wallpaperSearchPreview")
         for (let index = 0; index < names.length; index++) {
             const name = names[index].toLowerCase()
@@ -165,7 +165,7 @@ TestCase {
             const image = findChild(view, "fallbackWallpaperImage")
             verify(image !== null)
             tryCompare(image, "status", Image.Ready)
-            content.assets["assets/wallpaper/cold-ripple.jpg"] = blueImage
+            content.assets["assets/wallpaper/colosseum-tide.jpg"] = blueImage
             content.generation++
             tryCompare(view, "fallbackWallpaperSource", blueImage)
             tryCompare(image, "source", Qt.resolvedUrl(blueImage))

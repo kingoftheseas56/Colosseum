@@ -139,7 +139,7 @@ TestCase {
         view=shellFactory.createObject(test,{worldData:gateData,runtimeReady:true,hostReady:true});
         verify(view!==null);verify(waitForRendering(view));
         tryVerify(function(){
-            for(var n=0;n<16;++n){var tile=findChild(view,"vinylCrateTile_"+n);if(!tile||tile.height<=130)return false;}
+            for(var n=0;n<8;++n){var tile=findChild(view,"vinylCrateTile_"+n);if(!tile||tile.height<=130)return false;}
             return true;
         });
         view.pageFlickable.contentY=0;
@@ -166,17 +166,17 @@ TestCase {
     function test_01_firstScreenHasFullHeroAndFirstCrateRow(){
         var hero=findChild(view,"vinylHero"),crate=findChild(view,"vinylCrate"),spin=findChild(view,"vinylSpin");
         var header=findChild(spin,"vinylSpinSwitch").parent,tiles=[],kinds=[];
-        for(var i=0;i<16;++i){var tile=findChild(crate,"vinylCrateTile_"+i);tiles.push(bounds(tile));kinds.push(tile.kind);}
+        for(var i=0;i<8;++i){var tile=findChild(crate,"vinylCrateTile_"+i);tiles.push(bounds(tile));kinds.push(tile.kind);}
         console.info("V1_SHELL_BOUNDS "+JSON.stringify({window:{width:view.Window.window.width,height:view.Window.window.height},
             viewport:clipBounds(),hero:bounds(hero),crate:bounds(crate),spinHeader:bounds(header),tiles:tiles}));
         compare(view.Window.window.width,1280);compare(view.Window.window.height,700);
-        compare(hero.slideCount,4);compare(crate.count,16);compare(crate.columns,8);compare(crate.pageCount,1);
+        compare(hero.slideCount,4);compare(crate.count,16);compare(crate.columns,8);compare(crate.pageCount,2);
         for(var kind of ["albums","artists","songs","mixes","radio"])verify(kinds.indexOf(kind)>=0);
         verify(fits(hero),"Full Hero must fit the initial visible component viewport");
         verify(hero.height>=260,"Hero must be tall (>=260) at 1280x700, got "+hero.height);
         for(i=0;i<8;++i)verify(fits(findChild(crate,"vinylCrateTile_"+i)),"First-row Crate tile "+i+" including captions must fit");
-        compare(tiles[0].y,tiles[7].y);compare(tiles[8].y,tiles[15].y);verify(tiles[8].y>tiles[0].y);
-        verify(tiles[8].y>tiles[0].y,"Second Crate row sits below the first");
+        compare(tiles[0].y,tiles[7].y);
+        compare(findChild(crate,"vinylCrateTile_8"),null,"The Crate is a single row (Hemanth, 2026-11-28)");
     }
     function test_homeScrollsUnderFloatingFooterAndEndsClearOfPlayer() {
         var footer = createTemporaryObject(floatingFooterFactory, test, {shell:view});
@@ -450,7 +450,7 @@ TestCase {
                 ? Object.assign({},row,{items:[station]}) : row);
             var tile=findChild(view,"vinylCard_v1:mixes-radio_0");
             scrollToCard(tile);
-            compare(tile.captionDetail,"Personal radio");
+            compare(tile.captionDetail,"Keeps going");
             compare(findChild(tile,tile.objectName+"_artistRadio"),null);
             mouseClick(tile,20,80);
             compare(gateData.actions.length,1);

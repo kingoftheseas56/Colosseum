@@ -348,7 +348,7 @@ Item {
             visible: root.backdrop !== null
         }
         Image { anchors.fill: parent; visible: root.backdrop === null
-                source: (root.universeContentGeneration, UniverseContent.asset("../assets/wallpaper/cold-ripple.jpg"))
+                source: (root.universeContentGeneration, UniverseContent.asset("../assets/wallpaper/colosseum-tide.jpg"))
                 fillMode: Image.PreserveAspectCrop; cache: true }
         Image {
             anchors.fill: parent

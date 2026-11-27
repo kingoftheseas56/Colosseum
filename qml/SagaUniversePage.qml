@@ -21,7 +21,7 @@ Item {
     property Item backdrop: null
     property var contentStore: typeof Content !== "undefined" ? Content : null
     readonly property string fallbackWallpaperSource: root.contentStore
-        ? (root.contentStore.generation, root.contentStore.assetUrl("assets/wallpaper/cold-ripple.jpg")) : ""
+        ? (root.contentStore.generation, root.contentStore.assetUrl("assets/wallpaper/colosseum-tide.jpg")) : ""
     property string universeName: ""
     signal backRequested()
     signal minimizeRequested()

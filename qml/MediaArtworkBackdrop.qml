@@ -14,12 +14,12 @@ Item {
         && root.source.toString() === "" && root.fallbackSource === ""
     property bool recoverMissingArtwork: false
     property var contentStore: typeof Content !== "undefined" ? Content : null
-    readonly property string bundledFallbackSource: Qt.resolvedUrl("../assets/wallpaper/cold-ripple.jpg")
+    readonly property string bundledFallbackSource: Qt.resolvedUrl("../assets/wallpaper/colosseum-tide.jpg")
     readonly property string fallbackSource: {
         if (!root.wallpaperFallbackEnabled) return ""
         if (root.contentStore) {
             const remote = (root.contentStore.generation,
-                            root.contentStore.assetUrl("assets/wallpaper/cold-ripple.jpg"))
+                            root.contentStore.assetUrl("assets/wallpaper/colosseum-tide.jpg"))
             if (remote) return remote
         }
         return root.bundledFallbackSource

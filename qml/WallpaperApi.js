@@ -17,7 +17,7 @@
 var WALLHAVEN = "https://wallhaven.cc/api/v1";
 var PAGE_LIMIT = 24;   // Wallhaven serves 24/page
 
-var DEFAULT_WALLPAPER = "../assets/wallpaper/cold-ripple.jpg";
+var DEFAULT_WALLPAPER = "../assets/wallpaper/colosseum-tide.jpg";
 
 // Owned stills use the content store (local assets in dev, published assets in releases).
 function imageSource(pick, contentStore) {

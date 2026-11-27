@@ -14,9 +14,10 @@ TestCase {
     }
     function cleanup(){if(host){host.close();host.destroy()}}
     Component { id: backdropFactory; Vinyl.VinylBackdrop { contentStore: null } }
-    function test_noWallpaperWithoutArtwork() {
+    function test_defaultWallpaperWithoutArtwork() {
+        // Hemanth, 2026-11-28: Tide is the default, even for Vinyl.
         const backdrop = createTemporaryObject(backdropFactory, host.contentItem);
-        compare(backdrop.fallbackSource, "");
+        verify(String(backdrop.fallbackSource).indexOf("colosseum-tide.jpg") >= 0, backdrop.fallbackSource);
     }
     function test_visualEvidence_data() {
         return [{tag:"compact",w:1280,h:720},{tag:"wide",w:1600,h:900}]

@@ -1,7 +1,4 @@
 import ".."
 
-MediaArtworkBackdrop {
-    Theme { id: theme }
-    wallpaperFallbackEnabled: false
-    emptyColor: theme.vinylBackground
-}
+// Falls back to the default wallpaper (Tide) when a page has no artwork.
+MediaArtworkBackdrop {}

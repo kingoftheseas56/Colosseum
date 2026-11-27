@@ -33,7 +33,7 @@ Item {
 
     Image {
         anchors.fill: parent
-        source: "../assets/wallpaper/cold-ripple.jpg"
+        source: "../assets/wallpaper/colosseum-tide.jpg"
         sourceSize: Qt.size(1400, 880)
         fillMode: Image.PreserveAspectCrop
         asynchronous: true

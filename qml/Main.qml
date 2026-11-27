@@ -4654,7 +4654,8 @@ Window {
         }
     }
 
-    // Vinyl's loading, browse and search surfaces sample black without replacing the user's wallpaper.
+    // Vinyl's loading, browse and search surfaces show the wallpaper (default Tide) and their glass
+    // samples it (Hemanth, 2026-11-28: "make tide the default, even for vinyl").
     Rectangle {
         id: vinylWall
         objectName: "vinylBrowseWall"
@@ -4665,6 +4666,14 @@ Window {
         color: theme.vinylBackground
         visible: worldStack.current === "Vinyl" && wall.visible
             && (!win.vinylWorld || !win.vinylWorld.fullWindowDetail || win.vinylWorld.searchOpen)
+        Image {
+            objectName: "vinylBrowseWallImage"
+            anchors.fill: parent
+            source: win.wallpaperSource || win.defaultWallpaperSource
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+            cache: true
+        }
     }
 
     // (RowHeader — the old hover-reveal row header — is gone: its one user was the home
