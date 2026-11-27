@@ -20,7 +20,7 @@ Item {
     property string backObjectName: ""        // keeps each page's historical Back automation name
     property bool solid: false                // true once the page has scrolled under the bar
     property bool searchVisible: true
-    property bool windowActionsVisible: true
+    property bool inlineWindowControls: false
     readonly property bool menuOpen: systemMenu.visible
     readonly property Item backItem: backAction
     // Optional page-specific actions belong next to, not in, the app system menu.
@@ -36,12 +36,13 @@ Item {
     height: 76
 
     function openMenu() {
+        if (bar.inlineWindowControls)
+            return
         bar.quitArmed = false
         systemMenu.visible = true
         Qt.callLater(function() {
-            const firstAction = bar.windowActionsVisible ? menuMinimizeRow.action : menuQuitRow.action
             if (bar.menuOpen)
-                firstAction.forceActiveFocus(Qt.PopupFocusReason)
+                menuMinimizeRow.action.forceActiveFocus(Qt.PopupFocusReason)
         })
     }
     function closeMenu(restoreFocus) {
@@ -155,6 +156,7 @@ Item {
             }
         }
         Item {
+            visible: !bar.inlineWindowControls
             width: 40; height: 40
             Rectangle { anchors.fill: parent; radius: 20
                         color: (menuButtonAction.interactionActive || bar.menuOpen) ? Qt.rgba(1, 1, 1, 0.12) : "transparent" }
@@ -174,6 +176,18 @@ Item {
                 focusRadius: 20
                 focusColor: bar.focusGold
                 onTriggered: bar.menuOpen ? bar.closeMenu(true) : bar.openMenu()
+            }
+        }
+        Loader {
+            active: bar.inlineWindowControls && Qt.platform.os !== "android"
+            visible: active
+            anchors.verticalCenter: parent.verticalCenter
+            sourceComponent: HouseWindowControls {
+                objectPrefix: "titleBarWindow"
+                quitIcon: Qt.resolvedUrl("../assets/icons/reader2/close.svg")
+                onMinimizeRequested: bar.minimizeRequested()
+                onFullscreenRequested: bar.fullscreenRequested()
+                onQuitRequested: bar.quitRequested()
             }
         }
     }
@@ -205,19 +219,16 @@ Item {
                 MenuRow {
                     id: menuMinimizeRow
                     objectName: "titleBarMinimize"
-                    visible: bar.windowActionsVisible
                     label: "Minimize"
                     onChosen: { bar.closeMenu(false); bar.minimizeRequested() }
                 }
                 MenuRow {
                     objectName: "titleBarFullscreen"
-                    visible: bar.windowActionsVisible
                     label: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? "Fullscreen" : "Exit fullscreen"
                     onChosen: { bar.closeMenu(false); bar.fullscreenRequested() }
                 }
-                Rectangle { visible: bar.windowActionsVisible; width: parent.width - 24; x: 12; height: 1; color: theme.edge }
+                Rectangle { width: parent.width - 24; x: 12; height: 1; color: theme.edge }
                 MenuRow {
-                    id: menuQuitRow
                     objectName: "titleBarQuit"
                     label: "Quit Colosseum…"
                     danger: true

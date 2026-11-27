@@ -220,7 +220,7 @@ Item {
             const button=action("vinylSongDownload");
             verify(!button.visible);
             viewedSong.canDownloadPlayingSong=true;
-            verify(button.visible);verify(button.enabled);compare(button.label,"Download");
+            verify(button.visible);verify(button.enabled);compare(button.label,"");
             compare(button.accessibleName,"Download");verify(button.iconSource.toString().endsWith("download.svg"));
             compare(button.parent,action("vinylSongSave").parent);
             waitForRendering(scene);mouseClick(button,button.width/2,button.height/2);
@@ -233,7 +233,8 @@ Item {
             viewedSong.canDownloadPlayingSong=true;viewedSong.downloadedPlayingSong=true;
             const button=action("vinylSongDownload");
             verify(button.visible);verify(!button.enabled);
-            compare(button.label,"Downloaded");compare(button.accessibleName,"Downloaded");
+            compare(button.label,"");compare(button.accessibleName,"Downloaded");
+            verify(button.iconSource.toString().endsWith("circle-check.svg"));
             button.activate();compare(viewedSong.downloadCalls,0);
             viewedSong.downloadedPlayingSong=false;
             button.forceActiveFocus();keyClick(Qt.Key_Return);compare(viewedSong.downloadCalls,1);

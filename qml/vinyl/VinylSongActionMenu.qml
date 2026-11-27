@@ -203,9 +203,9 @@ Item {
                 objectName: "vinylSongDownload"
                 visible: root.downloadSupported
                 enabled: root.downloadSupported && !root.currentSongDownloaded
-                iconSource: "../../assets/icons/download.svg"
-                label: root.currentSongDownloaded ? qsTr("Downloaded") : qsTr("Download")
-                accessibleName: label
+                iconSource: root.currentSongDownloaded ? "../../assets/icons/lucide/circle-check.svg"
+                                                       : "../../assets/icons/download.svg"
+                accessibleName: root.currentSongDownloaded ? qsTr("Downloaded") : qsTr("Download")
                 onTriggered: root.invokeCurrentSong("downloadPlayingSong")
             }
             Action {

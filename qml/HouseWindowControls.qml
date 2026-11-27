@@ -5,6 +5,7 @@ Row {
     id: controls
     property bool androidHost: Qt.platform.os === "android"
     property string objectPrefix: "houseWindow"
+    property url quitIcon: Qt.resolvedUrl("../assets/icons/power.svg")
     readonly property bool shellWindowed: typeof WindowMode !== "undefined" && WindowMode.shellWindowed
     signal minimizeRequested()
     signal fullscreenRequested()
@@ -52,7 +53,7 @@ Row {
     }
     WindowIcon {
         objectName: controls.objectPrefix + "Quit"
-        source: Qt.resolvedUrl("../assets/icons/power.svg")
+        source: controls.quitIcon
         accessibleName: qsTr("Quit Colosseum")
         onTriggered: controls.quitRequested()
     }
