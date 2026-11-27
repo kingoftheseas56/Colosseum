@@ -342,11 +342,6 @@ Item {
             Pill { label: "Tankoban" }
             Pill { label: "Biblio" }
             Pill { label: "Theatre" }
-            Pill { label: "Universes" }
-            Pill {
-                label: "Feria"
-                comingSoon: !bar.Window.window || bar.Window.window.feriaComingSoon !== false
-            }
             Pill {
                 id: vinylPill
                 label: "Vinyl"
@@ -358,6 +353,11 @@ Item {
                     anchors.fill: parent
                     objectName: (bar.visible && bar.lifecycleActive && vinylPill.qualificationEnabled) ? "modePill_Vinyl" : ""
                 }
+            }
+            Pill { label: "Universes" }
+            Pill {
+                label: "Feria"
+                comingSoon: !bar.Window.window || bar.Window.window.feriaComingSoon !== false
             }
         }
     }
