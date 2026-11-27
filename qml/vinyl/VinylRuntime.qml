@@ -1089,6 +1089,7 @@ Item {
         DetailBar {
             id: albumTitle
             y: album.contentY
+            windowActionsVisible: false
             backObjectName: root.fullWindowDetails ? "vinylAlbumBack" : ""
             solid: album.contentY > 40
         }
@@ -1133,6 +1134,7 @@ Item {
         onAlbumRequested:{if(!root.canEnterVinyl){root.enforceTasteGate();return;}if(root.browsingSong)root.openAlbum(browseSong.album.id);else {root.pushRoute();session.showPlayingAlbum();root.page="album";root.parkFocus();}}
         DetailBar {
             id: songTitle
+            windowActionsVisible: false
             backObjectName: song.titleBarHeight > 0 ? "vinylSongBack" : ""
         }
     }

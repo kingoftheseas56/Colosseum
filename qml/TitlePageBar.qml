@@ -20,6 +20,7 @@ Item {
     property string backObjectName: ""        // keeps each page's historical Back automation name
     property bool solid: false                // true once the page has scrolled under the bar
     property bool searchVisible: true
+    property bool windowActionsVisible: true
     readonly property bool menuOpen: systemMenu.visible
     readonly property Item backItem: backAction
     // Optional page-specific actions belong next to, not in, the app system menu.
@@ -37,7 +38,11 @@ Item {
     function openMenu() {
         bar.quitArmed = false
         systemMenu.visible = true
-        Qt.callLater(function() { if (bar.menuMinimize) bar.menuMinimize.forceActiveFocus(Qt.PopupFocusReason) })
+        Qt.callLater(function() {
+            const firstAction = bar.windowActionsVisible ? menuMinimizeRow.action : menuQuitRow.action
+            if (bar.menuOpen)
+                firstAction.forceActiveFocus(Qt.PopupFocusReason)
+        })
     }
     function closeMenu(restoreFocus) {
         systemMenu.visible = false
@@ -199,16 +204,21 @@ Item {
                 width: parent.width
                 MenuRow {
                     id: menuMinimizeRow
+                    objectName: "titleBarMinimize"
+                    visible: bar.windowActionsVisible
                     label: "Minimize"
                     onChosen: { bar.closeMenu(false); bar.minimizeRequested() }
-                    Component.onCompleted: bar.menuMinimize = action
                 }
                 MenuRow {
+                    objectName: "titleBarFullscreen"
+                    visible: bar.windowActionsVisible
                     label: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? "Fullscreen" : "Exit fullscreen"
                     onChosen: { bar.closeMenu(false); bar.fullscreenRequested() }
                 }
-                Rectangle { width: parent.width - 24; x: 12; height: 1; color: theme.edge }
+                Rectangle { visible: bar.windowActionsVisible; width: parent.width - 24; x: 12; height: 1; color: theme.edge }
                 MenuRow {
+                    id: menuQuitRow
+                    objectName: "titleBarQuit"
                     label: "Quit Colosseum…"
                     danger: true
                     onChosen: {
@@ -243,6 +253,5 @@ Item {
             }
         }
     }
-    property Item menuMinimize: null
     property Item quitNo: null
 }

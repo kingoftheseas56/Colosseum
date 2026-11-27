@@ -254,7 +254,7 @@ TestCase {
             tryVerify(function() { return lyrics.visible && notes.visible; });
         }
     }
-    function test_largeDesktopCoverAndSeparatedActions() {
+    function test_largeDesktopCoverAndMetadata() {
         var page=item("vinylSongPage"),poster=item("vinylSongPoster");
         var sizes=[{width:1600,height:900,min:500,max:540},{width:1903,height:1008,min:500,max:550}];
         for(var i=0;i<sizes.length;i++) {
@@ -262,10 +262,11 @@ TestCase {
             waitForRendering(host.contentItem);
             verify(poster.height>=sizes[i].min && poster.height<=sizes[i].max,
                 "Cover size at "+host.width+" was "+poster.height);
-            var title=item("vinylSongTitle"),save=item("vinylSongSave"),playlist=item("vinylSongPlaylist");
-            var titleAt=title.mapToItem(page,0,0),saveAt=save.mapToItem(page,0,0),playlistAt=playlist.mapToItem(page,0,0);
-            verify(saveAt.x+save.width<=titleAt.x && playlistAt.x>=titleAt.x+title.width);
-            verify(saveAt.y>poster.mapToItem(page,0,poster.height).y,"Personal actions belong below artwork");
+            var title=item("vinylSongTitle"),artist=item("vinylSongArtist");
+            var titleAt=title.mapToItem(page,0,0);
+            verify(titleAt.y>poster.mapToItem(page,0,poster.height).y,"The title belongs below artwork");
+            verify(artist.mapToItem(page,0,0).y>=titleAt.y+title.height,"The byline sits below the title");
+            compare(item("vinylSongTrackActions").height,0,"This fixture has no personal track actions");
             var collection=item("vinylSongAddToCollections"),at=collection.mapToItem(page,0,0);
             verify(at.x>page.width/2 && at.y<item("vinylSongBack").height+10);
             compare(item("vinylSongSources").parent.parent,item("vinylSongMetadata"));
@@ -282,8 +283,8 @@ TestCase {
         waitForRendering(host.contentItem);
         var poster=item("vinylSongPoster"),metadata=item("vinylSongMetadata");
         compare(bar.height,104);
-        verify(poster.height>=page.height-116,"Cover must use available body height");
-        verify(poster.height>=290,"Scaled desktop cover remains large");
+        verify(poster.height>=page.height-metadata.height-24,"Cover must use the remaining body height");
+        verify(poster.height>=260,"Scaled desktop cover remains large");
         verify(poster.mapToItem(page,0,0).y<=8,"Cover can use the safe central header space");
         verify(metadata.mapToItem(page,0,metadata.height).y<=page.height+0.5,"Metadata must remain above HUD");
         var before=poster.height;
@@ -312,7 +313,7 @@ TestCase {
         verify(right.x+notes.width<=collection.mapToItem(page,0,0).x);
         verify(item("vinylLyricsColumn").mapToItem(page,0,0).y>=left.y+lyrics.height);
         verify(item("vinylNotesColumn").mapToItem(page,0,0).y>=right.y+notes.height);
-        verify(poster.height>=Math.min(500,page.height-116));
+        verify(poster.height>=Math.min(500,page.height-item("vinylSongMetadata").height-24));
         compare(item("vinylLyricsColumn").x,page.sideInset);
         var coverHeight=poster.height;
         host.pageData.lyricsShown=false;waitForRendering(host.contentItem);
@@ -346,9 +347,18 @@ TestCase {
     }
     function test_narrowReadingBounds() {
         host.width=540;host.height=900;
+        var titleText = "A Long Song Title That Needs Room to Wrap Below the Cover";
+        var edition = JSON.parse(JSON.stringify(host.pageData.playingEdition));
+        edition.discs[host.pageData.playingDisc][host.pageData.playingIndex].title = titleText;
+        host.pageData.playingEdition = edition;
         host.pageData.lyricsShown=true;host.pageData.showNotes(1);
         waitForRendering(host.contentItem);
         var page=item("vinylSongPage"),poster=item("vinylSongPoster"),metadata=item("vinylSongMetadata");
+        var title=item("vinylSongTitle");
+        compare(title.text,titleText);
+        compare(title.width,metadata.width);
+        compare(title.lineCount,2);
+        verify(!title.truncated);
         var lyrics=item("vinylLyricsColumn"),notes=item("vinylNotesColumn");
         verify(lyrics.visible && notes.visible);
         verify(lyrics.x+lyrics.width<=notes.x);

@@ -30,21 +30,22 @@ Item {
     readonly property real headerBottom: titleBarHeight || backAction.y + backAction.height
     readonly property real artworkTop: stackedReaders ? headerBottom + 18 : 4
     readonly property real readerToolsTop: Math.max(0, titleBarHeight - artworkTop)
-    // The fixed metadata reservation keeps toggling reading tools from moving the cover.
-    readonly property real centerWidth: Math.max(96, Math.min(540,
-        stackedReaders ? width - 2 * sideInset : width * 0.36,
-        stackedReaders ? viewportHeight * 0.38 : viewportHeight - artworkTop - 108))
+    readonly property real centerColumnWidth: Math.max(96, Math.min(540,
+        stackedReaders ? width - 2 * sideInset : width * 0.36))
+    readonly property real centerWidth: Math.max(96, Math.min(centerColumnWidth,
+        stackedReaders ? viewportHeight * 0.38
+            : viewportHeight - artworkTop - 18 - songMetadata.implicitHeight))
     readonly property real cardHeight: centerWidth
     readonly property real videoFrameHeight: Math.max(0, Math.min(viewportHeight - titleBarHeight, width * 9 / 16))
     readonly property real readingTop: stackedReaders
-        ? room.y + cardHeight + 10 + songMetadata.implicitHeight + 54
+        ? room.y + room.height + 46
         : room.y + readerToolsTop + 42
     readonly property real readingHeight: Math.max(0, viewportHeight - readingTop - 8)
     readonly property real notesAreaX: stackedReaders ? width / 2 + sideGap / 2
-        : (width + centerWidth) / 2 + sideGap
+        : (width + centerColumnWidth) / 2 + sideGap
     readonly property real readerWidth: stackedReaders
         ? Math.max(0, (width - 2 * sideInset - sideGap) / 2)
-        : Math.max(0, Math.min(380, (width - centerWidth) / 2 - sideInset - sideGap))
+        : Math.max(0, Math.min(380, (width - centerColumnWidth) / 2 - sideInset - sideGap))
     readonly property var displayedGeniusNotes: {
         if (!notesColumn.visible)
             return [];
@@ -242,42 +243,19 @@ Item {
                 objectName: "vinylSongMetadata"
                 x: (parent.width - width) / 2
                 y: parent.height + 10
-                width: root.centerWidth
-                spacing: 2
-                Item {
+                width: root.centerColumnWidth
+                spacing: 4
+                Text {
+                    objectName: "vinylSongTitle"
                     width: parent.width
-                    height: 38
-                    Item {
-                        id: songPersonalHost
-                        objectName: "vinylSongPersonalActions"
-                        width: songActions.personalWidth
-                        height: 34
-                        x: Math.max(0, (parent.width - songTitleText.width) / 2 - width - 12)
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                    Text {
-                        id: songTitleText
-                        objectName: "vinylSongTitle"
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        width: Math.min(implicitWidth, Math.max(0, parent.width
-                            - 2 * (Math.max(songActions.personalWidth, songActions.playlistWidth) + 12)))
-                        text: root.songTitle
-                        color: theme.ink
-                        font.family: theme.display
-                        font.pixelSize: root.stackedReaders ? 28 : 30
-                        maximumLineCount: 1
-                        elide: Text.ElideRight
-                        wrapMode: Text.NoWrap
-                        horizontalAlignment: Text.AlignHCenter
-                    }
-                    Item {
-                        id: songPlaylistHost
-                        objectName: "vinylSongPlaylistActions"
-                        x: (parent.width + songTitleText.width) / 2 + 12
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: songActions.playlistWidth
-                        height: 34
-                    }
+                    text: root.songTitle
+                    color: theme.ink
+                    font.family: theme.display
+                    font.pixelSize: root.stackedReaders ? 28 : 30
+                    maximumLineCount: 2
+                    elide: Text.ElideRight
+                    wrapMode: Text.Wrap
+                    horizontalAlignment: Text.AlignHCenter
                 }
                 TextMetrics {
                     id: artistNameMetrics
@@ -287,7 +265,7 @@ Item {
                 }
                 Item {
                     width: parent.width
-                    height: 24
+                    height: Math.max(24, songIdentity.implicitHeight)
                     Row {
                         id: songIdentity
                         anchors.horizontalCenter: parent.horizontalCenter
@@ -295,7 +273,8 @@ Item {
                         VinylArtistLinks {
                             id: songArtists
                             objectName: "vinylSongArtist"
-                            width: Math.min(songMetadata.width * 0.55, Math.max(24, artistNameMetrics.advanceWidth))
+                            width: Math.min(songMetadata.width * 0.55, artistNameMetrics.advanceWidth)
+                            visible: width > 0
                             names: root.pageData.playingTrack.artists || root.pageData.playingEdition.artists || (root.pageData.playingEdition.sourceAlbum && root.pageData.playingEdition.sourceAlbum.artists) || []
                             fallbackName: root.pageData.playingEdition.artist
                             navigationEnabled: root.artistNavigationEnabled
@@ -303,16 +282,19 @@ Item {
                             onArtistRequested: name => root.artistRequested(name)
                         }
                         Text {
+                            visible: songArtists.visible && songAlbum.visible
                             text: "\u00b7"
                             color: theme.inkDimmer
                             font.family: theme.ui
                             font.pixelSize: 13
                         }
                         KeyboardAction {
+                            id: songAlbum
                             objectName: "vinylSongAlbum"
                             width: Math.min(albumLabel.implicitWidth,
-                                Math.max(0, songMetadata.width - songArtists.width - 20))
+                                Math.max(0, songMetadata.width - songArtists.width - (songArtists.visible ? 20 : 0)))
                             height: 24
+                            visible: width > 0
                             focusOnPointer: false
                             accessibleName: qsTr("Open album %1").arg(albumLabel.text)
                             onTriggered: root.albumRequested()
@@ -328,6 +310,28 @@ Item {
                         }
                     }
                 }
+                Flow {
+                    objectName: "vinylSongTrackActions"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: Math.min(parent.width,
+                        songPersonalHost.width + songPlaylistHost.width
+                        + (songPersonalHost.width > 0 && songPlaylistHost.width > 0 ? spacing : 0))
+                    height: implicitHeight
+                    spacing: songActions.spacing
+                    Item {
+                        id: songPersonalHost
+                        objectName: "vinylSongPersonalActions"
+                        width: songActions.personalWidth
+                        height: 34
+                    }
+                    Item {
+                        id: songPlaylistHost
+                        objectName: "vinylSongPlaylistActions"
+                        width: songActions.playlistWidth
+                        height: 34
+                    }
+                }
+                // Keep this space reserved so showing sources does not shift the cover.
                 Item {
                     width: parent.width
                     height: 32
@@ -350,7 +354,7 @@ Item {
             id: lyricsHeading
             objectName: "vinylSongLyricsHeading"
             x: root.stackedReaders ? root.sideInset
-                : (root.width - root.centerWidth) / 2 - root.sideGap - width
+                : (root.width - root.centerColumnWidth) / 2 - root.sideGap - width
             y: root.stackedReaders ? root.readingTop - room.y - 42 : root.readerToolsTop
             width: songActions.lyricsWidth
             height: 34
