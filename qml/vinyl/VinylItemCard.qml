@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import ".."
 import "VinylCardPresentation.js" as Presentation
 
@@ -18,11 +17,14 @@ KeyboardAction {
     property bool compactCaption: false
     property var artistRadioAction: null
     property var albumPlayAction: null
+    property bool keyboardFocused: activeFocus
+    property bool reducedMotion: !!(Window.window && Window.window["reducedMotion"] === true)
     readonly property bool albumPlayAvailable: presentationKind === "albums" && albumPlayAction !== null
+    readonly property bool artistRadioAvailable: presentationKind === "artists" && artistRadioAction !== null
     readonly property bool pinAvailable: worldData && typeof worldData.pinCrateItem==="function"
         && typeof worldData.isCratePinned==="function" && !!item.id
-        && ["songs","saved-song","albums","artists","mixes","radio"].indexOf(presentationKind)>=0
-    readonly property bool pinned: pinAvailable && worldData.isCratePinned(item)
+        && ["songs","albums","artists","mixes","radio"].indexOf(presentationKind)>=0
+    readonly property bool pinned: pinAvailable ? worldData.isCratePinned(item) : item.pinned === true
     readonly property bool feedbackAvailable: !!recommendationRow
         && (recommendationRow.recommendation === true
             || ((recommendationRow.key === "taste-artists" || recommendationRow.key === "saved-artists")
@@ -32,15 +34,24 @@ KeyboardAction {
         && typeof worldData.recommendationProfileGeneration === "function"
         && typeof worldData.recommendationArtistRef === "function"
     readonly property bool quickFeedbackAvailable: feedbackAvailable && recommendationRow.recommendation === true
-    readonly property bool feedbackRevealed: quickFeedbackAvailable && (hovered || activeFocus
-        || likeBadge.hovered || likeBadge.activeFocus || hideBadge.hovered || hideBadge.activeFocus)
+    readonly property bool feedbackRevealed: quickFeedbackAvailable && (engaged
+        || (likeBadge.item && (likeBadge.item.hovered || likeBadge.item.activeFocus))
+        || (hideBadge.item && (hideBadge.item.hovered || hideBadge.item.activeFocus)))
+    readonly property bool engaged: hovered || keyboardFocused
+    property bool hintDismissed: false
+    onEngagedChanged: if (!engaged) hintDismissed = false
+    Keys.onEscapePressed: event => {
+        if (!hint.active) return;
+        hintDismissed = true;
+        event.accepted = true;
+    }
 
     enabled: root.item.available !== false && root.item.unavailable !== true
-    spaceActivates: albumPlayAvailable || (presentationKind === "artists" && artistRadioAction !== null)
+    showFocusFrame: false
+    spaceActivates: albumPlayAvailable || artistRadioAvailable
     readonly property string reason: item.reason || ""
     readonly property string presentationKind: Presentation.kind(item)
     readonly property string artistText: Presentation.artist(item)
-    readonly property bool includesTitle: presentationKind === "songs"
     readonly property string secondaryText: Presentation.secondary(item, artistText)
         + (feedbackError ? "\n" + feedbackError : "")
     readonly property string albumText: {
@@ -51,31 +62,31 @@ KeyboardAction {
     readonly property string songCredit: !albumText ? artistText
         : artistText ? qsTr("%1 · from %2").arg(artistText).arg(albumText)
         : qsTr("From %1").arg(albumText)
-    // The jukebox face already shows both labels. Compact Crate tiles keep
-    // their separate title and credit in the two caption lines.
-    readonly property bool faceOnlySong: includesTitle && !compactCaption
-    readonly property string captionTitle: faceOnlySong ? "" : String(item.title || "")
-    readonly property string captionDetail: faceOnlySong ? ""
-        : presentationKind === "artists" ? reason || qsTr("Artist")
-        : item.unavailable ? qsTr("Unavailable")
-        : compactCaption && item.resumeTrack>0 && item.totalTracks>=item.resumeTrack ? reason
-        : (presentationKind === "mixes" ? qsTr("Made for you")
-            : presentationKind === "radio" ? qsTr("Station")
-            : presentationKind === "albums" ? artistText || String(item.subtitle || "")
-            : songCredit)
+    readonly property bool resumeCaption: compactCaption && item.resumeTrack > 0 && item.totalTracks >= item.resumeTrack
+    readonly property bool opensPage: presentationKind === "albums" || presentationKind === "artists"
+    readonly property bool playing: presentationKind === "songs" && worldData
+        && Presentation.isCurrentSong(item, worldData.session)
+    readonly property string captionTitle: String(item.title || "")
+    readonly property string captionDetail: item.unavailable ? qsTr("Unavailable")
+        : resumeCaption ? reason
+        : presentationKind === "artists" ? (compactCaption && reason || qsTr("Artist"))
+        : presentationKind === "mixes" ? String(item.subtitle || qsTr("Made for you"))
+        : presentationKind === "radio" ? qsTr("Personal radio")
+        : presentationKind === "albums" ? Presentation.albumDetail(item, artistText)
+        : compactCaption ? songCredit : artistText || (presentationKind === "songs" ? "" : String(item.subtitle || ""))
     readonly property real captionTop: copy.y
-    readonly property url artworkSource: worldData && item ? worldData.artwork(item.cover) : ""
-    readonly property var mixArtworkSources: (item.artworkCovers || []).slice(0, 3).map(function(cover) {
-        return root.worldData ? root.worldData.artwork(cover) : "";
-    })
-    implicitHeight: art.height + (copy.height > 0 ? (compactCaption ? 7 : 14) + copy.height : 0)
-        + (compactCaption || faceOnlySong ? 0 : 8)
-    accessibleName: item.title + (item.unavailable ? ", unavailable" : "")
-        + (faceOnlySong && artistText ? ". " + artistText : "")
-        + (captionDetail ? ". " + captionDetail : "")
+    readonly property url artworkSource: worldData ? worldData.artwork(item.cover) : ""
+    readonly property var mixArtworkSources: presentationKind === "mixes" && worldData
+        ? (item.artworkCovers || []).slice(0, 4).map(cover => worldData.artwork(cover)) : []
+    implicitWidth: 196
+    implicitHeight: width + (compactCaption ? 42 : 55)
+    accessibleName: captionTitle + (captionDetail ? ". " + captionDetail : "")
+    accessibleDescription: secondaryText === captionDetail ? "" : secondaryText
     onTriggered: if(worldData) worldData.activate(item)
 
-    function scheduleExposureCheck() { exposureTimer.restart(); }
+    function scheduleExposureCheck() {
+        if (exposure.item) exposure.item.restart();
+    }
     function clipTo(bounds, clipItem) {
         var corner=clipItem.mapToItem(null,0,0);
         bounds.left=Math.max(bounds.left,corner.x);
@@ -122,142 +133,196 @@ KeyboardAction {
     }
 
     Theme { id: theme }
+    Rectangle {
+        id: tile
+        objectName: root.objectName + "_tile"
+        anchors.fill: parent
+        radius: 15
+        color: "#e6262830"
+        border.width: 1
+        border.color: root.keyboardFocused ? theme.gold : root.hovered ? "#70ffffff" : "#26ffffff"
+        transformOrigin: root.transformOrigin
+        property real motionScale: root.engaged ? 1.015 : 1
+        scale: root.reducedMotion ? 1 : motionScale
+        Behavior on motionScale {
+            enabled: !root.reducedMotion
+            NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
+        }
+
+        VinylTileArt {
+            id: art
+            objectName: root.objectName + "_cover"
+            x: root.compactCaption ? 4 : 8
+            y: x
+            width: Math.max(0, tile.width - 2 * x)
+            height: width
+            title: root.captionTitle
+            artworkSource: root.artworkSource
+            artworkSources: root.mixArtworkSources
+            circular: root.presentationKind === "artists" || root.item.round === true
+        }
+        Item {
+            id: copy
+            objectName: root.objectName + "_caption"
+            x: root.compactCaption ? 7 : 10
+            y: art.y + art.height + (root.compactCaption ? 4 : 7)
+            width: tile.width - 2 * x
+            height: root.compactCaption ? 38 : 48
+
+            Text {
+                objectName: root.objectName + "_captionTitle"
+                width: parent.width
+                height: root.compactCaption ? 18 : 22
+                text: root.captionTitle
+                textFormat: Text.PlainText
+                color: root.playing ? theme.gold : theme.ink
+                font.family: theme.display
+                font.pixelSize: root.compactCaption ? 15 : 17
+                maximumLineCount: 1
+                elide: Text.ElideRight
+                verticalAlignment: Text.AlignVCenter
+            }
+            Text {
+                objectName: root.objectName + "_captionDetail"
+                y: root.compactCaption ? 18 : 24
+                width: Math.max(0, parent.width - (hint.active ? hint.width + 6 : 0))
+                height: root.compactCaption ? 20 : 24
+                text: root.feedbackError || ((root.pinned ? "✓  " : "")
+                    + (root.presentationKind === "radio" && !root.item.unavailable ? "((•))  " : "")
+                    + root.captionDetail)
+                textFormat: Text.PlainText
+                color: root.resumeCaption ? theme.gold : theme.inkDim
+                font.family: theme.ui
+                font.pixelSize: 12
+                maximumLineCount: 1
+                elide: Text.ElideRight
+                verticalAlignment: Text.AlignVCenter
+            }
+            Loader {
+                id: hint
+                objectName: "vinylTileHint"
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                width: root.compactCaption ? 20 : 24
+                height: width
+                active: root.enabled && root.engaged && !root.playing && !root.hintDismissed
+                sourceComponent: Rectangle {
+                    radius: width / 2
+                    color: "#3b404a"
+                    Text {
+                        anchors.centerIn: parent
+                        text: root.opensPage ? "→" : "▶"
+                        color: theme.ink
+                        font.family: theme.ui
+                        font.pixelSize: root.opensPage ? 15 : 12
+                    }
+                    NumberAnimation on opacity {
+                        from: 0; to: 1
+                        duration: 180
+                        easing.type: Easing.OutCubic
+                        running: !root.reducedMotion
+                    }
+                }
+            }
+        }
+        Loader {
+            objectName: "vinylPlayingRail"
+            x: copy.x
+            y: art.y + art.height + 2
+            width: copy.width
+            height: 2
+            active: root.playing
+            sourceComponent: Rectangle {
+                radius: 1
+                color: "#52555e"
+                Rectangle {
+                    width: parent.width * 0.37
+                    height: parent.height
+                    radius: 1
+                    color: theme.gold
+                }
+            }
+        }
+
+        Loader {
+            anchors.centerIn: art
+            z: 2
+            active: root.albumPlayAvailable || root.artistRadioAvailable
+            sourceComponent: VinylFeedbackBadge {
+                objectName: root.objectName + (root.albumPlayAvailable ? "_albumPlay" : "_artistRadio")
+                enabled: root.enabled
+                revealed: root.engaged || hovered || activeFocus
+                symbol: "play"
+                accessibleName: !root.albumPlayAvailable ? qsTr("Artist radio")
+                    : root.item.resumeTrack > 0 ? qsTr("Resume album") : qsTr("Play album")
+                spaceActivates: true
+                onTriggered: {
+                    if (root.albumPlayAvailable) root.albumPlayAction(root.item);
+                    else root.artistRadioAction(root.item);
+                }
+            }
+        }
+        Loader {
+            id: likeBadge
+            x: art.x + 1; y: art.y + 1; z: 2
+            active: root.quickFeedbackAvailable
+            sourceComponent: VinylFeedbackBadge {
+                objectName: "vinylRecommendationLike_" + String(root.item.id || "item")
+                enabled: root.enabled
+                revealed: root.feedbackRevealed
+                symbol: "check"
+                accessibleName: qsTr("More like %1").arg(root.item.title)
+                onTriggered: root.submitFeedback("like")
+            }
+        }
+        Loader {
+            anchors.right: art.right
+            anchors.bottom: art.bottom
+            z: 2
+            active: root.pinAvailable
+            sourceComponent: VinylFeedbackBadge {
+                objectName: "vinylPin_" + String(root.item.id || "item")
+                enabled: root.enabled || root.pinned
+                // The idle check lives in the caption to keep even a pinned
+                // four-cover mix within the paint budget. Retain the hit target.
+                pointerEnabled: revealed || root.pinned
+                revealed: root.engaged || hovered || activeFocus
+                symbol: root.pinned ? "check" : "playlistAdd"
+                accessibleName: (root.pinned ? qsTr("Unpin %1") : qsTr("Pin %1")).arg(root.item.title)
+                onTriggered: root.worldData.pinCrateItem(root.item, !root.pinned)
+            }
+        }
+        Loader {
+            id: hideBadge
+            x: art.x + art.width - width - 1; y: art.y + 1; z: 2
+            active: root.quickFeedbackAvailable
+            sourceComponent: VinylFeedbackBadge {
+                objectName: "vinylRecommendationHide_" + String(root.item.id || "item")
+                enabled: root.enabled
+                revealed: root.feedbackRevealed
+                symbol: "cancel"
+                accessibleName: qsTr("Hide %1").arg(root.item.title)
+                onTriggered: root.submitFeedback("hide")
+            }
+        }
+    }
+
     Loader {
-        id: art
-        objectName: root.objectName + "_cover"
-        width: root.width
-        height: status === Loader.Ready ? (item as Item).implicitHeight : width
-        sourceComponent: root.presentationKind === "songs" ? songArt
-            : root.presentationKind === "albums" ? albumArt
-            : root.presentationKind === "artists" ? artistArt
-            : root.presentationKind === "mixes" ? mixArt
-            : root.presentationKind === "radio" ? radioArt : ordinaryArt
-    }
-    Component { id: songArt; VinylSongWidget {
-        artworkSource: root.artworkSource; title: root.item.title; artist: root.artistText
-        displayFont: theme.display; uiFont: theme.ui
-    } }
-    Component { id: albumArt; VinylAlbumWidget { artworkSource: root.artworkSource; title: root.item.title } }
-    Component { id: artistArt; VinylArtistWidget {
-        artworkSource: root.artworkSource; title: root.item.title; displayFont: theme.display
-    } }
-    Component { id: mixArt; VinylMixWidget { artworkSources: root.mixArtworkSources; title: root.item.title } }
-    Component { id: radioArt; VinylRadioWidget { artworkSource: root.artworkSource; title: root.item.title } }
-    Component { id: ordinaryArt; RoundedPosterImage {
-        implicitHeight: width / (root.item.aspect || 1)
-        radius: root.item.round ? width / 2 : 13
-        sources: root.artworkSource ? [root.artworkSource] : []
-        hovered: root.interactionActive
-    } }
-    Column {
-        id: copy
-        objectName: root.objectName + "_caption"
-        y: art.height + (root.compactCaption ? 7 : 14)
-        width: parent.width
-        spacing: root.compactCaption ? 0 : 4
-        Text {
-            objectName: root.objectName + "_captionTitle"
-            visible: !root.faceOnlySong
-            width: parent.width
-            height: root.compactCaption ? 18 : 20
-            text: root.captionTitle
-            textFormat: Text.PlainText
-            color: theme.ink
-            font.family: theme.ui
-            font.pixelSize: 15
-            font.weight: Font.DemiBold
-            maximumLineCount: 1
-            elide: Text.ElideRight
+        id: exposure
+        active: root.quickFeedbackAvailable
+        onLoaded: root.scheduleExposureCheck()
+        sourceComponent: Timer {
+            interval: 120
+            onTriggered: root.recordExposureIfVisible()
+            property Connections sessionChanges: Connections {
+                target: root.worldData ? root.worldData.session || null : null
+                ignoreUnknownSignals: true
+                function onProfileGenerationChanged() {
+                    root.feedbackError = "";
+                    root.scheduleExposureCheck();
+                }
+            }
         }
-        Text {
-            objectName: root.objectName + "_captionDetail"
-            visible: !root.faceOnlySong
-            width: parent.width
-            height: root.compactCaption ? 16 : 18
-            text: root.captionDetail
-            textFormat: Text.PlainText
-            color: root.compactCaption && root.item.resumeTrack>0 && root.item.totalTracks>=root.item.resumeTrack ? theme.gold : theme.inkDimmer
-            font.family: theme.ui
-            font.pixelSize: 12
-            maximumLineCount: 1
-            elide: Text.ElideRight
-            lineHeight: 1.25
-        }
-        Text {
-            width: parent.width
-            visible: root.feedbackError.length > 0
-            text: root.feedbackError
-            textFormat: Text.PlainText
-            color: theme.ink
-            font.family: theme.ui; font.pixelSize: 12
-            wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight
-        }
-    }
-
-    VinylFeedbackBadge {
-        objectName: root.objectName + (root.albumPlayAvailable ? "_albumPlay" : "_artistRadio")
-        anchors.centerIn: art
-        z: 2
-        visible: root.albumPlayAvailable || (root.presentationKind === "artists" && root.artistRadioAction !== null)
-        enabled: visible && root.enabled
-        revealed: root.hovered || root.activeFocus || hovered || activeFocus
-        symbol: "play"
-        accessibleName: !root.albumPlayAvailable ? qsTr("Artist radio")
-            : root.item.resumeTrack > 0 ? qsTr("Resume album") : qsTr("Play album")
-        spaceActivates: true
-        onTriggered: {
-            if (root.albumPlayAvailable) root.albumPlayAction(root.item);
-            else root.artistRadioAction(root.item);
-        }
-    }
-
-    VinylFeedbackBadge {
-        id: likeBadge
-        objectName: "vinylRecommendationLike_" + String(root.item.id || "item")
-        x: 9; y: 9
-        z: 2
-        visible: root.quickFeedbackAvailable
-        enabled: visible && root.enabled
-        revealed: root.feedbackRevealed
-        symbol: "check"
-        accessibleName: qsTr("More like %1").arg(root.item.title)
-        onTriggered: root.submitFeedback("like")
-    }
-
-    VinylFeedbackBadge {
-        id: pinBadge
-        objectName: "vinylPin_"+String(root.item.id || "item")
-        x: art.width-width-9; y: art.height-height-9; z: 2
-        visible: root.pinAvailable
-        enabled: visible && (root.enabled || root.pinned)
-        revealed: root.hovered || root.activeFocus || hovered || activeFocus || root.pinned
-        symbol: root.pinned ? "check" : "playlistAdd"
-        accessibleName: (root.pinned ? qsTr("Unpin %1") : qsTr("Pin %1")).arg(root.item.title)
-        onTriggered: root.worldData.pinCrateItem(root.item,!root.pinned)
-    }
-    VinylFeedbackBadge {
-        id: hideBadge
-        objectName: "vinylRecommendationHide_" + String(root.item.id || "item")
-        x: art.width-width-9; y: 9
-        z: 2
-        visible: root.quickFeedbackAvailable
-        enabled: visible && root.enabled
-        revealed: root.feedbackRevealed
-        symbol: "cancel"
-        accessibleName: qsTr("Hide %1").arg(root.item.title)
-        onTriggered: root.submitFeedback("hide")
-    }
-
-    Timer {
-        id: exposureTimer
-        interval: 120
-        repeat: false
-        onTriggered: root.recordExposureIfVisible()
-    }
-    Connections {
-        target: root.worldData ? root.worldData.session : null
-        ignoreUnknownSignals: true
-        function onProfileGenerationChanged() { root.feedbackError=""; root.scheduleExposureCheck() }
     }
     onVisibleChanged: scheduleExposureCheck()
     onXChanged: scheduleExposureCheck()

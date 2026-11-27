@@ -41,14 +41,21 @@ Item {
         backdrop: root.backdrop
         fallbackType: "songs"
         posterVisualProfile: "gallery"
+        fixedGalleryWidth: true
+        // Keep the 196 px tile on desktop, shrinking all three columns together in narrow windows.
+        wallPosterWidth: Math.max(1, Math.min(196, Math.floor((width - contentLeft) / 3) - 20))
         reuseCardDelegates: true
-        cardDelegateCaptionHeight: currentType === "songs" ? 0 : 64
+        cardDelegateCaptionHeight: 55 // 196 × 251 at the standard card width
+        cardDelegateDrawsFocus: true
         cardDelegate: Component {
             VinylItemCard {
                 id: widget
                 objectName: parent.objectName + "_widget"
                 item: (parent.modelItem && parent.modelItem.raw) || ({})
                 focusEnabled: false
+                keyboardFocused: parent.keyboardFocused
+                // Grow into the cell gaps, not past the clipped grid's top/left edge.
+                transformOrigin: Item.TopLeft
                 worldData: QtObject {
                     readonly property var session: root.session
                     function artwork(cover) { return cover || ""; }

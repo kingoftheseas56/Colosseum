@@ -78,6 +78,7 @@ Item {
     // open(); the grid remains the only keyboard stop.
     property Component cardDelegate: null
     property real cardDelegateCaptionHeight: 64
+    property bool cardDelegateDrawsFocus: false
     // Opt-in for delegates whose state can follow a recycled model index.
     property bool reuseCardDelegates: false
     // Retained worlds stay instantiated for state preservation. The host drives this seam so a
@@ -1216,12 +1217,13 @@ Item {
                     objectName: modelItem ? "discoverCard_" + modelItem.id : ""
                     width: wall.cellWidth - wall.gapX
                     height: wall.cellHeight - wall.gapY
+                    readonly property bool keyboardFocused: !!modelItem && browser.keyboardMode && index === wall.currentIndex
                     sourceComponent: modelItem ? browser.cardDelegate : skeletonCell
                     function open() { if (modelItem) wall.openCard(index, modelItem) }
-                    FocusRing {
+                    Loader {
                         width: face.width; height: width
-                        radius: 10
-                        shown: !!face.modelItem && browser.keyboardMode && face.index === wall.currentIndex
+                        active: !browser.cardDelegateDrawsFocus && face.keyboardFocused
+                        sourceComponent: FocusRing { radius: 10; shown: true }
                     }
                 }
             }

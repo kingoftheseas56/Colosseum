@@ -1,6 +1,7 @@
 import QtQuick
 import QtTest
 import "../../qml/vinyl" as Vinyl
+import "../../qml" as House
 
 TestCase {
     id: test
@@ -26,6 +27,47 @@ TestCase {
     Component { id: batchFactory; Item { x: -1000 } }
     Component { id: cardFactory; Vinyl.VinylItemCard { width: 196; worldData: world } }
     Component { id: rowFactory; Vinyl.VinylTrackRow { width: 600; pageData: playback } }
+    Component { id: posterArtFactory; House.RoundedPosterImage { width: 196; height: 290 } }
+    Component { id: posterFactory; House.CataloguePosterCard { width: 148; height: 275; visualProfile: "gallery" } }
+
+    function medianCreation(component, props) {
+        let batch = batchFactory.createObject(test);
+        verify(component.createObject(batch, props[0]));
+        wait(30);
+        batch.destroy();
+        wait(0);
+        const samples = [];
+        for (let trial = 0; trial < 5; ++trial) {
+            batch = batchFactory.createObject(test);
+            const start = Date.now();
+            for (const entry of props) component.createObject(batch, entry);
+            samples.push(Date.now() - start);
+            compare(batch.children.length, 50);
+            batch.destroy();
+            wait(0);
+        }
+        samples.sort((a, b) => a - b);
+        return {median: samples[2], samples: samples};
+    }
+    function test_cardFamilyAgainstPoster() {
+        const cover = Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg");
+        const posterArt = medianCreation(posterArtFactory, Array.from({length:50}, () => ({sources:[cover]})));
+        const poster = medianCreation(posterFactory, Array.from({length:50}, (_, i) => ({item:{
+            id:"film" + i, title:"Title " + i, year:2003, cover:String(cover)
+        }})));
+        const results = {posterArt:posterArt, posterCard:poster};
+        for (const kind of ["songs", "albums", "artists", "radio", "mixes"]) {
+            results[kind] = medianCreation(cardFactory, Array.from({length:50}, (_, i) => ({item:{
+                id:kind + i, title:"Title " + i, artist:"Artist", year:2003,
+                kind:kind, cover:cover, artworkCovers:kind === "mixes" ? [cover,cover,cover,cover] : []
+            }})));
+        }
+        console.info("Creation (50 offscreen, warm caches, ms): " + JSON.stringify(results));
+        // Use the ~90 ms reference ceiling, rather than asserting a noisy ratio
+        // to another short measurement on arbitrary CI hardware.
+        for (const kind of ["songs", "albums", "artists", "radio", "mixes"])
+            verify(results[kind].median <= 90, kind + " took " + results[kind].median + " ms (budget: 90 ms)");
+    }
 
     function test_creationBudget() {
         // Reuse the Thriller tracks from the HUD/album tests. Give each card

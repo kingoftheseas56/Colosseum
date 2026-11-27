@@ -21,6 +21,23 @@ function artist(item) {
     return names(track.artists) || names(item.artistRefs) || names(album.artists)
         || String(item.row && item.row.artist || "");
 }
+function albumDetail(item, artistText) {
+    var record = item.record || item.album || {};
+    var hints = item.hints || {};
+    var year = String(item.year || record.year || hints.year || "");
+    if (!year) return artistText || String(item.subtitle || "");
+    return artistText ? artistText + " \u00b7 " + year : year;
+}
+function isCurrentSong(item, session) {
+    if (!session || !session.playingTrack) return false;
+    var playing = session.playingTrack;
+    var track = item.song && item.song.track || item.track
+        || ((item.record || {}).tracks || [])[item.trackIndex] || {};
+    var id = item.trackId || track.id || item.id;
+    var videoId = item.videoId || track.videoId;
+    return (!!id && String(id) === String(playing.id || ""))
+        || (!!videoId && String(videoId) === String(playing.videoId || ""));
+}
 function secondary(item, artistText) {
     var values = [];
     if (item.unavailable) values.push("Unavailable");

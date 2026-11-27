@@ -19,8 +19,8 @@ KeyboardAction {
         : presentation.status === Loader.Ready ? (presentation.item as Item).implicitHeight : width
     readonly property real artRadius: shape === "round" ? width * 0.1 : (shape === "wide" ? 9 : 13)
     readonly property string secondaryText: songCard
-        ? Presentation.secondary(record, Presentation.artist(record)) : String(record.subtitle || "")
-    readonly property bool hasCaption: songCard ? secondaryText.length > 0 : true
+        ? Presentation.artist(record) || Presentation.secondary(record, "") : String(record.subtitle || "")
+    readonly property bool hasCaption: true
     implicitHeight: artHeight + (hasCaption ? (shape === "wide" ? 0 : 14) + captionPlate.height : 0)
     focusRadius: artRadius
     spaceActivates: true
@@ -191,8 +191,8 @@ KeyboardAction {
 
             Text {
                 width: parent.width
-                visible: !card.songCard
                 text: String(card.record.title || "")
+                visible: text.length > 0
                 textFormat: Text.PlainText
                 color: theme.ink
                 font.family: theme.ui

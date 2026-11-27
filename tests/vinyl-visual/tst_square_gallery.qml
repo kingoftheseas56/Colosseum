@@ -30,9 +30,9 @@ TestCase {
     readonly property var entries: [
         {id:"gallery-song", kind:"songs", title:"Glass Hours", artist:"Fixture artist",
             record:{title:"After Dark"}, cover:cover("#8f5647")},
-        {id:"gallery-album", kind:"albums", title:"After Dark", artist:"Fixture artist", cover:cover("#627765")},
+        {id:"gallery-album", kind:"albums", title:"After Dark", artist:"Fixture artist", year:1977, cover:cover("#627765")},
         {id:"gallery-artist", kind:"artists", title:"Fixture artist", cover:cover("#655c8a")},
-        {id:"gallery-mix", kind:"mixes", title:"Late Night Mix", artworkCovers:[cover("#8f5647"),cover("#627765"),cover("#655c8a")]},
+        {id:"gallery-mix", kind:"mixes", title:"Late Night Mix", artworkCovers:[cover("#8f5647"),cover("#627765"),cover("#655c8a"),cover("#647b87")]},
         {id:"gallery-station", kind:"radio", title:"Night Radio", cover:cover("#647b87")}
     ]
     Window {
@@ -47,11 +47,11 @@ TestCase {
         Column {
             x: 32; y: 22; spacing: 20
             Text {
-                text: "Vinyl · square widget review"
+                text: "Vinyl · V2 card family"
                 font.family: regular.name; font.pixelSize: 27; color: "#f7f7f5"
             }
             Text {
-                text: "Fixture artwork · production widgets and captions · 130 and 196 logical pixels"
+                text: "Fixture artwork · integrated tiles · 130 and 196 logical pixels"
                 font.family: "Segoe UI"; font.pixelSize: 13; color: "#a9a9b4"
             }
             Repeater {
@@ -83,7 +83,7 @@ TestCase {
     }
     }
     function artworkReady(node) {
-        if (node.visible && node.objectName === "vinylArtworkImage" && String(node.source).length
+        if ((node instanceof Image || node instanceof BorderImage) && String(node.source).length
                 && node.status !== Image.Ready) return false;
         var children = node.children || [];
         for (var i = 0; i < children.length; ++i) if (!artworkReady(children[i])) return false;
@@ -100,12 +100,19 @@ TestCase {
             test.entries.forEach(function(entry) {
                 var art = findChild(sheet, entry.id + "-" + size + "_cover");
                 verify(art !== null);
-                var point = art.mapToItem(sheet, art.width / 2, art.height / 2);
+                compare(art.width, size - 16);
+                compare(art.width, art.height);
+                var point = art.mapToItem(sheet, art.width / 4, art.height / 4);
                 var x = Math.floor(point.x * scale), y = Math.floor(point.y * scale);
                 verify(x >= 0 && x < shot.width && y >= 0 && y < shot.height);
                 var pixel = shot.pixel(x, y);
                 verify(Math.abs(pixel.r - sheet.color.r) + Math.abs(pixel.g - sheet.color.g)
-                    + Math.abs(pixel.b - sheet.color.b) > 0.05, "Every widget face is painted");
+                    + Math.abs(pixel.b - sheet.color.b) > 0.05, "Every tile face is painted");
+                var corner = art.mapToItem(sheet, 2, 2);
+                var masked = shot.pixel(Math.floor(corner.x * scale), Math.floor(corner.y * scale));
+                fuzzyCompare(masked.r, 38 / 255, 0.01);
+                fuzzyCompare(masked.g, 40 / 255, 0.01);
+                fuzzyCompare(masked.b, 48 / 255, 0.01);
             });
         });
         shot.save("artifacts/vinyl-v1/slice3/widget-gallery.png");

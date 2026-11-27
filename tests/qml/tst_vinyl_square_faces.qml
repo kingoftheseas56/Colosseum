@@ -7,62 +7,131 @@ TestCase {
     name: "VinylSquareFaces"
     when: windowShown
     visible: true
-    width: 800
-    height: 700
+    width: 800; height: 700
 
-    Component { id: songFactory; Vinyl.VinylSongWidget {} }
-    Component { id: artistFactory; Vinyl.VinylArtistWidget {} }
-
-    function sizes() { return [{tag:"house130", size:130}, {tag:"default196", size:196}]; }
-    function test_songAllocatedSquare_data() { return sizes(); }
-    function test_songAllocatedSquare(data) {
-        var song = createTemporaryObject(songFactory, test,
-            {width:data.size, title:"Fixture song", artist:"Fixture artist"});
-        verify(song !== null);
-        compare(song.height, data.size, "Allocated song face must stay square");
-        compare(song.implicitWidth, 196);
-        verify(song.includesTitle && song.includesSubtitle);
-        var artwork = findChild(song, "vinylSongArtwork");
-        var paper = findChild(song, "vinylSongPaper");
-        verify(artwork !== null && paper !== null);
-        fuzzyCompare(artwork.x, data.size * 9 / 220, 0.01);
-        fuzzyCompare(artwork.width, data.size * 202 / 220, 0.01);
-        compare(artwork.height, artwork.width);
-        verify(paper.y > artwork.y && paper.y < artwork.y + artwork.height);
-        fuzzyCompare(paper.y + paper.height, artwork.y + artwork.height, 0.01);
-        fuzzyCompare(paper.height, data.size * 66 / 220, 0.01);
-        var title = findChild(song, "vinylSongTitle");
-        var artist = findChild(song, "vinylSongArtist");
-        compare(title.text, "Fixture song");
-        compare(artist.text, "FIXTURE ARTIST");
-        compare(title.textFormat, Text.PlainText);
-        verify(title.mapToItem(song, 0, 0).y >= paper.y);
-        verify(artist.mapToItem(song, 0, artist.height).y <= paper.y + paper.height);
+    readonly property url cover: Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg")
+    QtObject { id: playback; property var playingTrack: null }
+    QtObject {
+        id: world
+        property QtObject session: playback
+        property bool pinned: false
+        property int activations: 0
+        function artwork(cover) { return cover || ""; }
+        function activate(item) { activations++; }
+        function pinCrateItem(item, pinned) { world.pinned = pinned; }
+        function isCratePinned(item) { return pinned; }
     }
-    function test_artistAllocatedSquare_data() { return sizes(); }
-    function test_artistAllocatedSquare(data) {
-        var artist = createTemporaryObject(artistFactory, test,
-            {width:data.size, title:"Fixture artist"});
-        verify(artist !== null);
-        compare(artist.height, data.size, "Allocated artist face must stay square");
-        compare(artist.implicitWidth, 196);
-        compare(artist.includesTitle, false);
-        compare(artist.children.length, 1, "Artist has only its record, without a frame or caption");
-        compare(artist.initials, "FA");
-        var material = findChild(artist, "vinylRecordMaterial");
-        verify(material !== null);
-        var record = material.parent;
-        compare(record.x, 0);
-        compare(record.y, 0);
-        compare(record.width, data.size);
-        compare(record.height, data.size);
-        var photo = findChild(artist, "vinylArtistArtwork");
-        verify(photo !== null);
-        fuzzyCompare(photo.width, data.size * 0.67, 0.01);
-        compare(photo.height, photo.width);
-        var initials = findChild(artist, "vinylArtistInitials");
-        verify(initials !== null && initials.visible);
-        compare(initials.text, "FA");
-        compare(findChild(artist, "vinylArtistNameCaption"), null);
+    Component {
+        id: factory
+        Vinyl.VinylItemCard { objectName: "testCard"; x: 40; y: 40; worldData: world }
+    }
+    function init() {
+        playback.playingTrack = null;
+        world.pinned = false;
+        world.activations = 0;
+        mouseMove(test, width - 2, height - 2);
+        test.forceActiveFocus();
+    }
+    function make(kind, props) {
+        const card = createTemporaryObject(factory, test, Object.assign({item:{
+            id: "fixture", kind:kind, title:"Fixture title", artist:"Fixture artist", year:1977,
+            cover:cover, artworkCovers:[cover,cover,cover,cover]
+        }}, props || {}));
+        verify(card);
+        return card;
+    }
+    function painted(node) {
+        if (!node.visible || node.opacity === 0) return 0;
+        let count = node instanceof Rectangle || node instanceof Image
+            || node instanceof BorderImage || node instanceof Text ? 1 : 0;
+        for (const child of node.children) count += painted(child);
+        return count;
+    }
+    function test_restingFamily_data() {
+        return [
+            {tag:"song", kind:"songs", pieces:5, detail:"Fixture artist"},
+            {tag:"album", kind:"albums", pieces:5, detail:"Fixture artist · 1977"},
+            {tag:"artist", kind:"artists", pieces:5, detail:"Artist"},
+            {tag:"station", kind:"radio", pieces:5, detail:"((•))  Personal radio"},
+            {tag:"mix", kind:"mixes", pieces:8, detail:"Made for you"}
+        ];
+    }
+    function test_restingFamily(data) {
+        const card = make(data.kind);
+        compare(card.width, 196);
+        compare(card.height, 251);
+        const art = findChild(card, "testCard_cover");
+        compare([art.x, art.y, art.width, art.height], [8,8,180,180]);
+        const title = findChild(card, "testCard_captionTitle");
+        compare(title.font.pixelSize, 17);
+        compare(title.font.family, "Fraunces");
+        compare(card.captionTop, 195);
+        compare(findChild(card, "testCard_captionDetail").text, data.detail);
+        const artwork = findChild(art, "vinylArtworkImage");
+        tryCompare(artwork, "visible", true);
+        compare(artwork.cache, true);
+        compare(artwork.asynchronous, true);
+        compare(artwork.sourceSize.width, Math.ceil(artwork.width * card.Screen.devicePixelRatio));
+        if (data.kind === "artists") {
+            const ring = findChild(art, "vinylArtistRing");
+            tryCompare(ring, "status", BorderImage.Ready);
+            verify(ring.visible);
+            compare(ring.width, ring.height);
+        }
+        tryCompare(card, "hovered", false);
+        tryVerify(() => painted(card) === data.pieces);
+        compare(findChild(card, "vinylTileHint").item, null);
+        compare(findChild(card, "vinylPlayingRail").item, null);
+        world.pinned = true;
+        compare(painted(card), data.pieces, "A pinned resting tile must stay within budget");
+    }
+    function test_hintAndActions_data() {
+        return test_restingFamily_data();
+    }
+    function test_hintAndActions(data) {
+        const card = make(data.kind);
+        const tile = findChild(card, "testCard_tile");
+        const hint = findChild(card, "vinylTileHint");
+        mouseMove(card, 30, 30);
+        tryVerify(() => hint.item !== null);
+        tryCompare(hint.item, "opacity", 1);
+        tryCompare(tile, "scale", 1.015);
+        compare(hint.item.children[0].text, card.opensPage ? "→" : "▶");
+        mouseClick(hint);
+        compare(world.activations, 1, "The footer hint shares the primary card action");
+        mouseMove(test, 780, 680);
+        tryCompare(hint, "item", null);
+        card.reducedMotion = true;
+        card.forceActiveFocus(Qt.TabFocusReason);
+        tryVerify(() => hint.item !== null);
+        compare(hint.item.opacity, 1);
+        compare(tile.scale, 1);
+        compare(tile.border.color, "#f0c44a");
+        keyClick(Qt.Key_Escape);
+        tryCompare(hint, "item", null);
+        keyClick(Qt.Key_Return);
+        compare(world.activations, 2);
+    }
+    function test_playingSong() {
+        const card = make("songs");
+        const title = findChild(card, "testCard_captionTitle");
+        const rail = findChild(card, "vinylPlayingRail");
+        playback.playingTrack = {id:"fixture"};
+        compare(title.color, "#f0c44a");
+        compare(rail.height, 2);
+        verify(rail.item.visible);
+        compare(rail.item.color, "#52555e");
+        compare(rail.item.children[0].color, "#f0c44a");
+        compare(rail.item.children[0].width, rail.width * 0.37);
+        tryCompare(findChild(card,"vinylArtworkImage"), "visible", true);
+        compare(painted(card), 7);
+        mouseMove(card, 30, 30);
+        tryCompare(card, "hovered", true);
+        const hint = findChild(card, "vinylTileHint");
+        compare(hint.item, null);
+        playback.playingTrack = {id:"another"};
+        compare(rail.item, null);
+        compare(title.color, "#f7f7f5");
+        tryVerify(() => hint.item !== null);
     }
 }

@@ -260,9 +260,9 @@ TestCase {
         tryVerify(function(){var added=findChild(view,"vinylHomeRow_deep-cuts");return added && added.visible && added.itemCount===8;});
         var song = findChild(view, "vinylCard_v1:deep-cuts_0");
         verify(song !== null);
-        tryCompare(song, "height", song.width);
-        compare(song.captionTitle, "");
-        tryCompare(song.exposureRail, "height", song.width + 14);
+        tryCompare(song, "height", song.width + 55);
+        compare(song.captionTitle, song.item.title);
+        tryCompare(song.exposureRail, "height", song.height + 6);
         compare(findChild(view,"vinylHomeRow_mixes-radio"),shelf,"Unchanged shelf must retain its object");
         compare(findChild(shelf,"vinylCard_v1:mixes-radio_0"),tile,"Unchanged card must retain its object");
         var sameRowItems=updated[0].items.slice();
@@ -450,8 +450,8 @@ TestCase {
                 ? Object.assign({},row,{items:[station]}) : row);
             var tile=findChild(view,"vinylCard_v1:mixes-radio_0");
             scrollToCard(tile);
-            compare(tile.captionDetail,"Station");
-            verify(!findChild(tile,tile.objectName+"_artistRadio").visible);
+            compare(tile.captionDetail,"Personal radio");
+            compare(findChild(tile,tile.objectName+"_artistRadio"),null);
             mouseClick(tile,20,80);
             compare(gateData.actions.length,1);
             compare(gateData.actions[0].action,"activate");

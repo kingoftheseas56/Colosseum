@@ -95,7 +95,6 @@ Item {
                 }
                 VinylItemCard {
                     id: card
-                    y: tileHover.hovered ? -4 : 0
                     objectName: tile.objectName+"_card"
                     width: parent.width; height: implicitHeight
                     worldData: actions; item: root.presentation(tile.modelData)
@@ -105,14 +104,14 @@ Item {
                     backdrop: root.backdrop; pageFlick:root.pageFlick
                     opacity: tile.available ? 1 : 0.38
                 }
-                Rectangle { x:parent.width-width-5; y:5+card.y; width:13; height:13; radius:7; color:theme.gold; border.width:2; border.color:"#06070b"; visible:tile.pinned }
                 VinylFeedbackBadge {
                     id: pin
                     objectName: "vinylCrateTilePin_"+tile.itemIndex
                     x:parent.width-width-7; y:7; z:2
                     symbol: tile.pinned ? "check" : "playlistAdd"
                     enabled: tile.available || tile.pinned
-                    revealed: tileHover.hovered || card.activeFocus || activeFocus || (tile.pinned && !tile.available)
+                    pointerEnabled: revealed || tile.pinned
+                    revealed: tileHover.hovered || card.activeFocus || activeFocus
                     accessibleName: (tile.pinned ? qsTr("Unpin %1") : qsTr("Pin %1")).arg(tile.modelData.title)
                     onTriggered: root.pinRequested(tile.modelData,!tile.pinned)
                 }

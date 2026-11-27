@@ -35,8 +35,12 @@ Item {
         return "";
     }
     function reveal(index) {
-        var item=cardRepeater.itemAt(index);if(!item)return;
-        rail.contentX=Math.max(0,Math.min(Math.max(0,rail.contentWidth-rail.width),item.x<rail.contentX ? item.x : item.x+item.width>rail.contentX+rail.width ? item.x+item.width-rail.width : rail.contentX));
+        var item = cardRepeater.itemAt(index);
+        if (!item) return;
+        var left = item.x;
+        var right = item.x + item.width + 2 * cards.x;
+        rail.contentX = Math.max(0, Math.min(Math.max(0, rail.contentWidth - rail.width),
+            left < rail.contentX ? left : right > rail.contentX + rail.width ? right - rail.width : rail.contentX));
     }
     function exposureGeometryChanged() { exposureRevision++; }
     onRowChanged: exposureGeometryChanged()
@@ -107,8 +111,8 @@ Item {
         id: rail
         y: header.height + rowStatusBar.height + 22
         width: parent.width
-        height: root.hasCards ? cards.implicitHeight + 14 : 0
-        contentWidth: cards.implicitWidth
+        height: root.hasCards ? cards.implicitHeight + 2 * cards.y : 0
+        contentWidth: cards.implicitWidth + 2 * cards.x
         contentHeight: height
         onContentXChanged: root.exposureGeometryChanged()
         onWidthChanged: root.exposureGeometryChanged()
@@ -117,6 +121,8 @@ Item {
         visible: root.hasCards
         Row {
             id: cards
+            // Bleed for the 1.015× hover/focus scale at the clipped rail edges.
+            x: 3; y: 3
             spacing: root.home ? 18 : 24
             Repeater {
                 id: cardRepeater

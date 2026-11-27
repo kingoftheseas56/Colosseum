@@ -53,8 +53,9 @@ TestCase {
         var kinds=[];
         for(var i=0;i<16;++i){
             var tile=findChild(crate,"vinylCrateTile_"+i); verify(tile!==null); kinds.push(tile.kind);
-            var face=findChild(tile,"vinylCrateTile_"+i+"_card_cover"); tryCompare(face,"status",Loader.Ready);
-            compare(face.item.width,130.75); compare(face.item.height,130.75);
+            var face=findChild(tile,"vinylCrateTile_"+i+"_card_cover");
+            verify(face !== null);
+            compare(face.width,tile.width - 8); compare(face.height,face.width);
             var card=findChild(tile,"vinylCrateTile_"+i+"_card");
             verify(card.captionDetail.length>0);
             if(tile.kind==="songs") { compare(card.captionTitle,"Fixture "+i); compare(card.captionDetail,"Fixture artist · from Fixture album"); }
@@ -93,6 +94,7 @@ TestCase {
         var missing=findChild(crate,"vinylCrateTile_4"), unpin=findChild(crate,"vinylCrateTilePin_4");
         verify(missing!==null && missing.visible); compare(missing.pinned,true); compare(missing.available,false);
         var card=findChild(missing,"vinylCrateTile_4_card"); verify(!card.enabled); verify(card.opacity<1);
+        verify(findChild(card, card.objectName + "_captionDetail").text.startsWith("✓"));
         mouseClick(missing,20,100); compare(activated.count,0);
         verify(unpin.enabled,"Unavailable pinned tiles must allow unpin"); click(unpin); compare(pinned.count,2); compare(pinned.signalArguments[1][1],false);
         compare(missing.pinned,true); compare(JSON.stringify(rows),before); compare(activated.count,0);
@@ -134,9 +136,10 @@ TestCase {
             compare(findChild(spin,"vinylSpinSwitch").view,view); compare(page.contentY,before);
             if(view!=="songs") {
                 var card=findChild(spin,"vinylSpinTile_0"); verify(card!==null); compare(card.presentationKind,view);
-                var detail=view==="albums" ? "Fixture artist" : "Close to your city pop";
+                var detail=view==="albums" ? "Fixture artist" : "Artist";
                 compare(card.captionDetail,detail);
                 verify(card.accessibleName.includes(detail));
+                if (view === "artists") compare(card.accessibleDescription,"Close to your city pop");
                 card.exposureRail=page;
                 compare(card.captionDetail,detail);
                 compare(spin.pageSize,8); compare(spin.pageCount,2);

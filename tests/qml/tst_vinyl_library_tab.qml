@@ -173,16 +173,16 @@ TestCase {
         compare(JSON.stringify(source),before);
         compare(findChild(library,"vinylLibraryRow_imported-files"),null);
     }
-    function test_approvedSquareFormsAndHousePlaylistCard() {
+    function test_squareArtworkAndIntegratedCaptions() {
         for (var pair of [["playlists", "playlists"],["saved-albums","albums"],["liked-songs","songs"],["followed-artists","artists"]]) {
             var card=findChild(library,"vinylCard_"+pair[0]+"_0");
             compare(card.presentationKind,pair[1]);
-            var loader=findChild(card,card.objectName+"_cover");
-            tryCompare(loader,"status",Loader.Ready);
-            compare(loader.item.height,loader.item.width);
-            if (pair[1] === "songs") verify(findChild(card,"vinylSongArtwork") !== null);
-            if (pair[1] === "artists") verify(findChild(card,"vinylRecordMaterial") !== null);
-            if (pair[1] === "playlists") compare(loader.item.maskPassCount,1);
+            var art=findChild(card,card.objectName+"_cover");
+            verify(art !== null);
+            compare(art.height,art.width);
+            verify(findChild(art,"vinylArtworkImage") !== null);
+            if (pair[1] === "artists") verify(findChild(art,"vinylArtistRing") !== null);
+            compare(card.captionTitle, card.item.title);
         }
     }
     function test_existingFeedbackForwardsOnlyToSuppliedOwner() {
