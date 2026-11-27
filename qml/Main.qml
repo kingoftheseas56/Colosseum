@@ -621,21 +621,6 @@ Window {
             win.armStartupIdleWork()
         }
     }
-    // Native living wallpapers (2026-07-18, ratified from the arena mock): a pick whose
-    // image_url is "native:<id>" loads a QML scene instead of an Image. The registry is
-    // the one honest map — an unknown id falls back to the default still.
-    readonly property bool wallpaperIsNative: wallpaperSource.indexOf("native:") === 0
-    // Mirrors WallpaperApi.nativeSceneFor — keep the two in sync when adding a scene.
-    function nativeWallpaperFile(source) {
-        if (source === "native:noirflow") return "wallpapers/NoirFlow.qml"
-        if (source === "native:aurora-flow") return "wallpapers/AuroraFlow.qml"
-        if (source === "native:mesh-twilight") return "wallpapers/MeshTwilight.qml"
-        if (source === "native:mesh-ember") return "wallpapers/MeshEmber.qml"
-        if (source === "native:mesh-mint") return "wallpapers/MeshMint.qml"
-        if (source === "native:lowpoly") return "wallpapers/LowPoly.qml"
-        return ""
-    }
-
     // The rebuilt title pages (world feel design, 2026-09-24): TheatreSeriesView.qml and
     // TankobanSeriesView.qml are built to replace TheatreSeries.qml and MangaSeries.qml.
     // Until Hemanth signs them off, a local views.ini (git-ignored, beside wallpapers.ini)
@@ -4638,21 +4623,9 @@ Window {
         // Glass composites over the default or chosen wallpaper in `wall`.
         Image {
             anchors.fill: parent
-            source: win.wallpaperIsNative ? "" : win.wallpaperSource
-            visible: !win.wallpaperIsNative
+            source: win.wallpaperSource
             fillMode: Image.PreserveAspectCrop
             cache: true
-        }
-        // Native living wallpaper (the arena et al.): a QML scene in the Image's place.
-        // Motion doctrine: it FREEZES whenever a reader/player owns the screen or the
-        // window is minimized — ambient motion only while the shell is being looked at.
-        Loader {
-            anchors.fill: parent
-            active: win.wallpaperIsNative && win.nativeWallpaperFile(win.wallpaperSource).length > 0
-            source: active ? win.nativeWallpaperFile(win.wallpaperSource) : ""
-            onLoaded: item.running = Qt.binding(function() {
-                return !win.immersiveSurfaceOpen && !taskbar.pickerShown && win.visibility !== Window.Minimized
-            })
         }
         // Global vignette so chrome + text read against the wallpaper, bright or dark.
         // The middle stop carries the world tab strips and catalogue headings; at 0.10 they
@@ -4663,7 +4636,7 @@ Window {
         // so a bright image still looks like itself. Dark picks keep the baseline untouched.
         WallpaperVeil {
             objectName: "wallVignette"
-            source: win.wallpaperIsNative ? "" : Qt.resolvedUrl(win.wallpaperSource)
+            source: Qt.resolvedUrl(win.wallpaperSource)
         }
     }
 

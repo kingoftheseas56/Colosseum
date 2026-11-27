@@ -63,21 +63,25 @@ class ContentPublisherTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "missing or outside"):
             self.build()
 
-    def test_default_background_is_published_without_uploading_other_local_art(self):
-        relative = "assets/wallpaper/cold-ripple.jpg"
-        background = self.native / relative
-        Image.new("RGB", (40, 24), "green").save(background)
-        private = self.native / "assets/wallpaper/unrelated-local.jpg"
+    def test_default_and_colosseum_wallpapers_are_published_without_unrelated_local_art(self):
+        wallpapers = {"assets/wallpaper/cold-ripple.jpg": (40, 24)}
+        for name in ("silk", "folds", "tide"):
+            wallpapers[f"assets/wallpaper/colosseum-{name}.jpg"] = (3840, 2160)
+            wallpapers[f"assets/wallpaper/colosseum-{name}-thumb.jpg"] = (480, 270)
+        for relative, dimensions in wallpapers.items():
+            Image.new("RGB", dimensions, "green").save(self.native / relative)
+        private = self.native / "assets/wallpaper/colosseum-unrelated-local.jpg"
         Image.new("RGB", (40, 24), "yellow").save(private)
         self.build()
-        bundle = json.loads((self.root / "starter/bundle.json").read_text())
-        assets = bundle["manifest"]["assets"]
+        assets = json.loads((self.root / "starter/bundle.json").read_text())["manifest"]["assets"]
         self.assertEqual({key for key in assets if key.startswith("assets/wallpaper/")},
-                         {relative, "assets/wallpaper/sagas/story.jpg"})
-        asset = assets[relative]
-        self.assertEqual(asset["sourceSha256"], hashlib.sha256(background.read_bytes()).hexdigest())
-        delivered = (self.root / "output" / asset["path"].lstrip("/")).read_bytes()
-        self.assertEqual(hashlib.sha256(delivered).hexdigest(), asset["sha256"])
+                         set(wallpapers) | {"assets/wallpaper/sagas/story.jpg"})
+        for relative, dimensions in wallpapers.items():
+            asset = assets[relative]
+            self.assertEqual((asset["width"], asset["height"]), dimensions)
+            self.assertEqual(asset["sourceSha256"], hashlib.sha256((self.native / relative).read_bytes()).hexdigest())
+            delivered = (self.root / "output" / asset["path"].lstrip("/")).read_bytes()
+            self.assertEqual(hashlib.sha256(delivered).hexdigest(), asset["sha256"])
 
     def test_declared_traversal_is_rejected(self):
         (self.native / "private.png").write_bytes(b"private")

@@ -106,11 +106,11 @@ contacts no third-party host — it loads only the bundled `qwebchannel.js` and 
 VidKing's terms, availability, and the legality of accessing any specific source through it
 remain VidKing's and the user's responsibility.
 
-## KDE Plasma wallpapers (picker "KDE Plasma" shelf)
+## KDE Plasma wallpapers (Cold Ripple and the retired picker shelf)
 
-These wallpapers ship with KDE Plasma and are used here unmodified, streamed from the
-upstream repository at display time (resized via the wsrv.nl proxy over the jsDelivr CDN);
-none are committed to this repository. Source: <https://github.com/KDE/plasma-workspace-wallpapers>.
+Cold Ripple remains the default wallpaper (`assets/wallpaper/cold-ripple.jpg`). The retired
+KDE Plasma picker shelf streamed these wallpapers from upstream via the wsrv.nl proxy over
+the jsDelivr CDN. Source: <https://github.com/KDE/plasma-workspace-wallpapers>.
 
 Each is licensed **Creative Commons Attribution-ShareAlike 4.0 (CC-BY-SA-4.0)** or the
 **GNU Lesser General Public License v3 (LGPLv3)**, as noted. Full licence texts:
@@ -137,15 +137,15 @@ Each is licensed **Creative Commons Attribution-ShareAlike 4.0 (CC-BY-SA-4.0)** 
 wallpaper is ever adapted, its adaptation must remain under the same licence (the ShareAlike
 term applies to the image, not to Colosseum's own code).
 
-## Ported QML wallpaper scenes (Colosseum → "Colosseum" shelf)
+## Retired ported QML wallpaper scenes
 
 | Scene | Ported from | Upstream licence |
 |---|---|---|
 | AuroraFlow (`qml/wallpapers/AuroraFlow.qml`) | VicenteMcMahon/kde-plasma-gradient-wallpaper (<https://github.com/VicenteMcMahon/kde-plasma-gradient-wallpaper>) | LGPL-2.1-or-later |
 
-These are QML wallpaper scenes adapted from KDE Plasma wallpaper plugins for a plain Qt6
-build (KDE-specific APIs removed). As adaptations of LGPL-2.1 source, the adapted scene
-files carry that licence; a per-file SPDX header records the provenance.
+AuroraFlow was adapted from a KDE Plasma wallpaper plugin for a plain Qt6 build
+(KDE-specific APIs removed). Its former QML scene carried the LGPL-2.1-or-later licence
+and an SPDX header recording the provenance.
 
 ## Windows release gate
 

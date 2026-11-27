@@ -1,6 +1,6 @@
 """Build immutable artwork URLs and versioned metadata, without uploading anything.
 
-Publish universe artwork, declared references, and the default application background.
+Publish universe artwork, declared references, and application wallpapers.
 Inputs remain untouched.
 The metadata-only starter has the identical checksums as the served generation.
 """
@@ -14,7 +14,7 @@ import re
 from io import BytesIO
 
 
-def delivery_copy(path):
+def delivery_copy(path, max_size=1920):
     """Encode authorized delivery copies; originals and atlas pixels stay untouched."""
     if path.suffix.lower() not in (".png", ".jpg", ".jpeg"):
         return path.read_bytes(), path.suffix.lower().removeprefix("."), None
@@ -30,7 +30,7 @@ def delivery_copy(path):
         badge = "badge" in path.stem.lower() or any(part in ("badges", "marks") or part.endswith("markers") for part in path.parts)
         lossless = atlas or (transparent and (badge or max(image.size) <= 512))
         if not lossless:
-            image.thumbnail((1920, 1920), Image.Resampling.LANCZOS)
+            image.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
             if not transparent:
                 image = image.convert("RGB")
         output = BytesIO()
@@ -96,11 +96,14 @@ def build(native_source, output, starter=None, previous=None):
     asset_root = native_source / "assets/universes"
     artwork = set(path for path in asset_root.rglob("*") if path.is_file() and path.suffix.lower() != ".json")
     # Keep add-on artwork, UI glyphs and unrelated local files out.
-    background = native_source / "assets/wallpaper/cold-ripple.jpg"
-    if background.is_file():
-        if background.is_symlink() or not background.resolve().is_relative_to(native_source / "assets"):
-            raise ValueError("Native background is outside assets: " + str(background.relative_to(native_source)))
-        artwork.add(background)
+    wallpaper_root = native_source / "assets/wallpaper"
+    originals = {wallpaper_root / f"colosseum-{name}.jpg" for name in ("silk", "folds", "tide")}
+    thumbnails = {path.with_name(path.stem + "-thumb.jpg") for path in originals}
+    for background in originals | thumbnails | {wallpaper_root / "cold-ripple.jpg"}:
+        if background.is_file():
+            if background.is_symlink() or not background.resolve().is_relative_to(native_source / "assets"):
+                raise ValueError("Native background is outside assets: " + str(background.relative_to(native_source)))
+            artwork.add(background)
     # Saga wallpapers are outside the tribute folder. Collect declared file
     # references too; directory prefixes are resolved by exported artByArc data.
     def references(value):
@@ -122,7 +125,7 @@ def build(native_source, output, starter=None, previous=None):
             raise ValueError("Artwork exceeds free static asset limit")
         with path.open("rb") as stream:
             source_hash = hashlib.file_digest(stream, "sha256").hexdigest()
-        delivered, suffix, dimensions = delivery_copy(path)
+        delivered, suffix, dimensions = delivery_copy(path, max_size=3840 if path in originals else 1920)
         raw_hash = hashlib.sha256(delivered).hexdigest()
         if len(delivered) > 25 * 1024 * 1024:
             raise ValueError("Artwork exceeds free static asset limit")

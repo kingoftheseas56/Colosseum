@@ -12,6 +12,7 @@ Item {
     Theme { id: theme }
 
     property Item backdrop
+    property var contentStore: typeof Content !== "undefined" ? Content : null
     property string targetWorld: "Home"
     property string inheritedImageUrl: ""
     property var selectedPick: ({})
@@ -76,20 +77,21 @@ Item {
         runSearch()
     }
 
-    // full-bleed preview: an Image for searchable picks, the live scene for native ones
-    readonly property string previewUrl: root.selectedPick.image_url || root.inheritedImageUrl
+    function resolveImage(pick) {
+        if (contentStore) contentStore.generation // Re-resolve when published assets change.
+        return WallpaperApi.imageSource(pick, contentStore)
+    }
+
+    // The inherited source is already resolved by the shell.
+    readonly property string previewUrl: root.selectedPick.image_url
+                                         ? root.resolveImage(root.selectedPick) : root.inheritedImageUrl
     Image {
+        objectName: "wallpaperSearchPreview"
         anchors.fill: parent
-        source: WallpaperApi.isNativePick(root.previewUrl) ? "" : root.previewUrl
-        visible: !WallpaperApi.isNativePick(root.previewUrl)
+        source: root.previewUrl
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         cache: true
-    }
-    Loader {
-        anchors.fill: parent
-        active: WallpaperApi.isNativePick(root.previewUrl)
-        source: active ? WallpaperApi.nativeSceneFor(root.previewUrl) : ""
     }
 
     Rectangle {
@@ -311,12 +313,8 @@ Item {
                 font.pixelSize: 12
             }
 
-            // ---- Everything below the search controls — both Colosseum shelves, the KDE
-            //      Plasma shelf, and the Wallhaven results — lives in ONE vertical scroller,
-            //      so the panel never overflows at the bottom as the shelves grow
-            //      (2026-07-25, Hemanth). Each native strip still scrolls sideways on its
-            //      own wheel; the results grid is non-interactive so this outer Flickable
-            //      drives all the vertical scrolling. ----
+            // The Colosseum shelf and Wallhaven results share one vertical scroller.
+            // The shelf scrolls sideways; the results grid flows beneath it.
             Flickable {
                 id: bodyFlick
                 objectName: "wallpaperSearchBody"
@@ -334,163 +332,34 @@ Item {
 
                 ColumnLayout {
                     id: bodyCol
+                    objectName: "wallpaperSearchSections"
                     width: bodyFlick.width
                     spacing: 14
 
-            // one tile delegate, shared by both native shelves
-            Component {
-                id: nativeTileDelegate
-                Rectangle {
-                    id: nativeTile
-                    required property var modelData
-                    objectName: "wallpaperPick_"
-                                + String(nativeTile.modelData.source_id || nativeTile.modelData.title)
-                                  .replace(/[^A-Za-z0-9_]/g, "_")
-                    width: 144
-                    height: 92
-                    radius: 8
-                    color: "#07070a"
-                    border.width: root.selectedPick.source_id === nativeTile.modelData.source_id ? 2 : 1
-                    border.color: root.selectedPick.source_id === nativeTile.modelData.source_id ? "#c9a44a" : Qt.rgba(255, 255, 255, 0.14)
-                    clip: true
-
-                    Loader {
-                        anchors.fill: parent
-                        source: WallpaperApi.nativeSceneFor(nativeTile.modelData.image_url)
-                    }
-
-                    Rectangle {
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.bottom: parent.bottom
-                        height: 22
-                        color: Qt.rgba(0, 0, 0, 0.55)
-
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.left: parent.left
-                            anchors.leftMargin: 8
-                            anchors.right: parent.right
-                            anchors.rightMargin: 8
-                            text: nativeTile.modelData.title
-                            color: "#e8e2d4"
-                            font.pixelSize: 10
-                            elide: Text.ElideRight
-                        }
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.selectedPick = nativeTile.modelData
-                    }
-                }
-            }
-
-            // Colosseum Animated — the living, moving scenes
             Text {
-                text: "Colosseum Animated"
+                text: "Colosseum"
                 color: "#d8d2c4"
                 font.family: theme.display
                 font.pixelSize: 16
             }
 
             ListView {
-                id: animatedStrip
+                id: colosseumStrip
+                objectName: "wallpaperColosseumShelf"
                 Layout.fillWidth: true
                 Layout.preferredHeight: 92
                 orientation: ListView.Horizontal
                 spacing: 10
                 clip: true
-                model: WallpaperApi.nativeAnimatedPicks()
-                boundsBehavior: Flickable.StopAtBounds
-                delegate: nativeTileDelegate
-                activeFocusOnTab: count > 0
-                onActiveFocusChanged: if (activeFocus && currentIndex < 0 && count > 0) currentIndex = 0
-                Keys.onPressed: (event) => animatedKeys.handle(event)
-                highlight: Rectangle { color: "transparent"; radius: 8; border.width: 2; border.color: "#f0c44a"; visible: animatedStrip.activeFocus }
-                KeyboardCollectionController {
-                    id: animatedKeys; view: animatedStrip; orientation: "horizontal"
-                    onActivated: (index) => { const row = animatedStrip.model[index]; if (row) root.selectedPick = row }
-                }
-
-                WheelHandler {
-                    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-                    onWheel: (ev) => {
-                        var d = (ev.angleDelta.y !== 0 ? ev.angleDelta.y : ev.angleDelta.x)
-                        animatedStrip.contentX = Math.max(0, Math.min(
-                            Math.max(0, animatedStrip.contentWidth - animatedStrip.width),
-                            animatedStrip.contentX - d))
-                    }
-                }
-            }
-
-            // Colosseum Native — the still QML gradients
-            Text {
-                text: "Colosseum Native"
-                color: "#d8d2c4"
-                font.family: theme.display
-                font.pixelSize: 16
-            }
-
-            ListView {
-                id: nativeStrip
-                Layout.fillWidth: true
-                Layout.preferredHeight: 92
-                orientation: ListView.Horizontal
-                spacing: 10
-                clip: true
-                model: WallpaperApi.nativeStaticPicks()
-                boundsBehavior: Flickable.StopAtBounds
-                delegate: nativeTileDelegate
-                activeFocusOnTab: count > 0
-                onActiveFocusChanged: if (activeFocus && currentIndex < 0 && count > 0) currentIndex = 0
-                Keys.onPressed: (event) => nativeKeys.handle(event)
-                highlight: Rectangle { color: "transparent"; radius: 8; border.width: 2; border.color: "#f0c44a"; visible: nativeStrip.activeFocus }
-                KeyboardCollectionController {
-                    id: nativeKeys; view: nativeStrip; orientation: "horizontal"
-                    onActivated: (index) => { const row = nativeStrip.model[index]; if (row) root.selectedPick = row }
-                }
-
-                WheelHandler {
-                    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-                    onWheel: (ev) => {
-                        var d = (ev.angleDelta.y !== 0 ? ev.angleDelta.y : ev.angleDelta.x)
-                        nativeStrip.contentX = Math.max(0, Math.min(
-                            Math.max(0, nativeStrip.contentWidth - nativeStrip.width),
-                            nativeStrip.contentX - d))
-                    }
-                }
-            }
-
-            // ---- KDE Plasma shelf: real OS-desktop wallpapers under a free licence
-            //      (CC-BY-SA-4.0 / LGPLv3), from KDE/plasma-workspace-wallpapers. A
-            //      horizontal strip, one row tall, scrolls sideways (wheel/drag). Each
-            //      tile carries its artist for credit; remote thumb + remote full on
-            //      apply, the same path as a Wallhaven pick. ----
-            Text {
-                text: "KDE Plasma"
-                color: "#d8d2c4"
-                font.family: theme.display
-                font.pixelSize: 16
-            }
-
-            ListView {
-                id: kdeStrip
-                Layout.fillWidth: true
-                Layout.preferredHeight: 92
-                orientation: ListView.Horizontal
-                spacing: 10
-                clip: true
-                model: WallpaperApi.kdePicks()
+                model: WallpaperApi.colosseumPicks()
                 boundsBehavior: Flickable.StopAtBounds
                 activeFocusOnTab: count > 0
                 onActiveFocusChanged: if (activeFocus && currentIndex < 0 && count > 0) currentIndex = 0
-                Keys.onPressed: (event) => kdeKeys.handle(event)
-                highlight: Rectangle { color: "transparent"; radius: 8; border.width: 2; border.color: "#f0c44a"; visible: kdeStrip.activeFocus }
+                Keys.onPressed: (event) => colosseumKeys.handle(event)
+                highlight: Rectangle { color: "transparent"; radius: 8; border.width: 2; border.color: "#f0c44a"; visible: colosseumStrip.activeFocus }
                 KeyboardCollectionController {
-                    id: kdeKeys; view: kdeStrip; orientation: "horizontal"
-                    onActivated: (index) => { const row = kdeStrip.model[index]; if (row) root.selectedPick = row }
+                    id: colosseumKeys; view: colosseumStrip; orientation: "horizontal"
+                    onActivated: (index) => { const row = colosseumStrip.model[index]; if (row) root.selectedPick = row }
                 }
 
                 // a horizontal list ignores the vertical wheel by default — map it to
@@ -499,26 +368,28 @@ Item {
                     acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
                     onWheel: (ev) => {
                         var d = (ev.angleDelta.y !== 0 ? ev.angleDelta.y : ev.angleDelta.x)
-                        kdeStrip.contentX = Math.max(0, Math.min(
-                            Math.max(0, kdeStrip.contentWidth - kdeStrip.width),
-                            kdeStrip.contentX - d))
+                        colosseumStrip.contentX = Math.max(0, Math.min(
+                            Math.max(0, colosseumStrip.contentWidth - colosseumStrip.width),
+                            colosseumStrip.contentX - d))
                     }
                 }
 
                 delegate: Rectangle {
-                    id: kdeTile
+                    id: colosseumTile
                     required property var modelData
+                    objectName: "wallpaperPick_" + colosseumTile.modelData.source_id.replace(/-/g, "_")
                     width: 144
                     height: 92
                     radius: 8
                     color: "#07070a"
-                    border.width: root.selectedPick.source_id === kdeTile.modelData.source_id ? 2 : 1
-                    border.color: root.selectedPick.source_id === kdeTile.modelData.source_id ? "#c9a44a" : Qt.rgba(255, 255, 255, 0.14)
+                    border.width: root.selectedPick.source_id === colosseumTile.modelData.source_id ? 2 : 1
+                    border.color: root.selectedPick.source_id === colosseumTile.modelData.source_id ? "#c9a44a" : Qt.rgba(255, 255, 255, 0.14)
                     clip: true
 
                     Image {
+                        objectName: "wallpaperPickThumbnail"
                         anchors.fill: parent
-                        source: kdeTile.modelData.thumb_url
+                        source: root.resolveImage({ image_url: colosseumTile.modelData.thumb_url })
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true
                         cache: true
@@ -542,14 +413,14 @@ Item {
 
                             Text {
                                 width: parent.width
-                                text: kdeTile.modelData.title
+                                text: colosseumTile.modelData.title
                                 color: "#e8e2d4"
                                 font.pixelSize: 10
                                 elide: Text.ElideRight
                             }
                             Text {
                                 width: parent.width
-                                text: kdeTile.modelData.artist
+                                text: colosseumTile.modelData.artist
                                 color: "#9a958c"
                                 font.pixelSize: 8
                                 elide: Text.ElideRight
@@ -560,13 +431,14 @@ Item {
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: root.selectedPick = kdeTile.modelData
+                        onClicked: root.selectedPick = colosseumTile.modelData
                     }
                 }
             }
 
             GridView {
                 id: grid
+                objectName: "wallpaperWallhavenResults"
                 Layout.fillWidth: true
                 // non-interactive and sized to its content — the outer bodyFlick does the
                 // scrolling, so the results flow straight on under the shelves.
@@ -609,7 +481,7 @@ Item {
                         cache: true
                     }
 
-                    // source badge — the chip says whose art it is (Wallhaven, or the Colosseum shelf)
+                    // source badge — the chip says whose art it is
                     Rectangle {
                         anchors.left: parent.left
                         anchors.bottom: parent.bottom

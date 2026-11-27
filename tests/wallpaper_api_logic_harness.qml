@@ -40,30 +40,23 @@ QtObject {
         if (wh.image_url !== "https://w.wallhaven.cc/full/ab/x.jpg")
             throw new Error("Wallhaven image_url must be the full path")
 
-        // --- KDE Plasma shelf (2026-07-20): free-licence OS-desktop wallpapers,
-        //     each with an artist for credit, proxied jsDelivr over wsrv.nl. ---
-        var kde = W.kdePicks()
-        if (kde.length < 8)
-            throw new Error("kdePicks must carry a real KDE shelf, got " + kde.length)
-        var ids = ({})
-        for (var ki = 0; ki < kde.length; ki++) {
-            var p = kde[ki]
-            if (p.source_id.indexOf("kde-") !== 0)
-                throw new Error("KDE pick ids must be prefixed kde-, got " + p.source_id)
-            if (ids[p.source_id])
-                throw new Error("KDE pick ids must be unique, dup " + p.source_id)
-            ids[p.source_id] = true
-            if (!p.artist || !p.license)
-                throw new Error("every KDE pick must carry artist + license, missing on " + p.source_id)
-            if (p.image_url.indexOf("https://") !== 0 || p.thumb_url.indexOf("https://") !== 0)
-                throw new Error("KDE picks are remote (full + thumb), got " + p.image_url)
-            if (W.isNativePick(p.image_url))
-                throw new Error("KDE picks are plain images, never native: routes")
-            if (p.image_url === p.thumb_url)
-                throw new Error("full 4K and small thumb must differ, " + p.source_id)
-            if (p.thumb_url.indexOf("wsrv.nl") < 0 || p.thumb_url.indexOf("jsdelivr.net") < 0)
-                throw new Error("KDE picks must proxy a jsDelivr origin through wsrv.nl")
+        // Colosseum stills have distinct thumbnail/full asset paths and aren't defaults.
+        var picks = W.colosseumPicks()
+        if (picks.map(function(pick) { return pick.title }).join(",") !== "Silk,Folds,Tide")
+            throw new Error("Expected Silk, Folds, Tide in that order")
+        var store = { assetUrl: function(path) { return "test:///" + path } }
+        for (var i = 0; i < picks.length; i++) {
+            var pick = picks[i]
+            var stem = "assets/wallpaper/colosseum-" + pick.title.toLowerCase()
+            if (pick.artist !== "Colosseum" || pick.source !== "Colosseum"
+                    || pick.thumb_url !== "../" + stem + "-thumb.jpg"
+                    || W.imageSource(pick, store) !== "test:///" + stem + ".jpg")
+                throw new Error("Invalid Colosseum pick: " + pick.title)
         }
+        if (W.imageSource(null, store) !== "test:///assets/wallpaper/cold-ripple.jpg"
+                || W.imageSource({ image_url: "native:noirflow" }, store) !== W.imageSource(null, store))
+            throw new Error("Cold Ripple must remain the default, including for retired native picks")
+
         // Captured Motion functions were removed 2026-07-20 (Microsoft-copyrighted).
         if (typeof W.capturedMotionPicks !== "undefined" || typeof W.houseDefaultPick !== "undefined")
             throw new Error("Captured Motion picker functions must be gone")
