@@ -290,7 +290,9 @@ Function UpdateWaitForProcess
   ${EndIf}
   System::Call 'kernel32::OpenProcess(i 0x00100000, i 0, i rUpdateWaitPid) p .rUpdateHandle'
   ${If} $UpdateHandle P<> 0
-    System::Call 'kernel32::WaitForSingleObject(p rUpdateHandle, i 120000) i .rUpdateWaitResult'
+    ; Ten minutes: a memory-starved machine can take well over two minutes to
+    ; drain browsers and quit, and a timeout here abandons the update.
+    System::Call 'kernel32::WaitForSingleObject(p rUpdateHandle, i 600000) i .rUpdateWaitResult'
     System::Call 'kernel32::CloseHandle(p rUpdateHandle)'
     ${If} $UpdateWaitResult != 0
       StrCpy $UpdateError "wait_timeout"

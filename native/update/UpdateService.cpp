@@ -335,7 +335,14 @@ void UpdateService::loadPersisted()
     const QUrl persistedInstallerUrl(object.value(QStringLiteral("installerUrl")).toString());
     if (persistedInstallerUrl.isValid())
         m_assetUrls.insert(m_manifest.installerAsset, persistedInstallerUrl);
-    if (m_state == Ready && (m_installerPath.isEmpty() || !QFileInfo(m_installerPath).isFile()))
+    // Installing is only true while this process is handing off to the
+    // installer. A successful install restarts as the newer version (UpToDate
+    // above), so a persisted Installing that survives to here means the
+    // installer never finished. Offer the restart again instead of an
+    // action-less "updating" screen that also suppresses automatic checks.
+    if (m_state == Installing)
+        m_state = Ready;
+    if (m_state == Ready &&(m_installerPath.isEmpty() || !QFileInfo(m_installerPath).isFile()))
         m_state = Paused;
     rebuildPresentation();
 }

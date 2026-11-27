@@ -4,6 +4,8 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QTemporaryDir>
 
 #include <cstdlib>
@@ -653,12 +655,12 @@ int main()
     // ── Shutdown lifecycle (Arc 11 slice 1): restartAndUpdate() requests an
     // explicit process shutdown after a successful launch + persist(), so the
     // installer's /WAITPID=<our PID> wait resolves instead of idling out its
-    // 120s timeout. requestShutdown is null-checked; unset must never crash. ──
+    // wait timeout. requestShutdown is null-checked; unset must never crash. ──
     {
         // (1)(2) Success path: shutdown requested exactly once, and by the time
         // the callback fires Installing is already durably persisted — proven
-        // by constructing a second UpdateService on the same cacheRoot from
-        // INSIDE the callback and requiring it restores to Installing. Uses the
+        // by reading service-state.json on the same cacheRoot from
+        // INSIDE the callback and reading its saved state field. Uses the
         // signed fixture (not manifestFor/validResult) because persist() only
         // writes once verifiedManifestBytes/Signature are populated.
         QTemporaryDir shutdownRoot;
@@ -677,13 +679,15 @@ int main()
         };
         int shutdownCalls = 0;
         bool observedPersistedStateAtShutdown = false;
-        UpdateService::State persistedStateAtShutdown = UpdateService::Idle;
+        QString persistedStateAtShutdown;
         const QString shutdownCacheRoot = shutdownRoot.path();
         shutdownHooks.requestShutdown = [&shutdownCalls, &persistedStateAtShutdown,
                                           &observedPersistedStateAtShutdown, shutdownCacheRoot] {
             ++shutdownCalls;
-            UpdateService reloaded(version("1.1.0"), shutdownCacheRoot);
-            persistedStateAtShutdown = reloaded.state();
+            QFile stateFile(QDir(shutdownCacheRoot).filePath(QStringLiteral("service-state.json")));
+            if (stateFile.open(QIODevice::ReadOnly))
+                persistedStateAtShutdown = QJsonDocument::fromJson(stateFile.readAll())
+                    .object().value(QStringLiteral("state")).toString();
             observedPersistedStateAtShutdown = true;
         };
         auto readySvc = readyService(shutdownHooks, shutdownCacheRoot, shutdownInstaller,
@@ -694,8 +698,26 @@ int main()
         require(readySvc->state() == UpdateService::Installing,
                 "successful launch leaves state Installing");
         require(observedPersistedStateAtShutdown
-                    && persistedStateAtShutdown == UpdateService::Installing,
+                    && persistedStateAtShutdown == QStringLiteral("Installing"),
                 "Installing is persisted before requestShutdown fires");
+
+        // (2b) The installer never finished (wait timeout, crash, blocked):
+        // the old version starts again with Installing on disk. It must offer
+        // the restart again rather than an action-less "updating" screen that
+        // also suppresses automatic checks forever.
+        {
+            UpdateService reopened(version("1.1.0"), shutdownCacheRoot);
+            require(reopened.state() == UpdateService::Ready,
+                    "abandoned install reopens as Ready, not stuck Installing");
+        }
+        // ...and with the downloaded installer gone, it falls back to Paused
+        // so the download can be resumed.
+        {
+            QFile::remove(shutdownInstaller);
+            UpdateService reopened(version("1.1.0"), shutdownCacheRoot);
+            require(reopened.state() == UpdateService::Paused,
+                    "abandoned install without its installer reopens as Paused");
+        }
 
         // (3) Launch failure: no shutdown, state becomes RecoverableError.
         QTemporaryDir failRoot;
