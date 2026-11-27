@@ -1,0 +1,42 @@
+{
+  "batchcomplete": true,
+  "query": {
+    "allpages": [
+      {
+        "pageid": 69205529,
+        "ns": 0,
+        "title": "List of Billboard Global 200 number ones of 2020"
+      },
+      {
+        "pageid": 69205518,
+        "ns": 0,
+        "title": "List of Billboard Global 200 number ones of 2021"
+      },
+      {
+        "pageid": 69666126,
+        "ns": 0,
+        "title": "List of Billboard Global 200 number ones of 2022"
+      },
+      {
+        "pageid": 72360318,
+        "ns": 0,
+        "title": "List of Billboard Global 200 number ones of 2023"
+      },
+      {
+        "pageid": 75704441,
+        "ns": 0,
+        "title": "List of Billboard Global 200 number ones of 2024"
+      },
+      {
+        "pageid": 78761693,
+        "ns": 0,
+        "title": "List of Billboard Global 200 number ones of 2025"
+      },
+      {
+        "pageid": 81978986,
+        "ns": 0,
+        "title": "List of Billboard Global 200 number ones of 2026"
+      }
+    ]
+  }
+}

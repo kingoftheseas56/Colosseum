@@ -1,0 +1,37 @@
+{
+  "batchcomplete": true,
+  "query": {
+    "allpages": [
+      {
+        "pageid": 66004147,
+        "ns": 0,
+        "title": "Billboard Year-End Hot 100 singles of 2020"
+      },
+      {
+        "pageid": 69418946,
+        "ns": 0,
+        "title": "Billboard Year-End Hot 100 singles of 2021"
+      },
+      {
+        "pageid": 72391173,
+        "ns": 0,
+        "title": "Billboard Year-End Hot 100 singles of 2022"
+      },
+      {
+        "pageid": 75374672,
+        "ns": 0,
+        "title": "Billboard Year-End Hot 100 singles of 2023"
+      },
+      {
+        "pageid": 78594919,
+        "ns": 0,
+        "title": "Billboard Year-End Hot 100 singles of 2024"
+      },
+      {
+        "pageid": 54499598,
+        "ns": 0,
+        "title": "Billboard Year-End Hot 100 singles of 2025"
+      }
+    ]
+  }
+}

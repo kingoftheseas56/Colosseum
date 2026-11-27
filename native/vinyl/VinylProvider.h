@@ -202,13 +202,26 @@ public:
         prune();
     }
     Q_INVOKABLE int requestPayload(const QString &lane,const QString &operation,const QString &value,const QVariantMap &payload){
-        static const QStringList operations{"browseCategories","browseCatalogue","resolveCatalogueItem","resolveCatalogueArt","mediaWarmup","search","catalogueSearch","cataloguePage","playlistPage","discover","playlist","album","resolve","resolveVideo","relatedVideo","artist","artistReleases","artistVideos","artistIdentity","artistArtwork","artistCandidates","songCandidates","recommendationIdentity","recommendationDiscography","chartCandidates","similarArtists","recordingMatch","populationCandidates","lyrics"};
+        static const QStringList operations{"browseCategories","browseCatalogue","resolveCatalogueItem","resolveCatalogueArt","chartWeek","wikipediaList","mostStreamed","mediaWarmup","search","catalogueSearch","cataloguePage","playlistPage","discover","playlist","album","resolve","resolveVideo","relatedVideo","artist","artistReleases","artistVideos","artistIdentity","artistArtwork","artistCandidates","songCandidates","recommendationIdentity","recommendationDiscography","chartCandidates","similarArtists","recordingMatch","populationCandidates","lyrics"};
         static const QStringList lanes{"catalogue-categories","catalogue-songs","catalogue-albums","catalogue-artists","catalogue-item","catalogue-art","media-warmup","browse","queue","play","playFallback","prepare-next","video-match","video-stream","playlist-page","search-albums","search-artists","search-songs","search-playlists","taste-artists","discover-new-releases","discover-trending","discover-artists","discover-charts","artist","artist-albums","artist-singles","artist-videos","artist-identity","artist-artwork","home-seed-0","home-seed-1","home-identity","home-population","home-listening-0","home-listening-1","named-collections","lyrics"};
+        static const QStringList chartKinds{"songs","albums","artists"};
+        static const QStringList wikiLists{"hot100-2025","global-200-2025","year-end-100-2025",
+                                         "mainstream-rock-2020s","hot100-1990s"};
+        const bool editorial=operation=="chartWeek"||operation=="wikipediaList"||operation=="mostStreamed";
+        const bool exploreArt=operation=="resolveCatalogueArt"&&value=="editorial";
+        const bool editorialLane=lane.startsWith("explore-");
+        if((editorial||exploreArt)!=editorialLane)return -1;
+        if(editorial){
+            if(!payload.isEmpty())return -1;
+            if(operation=="chartWeek"&&(!chartKinds.contains(value)||lane!="explore-week-"+value))return -1;
+            if(operation=="wikipediaList"&&(!wikiLists.contains(value)||lane!="explore-"+value))return -1;
+            if(operation=="mostStreamed"&&(value!="songs"||lane!="explore-most-streamed"))return -1;
+        }
         const bool songLane=lane=="home-song-0"||lane=="home-song-1";
         const bool downloadLane=lane=="download"&&operation=="resolve"&&payload.value("source")=="youtube";
         const bool metadataLane=lane=="home-metadata-0"||lane=="home-metadata-1";
         const bool metadata=VinylSourcePool::metadataOperation(operation);
-        if(!operations.contains(operation)||(!lanes.contains(lane)&&!songLane&&!metadataLane&&!downloadLane)||value.size()>300)return -1;
+        if(!operations.contains(operation)||(!lanes.contains(lane)&&!songLane&&!metadataLane&&!downloadLane&&!editorialLane)||value.size()>300)return -1;
         // Reject malformed enrichment before it can cancel an accepted request.
         if(metadata!=metadataLane||(metadata&&!VinylSourcePool::validMetadataRequest(operation,value,payload)))return -1;
         if(operation=="browseCategories"){
@@ -222,8 +235,8 @@ public:
                 ||!QStringList{"songs","albums","artists"}.contains(item.toMap().value("kind").toString()))return -1;
         }else if(operation=="resolveCatalogueArt"){
             const auto items=payload.value("items");
-            if(lane!="catalogue-art"||(value!="lastfm"&&value!="kworb")||payload.size()!=1
-                ||items.metaType().id()!=QMetaType::QVariantList||items.toList().size()>12)return -1;
+            if((exploreArt ? lane!="explore-art" : lane!="catalogue-art"||(value!="lastfm"&&value!="kworb"))
+                ||payload.size()!=1||items.metaType().id()!=QMetaType::QVariantList||items.toList().size()>12)return -1;
         }else if(lane.startsWith("catalogue-"))return -1;
         const bool warming=operation=="mediaWarmup";
         if(warming!=(lane=="media-warmup")||(warming&&(!value.isEmpty()||!payload.isEmpty()||!reuseHelpers())))return -1;
@@ -238,8 +251,8 @@ public:
         const bool discoverBrowse=operation=="browseCatalogue"
             &&QStringList{"vinyl","lastfm","jiosaavn"}.contains(payload.value("catalogueSource").toString());
         const bool discoverResolver=operation=="resolveCatalogueItem"||operation=="resolveCatalogueArt";
-        const bool weekArt=operation=="resolveCatalogueArt"&&value=="kworb";
-        const bool cacheable=!warming&&operation!="resolve"&&operation!="resolveVideo"&&!discoverBrowse&&!discoverResolver;
+        const bool chartArt=operation=="resolveCatalogueArt"&&(value=="kworb"||exploreArt);
+        const bool cacheable=!warming&&!editorial&&operation!="resolve"&&operation!="resolveVideo"&&!discoverBrowse&&!discoverResolver;
         if(home&&!metadata){
             const QSet<QString> allowed{"seed","recording","refresh","region","fetchedAt","limit"};
             for(auto it=payload.cbegin();it!=payload.cend();++it)if(!allowed.contains(it.key()))return -1;
@@ -264,7 +277,7 @@ public:
         else if(lane.startsWith("home-listening-"))warm=&m_homeListeningWarm;
         else if(QStringList{"search","catalogueSearch","artist","artistReleases","artistVideos","artistArtwork"}.contains(operation))
             warm=&m_browseWarm;
-        else if(weekArt||QStringList{"browseCategories","browseCatalogue","resolveCatalogueItem","cataloguePage","album","relatedVideo"}.contains(operation))
+        else if(chartArt||QStringList{"browseCategories","browseCatalogue","resolveCatalogueItem","cataloguePage","album","relatedVideo"}.contains(operation))
             warm=&m_catalogueWarm;
         // Home cannot occupy a foreground warm worker. Overlap beyond the
         // warm pool and external helpers retain the one-shot contract.
@@ -272,10 +285,10 @@ public:
         // Bundled enrichment can outlive the reply even without a free warm slot.
         // While a transient art worker drains, later one-shot polls only read,
         // rather than replacing that worker on every timer tick.
-        const bool artReader=!server&&weekArt&&m_tagging.contains(lane);
+        const bool artReader=!server&&chartArt&&m_tagging.contains(lane);
         const bool snapshotEnrichment=discoverBrowse&&payload.value("catalogueSource")=="vinyl"
             &&QStringList{"chartWeek","new"}.contains(payload.value("list").toString());
-        const bool transientTagger=!server&&(snapshotEnrichment||(weekArt&&!artReader))
+        const bool transientTagger=!server&&(snapshotEnrichment||(chartArt&&!artReader))
             &&QFileInfo(m_helper).fileName()=="provider.py";
         const bool lineProtocol=server||transientTagger;
         QProcess *process=nullptr;

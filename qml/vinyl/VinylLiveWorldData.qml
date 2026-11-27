@@ -575,6 +575,7 @@ Item {
             albums:{query:"",lens:emptyLens(),sortOrder:"title",onlineMode:false},
             artists:{query:"",lens:emptyLens(),sortOrder:"title",onlineMode:false},home:{query:"",lens:emptyLens(),sortOrder:"title",onlineMode:false},
             discover:{query:"",lens:emptyLens(),sortOrder:"title",onlineMode:true},
+            explore:{query:"",lens:emptyLens(),sortOrder:"title",onlineMode:false},
             library:{query:"",lens:emptyLens(),sortOrder:"title",onlineMode:false}};
     }
     function saveBrowseState() {
@@ -586,7 +587,7 @@ Item {
         browseStates=next;
     }
     function selectTab(tab) {
-        if(["home","songs","albums","artists","discover","library"].indexOf(tab)<0) return;
+        if(["home","songs","albums","artists","discover","explore","library"].indexOf(tab)<0) return;
         if(tab==="home" && !usesRecommendationService && !fallbackPickerAnswered)
             fallbackTastePickerOpen=true;
         if(tab===activeTab) {
@@ -660,7 +661,7 @@ Item {
         catalogueMatches={query:pendingCatalogueQuery,albums:session.onlineAlbums.slice(),artists:session.onlineArtists.slice()};
     }
     function refreshSearch() {
-        if(changingTab || ["home","songs","albums","artists"].indexOf(activeTab)>=0 || onlineMode) return;
+        if(changingTab || ["home","songs","albums","artists","explore"].indexOf(activeTab)>=0 || onlineMode) return;
         if(!session.pagedSearchSupported) return;
         if(query.trim()) session.search(query);
         else if(session.browseOperation==="search") session.cancelBrowse();

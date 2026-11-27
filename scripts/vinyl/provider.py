@@ -3169,7 +3169,7 @@ def _discover_http(source, method, params, language="", *, transport=None, timeo
             time.sleep(max(0, _LASTFM_NEXT_REQUEST - time.monotonic()))
             _LASTFM_NEXT_REQUEST = time.monotonic() + 0.205
     elif source == "kworb":
-        url = "https://kworb.net" + method  # Only paths built by fetch_chart_week.
+        url = "https://kworb.net" + method  # Only fixed editorial chart paths.
         headers = {"User-Agent": _CHART_USER_AGENT}
     elif source == "wikipedia":
         url = "https://en.wikipedia.org/w/api.php?" + urllib.parse.urlencode(
@@ -3690,12 +3690,36 @@ def _kworb_items(raw, kind):
     return items
 
 
+def _kworb_streamed_items(raw):
+    parser = _KworbTable()
+    parser.feed(raw)
+    parser.close()
+    header = [("th", name, []) for name in ("Artist and Title", "Streams", "Daily")]
+    tables = [table for table in parser.tables if table and table[0] == header]
+    if len(tables) != 1:
+        return []
+    items = []
+    for rank, row in enumerate(tables[0][1:101], 1):
+        if len(row) != 3 or any(tag != "td" for tag, _, _ in row):
+            return []
+        artist, sep, title = row[0][1].partition(" - ")
+        if not sep or not (0 < len(artist) <= 600 and 0 < len(title) <= 600):
+            return []
+        if not all(re.fullmatch(r"\d+(?:,\d{3})*", row[i][1]) for i in (1, 2)):
+            return []
+        items.append(_chart_card("kworb", "songs", title, [artist], rank))
+    return items
+
+
 def _kworb_week(kind, scope):
     # Only Spotify's weekly song feed has country equivalents. The album and
     # artist rankings are global snapshots and share one cache across scopes.
     path = {"songs": f"/spotify/country/{scope.lower()}_weekly.html",
             "albums": "/aww/", "artists": "/itunes/"}[kind]
+    return _kworb_cached(path, lambda raw: _kworb_items(raw, kind))
 
+
+def _kworb_cached(path, parse):
     retry_key = ["chart-week", "kworb-retry", path]
 
     def load():
@@ -3711,7 +3735,7 @@ def _kworb_week(kind, scope):
             raise
         # Cache a layout failure too: it must not use old Kworb data or hit the
         # broken page again on every request.
-        return _kworb_items(raw, kind), *headers
+        return parse(raw), *headers
 
     items, stamp, stale = _discover_cached(["chart-week", "kworb", path], _CHART_TTL, False, load,
                                             lambda value: isinstance(value, list))
@@ -4177,10 +4201,26 @@ def _youtube_new_tracks(key, youtube, ttl, refresh):
     return _discover_cached(["vinyl-new", "tracks", key], ttl, refresh, load, lambda value: isinstance(value, list))
 
 
+def fetch_most_streamed(request):
+    global _KWORB_LAYOUT_LOGGED
+    if request.get("value") != "songs" or set(request) - {"operation", "value"}:
+        raise InvalidArgumentError("Invalid most-streamed chart request.")
+    items, stamp, stale = _kworb_cached("/spotify/songs.html", _kworb_streamed_items)
+    if not items:
+        if not _KWORB_LAYOUT_LOGGED:
+            print("Vinyl: Kworb chart layout changed; discarding Kworb rows.", file=sys.stderr, flush=True)
+            _KWORB_LAYOUT_LOGGED = True
+        raise ProviderUnavailableError("Kworb's most-streamed chart is unavailable.")
+    return _editorial_envelope("kworb", items, stamp, stale, kind="songs", warning="")
+
+
 # List keys bind a directory family and a period, not a guessed article title.
 _WIKIPEDIA_LISTS = {
     "hot100-2025": ("List of Billboard Hot 100 number ones", "of 2025", "2025"),
     "mainstream-rock-2020s": ("List of Billboard Mainstream Rock number-one songs", "of the 2020s", ""),
+    "global-200-2025": ("List of Billboard Global 200 number ones", "of 2025", "2025"),
+    "year-end-100-2025": ("Billboard Year-End Hot 100 singles of 202", "of 2025", "2025"),
+    "hot100-1990s": ("List of Billboard Hot 100 number-one singles of the 1990", "of the 1990s", ""),
 }
 
 
@@ -4196,29 +4236,62 @@ def _wiki_cell(cell):
     return _discover_text(" ".join(cell.replace("'''", "").replace("''", "").split())).strip('"“” ')
 
 
-def _wiki_chart_items(raw, initial_year):
+def _wiki_credits(cell):
+    # Separate collaborations without splitting a linked band name such as
+    # Hootie & the Blowfish. _wiki_cell reduces piped links to display names.
+    tokens = re.split(r"(\[\[[^\]]+\]\])", cell)
+    joined = "".join(token if i % 2 else re.sub(r"\s+(?:and|&|featuring|feat\.)\s+", "\x00", token, flags=re.I)
+                     for i, token in enumerate(tokens))
+    return [credit for part in joined.split("\x00") if (credit := _wiki_cell(part))]
+
+
+def _wiki_chart_items(raw, initial_year, list_key):
     if not isinstance(raw, str):
         return []
     raw = re.sub(r"<ref\b[^>]*?(?:/\s*>|>.*?</ref\s*>)|<!--.*?-->", "", raw, flags=re.I | re.S)
     items, seen = [], set()
+    title_header = {"hot100-1990s": "Single", "year-end-100-2025": "Title"}.get(list_key, "Song")
+    global_chart = list_key == "global-200-2025"
     for table in re.findall(r"^\{\|[^\n]*\bwikitable\b[^\n]*\n(.*?)^\|}", raw, re.M | re.S):
-        year, columns = initial_year, None
+        year, columns, covered_weeks = initial_year, None, 0
         for row in re.split(r"^\|-.*$", table, flags=re.M):
-            cells = [line[1:] for line in row.splitlines() if line.startswith(("|", "!"))]
+            cells = [cell for line in row.splitlines() if line.startswith(("|", "!")) and not line.startswith("|+")
+                     for cell in line[1:].split("!!" if line.startswith("!") else "||")]
             values = [_wiki_cell(cell) for cell in cells]
-            if {"Song", "Artist(s)"} <= set(values):
-                columns = (len(values), values.index("Song"), values.index("Artist(s)"))
+            if global_chart:
+                # The two charts have separate rowspans. Only read new pairs
+                # from the first (Global 200) chart, not the Excl. US columns.
+                if values == ["Song", "Artist(s)"] * 2:
+                    columns = (3, 1, 2)
+                    continue
+                if not columns or not row.lstrip().startswith("! scope="):
+                    continue
+                if covered_weeks:
+                    covered_weeks -= 1
+                    continue
+                if len(cells) < 3:
+                    continue
+                spans = [re.match(r'\s*rowspan\s*=\s*"?(\d+)', cell) for cell in cells[1:3]]
+                weeks = [int(span[1]) if span else 1 for span in spans]
+                if weeks[0] != weeks[1]:
+                    return []
+                covered_weeks = weeks[0] - 1
+            elif {title_header, "Artist(s)"} <= set(values):
+                columns = (len(values), values.index(title_header), values.index("Artist(s)"))
+                continue
             elif columns and len(cells) == 1 and cells[0].lstrip().startswith("colspan="):
-                year = values[0] if re.fullmatch(r"20[0-9]{2}", values[0]) else ""
-            elif columns and year and len(cells) == columns[0]:
-                # In the Hot 100 table, weeks covered by a rowspan omit the
-                # title/artist cells. Only the first week of each run has them.
-                title, artist = values[columns[1]], values[columns[2]]
-                if title and artist:
-                    key = (_chart_key("songs", title, [artist]), year)
-                    if key not in seen:
-                        seen.add(key)
-                        items.append(_discover_card("wikipedia", "songs", _discover_hash(key), title, [artist], "", year))
+                year = values[0] if re.fullmatch(r"(?:199|20[0-9])\d", values[0]) else ""
+                continue
+            elif not columns or len(cells) != columns[0]:
+                # Hot 100 rows covered by a rowspan have no title/artist cells.
+                continue
+            title = values[columns[1]]
+            credits = _wiki_credits(cells[columns[2]])
+            if year and title and credits:
+                key = (_chart_key("songs", title, credits), year)
+                if key not in seen:
+                    seen.add(key)
+                    items.append(_discover_card("wikipedia", "songs", _discover_hash(key), title, credits, "", year))
     return items
 
 
@@ -4245,7 +4318,7 @@ def fetch_wikipedia_list(request):
         parsed = response.get("parse") if isinstance(response, dict) else None
         if not isinstance(parsed, dict) or parsed.get("title") != title or parsed.get("pageid") != page_id:
             raise ProviderUnavailableError("Wikipedia returned a different article for this chart.")
-        items = _wiki_chart_items(parsed.get("wikitext"), year)
+        items = _wiki_chart_items(parsed.get("wikitext"), year, list_key)
         return {"title": title, "pageId": page_id, "items": items}, *headers
 
     content, stamp, stale = _discover_cached(["wikipedia-list", list_key], _WIKIPEDIA_TTL, False, load,
@@ -4262,7 +4335,8 @@ def _catalogue_input(item, expected_id=None):
     title, artist, hints = item.get("title"), item.get("artist"), item.get("hints")
     ids = item.get("sourceIds")
     key = ids.get("id") if isinstance(ids, dict) else None
-    if (source not in ("lastfm", "jiosaavn", "apple-music", "listenbrainz", "kworb", "youtube-music") or kind not in DISCOVER_KINDS
+    if (source not in ("lastfm", "jiosaavn", "apple-music", "listenbrainz", "wikipedia", "kworb", "youtube-music")
+            or kind not in DISCOVER_KINDS
             or not isinstance(key, str) or not 1 <= len(key) <= 1600
             or identifier != f"{source}:{kind}:" + hashlib.sha256(key.encode()).hexdigest()[:24]
             or (expected_id is not None and identifier != expected_id)
@@ -4348,16 +4422,17 @@ def resolve_catalogue_item(request, client):
 def resolve_catalogue_art(request):
     items = request.get("items")
     source = request.get("value")
-    if source not in ("lastfm", "kworb") or not isinstance(items, list) or len(items) > 12:
+    if source not in ("lastfm", "kworb", "editorial") or not isinstance(items, list) or len(items) > 12:
         raise InvalidArgumentError("Invalid music catalogue artwork request.")
-    if source == "kworb":
+    if source in ("kworb", "editorial"):
+        allowed_sources = ("kworb", "wikipedia") if source == "editorial" else ("kworb",)
         covers, albums, settled, jobs = {}, {}, [], {}
         can_queue = (os.environ.get("COLOSSEUM_VINYL_DISCOVER_CACHE_DIR")
                      and os.environ.get("COLOSSEUM_VINYL_ART_POLL_ONLY") != "1")
         for item in items:
             row = _catalogue_input(item)
-            if row["source"] != source:
-                raise InvalidArgumentError("Invalid weekly chart artwork request.")
+            if row["source"] not in allowed_sources:
+                raise InvalidArgumentError("Invalid chart artwork request.")
             kind, item_id = row["kind"], row["id"]
             params = _vinyl_genre_lookup(kind, row["title"], row["artists"])
             if not params:
@@ -4821,6 +4896,8 @@ def handle(request, client=None, mb_client=None, population_client=None, source_
         return fetch_chart_week(request, client)
     if request.get("operation") == "wikipediaList":
         return fetch_wikipedia_list(request)
+    if request.get("operation") == "mostStreamed":
+        return fetch_most_streamed(request)
     discover_page = (request.get("operation") == "browseCatalogue"
                      and request.get("catalogueSource") in ("vinyl", "lastfm", "jiosaavn"))
     discover_art = request.get("operation") == "resolveCatalogueArt"

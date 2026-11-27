@@ -25,9 +25,10 @@ WorldPage {
     readonly property bool ready: componentReady && runtimeReady && hostReady
     readonly property Item board: root
     readonly property string activeTab: currentTab === "discover" ? "Discover"
-        : currentTab === "library" ? "Library" : "Home"
+        : currentTab === "explore" ? "Explore" : currentTab === "library" ? "Library" : "Home"
     property string currentTab: "home"
     property bool discoverVisited: false
+    property bool exploreVisited: false
     property string listKey: ""
     property bool listHome: false
     property real listReturnY: 0
@@ -41,19 +42,21 @@ WorldPage {
     readonly property var tabModel: [
         {key:"home", label:qsTr("Home"), automationKey:"Home"},
         {key:"discover", label:qsTr("Discover"), automationKey:"Discover"},
+        {key:"explore", label:qsTr("Explore"), automationKey:"explore"},
         {key:"library", label:qsTr("Library"), automationKey:"Library"}
     ]
     tabBarSource: contentVisible && navigationEnabled ? flowBar : null
     dockTabPrefix: tabsDocked ? "vinylTab" : "vinylHiddenDockTab"
-    dockContentLeft: discover.visible ? discover.contentLeft : 0
+    dockContentLeft: discover.visible ? discover.contentLeft : explore.visible && explore.item ? explore.item.contentLeft : 0
 
-    function validTab(tab) { return ["home", "discover", "library"].indexOf(tab) >= 0; }
+    function validTab(tab) { return tabModel.some(entry => entry.key === tab); }
     function parkPage(y) {
         // Tab/list changes dirty nested positioners. Finish them inside-out so
         // scroll bounds and pointer hit targets both belong to the new route.
         if (listKey) list.forceLayout();
         else if (currentTab === "library" && library.visible) library.forceLayout();
         else if (currentTab === "home") homeContent.forceLayout();
+        else if (currentTab === "explore" && explore.item) explore.item.forceLayout();
         surface.forceLayout();
         surface.parent.forceLayout(); // WorldPage's board
         const target = y === undefined ? contentTop - dockedInset : y;
@@ -179,6 +182,7 @@ WorldPage {
     onNavigationEnabledChanged: if (componentReady) enforceHomeGate()
     onCurrentTabChanged: {
         if(currentTab==="discover")discoverVisited=true;
+        if(currentTab==="explore")exploreVisited=true;
         if (!componentReady) return;
         if (!validTab(currentTab)) { currentTab = "home"; return; }
         if (!navigationEnabled && currentTab !== "home") { enforceHomeGate(); return; }
@@ -345,6 +349,7 @@ WorldPage {
             height: root.listKey ? list.implicitHeight
                 : root.currentTab === "home" ? homeContent.implicitHeight
                 : root.currentTab === "discover" ? discover.height
+                : root.currentTab === "explore" ? explore.height
                 : playlistDetail.active && playlistDetail.item ? playlistDetail.item.implicitHeight : library.implicitHeight
             Column {
                 id: homeContent
@@ -410,6 +415,25 @@ WorldPage {
                     worldData: root.worldData
                     backdrop: root.backdrop
                     pageFlick: root.pageFlickable
+                }
+            }
+            Loader {
+                id: explore
+                width: parent.width
+                active: root.exploreVisited || root.currentTab === "explore"
+                height: item ? item.implicitHeight : 0
+                visible: !root.listKey && root.currentTab === "explore"
+                sourceComponent: VinylExplorePage {
+                    width: explore.width
+                    active: root.lifecycleActive && root.ready && explore.visible
+                    worldData: root.worldData
+                    backdrop: root.backdrop
+                    pageFlick: root.pageFlickable
+                    onRowRequested: target => root.parkRow(target)
+                    onListRequested: row => {
+                        root.worldData.homeListSnapshot = row;
+                        root.showList(row.key, true);
+                    }
                 }
             }
             VinylLibraryTab {

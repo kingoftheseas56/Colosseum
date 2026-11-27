@@ -524,8 +524,10 @@ Item {
         && visible && lifecycleActive && !searchOpen && !artistSearchOpen
     readonly property bool homeActivationAllowed: worldVisible && canEnterVinyl
         && visible && lifecycleActive && !searchOpen && !artistSearchOpen
+    readonly property bool exploreActivationAllowed: homeActivationAllowed && !!world && world.currentTab === "explore"
     onDiscoverActivationAllowedChanged: if(!discoverActivationAllowed && pendingDiscoverItem && !pendingDiscoverItem.fromHome) root.cancelDiscoverItem()
     onHomeActivationAllowedChanged: if(!homeActivationAllowed && pendingDiscoverItem && pendingDiscoverItem.fromHome) root.cancelDiscoverItem()
+    onExploreActivationAllowedChanged: if (!exploreActivationAllowed && pendingDiscoverItem && pendingDiscoverItem.fromExplore) root.cancelDiscoverItem()
     Component.onDestruction: root.cancelDiscoverItem()
 
     function cancelDiscoverItem() {
@@ -544,7 +546,8 @@ Item {
             discoverStatus=qsTr("Couldn't look up “%1”. Select it again to retry.").arg(item.title);
             return;
         }
-        pendingDiscoverItem={id:id,item:item,source:source,generation:session.profileGeneration,action:action || "open",fromHome:fromHome===true};
+        pendingDiscoverItem={id:id,item:item,source:source,generation:session.profileGeneration,
+            action:action || "open",fromHome:fromHome===true,fromExplore:exploreActivationAllowed};
         discoverStatus=qsTr("Looking up “%1” on YouTube Music…").arg(item.title);
     }
 
@@ -553,7 +556,8 @@ Item {
         if(!pending || pending.id!==id) return;
         pendingDiscoverItem=null;
         discoverStatus="";
-        if(!(pending.fromHome ? homeActivationAllowed : discoverActivationAllowed) || session.source!==pending.source
+        if(!(pending.fromExplore ? exploreActivationAllowed : pending.fromHome ? homeActivationAllowed : discoverActivationAllowed)
+            || session.source!==pending.source
             || session.profileGeneration!==pending.generation) return;
         var item=pending.item;
         if(error || !data || data.version!==1 || data.id!==item.id || data.kind!==item.kind

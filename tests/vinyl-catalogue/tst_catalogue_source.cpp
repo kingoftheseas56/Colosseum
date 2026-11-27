@@ -443,6 +443,12 @@ private slots:
                                <<QString("Mariah Carey")<<QString("2025")<<QString("2025");
         QTest::newRow("rock")<<QString("mainstream-rock-2020s")<<6<<QString("Under the Graveyard")
                              <<QString("Ozzy Osbourne")<<QString("2020")<<QString("2021");
+        QTest::newRow("global")<<QString("global-200-2025")<<3<<QString("All I Want for Christmas Is You")
+                               <<QString("Mariah Carey")<<QString("2025")<<QString("2025");
+        QTest::newRow("year-end")<<QString("year-end-100-2025")<<3<<QString("Die with a Smile")
+                                 <<QString("Lady Gaga, Bruno Mars")<<QString("2025")<<QString("2025");
+        QTest::newRow("nineties")<<QString("hot100-1990s")<<4<<QString("How Am I Supposed to Live Without You")
+                                 <<QString("Michael Bolton")<<QString("1990")<<QString("1999");
     }
     void wikipediaListDiscoversArticleAndParsesChartRows(){
         QFETCH(QString,key);
@@ -457,15 +463,74 @@ private slots:
         QVERIFY2(run.answers.size()==1,run.diagnostics.constData());
         QCOMPARE(run.data(0).value("attribution").toString(),QString("Wikipedia"));
         QCOMPARE(run.data(0).value("license").toString(),QString("CC BY-SA"));
-        QVERIFY(run.data(0).value("title").toString().contains("number"));
+        QVERIFY(run.data(0).value("title").toString().contains("Billboard"));
         const auto items=run.items(0);
         QCOMPARE(items.size(),count);
         QCOMPARE(items.first().toObject().value("title").toString(),firstTitle);
         QCOMPARE(items.first().toObject().value("artist").toString(),firstArtist);
         QCOMPARE(items.first().toObject().value("year").toString(),firstYear);
         QCOMPARE(items.last().toObject().value("year").toString(),lastYear);
+        if(key=="global-200-2025") QCOMPARE(items.at(2).toObject().value("title").toString(),QString("DTMF"));
         QVERIFY(run.diagnostics.indexOf("-directory.json")>=0);
         QVERIFY(run.diagnostics.indexOf("-directory.json")<run.diagnostics.lastIndexOf("fixture:"));
+    }
+    void mostStreamedParsesRanksCachesAndFailsClosed(){
+        QTemporaryDir cache, changed;
+        QVERIFY(cache.isValid()&&changed.isValid());
+        const QJsonObject request{{"operation","mostStreamed"},{"value","songs"}};
+        const auto run=runEditorialFixtures(cache.path(),{request,request});
+        QVERIFY2(run.answers.size()==2,run.diagnostics.constData());
+        QCOMPARE(run.answers[0],run.answers[1]);
+        QCOMPARE(run.diagnostics.count("fixture: kworb-most-streamed.html"),1);
+        QCOMPARE(run.data(0).value("source").toString(),QString("kworb"));
+        const auto items=run.items(0);
+        QCOMPARE(items.size(),4);
+        QCOMPARE(items.first().toObject().value("title").toString(),QString("Blinding Lights"));
+        QCOMPARE(items.last().toObject().value("rank").toInt(),4);
+        const auto bad=runEditorialFixtures(changed.path(),{request},"VINYL_TEST_KWORB_CHANGED");
+        QCOMPARE(bad.answers.size(),1);
+        QCOMPARE(bad.answers[0].value("errorCode").toString(),QString("unavailable"));
+    }
+    void exploreRequestsTravelOnIndependentNativeLanes(){
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        qputenv("VINYL_TEST_EDITORIAL_TRANSPORT","1");
+        const auto restore=qScopeGuard([]{qunsetenv("VINYL_TEST_EDITORIAL_TRANSPORT");});
+        VaultIdentity identity(dir.filePath("identity.json"));
+        VinylLocalSource local(&identity);
+        VinylProvider provider(QStringLiteral(VINYL_FAKE_TRANSPORT),nullptr,128LL*1024*1024,{},dir.filePath("cache"));
+        VinylCatalogueSource source(&local,&provider,nullptr);
+        QSignalSpy replies(&source,&VinylCatalogueSource::completed);
+        const auto week=source.request("explore-week-albums","chartWeek","albums",{});
+        const auto wiki=source.request("explore-year-end-100-2025","wikipediaList","year-end-100-2025",{});
+        const auto streamed=source.request("explore-most-streamed","mostStreamed","songs",{});
+        QVERIFY(week>0&&wiki>0&&streamed>0);
+        QCOMPARE(source.request("catalogue-songs","wikipediaList","year-end-100-2025",{}),-1);
+        QTRY_COMPARE_WITH_TIMEOUT(replies.size(),3,12000);
+        QHash<int,int> counts;
+        for(const auto &reply:replies){
+            QVERIFY2(reply[3].toString().isEmpty(),qPrintable(reply[3].toString()));
+            counts.insert(reply[1].toInt(),reply[2].toMap().value("items").toList().size());
+        }
+        QCOMPARE(counts.value(week),3);
+        QCOMPARE(counts.value(wiki),3);
+        QCOMPARE(counts.value(streamed),4);
+
+        QVariantMap album;
+        for(const auto &reply:replies){
+            if(reply[1].toInt()==week)album=reply[2].toMap().value("items").toList().at(1).toMap();
+        }
+        const QVariantMap artwork{{"items",QVariantList{album}}};
+        QCOMPARE(source.request("catalogue-art","resolveCatalogueArt","editorial",artwork),-1);
+        QVERIFY(source.request("explore-art","resolveCatalogueArt","editorial",artwork)>0);
+        QTRY_COMPARE_WITH_TIMEOUT(replies.size(),4,12000);
+        QVERIFY2(replies.last()[3].toString().isEmpty(),qPrintable(replies.last()[3].toString()));
+        QVERIFY(source.request("explore-art","resolveCatalogueArt","editorial",artwork)>0);
+        QTRY_COMPARE_WITH_TIMEOUT(replies.size(),5,12000);
+        QVERIFY2(replies.last()[3].toString().isEmpty(),qPrintable(replies.last()[3].toString()));
+        const auto covers=replies.last()[2].toMap().value("covers").toMap();
+        QCOMPARE(covers.value(album.value("id").toString()).toString(),
+            QString("https://is1-ssl.mzstatic.com/suiatsu/600x600bb.jpg"));
     }
     void editorialProviderRejectsInvalidOrUndiscoveredLists(){
         QTemporaryDir cache;

@@ -14,16 +14,20 @@ Item {
     property real cardSize: 196
     property int previewCount: 8
     property int currentIndex: 0
+    property var openRowHandler: null
+    property var retryRowHandler: null
+    property string statusNote: ""
     readonly property string rowStatus: String(root.row && root.row.status || "")
-    readonly property bool showRowStatus: !root.hasCards && (root.row && (root.row.recommendation === true
-        || root.row.personal === false))
-        && ["loading", "stale", "error"].indexOf(rowStatus) >= 0
+    readonly property bool showRowStatus: statusNote.length > 0 || (!root.hasCards && root.row
+        && (root.row.recommendation === true || root.row.personal === false)
+        && ["loading", "stale", "error"].indexOf(rowStatus) >= 0)
     readonly property bool hasCards: !!(root.row && root.row.items && root.row.items.length > 0)
     readonly property bool showRowRetry: showRowStatus && rowStatus !== "loading"
         && root.row.canRetry === true
-        && root.worldData && (typeof root.worldData.retryHomeRow === "function"
-            || typeof root.worldData.retryHomeRecommendations === "function")
+        && (root.retryRowHandler || (root.worldData && (typeof root.worldData.retryHomeRow === "function"
+            || typeof root.worldData.retryHomeRecommendations === "function")))
     readonly property string rowStatusText: {
+        if(statusNote) return statusNote;
         if(rowStatus === "loading") return "Loading this shelf…";
         if(rowStatus === "stale") return root.row.loading === true
             ? "Loading this shelf…" : "Could not refresh this shelf.";
@@ -51,7 +55,10 @@ Item {
         moreLabel: "See all"
         navigable: root.hasCards
         automationId: (root.home ? "vinylHomeSeeAll_" : "vinylShelfSeeAll_") + root.row.key
-        onMoreClicked: root.worldData.openList(root.row.key,root.home)
+        onMoreClicked: {
+            if (root.openRowHandler) root.openRowHandler(root.row);
+            else root.worldData.openList(root.row.key, root.home);
+        }
     }
     Item {
         id: rowStatusBar
@@ -88,7 +95,8 @@ Item {
             symbol: "retry"
             backdrop: root.backdrop
             onTriggered: {
-                if (typeof root.worldData.retryHomeRow === "function")
+                if (root.retryRowHandler) root.retryRowHandler();
+                else if (typeof root.worldData.retryHomeRow === "function")
                     root.worldData.retryHomeRow(root.row);
                 else if (typeof root.worldData.retryHomeRecommendations === "function")
                     root.worldData.retryHomeRecommendations();

@@ -14,6 +14,7 @@ def serve_editorial_fixtures():
     from urllib.parse import parse_qs, urlsplit
     from unittest.mock import patch
 
+    sys.dont_write_bytecode = True
     here = Path(__file__).resolve().parent
     fixtures = here / "fixtures"
     spec = importlib.util.spec_from_file_location("vinyl_provider", here.parents[1] / "scripts/vinyl/provider.py")
@@ -100,10 +101,10 @@ def serve_editorial_fixtures():
             if url.netloc == "kworb.net":
                 print("chart path: " + url.path, file=sys.stderr)
                 kind = {"/spotify/country/global_weekly.html": "songs", "/spotify/country/us_weekly.html": "songs",
-                        "/aww/": "albums", "/itunes/": "artists"}[url.path]
+                        "/aww/": "albums", "/itunes/": "artists", "/spotify/songs.html": "most-streamed"}[url.path]
                 raw = fixture(f"kworb-{kind}.html")
                 if os.environ.get("VINYL_TEST_KWORB_CHANGED"):
-                    raw = raw.replace(b">Pos</th>", b">Position</th>", 1)
+                    raw = raw.replace(b">Streams</th>", b">Plays</th>", 1) if kind == "most-streamed" else raw.replace(b">Pos</th>", b">Position</th>", 1)
                 return Response(raw)
             assert (url.netloc, url.path) == ("en.wikipedia.org", "/w/api.php")
             params = parse_qs(url.query)
@@ -111,13 +112,17 @@ def serve_editorial_fixtures():
             if params["action"] == ["query"]:
                 assert params["list"] == ["allpages"] and params["apnamespace"] == ["0"]
                 name = {"List of Billboard Hot 100 number ones": "hot100",
-                        "List of Billboard Mainstream Rock number-one songs": "rock"}[params["apprefix"][0]]
+                        "List of Billboard Mainstream Rock number-one songs": "rock",
+                        "List of Billboard Global 200 number ones": "global",
+                        "Billboard Year-End Hot 100 singles of 202": "end",
+                        "List of Billboard Hot 100 number-one singles of the 1990": "nineties"}[params["apprefix"][0]]
                 raw = fixture(f"wikipedia-{name}-directory.json")
                 if os.environ.get("VINYL_TEST_WIKI_UNLISTED"):
                     raw = b'{"query":{"allpages":[]}}'
                 return Response(raw)
             assert params["action"] == ["parse"] and params["prop"] == ["wikitext"] and "page" not in params
-            name = {"78542955": "hot100", "62774351": "rock"}[params["pageid"][0]]
+            name = {"78542955": "hot100", "62774351": "rock", "78761693": "global", "54499598": "end",
+                    "33764951": "nineties"}[params["pageid"][0]]
             return Response(fixture(f"wikipedia-{name}.json"))
 
     class FixtureYouTube:
@@ -167,10 +172,19 @@ def serve_editorial_fixtures():
          patch.object(provider, "_ITUNES_MIN_INTERVAL", 0), \
          patch.dict(os.environ, {"COLOSSEUM_VINYL_LASTFM_API_KEY": "" if os.environ.get("VINYL_TEST_MISSING_LASTFM") else fake_lastfm_key,
                                  "COLOSSEUM_VINYL_LASTFM_KEY_FILE": ""}):
-        provider.serve()
+        if sys.argv[1:] == ["--editorial-fixtures"]:
+            provider.serve()
+        else:
+            provider.main()
+            # The one-shot reply can precede background enrichment. Keep the
+            # fixtures installed until all its jobs have finished, as serve() does.
+            with provider._GENRE_LOCK:
+                worker = provider._GENRE_WORKER
+            if worker is not None:
+                worker.join()
 
 
-if sys.argv[1:] == ["--editorial-fixtures"]:
+if sys.argv[1:] == ["--editorial-fixtures"] or os.environ.get("VINYL_TEST_EDITORIAL_TRANSPORT"):
     serve_editorial_fixtures()
     sys.exit(0)
 

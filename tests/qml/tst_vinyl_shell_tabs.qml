@@ -153,16 +153,14 @@ TestCase {
         for (var i = 0; i < children.length; ++i) count += namedCount(children[i], name);
         return count;
     }
-    function test_threeTabIdentityOrderAndNoLegacyShell() {
+    function test_fourTabIdentityOrderAndNoLegacyShell() {
         compare(view.objectName, "vinylWorld");
         compare(view.medium, "Vinyl");
         compare(view.board, view);
         var actual = view.flowTabs.tabModel;
-        compare(actual.length, 3);
-        compare(JSON.stringify(actual.map(function(tab) { return tab.key; })),
-                JSON.stringify(["home", "discover", "library"]));
-        compare(JSON.stringify(actual.map(function(tab) { return tab.label; })),
-                JSON.stringify(["Home", "Discover", "Library"]));
+        compare(actual.length, 4);
+        compare(actual.map(tab => tab.key), ["home", "discover", "explore", "library"]);
+        compare(actual.map(tab => tab.label), ["Home", "Discover", "Explore", "Library"]);
         compare(view.currentTab, "home");
         compare(view.activeTab, "Home");
         compare(findChild(view, "vinylWorldScroll"), view.pageFlickable);
@@ -170,16 +168,19 @@ TestCase {
          "vinylHomePage", "vinylLibraryPage"].forEach(function(name) {
             compare(findChild(view, name), null, name + " must not be instantiated");
         });
-        ["Home", "Discover", "Library"].forEach(function(name) {
+        ["Home", "Discover", "explore", "Library"].forEach(function(name) {
             compare(namedCount(view, "vinylTab_" + name), 1);
         });
     }
-    function test_pointerSwitchesLibraryDiscoverHome() {
+    function test_pointerSwitchesLibraryDiscoverExploreHome() {
         clickTab("Library", "Library");
         compare(gateData.activeTab, "library");
         clickTab("Discover", "Discover");
         compare(gateData.activeTab, "discover");
         verify(findChild(view, "vinylDiscoverPage").visible);
+        clickTab("explore", "Explore");
+        compare(gateData.activeTab, "explore");
+        verify(findChild(view, "vinylExplorePage").visible);
         clickTab("Home", "Home");
         compare(gateData.activeTab, "home");
     }
