@@ -22,7 +22,9 @@ jobs:
           uname -a | tee arc93-output/runner.txt
           df -h | tee -a arc93-output/runner.txt
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends flatpak flatpak-builder xvfb xauth dbus-x11
+          sudo apt-get install -y --no-install-recommends flatpak flatpak-builder elfutils xvfb xauth dbus-x11
+          command -v eu-strip
+          command -v eu-elfcompress
           flatpak --version | tee arc93-output/flatpak-version.txt
           flatpak-builder --version | tee -a arc93-output/flatpak-version.txt
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
