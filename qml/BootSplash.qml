@@ -1,5 +1,7 @@
+pragma ComponentBehavior: Bound
+
 // BootSplash — OS-style loader. Prefetches every catalog cover/banner into Qt's pixmap cache
-// (hidden Images with cache:true) behind a progress bar, then emits finished() so the shell reveals
+// (hidden Images with cache:true) behind the opening sequence, then emits finished() so the shell reveals
 // with art already warm. A hard timeout guarantees boot always completes even if a CDN stalls.
 import QtQuick
 import "Catalog.js" as Catalog
@@ -15,6 +17,8 @@ Rectangle {
     property bool prefetchStarted: false
     property bool completed: false
     property bool prefetchEnabled: true
+    property bool includeVinyl: false
+    property bool reducedMotion: false
     readonly property real progress: !prefetchEnabled || urls.length === 0 ? 1 : done / urls.length
 
     function complete() {
@@ -88,35 +92,14 @@ Rectangle {
     // hard timeout so boot always completes after the API/catalog prefetch starts
     Timer { id: timeout; interval: 9000; running: false; repeat: false; onTriggered: splash.complete() }
 
-    Column {
-        anchors.centerIn: parent
-        spacing: 22
-        // app mark — the amphitheatre glyph, same identity as the taskbar/exe icon
-        Image {
-            source: "../assets/icons/colosseum.svg"
-            sourceSize.width: 88; sourceSize.height: 88
-            width: 88; height: 88
-            fillMode: Image.PreserveAspectFit
-            anchors.horizontalCenter: parent.horizontalCenter
-        }
-        Text {
-            text: "COLOSSEUM"; color: "#f0c44a"
-            font.family: "Georgia"; font.pixelSize: 40; font.letterSpacing: 8
-            anchors.horizontalCenter: parent.horizontalCenter
-        }
-        Rectangle {   // progress track
-            width: 320; height: 4; radius: 2; color: Qt.rgba(1, 1, 1, 0.12)
-            anchors.horizontalCenter: parent.horizontalCenter
-            Rectangle {
-                width: parent.width * splash.progress; height: parent.height; radius: 2
-                color: "#f0c44a"
-                Behavior on width { NumberAnimation { duration: 250 } }
-            }
-        }
-        Text {
-            text: "Loading library… " + Math.round(splash.progress * 100) + "%"
-            color: "#9a99a5"; font.family: "Segoe UI"; font.pixelSize: 12
-            anchors.horizontalCenter: parent.horizontalCenter
+    Loader {
+        anchors.fill: parent
+        active: splash.visible
+        asynchronous: true
+        sourceComponent: BootSplashPresentation {
+            booting: !splash.completed
+            includeVinyl: splash.includeVinyl
+            reducedMotion: splash.reducedMotion
         }
     }
 }

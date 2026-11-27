@@ -546,7 +546,7 @@ Window {
             { loader: homeReadingDeskLoader, source: "ReadingDesk.qml" }
         ]
         if (win.vinylEnabled)
-            widgets.push({ loader: homeVinylWidgetLoader })
+            widgets.push({ loader: homeVinylWidgetLoader, source: "vinyl/VinylHomeWidget.qml" })
         return widgets
     }
     Timer {
@@ -598,8 +598,13 @@ Window {
         }
         const entry = widgets[homeIntroWidgetCursor++]
         homeIntroPendingLoader = entry.loader
-        if (entry.source)
-            entry.loader.setSource(entry.source, { "backdrop": wall })
+        const properties = { backdrop: wall }
+        if (entry.loader === homeVinylWidgetLoader) {
+            properties.track = Qt.binding(() => page.contentY)
+            properties.inViewport = Qt.binding(() => homeVinylWidgetLoader.inViewport)
+            properties.reducedMotion = Qt.binding(() => win.reducedMotion)
+        }
+        entry.loader.setSource(entry.source, properties)
         entry.loader.active = true
     }
     function homeIntroWidgetSettled(loader) {
@@ -5258,17 +5263,14 @@ Window {
                 visible: win.vinylEnabled && status !== Loader.Error
                 active: false
                 asynchronous: true
-                sourceComponent: VinylHomeWidget {
-                    readonly property real viewportY: contentCol.y + homeVinylWidgetLoader.y - page.contentY
-                    backdrop: wall
-                    track: page.contentY
-                    inViewport: page.visible && win.active
-                                && viewportY < page.height && viewportY + height > 0
-                    reducedMotion: win.reducedMotion
-                    onFocusEntered: (item) => page.revealFocusedItem(item)
-                    onClicked: win.openWorld("Vinyl")
+                readonly property real viewportY: contentCol.y + y - page.contentY
+                readonly property bool inViewport: page.visible && win.active
+                    && viewportY < page.height && viewportY + height > 0
+                onLoaded: {
+                    item.focusEntered.connect((focusedItem) => page.revealFocusedItem(focusedItem))
+                    item.clicked.connect(() => win.openWorld("Vinyl"))
+                    win.homeIntroWidgetSettled(homeVinylWidgetLoader)
                 }
-                onLoaded: win.homeIntroWidgetSettled(homeVinylWidgetLoader)
                 onStatusChanged: if (status === Loader.Error) win.homeIntroWidgetSettled(homeVinylWidgetLoader)
             }
             Item { width: 1; height: 16 }   // bottom breathing room
@@ -7583,6 +7585,8 @@ Window {
     BootSplash {
         id: boot
         prefetchEnabled: BootSplashPrefetchEnabled
+        includeVinyl: win.vinylEnabled
+        reducedMotion: win.reducedMotion
         // Automation identity (Lanista): scenarios wait for `visible == false` here before
         // driving anything — the first pilot run proved every click lands "green" on the
         // occluded tree while this splash still owns the screen (vacuous pass, 2026-08-06).
@@ -7590,7 +7594,8 @@ Window {
         anchors.fill: parent
         z: 1000
         onFinished: { phoneShell.enterAndroidStartWorld(); bootFade.start() }
-        NumberAnimation { id: bootFade; target: boot; property: "opacity"; to: 0; duration: 400
+        NumberAnimation { id: bootFade; target: boot; property: "opacity"; to: 0
+            duration: win.reducedMotion ? 0 : 400
             onFinished: boot.visible = false }
     }
     Connections {

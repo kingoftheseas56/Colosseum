@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Effects
-import "vinyl"
+import ".."
 
 Glass {
     id: root
@@ -10,10 +10,14 @@ Glass {
 
     property bool inViewport: true
     property bool reducedMotion: false
+    property bool loadingPresentation: false
+    property bool cueRequested: false
+    property url localArtworkDirectory: ""
     signal clicked()
     signal focusEntered(Item item)
 
-    readonly property bool cued: visible && inViewport && (action.hovered || action.activeFocus)
+    readonly property bool cued: visible && inViewport
+        && (loadingPresentation ? cueRequested : action.hovered || action.activeFocus)
     readonly property bool moving: cued && !reducedMotion
     readonly property real layoutBlend: Math.max(0, Math.min(1, (width - 560) / 620))
     readonly property real layoutScale: Math.min(1, width / 560)
@@ -38,6 +42,8 @@ Glass {
     }
 
     function coverUrl(index: int): url {
+        if (localArtworkDirectory.toString().length)
+            return localArtworkDirectory.toString() + index + ".jpg"
         return artworkRequested ? "https://is1-ssl.mzstatic.com/image/thumb/"
                                   + sleeves[index].cover + "/352x352bb.jpg" : ""
     }
@@ -53,6 +59,7 @@ Glass {
     Text {
         anchors.horizontalCenter: parent.horizontalCenter
         y: root.dimension(20, 27)
+        visible: !root.loadingPresentation
         text: qsTr("Vinyl")
         color: theme.ink
         font.family: theme.display
@@ -239,6 +246,7 @@ Glass {
         id: action
         objectName: "vinylHomeOpenAction"
         anchors.fill: parent
+        enabled: !root.loadingPresentation
         accessibleName: qsTr("Open Vinyl")
         accessibleDescription: qsTr("Featured album: In Rainbows by Radiohead.")
         focusOnPointer: false

@@ -95,8 +95,8 @@ Need ($qmlMain.Contains('loader: homeBookshelfLoader, source: "Bookshelf.qml"') 
     'The Home intro widget source list must include the Bookshelf and Theatre loaders.'
 Need ($qmlMain.Contains('loader: homeReadingDeskLoader, source: "ReadingDesk.qml"')) `
     'The Home intro widget source list must include the Reading Desk loader.'
-Need ($qmlMain.Contains('widgets.push({ loader: homeVinylWidgetLoader })') -and
-      $qmlMain.Contains('sourceComponent: VinylHomeWidget')) `
+Need ($qmlMain.Contains('if (win.vinylEnabled)') -and
+      $qmlMain.Contains('loader: homeVinylWidgetLoader, source: "vinyl/VinylHomeWidget.qml"')) `
     'The Home intro widget source list must include the Vinyl loader when Vinyl is available.'
 Need ($qmlMain.Contains('entry.loader.setSource(entry.source')) `
     'The Home intro source must be assigned through the selected deferred Loader.'

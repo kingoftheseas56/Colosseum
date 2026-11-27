@@ -60,7 +60,7 @@ Item {
     QtObject { id: homeBookshelfLoader; property bool active: false; property string source: ""; function setSource(url, properties) { source = url } }
     QtObject { id: homeTheatreStripLoader; property bool active: false; property string source: ""; function setSource(url, properties) { source = url } }
     QtObject { id: homeReadingDeskLoader; property bool active: false; property string source: ""; function setSource(url, properties) { source = url } }
-    QtObject { id: homeVinylWidgetLoader; property bool active: false }
+    QtObject { id: homeVinylWidgetLoader; property bool active: false; property string source: ""; function setSource(url, properties) { source = url } }
     Item { id: wall }
     Timer { id: homeIntroWidgetsTimer }
     UI.Taskbar { id: taskbar; DOCK_VISIBILITY }
@@ -196,6 +196,7 @@ Item {
                 win.loadHomeIntroWidgets(); compare(homeIntroPendingLoader, loader)
                 verify(loader.active); win.homeIntroWidgetSettled(loader)
             }
+            compare(homeVinylWidgetLoader.source, "vinyl/VinylHomeWidget.qml")
             compare(homeIntroWidgetCursor, 4); compare(homeIntroWidgetsLoaded, true)
         }
         function test_dock_on_android_desktop() { compare(taskbar.visible, true) }
