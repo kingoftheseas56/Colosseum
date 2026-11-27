@@ -49,11 +49,11 @@ TestCase {
     }
     function test_restingFamily_data() {
         return [
-            {tag:"song", kind:"songs", pieces:5, detail:"Fixture artist"},
-            {tag:"album", kind:"albums", pieces:5, detail:"Fixture artist · 1977"},
+            {tag:"song", kind:"songs", pieces:4, detail:"Fixture artist"},
+            {tag:"album", kind:"albums", pieces:4, detail:"Fixture artist · 1977"},
             {tag:"artist", kind:"artists", pieces:5, detail:"Artist"},
-            {tag:"station", kind:"radio", pieces:5, detail:"((•))  Personal radio"},
-            {tag:"mix", kind:"mixes", pieces:8, detail:"Made for you"}
+            {tag:"station", kind:"radio", pieces:4, detail:"((•))  Personal radio"},
+            {tag:"mix", kind:"mixes", pieces:7, detail:"Made for you"}
         ];
     }
     function test_restingFamily(data) {
@@ -74,7 +74,6 @@ TestCase {
         compare(artwork.sourceSize.width, Math.ceil(artwork.width * card.Screen.devicePixelRatio));
         if (data.kind === "artists") {
             const ring = findChild(art, "vinylArtistRing");
-            tryCompare(ring, "status", BorderImage.Ready);
             verify(ring.visible);
             compare(ring.width, ring.height);
         }
@@ -124,7 +123,7 @@ TestCase {
         compare(rail.item.children[0].color, "#f0c44a");
         compare(rail.item.children[0].width, rail.width * 0.37);
         tryCompare(findChild(card,"vinylArtworkImage"), "visible", true);
-        compare(painted(card), 7);
+        compare(painted(card), 6);
         mouseMove(card, 30, 30);
         tryCompare(card, "hovered", true);
         const hint = findChild(card, "vinylTileHint");

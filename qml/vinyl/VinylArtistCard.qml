@@ -11,6 +11,7 @@ KeyboardAction {
     property string badge: ""
     property string artObjectName: ""
     property bool darkCaptionSurface: true
+    readonly property bool reducedMotion: !!(Window.window && Window.window["reducedMotion"] === true)
     pointerEnabled: true
     showFocusFrame: true
 
@@ -36,6 +37,8 @@ KeyboardAction {
         width: card.width
         height: card.artHeight
         active: card.shape !== "wide"
+        scale: card.shape === "round" && card.hovered && !card.reducedMotion ? 1.015 : 1
+        Behavior on scale { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
         sourceComponent: card.shape === "round" ? artistPresentation
             : card.songCard ? songPresentation : albumPresentation
     }
@@ -44,6 +47,8 @@ KeyboardAction {
         title: String(card.record.title || "")
         artworkSource: card.artistData.artwork(card.record.cover)
         displayFont: theme.display
+        surfaceColor: card.hovered ? theme.glassHi : theme.glassTint
+        edgeColor: card.hovered ? theme.edgeHi : theme.edge
     } }
     Component { id: songPresentation; VinylSongWidget {
         objectName: card.artObjectName
@@ -164,8 +169,7 @@ KeyboardAction {
         }
     }
 
-    // Localized dark caption backing (.album-copy parity: rgba(6, 7, 11, 0.84) with 13px bottom radius)
-    // Protects 15px/12px caption legibility over bright blurred artist photographs.
+    // The discography captions use glass. Keep the existing video/live treatment.
     Rectangle {
         id: captionPlate
         visible: card.hasCaption
@@ -176,11 +180,12 @@ KeyboardAction {
         radius: 0
         bottomLeftRadius: card.shape === "round" ? 0 : 13
         bottomRightRadius: card.shape === "round" ? 0 : 13
-        color: (card.darkCaptionSurface && card.shape !== "round")
-            ? Qt.rgba(0.024, 0.027, 0.043, 0.84)
-            : "transparent"
-        border.width: (card.darkCaptionSurface && card.shape !== "round") ? 1 : 0
-        border.color: card.interactionActive ? theme.edge : Qt.rgba(1, 1, 1, 0.06)
+        color: !card.darkCaptionSurface || card.shape === "round" ? "transparent"
+            : card.shape === "wide" ? Qt.rgba(0.024, 0.027, 0.043, 0.84)
+            : card.hovered ? theme.glassHi : theme.glassTint
+        border.width: card.darkCaptionSurface && card.shape !== "round" ? 1 : 0
+        border.color: card.shape === "wide" ? (card.interactionActive ? theme.edge : theme.glassSubtle)
+            : card.hovered ? theme.edgeHi : theme.edge
 
         Column {
             id: captionColumn
@@ -195,9 +200,9 @@ KeyboardAction {
                 visible: text.length > 0
                 textFormat: Text.PlainText
                 color: theme.ink
-                font.family: theme.ui
-                font.pixelSize: 15
-                font.weight: Font.DemiBold
+                font.family: card.shape === "wide" ? theme.ui : theme.display
+                font.pixelSize: card.shape === "wide" ? 15 : 17
+                font.weight: card.shape === "wide" ? Font.DemiBold : Font.Normal
                 wrapMode: Text.WordWrap
                 maximumLineCount: 2
                 elide: Text.ElideRight

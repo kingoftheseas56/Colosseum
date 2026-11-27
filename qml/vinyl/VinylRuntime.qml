@@ -19,8 +19,8 @@ Item {
     property bool resumePresentationPending: false
     visible: !resumePresentationPending || resumeRequiresArtistSelection
     property Item backdrop
-    property Item coldRippleBackdrop
-    readonly property Item browseBackdrop: coldRippleBackdrop || backdrop
+    property Item blackBrowseBackdrop
+    readonly property Item browseBackdrop: blackBrowseBackdrop || backdrop
     property string page: "library"
     property bool videoFullscreen: false
     property var pendingVideoOpen: null
@@ -118,7 +118,7 @@ Item {
         }
     }
     readonly property bool detailPage: canEnterVinyl && ["album","song","artist","mix"].includes(page)
-    readonly property bool detailBackdrop: detailPage && (page !== "artist" || !coldRippleBackdrop)
+    readonly property bool detailBackdrop: detailPage && (page !== "artist" || !blackBrowseBackdrop)
     readonly property bool browsingShell: !detailPage && page!=="feedback"
     readonly property Item chromeBackdrop: fullWindowDetail && page === "artist" ? artist.portraitBackdrop
         : detailBackdrop || !browseBackdrop ? vinylBackdrop : browseBackdrop

@@ -153,6 +153,9 @@ TestCase {
         for (var i = 0; i < children.length; ++i) count += namedCount(children[i], name);
         return count;
     }
+    function test_flowTabsHaveNoDarkFilm() {
+        compare(findChild(view.flowTabs, "worldTabGlass").scrim, 0);
+    }
     function test_fourTabIdentityOrderAndNoLegacyShell() {
         compare(view.objectName, "vinylWorld");
         compare(view.medium, "Vinyl");

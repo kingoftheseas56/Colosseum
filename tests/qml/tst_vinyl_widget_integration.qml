@@ -1,5 +1,6 @@
 import QtQuick
 import QtTest
+import "../../qml" as House
 import "../../qml/vinyl" as Vinyl
 
 TestCase {
@@ -26,6 +27,7 @@ TestCase {
         function recommendationProfileGeneration() { return 0; }
         function recommendationArtistRef(artist) { return null; }
     }
+    House.Theme { id: theme }
     Component { id: factory; Vinyl.VinylItemCard { objectName: "fixtureCard"; worldData: worldStub } }
     Component { id: catalogueFactory; Vinyl.VinylArtistCard { width: 196; artistData: worldStub } }
     QtObject {
@@ -43,6 +45,11 @@ TestCase {
         for (var i = 0; node.children && i < node.children.length; ++i)
             count += labelCount(node.children[i], value);
         return count;
+    }
+    function test_albumTileUsesGlassAtRest() {
+        mouseMove(test, width - 2, height - 2);
+        const card = createTemporaryObject(factory, test, {item:{kind:"albums", title:"Album"}});
+        compare(findChild(card, "fixtureCard_tile").color, theme.glassTint);
     }
     function test_libraryArtistKeepsHostCaptionAndActivation() {
         var page = createTemporaryObject(libraryFactory, test);

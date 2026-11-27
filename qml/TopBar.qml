@@ -334,6 +334,9 @@ Item {
         x: Math.max(leftChrome.width + 12,
                     Math.min((bar.width - width) / 2, systemChrome.x - width - 12))
         radius: 999
+        tint: theme.glassTint.a
+        edge: theme.edge
+        scrim: 0
         width: pillsRow.implicitWidth + 14; height: 46
         Row {
             id: pillsRow

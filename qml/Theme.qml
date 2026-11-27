@@ -28,6 +28,10 @@ QtObject {
     readonly property color edge: Qt.rgba(1, 1, 1, 0.18)
     readonly property color glassTint: Qt.rgba(1, 1, 1, 0.10)
     readonly property color glassHi: Qt.rgba(1, 1, 1, 0.14)
+    readonly property color glassSubtle: Qt.rgba(1, 1, 1, 0.06)
+    readonly property color edgeSubtle: Qt.rgba(1, 1, 1, 0.12)
+    readonly property color edgeHi: Qt.rgba(1, 1, 1, 0.44)
+    readonly property color vinylBackground: "#000000"
 
     // Biblio world wash — the guide HTML's --biblio-top/--bottom navy stage
     // behind book-detail surfaces (pages 12 / 31). A wash, not chrome gold.

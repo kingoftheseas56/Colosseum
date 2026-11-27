@@ -91,8 +91,9 @@ Item {
         backdrop: tabs.backdrop
         track: tabs.track
         radius: 18
-        tint: 0.08
-        scrim: 0.18
+        tint: theme.glassTint.a
+        edge: theme.edge
+        scrim: 0
 
         Row {
             anchors.fill: parent
@@ -110,9 +111,10 @@ Item {
                     width: tabs.compactLayout ? (parent.width - tabs.pillSpacing * (tabs.tabModel.length - 1)) / tabs.tabModel.length : (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
                     height: parent.height
                     radius: 14
-                    color: pill.modelData.key === tabs.currentTab ? theme.gold : ((ma.containsMouse || pill.keyboardFocused) ? Qt.rgba(1, 1, 1, 0.12) : "transparent")
+                    color: pill.modelData.key === tabs.currentTab ? theme.gold
+                        : (ma.containsMouse || pill.keyboardFocused) ? theme.edgeSubtle : theme.glassSubtle
                     border.width: pill.modelData.key === tabs.currentTab ? 0 : 1
-                    border.color: Qt.rgba(1, 1, 1, 0.10)
+                    border.color: theme.edgeSubtle
 
                     FocusRing { anchors.fill: parent; radius: pill.radius; shown: pill.keyboardFocused }
 

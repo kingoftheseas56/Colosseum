@@ -138,9 +138,9 @@ KeyboardAction {
         objectName: root.objectName + "_tile"
         anchors.fill: parent
         radius: 15
-        color: "#e6262830"
+        color: root.hovered ? theme.glassHi : theme.glassTint
         border.width: 1
-        border.color: root.keyboardFocused ? theme.gold : root.hovered ? "#70ffffff" : "#26ffffff"
+        border.color: root.keyboardFocused ? theme.gold : root.hovered ? theme.edgeHi : theme.edge
         transformOrigin: root.transformOrigin
         property real motionScale: root.engaged ? 1.015 : 1
         scale: root.reducedMotion ? 1 : motionScale
@@ -160,6 +160,7 @@ KeyboardAction {
             artworkSource: root.artworkSource
             artworkSources: root.mixArtworkSources
             circular: root.presentationKind === "artists" || root.item.round === true
+            edgeColor: root.hovered ? theme.edgeHi : theme.edge
         }
         Item {
             id: copy

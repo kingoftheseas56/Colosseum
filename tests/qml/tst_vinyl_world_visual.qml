@@ -1,5 +1,6 @@
 import QtQuick
 import QtTest
+import "../../qml/vinyl" as Vinyl
 TestCase {
     name: "VinylWorldVisual"
     when: windowShown
@@ -12,6 +13,11 @@ TestCase {
         host.pageData.frozen=true;tryCompare(host,"ready",true)
     }
     function cleanup(){if(host){host.close();host.destroy()}}
+    Component { id: backdropFactory; Vinyl.VinylBackdrop { contentStore: null } }
+    function test_noWallpaperWithoutArtwork() {
+        const backdrop = createTemporaryObject(backdropFactory, host.contentItem);
+        compare(backdrop.fallbackSource, "");
+    }
     function test_visualEvidence_data() {
         return [{tag:"compact",w:1280,h:720},{tag:"wide",w:1600,h:900}]
     }

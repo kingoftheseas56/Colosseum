@@ -143,7 +143,7 @@ TestCase {
         verify(start >= 0 && end > start, "Find Main's production loading presentation");
         return Qt.createQmlObject('import QtQuick; import "../../qml"; Item {\n'
             + 'id: worldLoader; property string mode: "Vinyl"; property int status: Loader.Loading; property Item item;\n'
-            + 'QtObject { id: win; property bool androidHost: false; property bool televisionMode: false; property bool vinylColdRippleBackdrop: true;'
+            + 'QtObject { id: win; property bool androidHost: false; property bool televisionMode: false;'
             + 'property var pendingVinylResume: null; function hasPendingVinylResume() { return !!pendingVinylResume; }'
             + 'function holdVinylResumePresentation(world) { return hasPendingVinylResume(); } }\n'
             + 'property alias pendingVinylResume: win.pendingVinylResume; property alias androidHost: win.androidHost;\n'
@@ -279,19 +279,18 @@ TestCase {
         }
     }
 
-    function test_coldRippleForBrowseOnly() {
-        // Exercise the production wallpaper item and runtime selection expressions without
-        // the native audio module. The artwork backdrop itself is the real QML item.
+    function test_blackWallForBrowseOnly() {
+        // Exercise the production host wall and route bindings without the native audio module.
         var main = source("Main.qml");
         var runtime = source("vinyl/VinylRuntime.qml");
-        var wallpaper = /    component WallpaperVeil: Rectangle \{[^]*?WallpaperVeil \{ source: vinylWallArt.source \}\s*\}/.exec(main);
+        var wallpaper = /    Rectangle \{\s*id: vinylWall\b[^]*?\n    \}/.exec(main);
         var route = /    readonly property bool detailPage:[^]*?(?=\r?\n    readonly property bool discoverOnlineMode:)/.exec(runtime);
         var browse = /    readonly property Item browseBackdrop:[^\r\n]+/.exec(runtime);
         var artwork = /    VinylBackdrop \{id:vinylBackdrop;[^\r\n]+/.exec(runtime);
         verify(wallpaper && route && browse && artwork);
         var albumArt = Qt.resolvedUrl("../../tests/fixtures/vinyl-generated-art/artist-media/eminem-early.jpg");
         var songArt = Qt.resolvedUrl("../../tests/fixtures/vinyl-generated-art/artist-media/eminem-hood.jpg");
-        var fixture = Qt.createQmlObject(`import QtQuick; import "../../qml/vinyl";
+        var fixture = Qt.createQmlObject(`import QtQuick; import "../../qml"; import "../../qml/vinyl";
             Item {
                 id: root
                 property string page: "home"
@@ -299,13 +298,10 @@ TestCase {
                 readonly property bool fullWindowDetail: ["artist", "album", "song"].includes(page)
                 property bool searchOpen: false
                 property Item backdrop: wall
-                property Item coldRippleBackdrop: win.vinylColdRippleBackdrop ? vinylWall : null
+                property Item blackBrowseBackdrop: vinylWall
                 property alias world: worldStack.current
-                property alias experiment: win.vinylColdRippleBackdrop
-                component WallpaperLuma: Item { property url source; property real luma: 0.5 }
-                QtObject { id: win; property bool vinylEnabled: true; property bool vinylColdRippleBackdrop: true
-                    property Item vinylWorld: root
-                    property url defaultWallpaperSource: Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg") }
+                Theme { id: theme }
+                QtObject { id: win; property Item vinylWorld: root }
                 QtObject { id: worldStack; property string current: "Vinyl" }
                 QtObject { id: artist; property Item portraitBackdrop: portrait }
                 Item { id: portrait; objectName: "portraitBackdrop" }
@@ -319,35 +315,32 @@ TestCase {
                 ${artwork[0]}
             }`, test, "vinylBackdropUnderTest.qml");
         try {
-            var cold = findChild(fixture, "vinylColdRippleWall");
-            var image = findChild(cold, "vinylColdRippleImage");
-            verify(cold.visible && image.source.toString().endsWith("assets/wallpaper/cold-ripple.jpg"));
-            compare(image.fillMode, Image.PreserveAspectCrop);
-            tryCompare(image, "status", Image.Ready);
+            var wall = findChild(fixture, "vinylBrowseWall");
+            verify(wall.visible);
+            compare(wall.color, "#000000");
             for (var page of ["home", "discover", "library", "songs", "albums", "artists"]) {
                 fixture.page = page;
-                compare(fixture.chromeBackdrop, cold, page);
-                verify(cold.visible);
+                compare(fixture.chromeBackdrop, wall, page);
+                verify(wall.visible);
             }
             fixture.page = "artist";
             compare(fixture.chromeBackdrop.objectName, "portraitBackdrop");
-            verify(!cold.visible);
+            verify(!wall.visible);
             for (var detail of ["album", "song"]) {
                 fixture.page = detail;
-                verify(!cold.visible);
+                verify(!wall.visible);
                 compare(fixture.chromeBackdrop.objectName, "vinylBackdrop");
                 compare(fixture.chromeBackdrop.source.toString(), (detail === "album" ? albumArt : songArt).toString());
             }
             fixture.searchOpen = true;
-            verify(cold.visible, "Vinyl Search keeps Cold Ripple even when opened from a detail page");
+            verify(wall.visible, "Vinyl Search keeps the black backing when opened from a detail page");
             fixture.searchOpen = false;
             fixture.world = "Theatre";
-            verify(!cold.visible && fixture.backdrop.visible);
+            verify(!wall.visible && fixture.backdrop.visible);
             fixture.world = "Vinyl";
             fixture.page = "home";
-            fixture.experiment = false;
-            verify(!cold.visible);
-            compare(fixture.chromeBackdrop, fixture.backdrop);
+            verify(wall.visible);
+            compare(fixture.chromeBackdrop, wall);
         } finally {
             fixture.destroy();
         }

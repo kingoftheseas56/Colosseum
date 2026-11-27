@@ -25,7 +25,7 @@ VinylRuntime {
         anchors.fill: parent
         worldData: runtime.worldData
         backdrop: runtime.chromeBackdrop
-        showPageBacking: !runtime.coldRippleBackdrop
+        showPageBacking: !runtime.blackBrowseBackdrop
         hostedHomeLoading: runtime.hostedHomeLoading
         runtimeReady: runtime.componentReady
         hostReady: runtime.hostReady

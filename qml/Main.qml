@@ -185,8 +185,6 @@ Window {
                 win.closeSession(records[i].id)
     }
     readonly property bool vinylEnabled: typeof VinylLiveEnabled !== "undefined" && VinylLiveEnabled
-    // Vinyl experiment: disable to restore the original backdrop and loading presentation.
-    readonly property bool vinylColdRippleBackdrop: true
     function traceVinylResume(phase, pending) {
         if (typeof CatalogueTraceEnabled === "undefined" || !CatalogueTraceEnabled || !pending) return
         var track = String(pending.entry && pending.entry.resume && pending.entry.resume.trackId || "")
@@ -4683,25 +4681,16 @@ Window {
         }
     }
 
-    // Keep both sources resident: switching worlds never changes the user's wallpaper
-    // source or waits on a reload. Vinyl's glass samples this image together with its veil.
-    Item {
+    // Vinyl's loading, browse and search surfaces sample black without replacing the user's wallpaper.
+    Rectangle {
         id: vinylWall
-        objectName: "vinylColdRippleWall"
+        objectName: "vinylBrowseWall"
         parent: dockScene
         z: -1
         anchors.fill: parent
-        visible: win.vinylColdRippleBackdrop && worldStack.current === "Vinyl" && wall.visible
+        color: theme.vinylBackground
+        visible: worldStack.current === "Vinyl" && wall.visible
             && (!win.vinylWorld || !win.vinylWorld.fullWindowDetail || win.vinylWorld.searchOpen)
-        Image {
-            id: vinylWallArt
-            objectName: "vinylColdRippleImage"
-            anchors.fill: parent
-            source: win.vinylColdRippleBackdrop && win.vinylEnabled
-                ? win.defaultWallpaperSource || Qt.resolvedUrl("../assets/wallpaper/cold-ripple.jpg") : ""
-            fillMode: Image.PreserveAspectCrop
-        }
-        WallpaperVeil { source: vinylWallArt.source }
     }
 
     // (RowHeader — the old hover-reveal row header — is gone: its one user was the home
@@ -5424,8 +5413,7 @@ Window {
                     }
                 }
                 // Android reports loading outside Universes. Vinyl also reports pending resume.
-                readonly property bool continuousVinylLoading: mode === "Vinyl"
-                    && win.vinylColdRippleBackdrop && !win.androidHost
+                readonly property bool continuousVinylLoading: mode === "Vinyl" && !win.androidHost
                 Text {
                     anchors.centerIn: parent
                     visible: worldLoader.mode === "Vinyl"
@@ -5480,7 +5468,7 @@ Window {
                         initialProperties.showExplicitContent = contentPreferences.showExplicit
                     else {
                         initialProperties.backdrop = wall
-                        initialProperties.coldRippleBackdrop = win.vinylColdRippleBackdrop ? vinylWall : null
+                        initialProperties.blackBrowseBackdrop = vinylWall
                         initialProperties.hostedHomeLoading = worldLoader.continuousVinylLoading
                         initialProperties.homeLanding = true
                         initialProperties.hostReady = Qt.binding(function() {

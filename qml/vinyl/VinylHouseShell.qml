@@ -218,7 +218,7 @@ WorldPage {
         anchors.fill: parent
         z: -1
         visible: root.showPageBacking
-        color: "#06070b"
+        color: theme.vinylBackground
     }
     Column {
         id: surface

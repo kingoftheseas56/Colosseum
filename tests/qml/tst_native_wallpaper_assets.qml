@@ -1,7 +1,6 @@
 import QtQuick
 import QtTest
 import "../../qml/update" as Updates
-import "../../qml/vinyl" as Vinyl
 import "../../qml/WallpaperApi.js" as Wallpapers
 import "../../qml" as App
 import "../../qml/account" as Accounts
@@ -31,7 +30,7 @@ TestCase {
     }
     Component {
         id: backdrop
-        Vinyl.VinylBackdrop {
+        App.MediaArtworkBackdrop {
             width: 960; height: 540
             contentStore: content
         }
@@ -68,7 +67,7 @@ TestCase {
         content.generation++
         tryCompare(view, "fallbackSource", String(bundledDefault))
     }
-    function test_vinyl_uses_the_same_content_owner() {
+    function test_artwork_backdrop_wallpaper_uses_the_same_content_owner() {
         view = backdrop.createObject(testCase)
         verify(view !== null)
         compare(view.fallbackSource, redImage)

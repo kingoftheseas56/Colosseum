@@ -101,6 +101,7 @@ Item {
 
     Glass {
         id: bar
+        objectName: "worldTabGlass"
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
         width: Math.min(parent.width, (tabs.compact ? 130 : 160) * Math.max(1, tabs.tabModel.length))
@@ -108,8 +109,9 @@ Item {
         backdrop: tabs.backdrop
         track: tabs.track
         radius: tabs.compact ? 15 : 18
-        tint: 0.08
-        scrim: 0.18                       // the mock's .tabs film, docked or in flow
+        tint: theme.glassTint.a
+        edge: theme.edge
+        scrim: 0
         // Docked, the bar floats over the scrolling page: frost the posters passing under it
         // too, like the mock's backdrop-filter (the wallpaper-only blur let them show sharp).
         contentBackdrop: tabs.contentBackdrop
@@ -139,10 +141,9 @@ Item {
                     height: parent ? parent.height : 0
                     radius: tabs.compact ? 11 : 14
                     color: pill.modelData.key === tabs.currentTab ? theme.gold
-                         : (ma.containsMouse || pill.keyboardFocused) ? Qt.rgba(1, 1, 1, 0.12)
-                         : tabs.compact ? Qt.rgba(1, 1, 1, 0.06) : "transparent"
+                         : (ma.containsMouse || pill.keyboardFocused) ? theme.edgeSubtle : theme.glassSubtle
                     border.width: pill.modelData.key === tabs.currentTab ? 0 : 1
-                    border.color: Qt.rgba(1, 1, 1, 0.10)
+                    border.color: theme.edgeSubtle
 
                     FocusRing { anchors.fill: parent; radius: pill.radius; shown: pill.keyboardFocused }
 

@@ -8,6 +8,10 @@ Item {
     property bool tallFixture: false
     property url source
     property bool wallpaperFallbackEnabled: true
+    // Optional flat color when neither artwork nor wallpaper is supplied.
+    property color emptyColor: "transparent"
+    readonly property bool flatBackdrop: root.emptyColor.a > 0 && !root.artistSkinActive
+        && root.source.toString() === "" && root.fallbackSource === ""
     property bool recoverMissingArtwork: false
     property var contentStore: typeof Content !== "undefined" ? Content : null
     readonly property string bundledFallbackSource: Qt.resolvedUrl("../assets/wallpaper/cold-ripple.jpg")
@@ -38,14 +42,14 @@ Item {
     }
     Rectangle {
         anchors.fill: parent
-        color: "#05060a"
+        color: root.flatBackdrop ? root.emptyColor : "#05060a"
     }
 
     // Standard Album / Song / World single-source backdrop
     Item {
         id: standardBackdrop
         anchors.fill: parent
-        visible: !root.artistSkinActive
+        visible: !root.artistSkinActive && !root.flatBackdrop
         readonly property bool useFallback: root.recoverMissingArtwork && root.wallpaperFallbackEnabled
             && (!root.source.toString() || art.status === Image.Error)
         readonly property bool softwareRendering: (root.recoverMissingArtwork || !root.wallpaperFallbackEnabled)
