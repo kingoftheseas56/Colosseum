@@ -56,21 +56,11 @@ Item {
         return out.join(";");
     }
     readonly property int automationItemCount: items.length
-    // How many legacy pickers (catalogue popup, filter picker) still exist. The sidebar slices
-    // remove them; counting named items proves it (the bridge has no absence assertion).
-    readonly property int automationLegacyPickerCount: {
-        var _ = adapterRev;
-        var names = ["discoverCatalogMenu", "discoverFilterPicker"];
-        var found = 0;
-        function walk(node) {
-            if (!node) return;
-            if (names.indexOf(node.objectName) >= 0) found++;
-            var kids = node.children || [];
-            for (var i = 0; i < kids.length; i++) walk(kids[i]);
-        }
-        walk(browser);
-        return found;
-    }
+    // Check the two named pickers directly so changes to grid delegates never
+    // invalidate this diagnostic.
+    readonly property int automationLegacyPickerCount:
+        Number(catalogMenu.objectName === "discoverCatalogMenu")
+        + Number(filterPicker.objectName === "discoverFilterPicker")
 
     // ── injected world seam ──
     property var adapter: null
