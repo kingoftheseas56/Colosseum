@@ -208,6 +208,15 @@ class MusicDiscoverTest(unittest.TestCase):
         self.assertEqual(self.tap("song", client, duration=191), result)
         client.search.assert_called_once_with("Artist, Jr. Song", filter="songs", limit=6)
 
+    def test_wikipedia_card_uses_exact_tap_resolver(self):
+        card = p._discover_card("wikipedia", "songs", "wiki-song", "Song", ["Artist, Jr."], "", "2025")
+        client = Mock()
+        client.search.return_value = [hit()]
+        result = p.handle(dict(operation="resolveCatalogueItem", value=card["id"], item=card), client=client)
+        self.assertTrue(result["matched"])
+        self.assertEqual(result["record"]["providerIds"]["youtube-music"], VIDEO)
+        client.search.assert_called_once_with("Artist, Jr. Song", filter="songs", limit=6)
+
     def test_tap_rejects_ambiguity_editions_videos_and_changed_credits(self):
         client = Mock()
         client.search.return_value = [hit(), hit(videoId="9cMCPsUpD3w")]
@@ -296,6 +305,21 @@ class WeeklyArtworkTest(unittest.TestCase):
         self.http.assert_called_once()
         self.make_youtube.assert_not_called()
 
+
+    def test_editorial_art_uses_discover_cache_across_kworb_and_wikipedia(self):
+        week = self.card()
+        wiki = p._discover_card("wikipedia", "songs", "wiki-song", "Song", ["Artist"], "", "2025")
+        self.http.return_value = response({"results": [{"artistName": "Artist", "trackName": "Song",
+            "artworkUrl100": "https://is1-ssl.mzstatic.com/song/100x100bb.jpg"}]})
+        request = dict(operation="resolveCatalogueArt", value="editorial", items=[wiki, week])
+        p.handle(request)
+        self.drain()
+        cover = "https://is1-ssl.mzstatic.com/song/600x600bb.jpg"
+        self.assertEqual(p.handle(request)["covers"], {wiki["id"]: cover, week["id"]: cover})
+        self.assertEqual(self.art(week)["covers"], {week["id"]: cover})
+        self.http.assert_called_once()
+        with self.assertRaises(p.InvalidArgumentError):
+            p.handle(dict(request, value="kworb"))
 
     def test_youtube_song_and_album_fallback_choose_largest_exact_thumbnail(self):
         best = "https://lh3.googleusercontent.com/large"
