@@ -6,7 +6,7 @@
 <p align="center"><strong>One media app for all art.</strong></p>
 
 <p align="center">
-  <img alt="Version 1.4.0" src="https://img.shields.io/badge/Version-1.4.0-B8872C?style=flat-square&amp;labelColor=3A3023" />
+  <img alt="Version 1.5.0" src="https://img.shields.io/badge/Version-1.5.0-B8872C?style=flat-square&amp;labelColor=3A3023" />
   <img alt="MIT License" src="https://img.shields.io/badge/License-MIT-B86C49?style=flat-square&amp;labelColor=3A2D27" />
   <img alt="Qt" src="https://img.shields.io/badge/Framework-Qt-287F65?style=flat-square&amp;labelColor=253B36" />
   <img alt="QML" src="https://img.shields.io/badge/Interface-QML-287D9F?style=flat-square&amp;labelColor=273C49" />
@@ -20,9 +20,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/kingoftheseas56/Colosseum/releases/download/v1.4.0/Colosseum-1.4.0-setup.exe"><img src="assets/icons/readme-download-windows.svg" alt="Download Colosseum for Windows" width="154" /></a>
-  <a href="https://github.com/kingoftheseas56/Colosseum/releases/download/v1.4.0/Colosseum-1.4.0-linux-amd64.deb"><img src="assets/icons/readme-download-linux.svg" alt="Download Colosseum for Linux" width="154" /></a>
-  <a href="https://github.com/kingoftheseas56/Colosseum/releases/download/v1.4.0/Colosseum-Android-1.4.0-arm64-v8a.apk"><img src="assets/icons/readme-download-android.svg" alt="Download Colosseum for Android" width="154" /></a>
+  <a href="https://github.com/kingoftheseas56/Colosseum/releases/download/v1.5.0/Colosseum-1.5.0-setup.exe"><img src="assets/icons/readme-download-windows.svg" alt="Download Colosseum for Windows" width="154" /></a>
+  <a href="https://github.com/kingoftheseas56/Colosseum/releases/download/v1.5.0/Colosseum-1.5.0-linux-amd64.deb"><img src="assets/icons/readme-download-linux.svg" alt="Download Colosseum for Linux" width="154" /></a>
+  <a href="https://github.com/kingoftheseas56/Colosseum/releases/download/v1.5.0/Colosseum-Android-1.5.0-arm64-v8a.apk"><img src="assets/icons/readme-download-android.svg" alt="Download Colosseum for Android" width="154" /></a>
 </p>
 
 <p align="center">
@@ -77,26 +77,26 @@ All these wildly different mediums, their rich catalogues, sources, readers, and
   </tr>
 </table>
 
-## Get Colosseum 1.4.0
+## Get Colosseum 1.5.0
 
 | Platform | Download |
 | --- | --- |
-| **Windows 10/11** | [Installer (.exe)](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.4.0/Colosseum-1.4.0-setup.exe) |
-| **Linux (amd64)** | [Debian package (.deb)](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.4.0/Colosseum-1.4.0-linux-amd64.deb) |
-| **Linux (x86_64)** | [AppImage](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.4.0/Colosseum-1.4.0-x86_64.AppImage) |
-| **Android 9+ (ARM64)** | [APK (.apk)](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.4.0/Colosseum-Android-1.4.0-arm64-v8a.apk) |
-| **macOS (Apple Silicon, M1+)** | [Preview disk image (.dmg)](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.4.0/Colosseum-1.4.0-macOS-arm64.dmg) |
+| **Windows 10/11** | [Installer (.exe)](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.5.0/Colosseum-1.5.0-setup.exe) |
+| **Linux (amd64)** | [Debian package (.deb)](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.5.0/Colosseum-1.5.0-linux-amd64.deb) |
+| **Linux (x86_64)** | [AppImage](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.5.0/Colosseum-1.5.0-x86_64.AppImage) |
+| **Android 9+ (ARM64)** | [APK (.apk)](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.5.0/Colosseum-Android-1.5.0-arm64-v8a.apk) |
+| **macOS (Apple Silicon, M1+)** | [Preview disk image (.dmg)](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.5.0/Colosseum-1.5.0-macOS-arm64.dmg) |
 
-[Release notes, all downloads, and SHA-256 checksums](https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.4.0)
+[Release notes, all downloads, and SHA-256 checksums](https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.5.0)
 
-**Android:** 1.4.0 is the first official Android release.
+**Android:** Download the APK and open it to update your existing installation.
 
-**macOS preview:** Requires macOS 26.1 or newer and Apple Silicon. The DMG is ad-hoc signed and not notarized; see the [release instructions and checksum](https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.4.0) before installing.
+**macOS preview:** Requires macOS 26.1 or newer and Apple Silicon. The DMG is ad-hoc signed and not notarized; see the [release instructions and checksum](https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.5.0) before installing.
 
 
-## What's new in 1.4.0
+## What's new in 1.5.0
 
-**Vault:** Choose what folders index, track scans, and connect Jellyfin, Emby, or Plex libraries. **Downloads:** Move your Colosseum folder with a preview. Manga chapters save as CBZ, and Theatre keeps fullscreen keyboard shortcuts active.
+**Biblio** adds audiobook browsing, playback, and chapter resume. **Theatre on Android** improves subtitle timing and recovers Jellyfin playback after a brief connection loss. **Vault** moves directory watching setup off the interface thread.
 
 ## Future plans
 
@@ -112,6 +112,6 @@ Colosseum is still growing. **Vinyl** is a planned world for music, with songs, 
 
 [Build on Windows](docs/build/windows.md) · [Linux](docs/build/linux.md) · [macOS](docs/build/macos.md) · [Contributing](CONTRIBUTING.md) · [Documentation](docs/README.md) · [Report an issue](https://github.com/kingoftheseas56/Colosseum/issues/new/choose)
 
-**Notes:** The Linux package targets Ubuntu 24.04 and Debian 13 amd64 and uses manual updates. Vinyl and Feria are not available in the 1.4.0 installers. Colosseum is a client and does not host media; external sources are independent services.
+**Notes:** The Linux DEB targets Ubuntu 24.04 and Debian 13 amd64. Colosseum checks for updates from 1.5.0 onward. Windows installs updates through the app. Android, Linux, and macOS open the matching package for manual installation. Vinyl and Feria are not available in the 1.5.0 installers. Colosseum is a client and does not host media; external sources are independent services.
 
 [Security](SECURITY.md) · [MIT License](LICENSE) © 2026 Hemanth Ganneni

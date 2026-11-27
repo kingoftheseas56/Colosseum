@@ -38,15 +38,6 @@ void touch(const QString &path)
     file.write("fixture");
 }
 
-QString argValue(const QStringList &args, const QString &prefix)
-{
-    for (const QString &arg : args) {
-        if (arg.startsWith(prefix))
-            return arg.mid(prefix.size());
-    }
-    return {};
-}
-
 } // namespace
 
 int main(int argc, char **argv)
@@ -84,7 +75,7 @@ int main(int argc, char **argv)
     const QString root = temp.path();
     const QString installRoot = QDir(root).filePath("Programs/Colosseum");
     const QString executable = QDir(installRoot).filePath("native/build-msvc/colosseum.exe");
-    const QString cacheRoot = QDir(root).filePath("update-cache");
+    const QString cacheRoot = QDir(root).filePath("Test User's update cache");
     QDir().mkpath(QFileInfo(executable).absolutePath());
     touch(executable);
 
@@ -154,8 +145,9 @@ int main(int argc, char **argv)
     require(launch->arguments.contains(QStringLiteral("/TARGETVERSION=1.1.1")), "target version present");
     require(launch->arguments.contains(QStringLiteral("/WAITPID=") +
                     QString::number(QCoreApplication::applicationPid())), "wait pid is exact");
-    require(argValue(launch->arguments, QStringLiteral("/LOG=")).startsWith(cacheRoot),
-            "installer log remains outside the payload");
+    require(launch->nativeArguments == QStringLiteral("/LOG=\"%1\\update-1.1.1.log\"")
+                .arg(QDir::toNativeSeparators(cacheRoot)),
+            "NSIS log quotes only the full native path outside the payload");
 
     const QString outsideInstaller = QDir(root).filePath("outside/installer.exe");
     touch(outsideInstaller);

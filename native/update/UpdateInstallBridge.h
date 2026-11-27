@@ -14,6 +14,9 @@ struct InstallLaunch final {
     QString program;
     QStringList arguments;
     QString workingDirectory;
+#ifdef Q_OS_WIN
+    QString nativeArguments;
+#endif
 };
 
 class UpdateInstallBridge final : public QObject {
