@@ -41,6 +41,7 @@ Item {
         backdrop: root.backdrop
         fallbackType: "songs"
         posterVisualProfile: "gallery"
+        reuseCardDelegates: true
         cardDelegate: Component {
             VinylItemCard {
                 id: widget

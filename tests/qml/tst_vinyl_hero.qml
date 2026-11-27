@@ -12,6 +12,23 @@ TestCase {
     property var hero: null
     property bool replaceHidden: false
     Component { id: heroFactory; Vinyl.VinylHero {} }
+    QtObject {
+        id: artSource
+        property var calls: []
+        signal completed(string lane, int id, var data, string error)
+        function request(lane, operation, value, payload) {
+            var id = calls.length + 1;
+            calls.push({lane, id, operation, value, payload});
+            return id;
+        }
+        function cancel(lane) {}
+    }
+    QtObject {
+        id: session
+        property var source: artSource
+        property bool profileActive: true
+        property int profileGeneration: 1
+    }
     Component { id: houseFactory; House.FeaturedCarousel {} }
     SignalSpy { id: playSpy; target: test.hero; signalName: "playRequested" }
     SignalSpy { id: radioSpy; target: test.hero; signalName: "radioRequested" }
@@ -119,6 +136,48 @@ TestCase {
             }
             compare(findChild(hero, "vinylHeroSideRow_4"), null);
         }
+    }
+    function test_chart_artists_gain_art_without_replacing_slide() {
+        artSource.calls = [];
+        var next = groups();
+        var artist = next[2];
+        var cover = String(artist.item.cover);
+        for (var row of [artist.item].concat(artist.sideItems)) {
+            row.cover = "";
+            row.catalogueItem = {id:"lastfm:artists:" + row.id, kind:"artists", source:"lastfm",
+                title:row.title, catalogueCard:true};
+        }
+        hero.slides = next;
+        jump(2);
+        var slide = findChild(hero, "vinylHeroSlide");
+        var main = slide.children.find(child => child instanceof House.RoundedPosterImage);
+        var side = [];
+        for (var i = 0; i < 4; ++i) {
+            var tile = findChild(hero, "vinylHeroSideRow_" + i);
+            side.push(tile.children.find(child => child instanceof House.RoundedPosterImage));
+        }
+        for (var art of [main].concat(side)) compare(String(art.activeSource), "");
+        if ("session" in hero) hero.session = session;
+        tryVerify(() => artSource.calls.length > 0);
+        var first = artSource.calls[0];
+        compare(first.operation, "resolveCatalogueArt");
+        compare(first.value, "hero");
+        compare(first.payload.items.length, 5);
+        artSource.completed(first.lane, first.id, {version:1, covers:{}, settled:[]}, "");
+        tryVerify(() => artSource.calls.length > 1);
+        var poll = artSource.calls[1];
+        var ids = poll.payload.items.map(card => card.id), covers = {};
+        for (var id of ids) covers[id] = cover;
+        artSource.completed(poll.lane, poll.id, {version:1, covers:covers, settled:ids}, "");
+        for (var image of [main].concat(side)) {
+            compare(String(image.activeSource), cover);
+            tryCompare(image, "ready", true);
+        }
+        compare(findChild(hero, "vinylHeroSlide"), slide);
+        compare(hero.itemId, artist.item.id);
+        compare(artist.item.cover, "", "art must not mutate the ranked card");
+        session.profileGeneration++;
+        compare(String(main.activeSource), "");
     }
     function test_actionsKeepTypedItemsAndDistinctRadioDispatch() {
         jump(0); click("vinylHeroPlay"); click("vinylHeroOpen"); click("vinylHeroSave");

@@ -4110,26 +4110,35 @@ def _vinyl_snapshot_page(snapshot, kind, list_key, genre, cursor, page_size, can
     if cursor and (set(cursor) != {"binding", "offset"} or cursor["binding"] != binding
                    or type(offset) is not int or not 0 < offset < len(items) or (genre == "all" and offset % page_size)):
         raise InvalidArgumentError("Invalid Vinyl catalogue cursor.")
-    matches, jobs, art_jobs = [], {}, {}
-    for index, item in enumerate(items):
+    cache_enabled = bool(os.environ.get("COLOSSEUM_VINYL_DISCOVER_CACHE_DIR"))
+
+    def read_genres(item):
         params = _vinyl_genre_lookup(kind, item["title"], item["hints"]["artists"])
         key = _vinyl_genre_cache_key(kind, params) if params else None
-        genres = _vinyl_cached_genres(key) if key else []
-        if genres is None and can_tag:
-            jobs[key] = (kind, params, None)
-        if index >= offset and (genre == "all" or genre in (genres or [])):
-            card = dict(item, genres=genres or [])
-            if (len(matches) < page_size and params and item["source"] == "kworb" and not item["cover"]):
-                art_key = _kworb_art_key(kind, params)
-                art = _kworb_cached_art(art_key)
-                if art is not None:
-                    card["cover"] = art["cover"]
-                    if art["album"]:
-                        card["hints"] = dict(card["hints"], album=art["album"])
-                elif os.environ.get("COLOSSEUM_VINYL_DISCOVER_CACHE_DIR"):
-                    art_jobs[art_key] = (kind, params, item["hints"].get("album", ""))
-                    card["artPending"] = True
-            matches.append((index, card))
+        return params, key, _vinyl_cached_genres(key) if key else []
+
+    # Outside all enrichment/network locks. Opening each small file in series
+    # adds filesystem latency for every row before even a cached page can reply.
+    matches, jobs, art_jobs, art_reads = [], {}, {}, []
+    with ThreadPoolExecutor(max_workers=8) as readers:
+        genres_by_row = readers.map(read_genres, items) if cache_enabled else map(read_genres, items)
+        for index, (item, (params, key, genres)) in enumerate(zip(items, genres_by_row)):
+            if genres is None and can_tag:
+                jobs[key] = (kind, params, None)
+            if index >= offset and (genre == "all" or genre in (genres or [])):
+                card = dict(item, genres=genres or [])
+                if (cache_enabled and len(matches) < page_size and params
+                        and item["source"] == "kworb" and not item["cover"]):
+                    art_reads.append((card, _kworb_art_key(kind, params), params))
+                matches.append((index, card))
+        for (card, key, params), art in zip(art_reads, readers.map(_kworb_cached_art, (row[1] for row in art_reads))):
+            if art is not None:
+                card["cover"] = art["cover"]
+                if art["album"]:
+                    card["hints"] = dict(card["hints"], album=art["album"])
+            else:
+                art_jobs[key] = (kind, params, card["hints"].get("album", ""))
+                card["artPending"] = True
     # Offsets refer to the unfiltered snapshot, not the growing set of matches.
     # New tags cannot move or duplicate cards in a continuation; a fresh filter
     # selection sees newly tagged cards from the start of the list.
@@ -4422,16 +4431,16 @@ def resolve_catalogue_item(request, client):
 def resolve_catalogue_art(request):
     items = request.get("items")
     source = request.get("value")
-    if source not in ("lastfm", "kworb", "editorial") or not isinstance(items, list) or len(items) > 12:
+    if source not in ("lastfm", "kworb", "editorial", "hero") or not isinstance(items, list) or len(items) > 12:
         raise InvalidArgumentError("Invalid music catalogue artwork request.")
-    if source in ("kworb", "editorial"):
-        allowed_sources = ("kworb", "wikipedia") if source == "editorial" else ("kworb",)
+    if source != "lastfm":
+        allowed_sources = {"kworb": ("kworb",), "editorial": ("kworb", "wikipedia"), "hero": ("lastfm",)}[source]
         covers, albums, settled, jobs = {}, {}, [], {}
         can_queue = (os.environ.get("COLOSSEUM_VINYL_DISCOVER_CACHE_DIR")
                      and os.environ.get("COLOSSEUM_VINYL_ART_POLL_ONLY") != "1")
         for item in items:
             row = _catalogue_input(item)
-            if row["source"] not in allowed_sources:
+            if row["source"] not in allowed_sources or (source == "hero" and row["kind"] != "artists"):
                 raise InvalidArgumentError("Invalid chart artwork request.")
             kind, item_id = row["kind"], row["id"]
             params = _vinyl_genre_lookup(kind, row["title"], row["artists"])

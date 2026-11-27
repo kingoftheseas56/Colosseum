@@ -306,6 +306,55 @@ class WeeklyArtworkTest(unittest.TestCase):
         self.make_youtube.assert_not_called()
 
 
+    def test_home_lastfm_artist_uses_deezer_and_shares_discover_cache(self):
+        artist = self.card("artists")
+        home = p._discover_card("lastfm", "artists", "https://www.last.fm/music/Artist", "Artist", ["Artist"], "")
+        image = "https://cdn-images.dzcdn.net/images/artist/fixture/1000x1000.jpg"
+        self.http.return_value = response({"data": [{"name": "Artist", "picture_xl": image}]})
+        request = dict(operation="resolveCatalogueArt", value="hero", items=[home])
+        p.handle(request)
+        self.drain()
+        self.assertEqual(p.handle(request)["covers"], {home["id"]: image})
+        self.assertEqual(self.art(artist)["covers"], {artist["id"]: image})
+        self.http.assert_called_once_with("deezer", "search/artist", {"q": "Artist", "limit": 5}, timeout=4)
+        self.make_youtube.assert_not_called()
+        with self.assertRaises(p.InvalidArgumentError):
+            p.handle(dict(request, items=[artist]))
+
+    def test_cached_browse_replies_while_itunes_enrichment_is_blocked(self):
+        now = p.time.time()
+        cards = [p._chart_card("kworb", "albums", f"Release {i}", ["Artist"], i + 1) for i in range(100)]
+        p._discover_write(["chart-week", "kworb", "/aww/"],
+                          dict(time=now, ttl=p._CHART_TTL, staleAllowed=True, value=cards))
+        started, release = threading.Event(), threading.Event()
+
+        def blocked_itunes(source, method, params, **kwargs):
+            self.assertEqual(source, "itunes")
+            started.set()
+            if not release.wait(5):
+                raise AssertionError("Cached browse waited for enrichment")
+            return response({"results": [{"artistName": "Artist", "collectionName": "Background",
+                                          "artworkUrl100": "https://is1-ssl.mzstatic.com/100x100bb.jpg"}]})
+
+        self.http.side_effect = blocked_itunes
+        title, kind = "Background", "albums"
+        params = p._vinyl_genre_lookup(kind, title, ["Artist"])
+        p._vinyl_queue_enrichment({p._kworb_art_key(kind, params): (kind, params, "")})
+        try:
+            self.assertTrue(started.wait(5))
+            # Only the background request may use HTTP. The cached browse
+            # still projects the complete page and reports cold art as pending.
+            with patch.object(p, "_lastfm_key", return_value=""):
+                result = browse("vinyl", kind, "chartWeek", pageSize=50)
+            self.assertEqual([row["id"] for row in result["items"]], [row["id"] for row in cards[:50]])
+            self.assertTrue(result["artPending"])
+            self.http.assert_called_once()
+        finally:
+            # No fake transport is needed for the pending artwork after the assertion.
+            with p._GENRE_LOCK:
+                p._GENRE_QUEUE.clear()
+            release.set()
+
     def test_editorial_art_uses_discover_cache_across_kworb_and_wikipedia(self):
         week = self.card()
         wiki = p._discover_card("wikipedia", "songs", "wiki-song", "Song", ["Artist"], "", "2025")

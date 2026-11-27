@@ -77,6 +77,8 @@ Item {
     // Optional square-faced card with up to 64 px of caption. Its Loader parent
     // supplies modelItem and open(); the grid remains the only keyboard stop.
     property Component cardDelegate: null
+    // Opt-in for delegates whose state can follow a recycled model index.
+    property bool reuseCardDelegates: false
     // Retained worlds stay instantiated for state preservation. The host drives this seam so a
     // hidden world does not start paging or keep accepting callbacks while another world is visible.
     property bool active: true
@@ -1126,6 +1128,7 @@ Item {
                   ? (Math.floor((cellWidth - gapX) * browser._galleryMetrics.posterRatio)
                      + 10 + browser._galleryMetrics.titleMinHeight + gapY + 6)
                   : (Math.floor(cellWidth * 1.62) + 34)
+            reuseItems: browser.reuseCardDelegates
             cacheBuffer: browser.pageFlow ? 0 : cellHeight * 2
             // in-grid skeletons reserve EXACT cell space (no layout jump when art lands):
             // fill the viewport on the first page, one trailing row while paging.

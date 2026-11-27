@@ -209,6 +209,7 @@ public:
                                          "mainstream-rock-2020s","hot100-1990s"};
         const bool editorial=operation=="chartWeek"||operation=="wikipediaList"||operation=="mostStreamed";
         const bool exploreArt=operation=="resolveCatalogueArt"&&value=="editorial";
+        const bool heroArt=operation=="resolveCatalogueArt"&&value=="hero";
         const bool editorialLane=lane.startsWith("explore-");
         if((editorial||exploreArt)!=editorialLane)return -1;
         if(editorial){
@@ -221,7 +222,7 @@ public:
         const bool downloadLane=lane=="download"&&operation=="resolve"&&payload.value("source")=="youtube";
         const bool metadataLane=lane=="home-metadata-0"||lane=="home-metadata-1";
         const bool metadata=VinylSourcePool::metadataOperation(operation);
-        if(!operations.contains(operation)||(!lanes.contains(lane)&&!songLane&&!metadataLane&&!downloadLane&&!editorialLane)||value.size()>300)return -1;
+        if(!operations.contains(operation)||(!lanes.contains(lane)&&!songLane&&!metadataLane&&!downloadLane&&!editorialLane&&!heroArt)||value.size()>300)return -1;
         // Reject malformed enrichment before it can cancel an accepted request.
         if(metadata!=metadataLane||(metadata&&!VinylSourcePool::validMetadataRequest(operation,value,payload)))return -1;
         if(operation=="browseCategories"){
@@ -235,9 +236,10 @@ public:
                 ||!QStringList{"songs","albums","artists"}.contains(item.toMap().value("kind").toString()))return -1;
         }else if(operation=="resolveCatalogueArt"){
             const auto items=payload.value("items");
-            if((exploreArt ? lane!="explore-art" : lane!="catalogue-art"||(value!="lastfm"&&value!="kworb"))
+            if((exploreArt ? lane!="explore-art" : heroArt ? lane!="home-hero-art"
+                         : lane!="catalogue-art"||(value!="lastfm"&&value!="kworb"))
                 ||payload.size()!=1||items.metaType().id()!=QMetaType::QVariantList||items.toList().size()>12)return -1;
-        }else if(lane.startsWith("catalogue-"))return -1;
+        }else if(lane.startsWith("catalogue-")||lane=="home-hero-art")return -1;
         const bool warming=operation=="mediaWarmup";
         if(warming!=(lane=="media-warmup")||(warming&&(!value.isEmpty()||!payload.isEmpty()||!reuseHelpers())))return -1;
         if(lane=="prepare-next"&&(operation!="resolve"||payload.value("source")!="youtube"))return -1;
@@ -251,7 +253,7 @@ public:
         const bool discoverBrowse=operation=="browseCatalogue"
             &&QStringList{"vinyl","lastfm","jiosaavn"}.contains(payload.value("catalogueSource").toString());
         const bool discoverResolver=operation=="resolveCatalogueItem"||operation=="resolveCatalogueArt";
-        const bool chartArt=operation=="resolveCatalogueArt"&&(value=="kworb"||exploreArt);
+        const bool chartArt=operation=="resolveCatalogueArt"&&(value=="kworb"||exploreArt||heroArt);
         const bool cacheable=!warming&&!editorial&&operation!="resolve"&&operation!="resolveVideo"&&!discoverBrowse&&!discoverResolver;
         if(home&&!metadata){
             const QSet<QString> allowed{"seed","recording","refresh","region","fetchedAt","limit"};

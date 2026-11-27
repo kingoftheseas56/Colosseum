@@ -28,7 +28,79 @@ Item {
     signal saveRequested(var item)
     signal hideRequested(var item)
 
-    function artwork(item) { return String(item && (item.cover || item.image) || ""); }
+    // Home ranks Last.fm catalogue candidates, not Discover's Kworb cards.
+    // Send the original catalogue identity to the shared chart-art resolver and
+    // decorate the rendered artwork only; the ranked cards/actions stay intact.
+    property var session: null
+    readonly property var artSource: session ? session.source || null : null
+    readonly property int artGeneration: session ? session.profileGeneration || 0 : 0
+    readonly property bool artActive: visible && !!artSource && session.profileActive !== false && !session.shuttingDown
+    property var artistArt: ({})
+    property var artRequest: null
+    property double artDeadline: 0
+    readonly property var missingArtistArt: {
+        var cards = new Map();
+        for (var slide of slides) {
+            for (var item of [slide.item].concat(slide.sideItems || [])) {
+                var card = item && item.catalogueItem;
+                if (card && card.kind === "artists" && card.source === "lastfm"
+                    && !item.cover && !item.image && artistArt[card.id] === undefined)
+                    cards.set(card.id, card);
+            }
+        }
+        return Array.from(cards.values()).slice(0, 12);
+    }
+    readonly property string missingArtKey: missingArtistArt.map(card => card.id).join("|")
+    onMissingArtKeyChanged: artDeadline = Date.now() + 180000
+    onArtActiveChanged: if (artActive) artDeadline = Date.now() + 180000; else cancelArt()
+    onArtSourceChanged: resetArt()
+    onArtGenerationChanged: resetArt()
+    Component.onDestruction: cancelArt()
+
+    function cancelArt() {
+        var request = artRequest;
+        artRequest = null;
+        if (request) request.source.cancel("home-hero-art");
+    }
+    function resetArt() {
+        cancelArt();
+        artistArt = ({});
+        artDeadline = Date.now() + 180000;
+    }
+    Timer {
+        interval: 1200
+        repeat: true
+        triggeredOnStart: true
+        running: hero.artActive && hero.artDeadline > 0 && hero.missingArtKey !== ""
+        onTriggered: {
+            if (hero.artRequest) return;
+            if (Date.now() >= hero.artDeadline) { hero.artDeadline = 0; return; }
+            var cards = hero.missingArtistArt;
+            var id = hero.artSource.request("home-hero-art", "resolveCatalogueArt", "hero", {items:cards});
+            if (id >= 0) hero.artRequest = {id:id, source:hero.artSource, cards:cards};
+        }
+    }
+    Connections {
+        target: hero.artSource
+        ignoreUnknownSignals: true
+        function onCompleted(lane, id, data, error) {
+            var request = hero.artRequest;
+            if (lane !== "home-hero-art" || !request || request.id !== id) return;
+            hero.artRequest = null;
+            if (error || !data || data.version !== 1 || !data.covers || !data.settled || !data.settled.length) return;
+            var settled = new Set(Array.from(data.settled));
+            var next = Object.assign({}, hero.artistArt);
+            for (var card of request.cards) {
+                if (!settled.has(card.id)) continue;
+                var cover = data.covers[card.id];
+                next[card.id] = typeof cover === "string" ? cover : "";
+            }
+            hero.artistArt = next;
+        }
+    }
+    function artwork(item) {
+        return String(item && (item.cover || item.image || (item.catalogueItem && artistArt[item.catalogueItem.id])) || "");
+    }
     function genre(item) { var tag=item.genre || (item.genres || item.tags || [])[0] || ""; return String(tag.name || tag); }
     function meta(slide) {
         var item=slide.item || {}, kind=Presentation.kind(item), record=item.record || (item.song || {}).album || {};

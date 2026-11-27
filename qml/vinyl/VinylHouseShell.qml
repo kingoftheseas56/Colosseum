@@ -292,6 +292,7 @@ WorldPage {
             height: surface.compactIntro ? 260 : implicitHeight
             visible: slideCount>0 && !root.gated && !homeLoading.visible
             slides: root.worldData.heroSlides || []
+            session: root.worldData.session || null
             onPlayRequested: item => root.worldData.playHomeItem(item)
             onOpenRequested: item => root.worldData.openHomeItem(item)
             onSaveRequested: item => root.worldData.saveHomeItem(item)

@@ -65,6 +65,7 @@ TestCase {
     }
     function test_one_source_and_raw_activation() {
         compare(browser.posterVisualProfile,"gallery");compare(browser.currentType,"songs");
+        verify(findChild(browser,"vinylDiscoverWall").reuseItems);
         compare(browser.sources.length,1,"Discover must have exactly one source");
         compare(browser.catalogMenuModel.filter(row=>row.key).length,1,"Discover must have exactly one catalogue");
         compare(browser.currentSource,"Vinyl");compare(browser.currentCatalog.title,"Vinyl");
