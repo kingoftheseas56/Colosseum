@@ -186,6 +186,8 @@ Glass {
         property var entry: null
         property bool loading: false
         property bool audio: false
+        readonly property string fullTitle: entry && entry.title ? entry.title : ""
+        readonly property string displayTitle: fullTitle.replace(/(?:\s+\([^()]+\))+\s*$/, "").trim() || fullTitle
         signal activated()
         signal browseRequested()
         spacing: 4
@@ -311,12 +313,14 @@ Glass {
         }
 
         Text {
+            objectName: pick.audio ? "biblioHomeAudiobookTitle" : "biblioHomeBookTitle"
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignHCenter
-            text: pick.entry ? pick.entry.title
+            text: pick.entry ? pick.displayTitle
                              : pick.loading ? qsTr("Loading chart…")
                                             : pick.audio ? qsTr("Audiobook chart unavailable")
                                                          : qsTr("Ebook chart unavailable")
+            Accessible.name: pick.entry ? pick.fullTitle : text
             wrapMode: Text.Wrap
             elide: Text.ElideRight
             maximumLineCount: 2
