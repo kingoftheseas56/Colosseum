@@ -33,6 +33,7 @@ Item {
     property bool vinylEnabled: false
     property bool feriaComingSoon: true
     property var vinylWorld: null
+    property var pendingVinylResume: null
     property string currentSurface: "Home"
     property bool homeIntroWidgetsLoaded: false
     property int homeIntroWidgetCursor: 0
@@ -59,7 +60,7 @@ Item {
     QtObject { id: homeBookshelfLoader; property bool active: false; property string source: ""; function setSource(url, properties) { source = url } }
     QtObject { id: homeTheatreStripLoader; property bool active: false; property string source: ""; function setSource(url, properties) { source = url } }
     QtObject { id: homeReadingDeskLoader; property bool active: false; property string source: ""; function setSource(url, properties) { source = url } }
-    QtObject { id: homeVaultWidgetLoader; property bool active: false; property string source: ""; function setSource(url, properties) { source = url } }
+    QtObject { id: homeVinylWidgetLoader; property bool active: false }
     Item { id: wall }
     Timer { id: homeIntroWidgetsTimer }
     UI.Taskbar { id: taskbar; DOCK_VISIBILITY }
@@ -85,7 +86,7 @@ Item {
             worldStack: worldStack
             topbar: chrome; page: page; contentCol: board; hero: hero; hallDoor: hall
             homeBookshelfLoader: fixtureLoader; homeTheatreStripLoader: fixtureLoader
-            homeReadingDeskLoader: fixtureLoader; homeVaultWidgetLoader: fixtureLoader
+            homeReadingDeskLoader: fixtureLoader
             downloadsLayer: fixtureLoader; extensionsLayer: fixtureLoader
             historyStatsLayer: fixtureLoader; syncCenterLayer: fixtureLoader
             stremioPanel: hall; accountFlyout: hall; wall: hall; escapeCommand: escapeCommand
@@ -106,6 +107,9 @@ Item {
             worldStack.current = ""; currentSurface = "Home"; openModes.clear()
             cancelled = 0; keyboardHides = 0; keyboard.visible = true
             homeIntroWidgetsLoaded = false; homeIntroWidgetCursor = 0; homeIntroPendingLoader = null
+            vinylEnabled = false
+            for (const loader of [homeBookshelfLoader, homeTheatreStripLoader, homeReadingDeskLoader, homeVinylWidgetLoader])
+                loader.active = false
         }
         function test_actual_android_shell_reserves_no_phone_chrome() {
             compare(androidShell.androidHost, true)
@@ -129,7 +133,7 @@ Item {
                 window:null, worldStack:worldStack, topbar:chrome, page:page, contentCol:board,
                 hero:hero, hallDoor:hall, homeBookshelfLoader:fixtureLoader,
                 homeTheatreStripLoader:fixtureLoader, homeReadingDeskLoader:fixtureLoader,
-                homeVaultWidgetLoader:fixtureLoader, downloadsLayer:fixtureLoader,
+                downloadsLayer:fixtureLoader,
                 extensionsLayer:fixtureLoader, historyStatsLayer:fixtureLoader, syncCenterLayer:fixtureLoader,
                 stremioPanel:hall, accountFlyout:hall, wall:hall, escapeCommand:escapeCommand
             })
@@ -176,10 +180,21 @@ Item {
             compare(openModes.count, 4)
         }
         function test_all_home_widgets_load() {
-            const loaders = [homeBookshelfLoader, homeTheatreStripLoader, homeReadingDeskLoader, homeVaultWidgetLoader]
+            const regularLoaders = [homeBookshelfLoader, homeTheatreStripLoader, homeReadingDeskLoader]
+            for (const loader of regularLoaders) {
+                win.loadHomeIntroWidgets(); compare(homeIntroPendingLoader, loader)
+                verify(loader.active); verify(loader.source.length > 0)
+                win.homeIntroWidgetSettled(loader)
+            }
+            compare(homeIntroWidgetCursor, 3); compare(homeIntroWidgetsLoaded, true)
+            verify(!homeVinylWidgetLoader.active)
+        }
+        function test_vinyl_widget_loads_when_available() {
+            vinylEnabled = true
+            const loaders = [homeBookshelfLoader, homeTheatreStripLoader, homeReadingDeskLoader, homeVinylWidgetLoader]
             for (const loader of loaders) {
                 win.loadHomeIntroWidgets(); compare(homeIntroPendingLoader, loader)
-                verify(loader.source.length > 0); win.homeIntroWidgetSettled(loader)
+                verify(loader.active); win.homeIntroWidgetSettled(loader)
             }
             compare(homeIntroWidgetCursor, 4); compare(homeIntroWidgetsLoaded, true)
         }
@@ -196,7 +211,8 @@ Item {
     qml = qml.replace("QML_URI", (ROOT / "qml").as_uri()).replace(
         "POLICY_URI", (ROOT / "qml/ShellBackPolicy.js").as_uri())
     qml = qml.replace("DOCK_VISIBILITY", dock_visibility).replace("HANDLERS", "\n".join(
-        function(n) for n in ["openWorld", "closeWorld", "loadHomeIntroWidgets", "homeIntroWidgetSettled", "handleEscape"]))
+        function(n) for n in ["openWorld", "closeWorld", "homeIntroWidgetEntries", "loadHomeIntroWidgets",
+                              "homeIntroWidgetSettled", "handleEscape"]))
     with tempfile.TemporaryDirectory(prefix="colosseum-desktop-policy-") as directory:
         path = Path(directory)
         (path / "tst_desktop.qml").write_text(qml, encoding="utf-8")

@@ -90,13 +90,17 @@ Need ($qmlMain.Contains('homeIntroWidgetsTimer')) `
     'Home intro widgets must be armed by a named post-frame timer.'
 Need ($qmlMain.Contains('homeIntroWidgetsTimer.start()')) `
     'The first-frame path must arm the deferred Home intro widget load.'
-Need ($qmlMain.Contains('"Bookshelf.qml", "TheatreStrip.qml"')) `
+Need ($qmlMain.Contains('loader: homeBookshelfLoader, source: "Bookshelf.qml"') -and
+      $qmlMain.Contains('loader: homeTheatreStripLoader, source: "TheatreStrip.qml"')) `
     'The Home intro widget source list must include the Bookshelf and Theatre loaders.'
-Need ($qmlMain.Contains('"ReadingDesk.qml", "VaultHomeWidget.qml"')) `
-    'The Home intro widget source list must include the ReadingDesk and Vault loaders.'
-Need ($qmlMain.Contains('loader.setSource(sources[homeIntroWidgetCursor - 1]')) `
+Need ($qmlMain.Contains('loader: homeReadingDeskLoader, source: "ReadingDesk.qml"')) `
+    'The Home intro widget source list must include the Reading Desk loader.'
+Need ($qmlMain.Contains('widgets.push({ loader: homeVinylWidgetLoader })') -and
+      $qmlMain.Contains('sourceComponent: VinylHomeWidget')) `
+    'The Home intro widget source list must include the Vinyl loader when Vinyl is available.'
+Need ($qmlMain.Contains('entry.loader.setSource(entry.source')) `
     'The Home intro source must be assigned through the selected deferred Loader.'
-Need ($qmlMain.Contains('loader.active = true')) `
+Need ($qmlMain.Contains('entry.loader.active = true')) `
     'The selected Home intro Loader must activate after its deferred source is assigned.'
 
 # The Home Continue rail must keep its visual footprint while deferring the synchronous Progress

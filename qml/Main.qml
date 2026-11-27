@@ -539,6 +539,16 @@ Window {
     property bool homeIntroWidgetsLoaded: false
     property int homeIntroWidgetCursor: 0
     property var homeIntroPendingLoader: null
+    function homeIntroWidgetEntries() {
+        const widgets = [
+            { loader: homeBookshelfLoader, source: "Bookshelf.qml" },
+            { loader: homeTheatreStripLoader, source: "TheatreStrip.qml" },
+            { loader: homeReadingDeskLoader, source: "ReadingDesk.qml" }
+        ]
+        if (win.vinylEnabled)
+            widgets.push({ loader: homeVinylWidgetLoader })
+        return widgets
+    }
     Timer {
         id: homeIntroWidgetsTimer
         interval: 850
@@ -581,28 +591,21 @@ Window {
     function loadHomeIntroWidgets() {
         if (homeIntroWidgetsLoaded || homeIntroPendingLoader) return
         if (worldStack.current !== "" || win.immersiveSurfaceOpen) return
-        var loaders = [homeBookshelfLoader, homeTheatreStripLoader,
-                       homeReadingDeskLoader, homeVaultWidgetLoader]
-        var sources = ["Bookshelf.qml", "TheatreStrip.qml",
-                       "ReadingDesk.qml", "VaultHomeWidget.qml"]
-        if (win.androidHost && !win.desktopPresentation) {
-            loaders.pop()
-            sources.pop()
-        }
-        if (homeIntroWidgetCursor >= loaders.length) {
+        const widgets = win.homeIntroWidgetEntries()
+        if (homeIntroWidgetCursor >= widgets.length) {
             homeIntroWidgetsLoaded = true
             return
         }
-        var loader = loaders[homeIntroWidgetCursor]
-        homeIntroWidgetCursor++
-        homeIntroPendingLoader = loader
-        loader.setSource(sources[homeIntroWidgetCursor - 1], { "backdrop": wall })
-        loader.active = true
+        const entry = widgets[homeIntroWidgetCursor++]
+        homeIntroPendingLoader = entry.loader
+        if (entry.source)
+            entry.loader.setSource(entry.source, { "backdrop": wall })
+        entry.loader.active = true
     }
     function homeIntroWidgetSettled(loader) {
         if (homeIntroPendingLoader !== loader) return
         homeIntroPendingLoader = null
-        if (homeIntroWidgetCursor >= (win.androidHost && !win.desktopPresentation ? 3 : 4)) {
+        if (homeIntroWidgetCursor >= win.homeIntroWidgetEntries().length) {
             homeIntroWidgetsLoaded = true
             return
         }
@@ -5248,17 +5251,25 @@ Window {
                 onStatusChanged: if (status === Loader.Error) win.homeIntroWidgetSettled(homeReadingDeskLoader)
             }
             Loader {
-                id: homeVaultWidgetLoader
-                width: parent.width
-                height: 520
+                id: homeVinylWidgetLoader
+                width: Math.min(1180, parent.width)
+                x: Math.round((parent.width - width) / 2)
+                height: status === Loader.Ready ? item.implicitHeight : 400
+                visible: win.vinylEnabled && status !== Loader.Error
                 active: false
                 asynchronous: true
-                onLoaded: {
-                    item.track = Qt.binding(function() { return page.contentY })
-                    item.clicked.connect(function() { win.openVaultPage() })
-                    win.homeIntroWidgetSettled(homeVaultWidgetLoader)
+                sourceComponent: VinylHomeWidget {
+                    readonly property real viewportY: contentCol.y + homeVinylWidgetLoader.y - page.contentY
+                    backdrop: wall
+                    track: page.contentY
+                    inViewport: page.visible && win.active
+                                && viewportY < page.height && viewportY + height > 0
+                    reducedMotion: win.reducedMotion
+                    onFocusEntered: (item) => page.revealFocusedItem(item)
+                    onClicked: win.openWorld("Vinyl")
                 }
-                onStatusChanged: if (status === Loader.Error) win.homeIntroWidgetSettled(homeVaultWidgetLoader)
+                onLoaded: win.homeIntroWidgetSettled(homeVinylWidgetLoader)
+                onStatusChanged: if (status === Loader.Error) win.homeIntroWidgetSettled(homeVinylWidgetLoader)
             }
             Item { width: 1; height: 16 }   // bottom breathing room
         }
@@ -5641,7 +5652,6 @@ Window {
         homeBookshelfLoader: homeBookshelfLoader
         homeTheatreStripLoader: homeTheatreStripLoader
         homeReadingDeskLoader: homeReadingDeskLoader
-        homeVaultWidgetLoader: homeVaultWidgetLoader
         downloadsLayer: downloadsLayer
         extensionsLayer: extensionsLayer
         historyStatsLayer: historyStatsLayer

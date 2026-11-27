@@ -21,7 +21,6 @@ Item {
     required property Loader homeBookshelfLoader
     required property Loader homeTheatreStripLoader
     required property Loader homeReadingDeskLoader
-    required property Loader homeVaultWidgetLoader
     required property Loader downloadsLayer
     required property Loader extensionsLayer
     required property Loader historyStatsLayer
@@ -256,12 +255,6 @@ Item {
         target: host.homeReadingDeskLoader
         property: "height"
         value: adaptive.phone ? 560 : 400
-        when: host.phonePresentation
-    }
-    Binding {
-        target: host.homeVaultWidgetLoader
-        property: "height"
-        value: adaptive.phone ? 440 : 520
         when: host.phonePresentation
     }
 
