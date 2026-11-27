@@ -142,6 +142,7 @@ Item {
             "artists-like-yours":qsTr("Related to your artists"),"rediscover":qsTr("From your listening history")};
         return (homeSourcePool.rows || []).map(function(row){
             var items=(row.items || []).map(function(item){return Object.assign({},item,{reason:item.reason || reasons[row.key] || qsTr("Near the artists you picked")});});
+            if (row.key === "mixes-radio") items = mixesFirst(items);
             return Object.assign({},row,{key:"v1:"+row.key,homeKey:row.key,sectionId:aliases[row.key] || row.key,items:items,
                 kind:"recommendations",recommendation:true,profileGeneration:generation});
         });
@@ -718,6 +719,9 @@ Item {
     // the same unfinished boundary, rather than rebuilding at every position tick.
     readonly property bool playbackUnfinished: session.sourceState!=="ended"
         && (!(session.duration>0) || session.position<session.duration-0.5)
+    function mixesFirst(items) {
+        return items.filter(item => item.kind === "mixes").concat(items.filter(item => item.kind !== "mixes"));
+    }
     readonly property var homeRows: {
         if(session.profileActive===false || session.shuttingDown || !canEnterVinyl)return [];
         var nativeSections=recommendationHomeSections;
@@ -727,10 +731,8 @@ Item {
         if(homeQuickPicks.length)result.push({key:"quick-picks",title:"Quick picks",kind:"songs",items:homeQuickPicks,
             recommendation:true,sectionId:"quick-picks",profileGeneration:generation,
             exposureSnapshotId:String(snapshot.exposureSnapshotId || "")});
-        var mixes=homeListeningCards.filter(function(item){return item.kind==="mixes";});
-        var radio=homeListeningCards.filter(function(item){return item.kind==="radio";});
-        if(mixes.length)result.push({key:"mixes",title:"Mixes",kind:"mixes",items:mixes});
-        if(radio.length)result.push({key:"radio",title:"Radio",kind:"radio",items:radio});
+        var listeningItems = mixesFirst(homeListeningCards.filter(item => item.kind === "mixes" || item.kind === "radio"));
+        if (listeningItems.length) result.push({key:"mixes-radio",title:qsTr("Mixes & radio"),kind:"mixes-radio",items:listeningItems});
         var continuing=[],active=session.activeQueueRow;
         if(active && playbackUnfinished)continuing.push({id:"resume:"+active.queueId,kind:"resume",resumeCurrent:true,
             editionId:active.editionId,title:active.title,artist:active.artist,subtitle:active.artist,cover:active.cover || "",

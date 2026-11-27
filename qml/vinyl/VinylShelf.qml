@@ -12,6 +12,7 @@ Item {
     property bool homePageVisible: false
     property int exposureRevision: 0
     property real cardSize: 196
+    readonly property bool wideListeningRow: home && (row.homeKey || row.key) === "mixes-radio"
     property int previewCount: 8
     property int currentIndex: 0
     property var openRowHandler: null
@@ -123,7 +124,7 @@ Item {
             id: cards
             // Bleed for the 1.015× hover/focus scale at the clipped rail edges.
             x: 3; y: 3
-            spacing: root.home ? 18 : 24
+            spacing: root.wideListeningRow ? 17 : root.home ? 18 : 24
             Repeater {
                 id: cardRepeater
                 model: Math.min(root.previewCount,(root.row.items || []).length)
@@ -144,14 +145,15 @@ Item {
                     exposureRevision: root.exposureRevision
                     onActiveFocusChanged: if(activeFocus){root.currentIndex=index;root.reveal(index)}
                     Keys.onPressed: event => {if([Qt.Key_Left,Qt.Key_Right,Qt.Key_Home,Qt.Key_End].indexOf(event.key)>=0)nav.handle(event)}
-                    width: root.cardSize
+                    wide: root.wideListeningRow && (presentationKind === "mixes" || presentationKind === "radio")
+                    width: wide ? implicitWidth : root.cardSize
                     height: implicitHeight
                 }
             }
         }
     }
     Rectangle {
-        visible:root.home && root.hasCards
+        visible:root.home && root.hasCards && !root.wideListeningRow
         x:root.width*0.92; y:rail.y; width:root.width*0.08; height:rail.height
         gradient:Gradient { orientation:Gradient.Horizontal; GradientStop { position:0; color:"transparent" } GradientStop { position:1; color:"#06070b" } }
     }

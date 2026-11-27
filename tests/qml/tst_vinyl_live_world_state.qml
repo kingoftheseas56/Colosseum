@@ -55,6 +55,7 @@ TestCase {
         property var homeSections: []
         property var homeQuickPicks: []
         property var homeListeningCards: []
+        property var homeSourcePool: ({})
         property var homeCarouselItems: []
         property var artistResults: ({})
         function beginHomeVisit() {}
@@ -145,6 +146,7 @@ TestCase {
         fakeRecommendationService.homeQuickPicks=[{id:"quick-one",title:"Quick song",kind:"songs"}];
         fakeRecommendationService.homeListeningCards=[{id:"mix-one",title:"Daily mix",kind:"mixes"},
             {id:"radio-one",title:"Artist radio",kind:"radio"}];
+        fakeRecommendationService.homeSourcePool={};
         fakeRecommendationService.homeCarouselItems=fixtureCarouselItems(6);
         fakeTasteService.draftArtistCount=0;fakePickerData.pickerDraft=[];fakePickerData.pickerQuery="";
         viewData=factory.createObject(test);
@@ -156,13 +158,35 @@ TestCase {
         compare(viewData.row("library",false).items.length,0);
         compare(viewData.homeRows.find(function(row){return row.key==="quick-picks";}).items[0].id,
             fakeRecommendationService.homeQuickPicks[0].id,"Home consumes the supplied quick picks");
-        compare(viewData.homeRows.find(function(row){return row.key==="mixes";}).items[0].id,
-            fakeRecommendationService.homeListeningCards[0].id,"Home consumes the supplied listening cards");
-        compare(viewData.homeRows.find(function(row){return row.key==="radio";}).items[0].id, "radio-one");
-        compare(viewData.homeRows.find(function(row){return row.key==="mixes";}).items.length, 1);
         verify(!viewData.homeRows.some(function(row){return ["library","saved-albums","saved-songs","saved-artists"].indexOf(row.key)>=0;}));
         compare(viewData.catalogue.homeRegion.length,0,"Home has no regional catalogue feed");
         compare(viewData.carouselSlides[0].title,"Spotlight 1");
+    }
+    function test_homeMixesAndRadioMergesListeningCards() {
+        var mix = fakeRecommendationService.homeListeningCards[0];
+        var station = fakeRecommendationService.homeListeningCards[1];
+        var secondMix = {id:"mix-two",title:"Discovery mix",kind:"mixes"};
+        fakeRecommendationService.homeListeningCards = [station, mix, secondMix];
+        var rows = viewData.homeRows.filter(row => ["mixes", "radio", "mixes-radio"].includes(row.key));
+        compare(rows.map(row => row.key), ["mixes-radio"], "Home must merge the two listening rows");
+        compare(rows[0].title, "Mixes & radio");
+        compare(rows[0].items.map(item => item.id), [mix.id, secondMix.id, station.id]);
+        compare(viewData.row("mixes-radio", true).items.length, 3, "See all resolves the merged row");
+
+        fakeRecommendationService.homeListeningCards = [station];
+        compare(viewData.row("mixes-radio", true).items[0].id, station.id, "The row can start with stations only");
+        fakeRecommendationService.homeListeningCards = [];
+        verify(!viewData.homeRows.some(row => row.key === "mixes-radio"));
+    }
+    function test_houseListeningRowKeepsItsTrackingMetadataWhenOrderingItems() {
+        fakeRecommendationService.homeSourcePool = {rows:[{key:"mixes-radio",title:"Mixes & radio",
+            items:fakeRecommendationService.homeListeningCards.slice().reverse()}]};
+        var row = viewData.v1HomeRows[0];
+        compare(row.key, "v1:mixes-radio");
+        compare(row.sectionId, "mixes-radio");
+        compare(row.profileGeneration, viewData.recommendationProfileGeneration());
+        verify(row.recommendation);
+        compare(row.items.map(item => item.id), ["mix-one", "radio-one"]);
     }
     function test_artistPickerRequiresFiveAndHasNoSkip() {
         var picker=pickerFactory.createObject(test);

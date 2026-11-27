@@ -15,6 +15,7 @@ KeyboardAction {
     property int exposureRevision: 0
     property string feedbackError: ""
     property bool compactCaption: false
+    property bool wide: false
     property var artistRadioAction: null
     property var albumPlayAction: null
     property bool keyboardFocused: activeFocus
@@ -71,15 +72,17 @@ KeyboardAction {
         : resumeCaption ? reason
         : presentationKind === "artists" ? (compactCaption && reason || qsTr("Artist"))
         : presentationKind === "mixes" ? String(item.subtitle || qsTr("Made for you"))
-        : presentationKind === "radio" ? qsTr("Personal radio")
+        : presentationKind === "radio" ? (wide
+            ? (item.subtitle && item.subtitle !== "Radio" ? String(item.subtitle) : qsTr("Keeps going"))
+            : qsTr("Personal radio"))
         : presentationKind === "albums" ? Presentation.albumDetail(item, artistText)
         : compactCaption ? songCredit : artistText || (presentationKind === "songs" ? "" : String(item.subtitle || ""))
     readonly property real captionTop: copy.y
     readonly property url artworkSource: worldData ? worldData.artwork(item.cover) : ""
     readonly property var mixArtworkSources: presentationKind === "mixes" && worldData
-        ? (item.artworkCovers || []).slice(0, 4).map(cover => worldData.artwork(cover)) : []
-    implicitWidth: 196
-    implicitHeight: width + (compactCaption ? 42 : 55)
+        ? (item.artworkCovers || []).slice(0, wide ? 3 : 4).map(cover => worldData.artwork(cover)) : []
+    implicitWidth: wide ? 260 : 196
+    implicitHeight: wide ? 124 : width + (compactCaption ? 42 : 55)
     accessibleName: captionTitle + (captionDetail ? ". " + captionDetail : "")
     accessibleDescription: secondaryText === captionDetail ? "" : secondaryText
     onTriggered: if(worldData) worldData.activate(item)
@@ -149,29 +152,63 @@ KeyboardAction {
             NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
         }
 
-        VinylTileArt {
+        readonly property real artInset: root.wide ? 9 : root.compactCaption ? 4 : 8
+        Loader {
             id: art
-            objectName: root.objectName + "_cover"
-            x: root.compactCaption ? 4 : 8
-            y: x
-            width: Math.max(0, tile.width - 2 * x)
+            width: root.wide ? 106 : Math.max(0, tile.width - 2 * tile.artInset)
             height: width
-            title: root.captionTitle
-            artworkSource: root.artworkSource
-            artworkSources: root.mixArtworkSources
-            circular: root.presentationKind === "artists" || root.item.round === true
-            edgeColor: root.hovered ? theme.edgeHi : theme.edge
+            sourceComponent: root.wide ? listeningFace : squareArt
+        }
+        Component {
+            id: squareArt
+            VinylTileArt {
+                objectName: root.objectName + "_cover"
+                x: tile.artInset; y: x
+                title: root.captionTitle
+                artworkSource: root.artworkSource
+                artworkSources: root.mixArtworkSources
+                circular: root.presentationKind === "artists" || root.item.round === true
+                edgeColor: root.hovered ? theme.edgeHi : theme.edge
+            }
+        }
+        Component {
+            id: listeningFace
+            VinylListeningFace {
+                objectName: root.objectName + "_cover"
+                x: tile.artInset; y: x
+                cassette: root.presentationKind === "mixes"
+                title: root.captionTitle
+                portrait: root.artworkSource
+                covers: root.mixArtworkSources
+                displayFont: theme.display
+            }
         }
         Item {
             id: copy
             objectName: root.objectName + "_caption"
-            x: root.compactCaption ? 7 : 10
-            y: art.y + art.height + (root.compactCaption ? 4 : 7)
-            width: tile.width - 2 * x
-            height: root.compactCaption ? 38 : 48
+            x: root.wide ? tile.artInset + art.width + 12 : root.compactCaption ? 7 : 10
+            y: tile.artInset + (root.wide ? 6 : art.height + (root.compactCaption ? 4 : 7))
+            width: tile.width - x - (root.wide ? 9 : x)
+            height: root.wide ? tile.height - y - 12 : root.compactCaption ? 38 : 48
 
+            Loader {
+                active: root.wide
+                width: parent.width
+                height: 12
+                sourceComponent: Text {
+                    text: root.presentationKind === "mixes" ? qsTr("MIX") : qsTr("((•)) STATION")
+                    textFormat: Text.PlainText
+                    color: theme.inkDim
+                    font.family: theme.ui
+                    font.pixelSize: 10
+                    font.letterSpacing: 1.8
+                    elide: Text.ElideRight
+                    verticalAlignment: Text.AlignVCenter
+                }
+            }
             Text {
                 objectName: root.objectName + "_captionTitle"
+                y: root.wide ? 20 : 0
                 width: parent.width
                 height: root.compactCaption ? 18 : 22
                 text: root.captionTitle
@@ -185,11 +222,11 @@ KeyboardAction {
             }
             Text {
                 objectName: root.objectName + "_captionDetail"
-                y: root.compactCaption ? 18 : 24
-                width: Math.max(0, parent.width - (hint.active ? hint.width + 6 : 0))
-                height: root.compactCaption ? 20 : 24
+                y: root.wide ? 46 : root.compactCaption ? 18 : 24
+                width: Math.max(0, parent.width - (!root.wide && hint.active ? hint.width + 6 : 0))
+                height: root.wide ? 14 : root.compactCaption ? 20 : 24
                 text: root.feedbackError || ((root.pinned ? "✓  " : "")
-                    + (root.presentationKind === "radio" && !root.item.unavailable ? "((•))  " : "")
+                    + (!root.wide && root.presentationKind === "radio" && !root.item.unavailable ? "((•))  " : "")
                     + root.captionDetail)
                 textFormat: Text.PlainText
                 color: root.resumeCaption ? theme.gold : theme.inkDim
@@ -203,6 +240,7 @@ KeyboardAction {
                 id: hint
                 objectName: "vinylTileHint"
                 anchors.right: parent.right
+                anchors.rightMargin: root.wide ? 3 : 0
                 anchors.bottom: parent.bottom
                 width: root.compactCaption ? 20 : 24
                 height: width
@@ -212,10 +250,17 @@ KeyboardAction {
                     color: "#3b404a"
                     Text {
                         anchors.centerIn: parent
+                        visible: !root.wide
                         text: root.opensPage ? "→" : "▶"
                         color: theme.ink
                         font.family: theme.ui
                         font.pixelSize: root.opensPage ? 15 : 12
+                    }
+                    Image {
+                        anchors.centerIn: parent
+                        width: 15; height: 15
+                        visible: root.wide
+                        source: root.wide ? "../../assets/icons/play.svg" : ""
                     }
                     NumberAnimation on opacity {
                         from: 0; to: 1
@@ -229,7 +274,7 @@ KeyboardAction {
         Loader {
             objectName: "vinylPlayingRail"
             x: copy.x
-            y: art.y + art.height + 2
+            y: tile.artInset + art.height + 2
             width: copy.width
             height: 2
             active: root.playing
@@ -246,7 +291,8 @@ KeyboardAction {
         }
 
         Loader {
-            anchors.centerIn: art
+            x: tile.artInset + (art.width - width) / 2
+            y: tile.artInset + (art.height - height) / 2
             z: 2
             active: root.albumPlayAvailable || root.artistRadioAvailable
             sourceComponent: VinylFeedbackBadge {
@@ -265,7 +311,7 @@ KeyboardAction {
         }
         Loader {
             id: likeBadge
-            x: art.x + 1; y: art.y + 1; z: 2
+            x: tile.artInset + 1; y: tile.artInset + 1; z: 2
             active: root.quickFeedbackAvailable
             sourceComponent: VinylFeedbackBadge {
                 objectName: "vinylRecommendationLike_" + String(root.item.id || "item")
@@ -277,8 +323,8 @@ KeyboardAction {
             }
         }
         Loader {
-            anchors.right: art.right
-            anchors.bottom: art.bottom
+            x: tile.artInset + art.width - width
+            y: tile.artInset + art.height - height
             z: 2
             active: root.pinAvailable
             sourceComponent: VinylFeedbackBadge {
@@ -295,7 +341,7 @@ KeyboardAction {
         }
         Loader {
             id: hideBadge
-            x: art.x + art.width - width - 1; y: art.y + 1; z: 2
+            x: tile.artInset + art.width - width - 1; y: tile.artInset + 1; z: 2
             active: root.quickFeedbackAvailable
             sourceComponent: VinylFeedbackBadge {
                 objectName: "vinylRecommendationHide_" + String(root.item.id || "item")
