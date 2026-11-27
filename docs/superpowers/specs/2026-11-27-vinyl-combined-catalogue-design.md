@@ -51,6 +51,14 @@ From Wikipedia chart lists, proven live via the MediaWiki API: "Every #1 of 2025
 "#1 hits of the '90s". From Kworb: "This week on Spotify", "Most streamed ever". Page titles are discovered through the
 API's list/category pages, never guessed; attribute Wikipedia (CC BY-SA); lists refresh weekly.
 
+## Artwork (Hemanth, 2026-11-27: "use itunes and deezer for artwork")
+Artwork is a separate, artwork-only layer, like Cinemeta's posters. Songs and albums: **Apple iTunes Search**
+(`itunes.apple.com/search`, the same host Biblio, Comics, Saga and the manga enricher already use; request large art by
+rewriting the 100x100 size token), accepted only on a strict title + artist match (a live probe matched "Carnaval De
+Luz" to the wrong album). Artists: **Deezer** (`api.deezer.com/search/artist`, `picture_xl`; no key; 6/6 live). Backup
+for misses: YouTube Music thumbnails. Fetched in the background, cached 30 days (a miss 1 day); the house no-artwork
+face until it arrives. Credit both in Vinyl's About ("Artwork: Apple Music · Deezer").
+
 ## Fetching and politeness
 - Kworb: a small fixed page set (global + user's country; songs/albums/artists), at most once a day, parsed in the
   provider process, cached 24 h; parser fails closed (log once), "This week" then falls back to YouTube's chart.
