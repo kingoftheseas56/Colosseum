@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Run in an isolated X11/D-Bus session with the Arc 93 A candidate installed.
+# Run in an isolated X11/D-Bus session with the selected test Flatpak installed.
 # A normal /run/user/$UID runtime directory is required for document portals.
 set -euo pipefail
 out="$(realpath "$1")"
 id=io.github.kingoftheseas56.Colosseum
-ref="$id//arc93-a"
+ref="${COLOSSEUM_FLATPAK_REF:-$id//arc93-a}"
 export XDG_DATA_DIRS="$HOME/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 export XDG_CURRENT_DESKTOP=XFCE
 dbus-update-activation-environment DISPLAY XAUTHORITY XDG_CURRENT_DESKTOP XDG_DATA_DIRS
@@ -31,7 +31,7 @@ if [[ ${2:-} != --desktop-only ]]; then
   bash tools/flatpak-feasibility/smoke.sh "$out" > "$out/repeated-runtime.log" 2>&1
 fi
 flatpak override --user --env=QT_QPA_PLATFORM=xcb --env=QSG_RHI_BACKEND=opengl \
-  --env=LIBGL_ALWAYS_SOFTWARE=1 --env=COLOSSEUM_APPDATA_TAG=arc93-feasibility \
+  --env=LIBGL_ALWAYS_SOFTWARE=1 "--env=COLOSSEUM_APPDATA_TAG=${COLOSSEUM_FLATPAK_TEST_TAG:-arc93-feasibility}" \
   --env=COLOSSEUM_DISABLE_BOOT_PREFETCH=1 "$id"
 flatpak run --command=sh "$ref" -c 'cat /app/share/colosseum/SOURCE-COMMIT; cat /app/share/applications/io.github.kingoftheseas56.Colosseum.desktop' > "$out/desktop-entry.txt"
 printf 'host_runtime_dir=%s\n' "$XDG_RUNTIME_DIR" > "$out/session-paths.txt"
@@ -69,8 +69,9 @@ for _ in $(seq 1 40); do
 done
 test -n "$finder"
 xdotool windowactivate --sync "$finder"
-xdotool type --clearmodifiers --delay 80 'Colosseum'
+xdotool type --clearmodifiers --delay 80 "${COLOSSEUM_FLATPAK_LAUNCHER_QUERY:-Colosseum}"
 sleep 2
+xdotool key --clearmodifiers Down
 import -window root "$out/application-finder.png"
 xdotool key --clearmodifiers Return
 app=""
@@ -80,6 +81,8 @@ for _ in $(seq 1 120); do
   sleep 0.5
 done
 test -n "$app"
+flatpak ps --columns=application,branch > "$out/launched-flatpak-processes.txt"
+awk -v app="$id" -v branch="${ref##*//}" '$1 == app && $2 == branch {found=1} END {exit !found}' "$out/launched-flatpak-processes.txt"
 sleep 12
 import -window root "$out/desktop-home.png"
 xdotool windowactivate --sync "$app"

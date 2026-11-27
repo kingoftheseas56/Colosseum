@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 id=io.github.kingoftheseas56.Colosseum
-ref="$id//arc93-a"
+ref="${COLOSSEUM_FLATPAK_REF:-$id//arc93-a}"
 out="$(realpath "$1")"
 proof="$HOME/.var/app/$id/data/arc93-proof"
 mkdir -p "$out" "$proof"
@@ -18,8 +18,8 @@ trap 'kill "$server" 2>/dev/null || true' EXIT
 for phase in first restart; do
   timeout 140 flatpak run --env=QT_QPA_PLATFORM=xcb --env=QT_FORCE_STDERR_LOGGING=1 \
     --env=QSG_RHI_BACKEND=opengl --env=LIBGL_ALWAYS_SOFTWARE=1 \
-    --env=COLOSSEUM_APPDATA_TAG=arc93-feasibility --env=COLOSSEUM_DISABLE_BOOT_PREFETCH=1 \
-    "$ref" /app/share/colosseum/proofs/RuntimeProof.qml "$phase" \
+    "--env=COLOSSEUM_APPDATA_TAG=${COLOSSEUM_FLATPAK_TEST_TAG:-arc93-feasibility}" --env=COLOSSEUM_DISABLE_BOOT_PREFETCH=1 \
+    "$ref" "${COLOSSEUM_FLATPAK_RUNTIME_PROOF:-/app/share/colosseum/proofs/RuntimeProof.qml}" "$phase" \
     "$proof/home-$phase.png" "$proof/web-$phase.png" http://127.0.0.1:18793/index.html \
     2>&1 | tee "$out/runtime-$phase.log"
   grep -F 'INSTALLED_RUNTIME_PROOF=' "$out/runtime-$phase.log"

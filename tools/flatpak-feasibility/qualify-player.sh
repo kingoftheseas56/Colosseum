@@ -2,7 +2,7 @@
 set -euo pipefail
 if [[ $EUID == 0 ]]; then echo "Run the installed Flatpak as an ordinary user" >&2; exit 1; fi
 id=io.github.kingoftheseas56.Colosseum
-ref="$id//arc93-a"
+ref="${COLOSSEUM_FLATPAK_REF:-$id//arc93-a}"
 out="$(realpath "$1")"
 proof="$HOME/.var/app/$id/data/arc93-proof"
 mkdir -p "$proof" "$out"
@@ -34,7 +34,7 @@ kill -0 "$capture"
 rm -f "$proof/player-frame.png"
 timeout 135 flatpak run --env=QT_QPA_PLATFORM=xcb --env=QT_FORCE_STDERR_LOGGING=1 \
   --env=QSG_RHI_BACKEND=opengl --env=LIBGL_ALWAYS_SOFTWARE=1 \
-  --env=PULSE_SINK="$sink" --env=COLOSSEUM_APPDATA_TAG=arc93-feasibility \
+  --env=PULSE_SINK="$sink" "--env=COLOSSEUM_APPDATA_TAG=${COLOSSEUM_FLATPAK_TEST_TAG:-arc93-feasibility}" \
   --env=COLOSSEUM_DISABLE_BOOT_PREFETCH=1 "$ref" "$proof/PlayerProof.qml" \
   "file://$proof/player-fixture.mp4" "$proof/player-frame.png" 2>&1 | tee "$out/player-runtime.log"
 kill "$capture" 2>/dev/null || true

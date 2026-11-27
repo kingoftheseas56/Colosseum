@@ -13,6 +13,8 @@ resources/installed-chronicle/installed-manifest.json.sig binary
 # Linux launchers must remain executable by bash after Windows checkouts.
 tools/linux-release/*.sh text eol=lf
 tools/linux-release/AppRun text eol=lf
+tools/flatpak-feasibility/*.sh text eol=lf
+tools/flatpak-desktop-check/*.sh text eol=lf
 
 # These checksummed online artwork sources were published with CRLF bytes.
 # Keep the source payload identical on Linux checkouts so release staging can
