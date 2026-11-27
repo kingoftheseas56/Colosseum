@@ -391,6 +391,7 @@ TestCase {
         world.worldData.resetPicker();
         var cases=[{tab:"home",name:"vinylPickerQuestion"},
                    {tab:"discover",name:"vinylDiscoverHeadingTitle"},
+                   {tab:"explore",name:"vinylExplorePage"},
                    {tab:"library",name:"vinylLibraryRow_saved-albums"}];
         for(var i=0;i<cases.length;i++) {
             // Exercise a fresh tab entry, rather than the saved startup carousel offset.

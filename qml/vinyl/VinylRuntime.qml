@@ -93,7 +93,7 @@ Item {
         ? bar.y - playerContentGap
         : height - Math.max(62, shellDockBottomExtent)
     readonly property bool worldVisible: canEnterVinyl
-        ? ["home","songs","albums","artists","discover","library"].indexOf(page)>=0 : worldData.tastePickerOpen===true
+        ? ["home","songs","albums","artists","discover","explore","library"].indexOf(page)>=0 : worldData.tastePickerOpen===true
     property bool fullWindowDetails: false
     readonly property Item detailView: page === "artist" ? artist : page === "album" ? album : page === "song" ? song : null
     readonly property bool fullWindowDetail: fullWindowDetails && canEnterVinyl && !!detailView

@@ -42,7 +42,7 @@ TestCase {
         compare(findChild(runtime, "vinylLiveWorld"), null);
         compare(runtime.page, "home");
         compare(runtime.activeTab, "Home");
-        compare(runtime.worldView.tabModel.length, 3);
+        compare(runtime.worldView.tabModel.length, 4);
     }
     function test_houseWaitsForItsHost() {
         createRuntime("VinylAppWorld.qml");
