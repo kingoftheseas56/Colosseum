@@ -217,7 +217,8 @@ TestCase {
         world.showLibrary();
         world.session.playAlbum(record(0), 0);
         tryCompare(world.session, "playingIndex", 0);
-        world.shellDockRight = 250;
+        world.toggleHud();
+        world.shellDockRight = 310;
         world.shellDockBottomExtent = 62;
         host.requestActivate();
         tryCompare(host, "active", true);

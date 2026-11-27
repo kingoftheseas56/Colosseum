@@ -83,6 +83,12 @@ Item {
     property var searchOriginCatalogue: null
     readonly property var searchPage: searchLayer.item
     readonly property real footerLeft: Math.max(theme.margin, shellDockRight > 0 ? shellDockRight + 12 : 0)
+    property bool hudOpen: false
+    readonly property bool hudHasMedia: canEnterVinyl && session.playingIndex >= 0
+    onHudHasMediaChanged: if (!hudHasMedia) hudOpen = false
+    function toggleHud() {
+        if (hudHasMedia) hudOpen = !hudOpen
+    }
     property real contentBottomInset: 0
     // The song/video viewport and status row still reserve space above the player.
     readonly property bool statusRowShown: statusText.text.length > 0 || cancelImport.visible
@@ -202,7 +208,11 @@ Item {
             enterDiscoverSearch(true,false);
     }
     onLifecycleActiveChanged: {
-        if(lifecycleActive){Qt.callLater(root.openArtistOnboarding);revealVideoHud();}
+        if (lifecycleActive) {
+            hudOpen = false;
+            Qt.callLater(root.openArtistOnboarding);
+            revealVideoHud();
+        }
         else {root.cancelPendingVideoOpen(true);exitVideoFullscreen();videoHudVisible=true;videoHudTimer.stop();}
     }
     function cancelPendingVideoOpen(cancelLookup) {
@@ -1181,7 +1191,8 @@ Item {
     VinylQueuePanel {id:queuePanel;pageData:session;actionData:root.page==="song" ? song.pageData : session;backdrop:root.chromeBackdrop;onSongRequested:root.showSong()}
     VinylPlayerBar {
         id:bar;x:root.footerLeft;y:root.height-height-root.playerBottomMargin;width:root.width-x-theme.margin
-        visible:root.canEnterVinyl && (session.playingIndex>=0 || root.page==="song") && opacity>0.01
+        visible: root.canEnterVinyl && (root.page === "song" || (root.hudOpen && root.hudHasMedia))
+            && opacity > 0.01
         opacity:root.videoFullscreen && root.videoDisplayed && !root.videoHudVisible ? 0 : 1
         enabled:visible
         Behavior on opacity { NumberAnimation { duration: 140 } }

@@ -545,9 +545,10 @@ TestCase {
         world.session.playAlbum(rawAlbum,0);
         tryVerify(function(){return world.session.playingIndex===0 && world.session.queue.length===2;});
         var playerBar=findChild(world,"vinylPlayerBar");
+        world.toggleHud();
         verify(playerBar!==null && playerBar.visible);
-        verify(playerBar.y-(world.worldScroll.y+world.worldScroll.height)>=50,
-            "The scrollable Home viewport must leave room above the active playback bar.");
+        verify(world.browseShell.contentEndPadding > playerBar.height,
+            "The last Home row must scroll clear of the open player bar.");
         var playingId=world.session.queue[world.session.playingIndex].trackId;
         var queueIds=world.session.queue.map(function(row){return row.trackId;});
         var generation=world.session.profileGeneration;

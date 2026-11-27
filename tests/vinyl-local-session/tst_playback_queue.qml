@@ -249,6 +249,8 @@ TestCase {
         var bar = findChild(world,"vinylPlayerBar"), close = findChild(bar,"vinylBarClose");
         verify(!bar.visible);
         startStalled([queueRows[0]],0);
+        verify(!bar.visible);
+        world.toggleHud();
         tryCompare(close,"visible",true);
         var request = stalledSource.requests.filter(call=>call.lane==="play").slice(-1)[0];
         close.triggered();
@@ -256,12 +258,15 @@ TestCase {
         compare(world.session.playingIndex,-1);
         compare(world.session.sourceState,"idle");
         verify(!bar.visible);
+        verify(!world.hudOpen && !world.hudHasMedia);
         verify(stalledSource.cancellations.indexOf("play")>=0);
         stalledSource.completed("play",request.id,{},"Late resolve");
         compare(world.session.sourceState,"idle");
         compare(world.session.error,"");
         verify(!bar.visible);
         startStalled([queueRows[0]],0);
+        verify(!bar.visible);
+        world.toggleHud();
         tryCompare(close,"visible",true);
     }
 

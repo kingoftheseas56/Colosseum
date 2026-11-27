@@ -47,6 +47,7 @@ Item {
         SignalSpy { id: wallpapers; target: suite.bar; signalName: "pickerWallpaperRequested" }
         SignalSpy { id: files; target: suite.bar; signalName: "openMediaClicked" }
         SignalSpy { id: sessions; target: suite.bar; signalName: "switchRequested" }
+        SignalSpy { id: vinylHud; target: suite.bar; signalName: "vinylHudClicked" }
 
         function init() {
             root.width = 1280
@@ -550,6 +551,53 @@ Item {
             verify(!activity.visible)
             verify(!bar.open)
             verify(findChild(bar, "taskbarToggleAction").activeFocus)
+        }
+
+        function test_vinylPlayerContext() {
+            const dock = findChild(bar, "taskbarDock")
+            const closedWidth = bar.closedWidth
+            verify(!findChild(bar, "taskbarVinylHud"))
+            bar.vinylHudAvailable = true
+            const button = findChild(bar, "taskbarVinylHud")
+            verify(button && button.visible)
+            const action = findChild(button, "taskbarVinylHudAction")
+            const underline = findChild(button, "taskbarVinylHudUnderline")
+            const dot = findChild(button, "taskbarVinylHudPlayingDot")
+            compare(bar.closedWidth, closedWidth + 60)
+            tryCompare(dock, "width", closedWidth + 60)
+            compare(button.width, 46)
+            compare(button.height, 46)
+            const downloads = findChild(bar, "taskbarDownloads")
+            compare(button.x, downloads.x + downloads.width + 14)
+
+            compare(button.opacity, 0.4)
+            compare(action.accessibleName, "Player, nothing playing")
+            verify(!button.enabled && !underline.visible && !dot.visible)
+            vinylHud.clear()
+            mouseClick(button)
+            compare(vinylHud.count, 0)
+
+            bar.vinylHasMedia = true
+            compare(button.opacity, 1)
+            compare(action.accessibleName, "Player")
+            bar.vinylPlaying = true
+            compare(action.accessibleName, "Player, playing")
+            verify(dot.visible && !underline.visible)
+            mouseClick(button)
+            compare(vinylHud.count, 1)
+            bar.vinylHudOpen = true
+            verify(underline.visible && !dot.visible)
+            action.forceActiveFocus(Qt.TabFocusReason)
+            verify(action.activeFocus)
+            keyClick(Qt.Key_Return)
+            keyClick(Qt.Key_Enter)
+            keyClick(Qt.Key_Space)
+            compare(vinylHud.count, 4)
+
+            bar.vinylHudAvailable = false
+            verify(!button.visible && !findChild(bar, "taskbarVinylHud"))
+            compare(bar.closedWidth, closedWidth)
+            tryCompare(dock, "width", closedWidth)
         }
 
         function test_downloadsDockCloseRespectsInput() {

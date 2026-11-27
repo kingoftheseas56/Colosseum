@@ -209,7 +209,9 @@ TestCase {
     function test_footerClearsActualCollapsedTaskbarGeometry() {
         var component = Qt.createComponent("../../qml/Taskbar.qml");
         compare(component.status, Component.Ready, component.errorString());
-        var dock = component.createObject(host.contentItem);
+        var dock = component.createObject(host.contentItem, {
+            pickerScene: world, vinylHudAvailable: true
+        });
         verify(dock !== null);
         world.shellDockRight = Qt.binding(function() { return dock.visible ? dock.leftEdge + dock.closedWidth : 0; });
         world.shellDockBottomExtent = Qt.binding(function() { return dock.visible ? dock.bottomGap + dock.closedSize : 0; });
@@ -220,8 +222,11 @@ TestCase {
         verify(world.contentBottom <= world.height - dock.bottomGap - dock.closedSize, "Library rows end above the dock");
         var record=album("footer");record.tracks=[{id:"footer-track",title:"Footer",seconds:1}];
         selectPaused(record,1);
+        world.toggleHud();
         verify(playerBar.visible);
-        verify(playerBar.x > dock.leftEdge + dock.closedWidth, "Player cover and title clear the collapsed dock");
+        var capsule = findChild(dock, "taskbarDock");
+        tryCompare(capsule, "width", 310);
+        verify(playerBar.x > capsule.x + capsule.width, "Player cover and title clear the widened dock");
         verify(playerBar.x + playerBar.width <= world.width);
         var footerLeft = playerBar.x;
         dock.open = true;

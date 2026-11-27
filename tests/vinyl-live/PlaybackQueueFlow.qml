@@ -53,6 +53,7 @@ Main {
                     var saved=s.progressStore.get("music-session","vinyl").resume;
                     if(!root.check(s.queue.length===3 && s.paused && !s.player && s.repeatMode==="one" && s.position>=5.5 && s.queue[0].trackId===s.queue[1].trackId && new Set(root.ids(s)).size===3 && root.ids(s).join(",")===saved.rows.map(r=>r.queueId).join(","),"Queue occurrence/order/position/repeat restore failed"))return;
                     console.log("VINYL_QUEUE_RESTORE",JSON.stringify({ids:root.ids(s),position:s.position,repeat:s.repeatMode}));
+                    root.activate("taskbarVinylHudAction");
                     root.activate("vinylBarPlay");root.next("restored-playing");return;
                 }
                 s.clearQueue();w.showLibrary();root.activate("vinylLibraryImportFolder");root.next("folder");return;
@@ -75,6 +76,7 @@ Main {
                 if(!root.check(s.tracks.length>=3,"Tagged album missing"))return;
                 root.activate("vinylAlbumNext");
                 if(!root.check(s.queue.length===root.album.tracks.length && s.queueIndex===0 && s.paused && !s.player,"Queue into empty did not select a paused accessible occurrence"))return;
+                root.activate("taskbarVinylHudAction");
                 root.activate("vinylBarQueue");root.next("start-queue");return;
             }
             if(root.stage==="start-queue" && root.ticks>3){root.activate("vinylQueuePlay_0");root.activate("vinylQueueClose");root.next("playing");return;}

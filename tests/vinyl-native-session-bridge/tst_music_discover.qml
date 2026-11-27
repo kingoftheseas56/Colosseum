@@ -159,6 +159,7 @@ TestCase {
         var count=chartCalls().length;wait(0);compare(chartCalls().length,count);
         browser.activateIndex(0);
         var pending=taps().slice(-1)[0];
+        live.toggleHud();
         var close=findChild(live,"vinylBarClose");verify(close && close.visible);
         close.triggered();
         verify(cancelled.includes("catalogue-item"));

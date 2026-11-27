@@ -40,8 +40,9 @@ Item {
     readonly property int closedSize: 64
     readonly property real contentBottomInset: visible ? height - dock.y : 0
     // Permanent buttons: Colosseum, Vault, Collections, Downloads.
-    readonly property int closedWidth: pickerScene
-        ? 250 + (extensionsActive ? 60 : 0) + (historyStatsActive ? 60 : 0) : 190
+    readonly property int closedWidth: (pickerScene
+        ? 250 + (extensionsActive ? 60 : 0) + (historyStatsActive ? 60 : 0) : 190)
+        + (vinylHudAvailable ? 60 : 0)
     Keys.onPressed: (event) => spatialNav.handle(event)
 
     signal switchRequested(string id)
@@ -64,6 +65,11 @@ Item {
     signal downloadsClicked()
     property int downloadsBadge: 0        // live download jobs (gold count chip)
     property bool downloadsActive: false  // the Downloads page is the front surface
+    signal vinylHudClicked()
+    property bool vinylHudAvailable: false // Vinyl is the front surface
+    property bool vinylHudOpen: false
+    property bool vinylPlaying: false
+    property bool vinylHasMedia: false
     signal extensionsClicked()
     property bool extensionsActive: false // the Extensions page is the front surface
     signal feedbackClicked()
@@ -549,6 +555,59 @@ Item {
                 Keys.onReturnPressed: bar.downloadsClicked()
                 Keys.onEnterPressed: bar.downloadsClicked()
                 Keys.onSpacePressed: bar.downloadsClicked()
+            }
+
+            Item {
+                objectName: bar.vinylHudAvailable ? "taskbarVinylHud" : ""
+                Layout.preferredWidth: 46
+                Layout.preferredHeight: 46
+                Layout.alignment: Qt.AlignVCenter
+                visible: bar.vinylHudAvailable
+                enabled: bar.vinylHasMedia
+                opacity: enabled ? 1 : 0.4
+                Accessible.role: Accessible.Button
+                Accessible.name: vinylHudInput.accessibleName
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 13
+                    color: vinylHudInput.interactionActive || bar.vinylHudOpen ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+                    border.width: vinylHudInput.activeFocus ? 1 : 0
+                    border.color: theme.gold
+                }
+                Image {
+                    anchors.centerIn: parent
+                    width: 21; height: 21
+                    source: "../assets/icons/music.svg"
+                    fillMode: Image.PreserveAspectFit
+                    opacity: bar.vinylHudOpen ? 1 : 0.75
+                }
+                Rectangle {
+                    objectName: "taskbarVinylHudUnderline"
+                    visible: bar.vinylHudOpen
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: parent.bottom; anchors.bottomMargin: 4
+                    width: 20; height: 3; radius: 2
+                    color: Qt.rgba(0.94, 0.77, 0.29, 0.95)
+                }
+                Rectangle {
+                    objectName: "taskbarVinylHudPlayingDot"
+                    visible: bar.vinylHasMedia && bar.vinylPlaying && !bar.vinylHudOpen
+                    anchors.top: parent.top; anchors.right: parent.right
+                    anchors.topMargin: 5; anchors.rightMargin: 5
+                    width: 6; height: 6; radius: 3
+                    color: "#f0c44a"
+                }
+                KeyboardAction {
+                    id: vinylHudInput
+                    objectName: "taskbarVinylHudAction"
+                    anchors.fill: parent
+                    focusOnPointer: !bar.pickerScene
+                    accessibleName: !bar.vinylHasMedia ? qsTr("Player, nothing playing")
+                        : bar.vinylPlaying ? qsTr("Player, playing") : qsTr("Player")
+                    focusRadius: 13
+                    spaceActivates: true
+                    onTriggered: bar.vinylHudClicked()
+                }
             }
 
             // ---- Extensions: the store, beside Downloads (ratified 2026-07-05) ----

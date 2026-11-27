@@ -9,6 +9,22 @@ TestCase {
     property var runtime: null
     Component { id: windowFactory; Window { width: 1280; height: 700; visible: true } }
     SignalSpy { id: songSpy; signalName: "songRequested" }
+    Component {
+        id: preferencesFactory
+        QtObject {
+            property bool vinylTasteAnswered: true
+            property var vinylTasteArtists: ["a", "b", "c", "d", "e"].map(letter => ({
+                id: "ytm:artist:UC" + letter.repeat(22), title: letter
+            }))
+            signal vinylTasteChanged()
+            function setVinylTasteSelections(answered, artists) {
+                vinylTasteAnswered = answered;
+                vinylTasteArtists = artists;
+                vinylTasteChanged();
+                return true;
+            }
+        }
+    }
 
     function createRuntime(file) {
         host = windowFactory.createObject(test);
@@ -53,6 +69,54 @@ TestCase {
         tryCompare(runtime, "ready", true);
         compare(runtime.worldView.ready, true);
         compare(runtime.enabled, true);
+    }
+    function test_playerHudStartsClosedAndSongKeepsItsControls() {
+        createRuntime("VinylAppWorld.qml");
+        runtime.worldData.preferencesStore = createTemporaryObject(preferencesFactory, test);
+        runtime.hostReady = true;
+        tryCompare(runtime, "canEnterVinyl", true);
+        tryCompare(runtime, "ready", true);
+        runtime.showHome();
+        runtime.shellDockBottomExtent = 80;
+        var bar = findChild(runtime, "vinylPlayerBar");
+        verify(bar !== null);
+        compare(runtime.hudOpen, false);
+        compare(runtime.hudHasMedia, false);
+        runtime.toggleHud();
+        compare(runtime.hudOpen, false);
+
+        var edition = runtime.session.normalize({ id: "hud-album", title: "HUD album", origin: "local",
+            tracks: [{ id: "hud-track", title: "HUD track", available: true, seconds: 20 }] });
+        verify(runtime.session.appendRows(runtime.session.editionRows(edition), false));
+        compare(runtime.session.playingIndex, 0);
+        compare(runtime.session.paused, true);
+        compare(runtime.hudOpen, false);
+        compare(bar.visible, false, "Queued media must not open the browsing HUD");
+        compare(runtime.contentBottom, runtime.height - runtime.shellDockBottomExtent);
+        compare(runtime.browseShell.contentEndPadding, runtime.shellDockBottomExtent + 14);
+
+        runtime.toggleHud();
+        compare(runtime.hudOpen, true);
+        compare(bar.visible, true);
+        verify(runtime.contentBottom < bar.y);
+        verify(runtime.browseShell.contentEndPadding > runtime.shellDockBottomExtent + 14);
+        runtime.toggleHud();
+        compare(bar.visible, false);
+        compare(runtime.browseShell.contentEndPadding, runtime.shellDockBottomExtent + 14);
+
+        runtime.showSong();
+        compare(runtime.page, "song");
+        compare(runtime.hudOpen, false);
+        compare(bar.visible, true);
+        runtime.goBack();
+        compare(bar.visible, false);
+
+        runtime.toggleHud();
+        runtime.lifecycleActive = false;
+        runtime.lifecycleActive = true;
+        compare(runtime.hudOpen, false);
+        compare(bar.visible, false);
+        compare(runtime.session.playingIndex, 0, "Re-entry must not clear the queue");
     }
     function test_houseDoesNotInterceptPlayerControls() {
         createRuntime("VinylAppWorld.qml");

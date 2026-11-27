@@ -104,12 +104,13 @@ Window {
     property bool feriaRuntimeReady: false
     readonly property alias televisionMode: phoneShell.televisionMode
     property var vinylWorld: null
-    readonly property bool vinylSongPageOpen: !!win.vinylWorld && worldStack.current === "Vinyl"
-        && win.vinylWorld.page === "song" && win.vinylWorld.visible && win.vinylWorld.canEnterVinyl
-        && !win.vinylWorld.searchOpen && !win.vinylWorld.artistSearchOpen
+    readonly property bool vinylWorldFront: !!win.vinylWorld && worldStack.current === "Vinyl"
+        && win.vinylWorld.visible && !win.vinylWorld.searchOpen && !win.vinylWorld.artistSearchOpen
         && !win.fullWindowPageOpen && !downloadsLayer.active && !extensionsLayer.active
         && !updateLayer.active && !historyStatsLayer.active && !syncCenterLayer.active
         && !yourFeriaLayer.active && !feriaLayer.open
+    readonly property bool vinylSongPageOpen: win.vinylWorldFront
+        && win.vinylWorld.page === "song" && win.vinylWorld.canEnterVinyl
     readonly property bool vinylVideoFullscreen: !!win.vinylWorld && worldStack.current === "Vinyl"
         && win.vinylWorld.videoFullscreen === true
     property var vinylVideoReturnWindowed: null
@@ -7252,6 +7253,17 @@ Window {
                     vaultLayer.active = false
                 win.openVaultPage()
             }
+        }
+        vinylHudAvailable: win.vinylWorldFront
+        vinylHudOpen: !!win.vinylWorld && win.vinylWorld.hudOpen
+        vinylPlaying: !!win.vinylWorld && !win.vinylWorld.session.paused
+            && win.vinylWorld.session.sourceState === "playing"
+        vinylHasMedia: !!win.vinylWorld && win.vinylWorld.hudHasMedia
+        onVinylHudClicked: {
+            const item = win.vinylWorld // The keep-alive Vinyl worldLoader's item.
+            if (!item || typeof item.toggleHud !== "function") return
+            taskbar.open = false
+            item.toggleHud()
         }
         extensionsActive: extensionsLayer.active
         onExtensionsClicked: !extensionsLayer.active ? win.openExtensionsPage() : win.closeExtensionsPage()
