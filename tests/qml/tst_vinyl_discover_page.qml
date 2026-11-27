@@ -76,7 +76,7 @@ TestCase {
         browser.itemOpenRequested(page.items[0]);compare(world.activated.id,"one");verify(world.activated.catalogueCard);
         compare(world.activated.source,"kworb");
     }
-    function test_widget_faces_and_home_captions() {
+    function test_widget_faces_and_caption_geometry() {
         var first=entry("known","kworb","");
         first.artist="Singer";
         first.hints={album:"Debut"};
@@ -89,14 +89,21 @@ TestCase {
             return widget!==null && widget instanceof Vinyl.VinylItemCard;
         },2000,"Discover must use the VinylItemCard widget face");
         var song=findChild(browser,"discoverCard_known_widget");
-        compare(song.captionTitle,"Singer · from Debut");
+        tryCompare(song, "implicitHeight", song.width);
+        compare(song.height, song.width);
+        compare(song.captionTitle, "");
+        compare(findChild(song, "vinylSongTitle").text, first.title);
+        compare(findChild(song, "vinylSongArtist").text, "SINGER");
+        var wall = findChild(browser, "vinylDiscoverWall");
+        compare(wall.cellHeight, song.width + wall.gapY);
         var art=findChild(song,"vinylSongArtwork");
         verify(art!==null,"Expected the Home jukebox face");
         compare(art.imageStatus,Image.Null);
         verify(art.children.some(child=>child.visible && child.opacity===0.35),"Home's no-artwork glyph is visible");
         tryVerify(function(){return findChild(browser,"discoverCard_unknown_widget")!==null;});
         var other=findChild(browser,"discoverCard_unknown_widget");
-        compare(other.captionTitle,"Other singer");
+        compare(other.captionTitle, "");
+        compare(findChild(other, "vinylSongArtist").text, "OTHER SINGER");
         mouseClick(song,song.width/2,song.width/2);
         tryVerify(function(){return world.activated && world.activated.id==="known";});
         keyClick(Qt.Key_Right);
@@ -111,6 +118,7 @@ TestCase {
         var jewel=findChild(browser,"discoverCard_album_widget");
         verify(jewel!==null && jewel instanceof Vinyl.VinylItemCard);
         compare(jewel.captionDetail,"Band");
+        compare(wall.cellHeight, jewel.width + 64 + wall.gapY);
         var albumFace=findChild(jewel,"discoverCard_album_widget_cover");
         verify(albumFace.item instanceof Vinyl.VinylAlbumWidget);
         var albumArt=findChild(albumFace,"vinylArtworkImage").parent;
@@ -200,7 +208,8 @@ TestCase {
         verify(!browser.loading);
         tryVerify(function(){return findChild(browser,"discoverCard_week_widget")!==null;});
         var widget=findChild(browser,"discoverCard_week_widget");
-        compare(widget.captionTitle,"Singer");
+        compare(widget.captionTitle, "");
+        compare(findChild(widget, "vinylSongArtist").text, "SINGER");
         var artwork=findChild(widget,"vinylSongArtwork");
         verify(artwork!==null);
         compare(page.items[0].cover,"");
@@ -214,7 +223,8 @@ TestCase {
         source.completed(call.lane,call.id,{version:1,covers:{week:cover},albums:{week:"Debut"},settled:["week"]},"");
         compare(page.items[0].cover,cover);
         compare(findChild(browser,"discoverCard_week_widget"),widget);
-        compare(widget.captionTitle,"Singer · from Debut");
+        compare(widget.captionTitle, "");
+        compare(widget.implicitHeight, widget.width);
         tryCompare(artwork,"ready",true);
     }
     function test_next_page_cancels_art() {

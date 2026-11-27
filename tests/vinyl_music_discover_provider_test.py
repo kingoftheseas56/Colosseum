@@ -321,6 +321,39 @@ class WeeklyArtworkTest(unittest.TestCase):
         with self.assertRaises(p.InvalidArgumentError):
             p.handle(dict(request, items=[artist]))
 
+    def test_home_art_accepts_blank_recommendation_and_chart_items(self):
+        recommendation = dict(id="ytm:album:MPREfixture", source="youtube-music", providerId="MPREfixture",
+                              kind="albums", title="Release", artist="Artist", album="")
+        similar = p._discover_card("listenbrainz", "artists", "f013ab21-daa5-4aa5-98bc-efd6208e06b6",
+                                   "Artist", ["Artist"], "")
+        chart = p._discover_card("lastfm", "songs", "https://www.last.fm/music/Artist/_/Song",
+                                 "Song", ["Artist"], "")
+        image = "https://is1-ssl.mzstatic.com/song/100x100bb.jpg"
+        portrait = "https://cdn-images.dzcdn.net/images/artist/fixture/1000x1000.jpg"
+
+        def lookup(source, method, params, **kwargs):
+            if source == "deezer":
+                return response({"data": [{"name": "Artist", "picture_xl": portrait}]})
+            return response({"results": [{"artistName": "Artist", "collectionName": "Release",
+                                          "trackName": "Song", "artworkUrl100": image}]})
+
+        self.http.side_effect = lookup
+        items = [recommendation, similar, chart]
+        request = dict(operation="resolveCatalogueArt", value="hero", items=items)
+        p.handle(request)
+        self.drain()
+        result = p.handle(request)
+        self.assertEqual(result["settled"], [item["id"] for item in items])
+        resized = image.replace("100x100bb", "600x600bb")
+        self.assertEqual(result["covers"], {recommendation["id"]: resized,
+                                            similar["id"]: portrait, chart["id"]: resized})
+        self.assertEqual(self.http.call_count, 3)
+        self.make_youtube.assert_not_called()
+        with self.assertRaises(p.InvalidArgumentError):
+            p.handle(dict(request, items=[dict(recommendation, id="ytm:album:unrelated")]))
+        with self.assertRaises(p.InvalidArgumentError):
+            p.handle(dict(request, value="kworb", items=[recommendation]))
+
     def test_cached_browse_replies_while_itunes_enrichment_is_blocked(self):
         now = p.time.time()
         cards = [p._chart_card("kworb", "albums", f"Release {i}", ["Artist"], i + 1) for i in range(100)]

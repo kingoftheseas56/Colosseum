@@ -51,25 +51,27 @@ KeyboardAction {
     readonly property string songCredit: !albumText ? artistText
         : artistText ? qsTr("%1 · from %2").arg(artistText).arg(albumText)
         : qsTr("From %1").arg(albumText)
-    // Regular song cards already show the title on the jukebox face. Compact
-    // Crate tiles keep a separate title and credit in their two caption lines.
-    readonly property bool songCreditInTitle: includesTitle && !compactCaption
-    readonly property string captionTitle: songCreditInTitle ? songCredit : String(item.title || "")
-    readonly property string captionDetail: presentationKind === "artists" ? reason || qsTr("Artist")
+    // The jukebox face already shows both labels. Compact Crate tiles keep
+    // their separate title and credit in the two caption lines.
+    readonly property bool faceOnlySong: includesTitle && !compactCaption
+    readonly property string captionTitle: faceOnlySong ? "" : String(item.title || "")
+    readonly property string captionDetail: faceOnlySong ? ""
+        : presentationKind === "artists" ? reason || qsTr("Artist")
         : item.unavailable ? qsTr("Unavailable")
         : compactCaption && item.resumeTrack>0 && item.totalTracks>=item.resumeTrack ? reason
         : (presentationKind === "mixes" ? qsTr("Made for you")
             : presentationKind === "radio" ? qsTr("Station")
             : presentationKind === "albums" ? artistText || String(item.subtitle || "")
-            : songCreditInTitle ? "" : songCredit)
+            : songCredit)
     readonly property real captionTop: copy.y
     readonly property url artworkSource: worldData && item ? worldData.artwork(item.cover) : ""
     readonly property var mixArtworkSources: (item.artworkCovers || []).slice(0, 3).map(function(cover) {
         return root.worldData ? root.worldData.artwork(cover) : "";
     })
-    implicitHeight: art.height + (copy.height > 0 ? (compactCaption ? 7 : 14) + copy.height : 0) + (compactCaption ? 0 : 8)
+    implicitHeight: art.height + (copy.height > 0 ? (compactCaption ? 7 : 14) + copy.height : 0)
+        + (compactCaption || faceOnlySong ? 0 : 8)
     accessibleName: item.title + (item.unavailable ? ", unavailable" : "")
-        + (songCreditInTitle && songCredit ? ". " + songCredit : "")
+        + (faceOnlySong && artistText ? ". " + artistText : "")
         + (captionDetail ? ". " + captionDetail : "")
     onTriggered: if(worldData) worldData.activate(item)
 
@@ -155,6 +157,7 @@ KeyboardAction {
         spacing: root.compactCaption ? 0 : 4
         Text {
             objectName: root.objectName + "_captionTitle"
+            visible: !root.faceOnlySong
             width: parent.width
             height: root.compactCaption ? 18 : 20
             text: root.captionTitle
@@ -168,6 +171,7 @@ KeyboardAction {
         }
         Text {
             objectName: root.objectName + "_captionDetail"
+            visible: !root.faceOnlySong
             width: parent.width
             height: root.compactCaption ? 16 : 18
             text: root.captionDetail

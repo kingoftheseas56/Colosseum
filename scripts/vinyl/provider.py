@@ -4428,19 +4428,39 @@ def resolve_catalogue_item(request, client):
     return result
 
 
+def _hero_art_input(item):
+    # Home recommendation items have native YouTube Music IDs rather than
+    # hashed catalogue IDs. Accept the small art-only projection on this lane.
+    if not isinstance(item, dict) or item.get("source") != "youtube-music" or item.get("catalogueCard") is True:
+        return _catalogue_input(item)
+    kind, key = item.get("kind"), item.get("providerId")
+    kinds = {"songs": ("track", r"[A-Za-z0-9_-]{11}"), "albums": ("album", r"[A-Za-z0-9_-]{1,160}"),
+             "artists": ("artist", r"UC[A-Za-z0-9_-]{22}")}
+    title, artist, album = item.get("title"), item.get("artist"), item.get("album")
+    if (not isinstance(kind, str) or kind not in kinds
+            or not isinstance(key, str) or not re.fullmatch(kinds[kind][1], key)
+            or item.get("id") != f"ytm:{kinds[kind][0]}:{key}"
+            or not all(isinstance(value, str) and len(value) <= 600 for value in (title, artist, album))
+            or not title.strip()):
+        raise InvalidArgumentError("Invalid Home artwork identity.")
+    return {"id": item["id"], "source": item["source"], "kind": kind, "title": title.strip(),
+            "artists": [artist.strip()] if artist.strip() else [], "album": album}
+
+
 def resolve_catalogue_art(request):
     items = request.get("items")
     source = request.get("value")
     if source not in ("lastfm", "kworb", "editorial", "hero") or not isinstance(items, list) or len(items) > 12:
         raise InvalidArgumentError("Invalid music catalogue artwork request.")
     if source != "lastfm":
-        allowed_sources = {"kworb": ("kworb",), "editorial": ("kworb", "wikipedia"), "hero": ("lastfm",)}[source]
+        allowed_sources = {"kworb": ("kworb",), "editorial": ("kworb", "wikipedia"),
+                           "hero": ("lastfm", "apple-music", "listenbrainz", "youtube-music")}[source]
         covers, albums, settled, jobs = {}, {}, [], {}
         can_queue = (os.environ.get("COLOSSEUM_VINYL_DISCOVER_CACHE_DIR")
                      and os.environ.get("COLOSSEUM_VINYL_ART_POLL_ONLY") != "1")
         for item in items:
-            row = _catalogue_input(item)
-            if row["source"] not in allowed_sources or (source == "hero" and row["kind"] != "artists"):
+            row = _hero_art_input(item) if source == "hero" else _catalogue_input(item)
+            if row["source"] not in allowed_sources:
                 raise InvalidArgumentError("Invalid chart artwork request.")
             kind, item_id = row["kind"], row["id"]
             params = _vinyl_genre_lookup(kind, row["title"], row["artists"])

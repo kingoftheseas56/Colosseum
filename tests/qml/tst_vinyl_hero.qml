@@ -24,12 +24,26 @@ TestCase {
         function cancel(lane) {}
     }
     QtObject {
-        id: session
+        id: artSession
         property var source: artSource
+        property var library: []
         property bool profileActive: true
         property int profileGeneration: 1
     }
+    QtObject {
+        id: preferences
+        function setVinylTasteSelections() {}
+    }
+    Component {
+        id: recommendationFactory
+        QtObject {
+            property var homeSourcePool: ({})
+            property var selectedArtists: []
+            property string onboardingState: "answered"
+        }
+    }
     Component { id: houseFactory; House.FeaturedCarousel {} }
+    Component { id: worldFactory; Vinyl.VinylLiveWorldData { session: artSession; searchHistoryStore: null } }
     SignalSpy { id: playSpy; target: test.hero; signalName: "playRequested" }
     SignalSpy { id: radioSpy; target: test.hero; signalName: "radioRequested" }
     SignalSpy { id: openSpy; target: test.hero; signalName: "openRequested" }
@@ -157,7 +171,7 @@ TestCase {
             side.push(tile.children.find(child => child instanceof House.RoundedPosterImage));
         }
         for (var art of [main].concat(side)) compare(String(art.activeSource), "");
-        if ("session" in hero) hero.session = session;
+        hero.session = artSession;
         tryVerify(() => artSource.calls.length > 0);
         var first = artSource.calls[0];
         compare(first.operation, "resolveCatalogueArt");
@@ -176,8 +190,75 @@ TestCase {
         compare(findChild(hero, "vinylHeroSlide"), slide);
         compare(hero.itemId, artist.item.id);
         compare(artist.item.cover, "", "art must not mutate the ranked card");
-        session.profileGeneration++;
+        artSession.profileGeneration++;
         compare(String(main.activeSource), "");
+    }
+    function test_allFourLiveSlideKindsGetMainAndSideArt() {
+        artSource.calls = [];
+        var cover = String(card("albums", "fixture").cover);
+        var expected = [];
+        function chart(kind, provider, index) {
+            var id = provider + ":" + kind + ":" + index;
+            if (index < 2) expected.push(id);
+            return {kind:kind, id:id, title:"Chart " + id, cover:index < 3 ? "" : cover,
+                catalogueItem:{id:id, kind:kind, source:provider, catalogueCard:true, cover:index === 2 ? cover : ""}};
+        }
+        function pick(kind, providerId, prefix) {
+            var id = "ytm:" + prefix + ":" + providerId;
+            expected.push(id);
+            return {id:id, kind:kind, title:"Recommendation " + id, provider:"youtube-music",
+                providerId:providerId, cover:"", image:"", artistRefs:[{name:"Picked artist"}]};
+        }
+        var main = pick("albums", "MPREfixture", "album");
+        // Own-release recommendations can have a seed credit but no artistRefs.
+        main.artistRefs = [];
+        main.relation = "own-release";
+        main.seedArtistRef = {name:"Picked artist"};
+        var existing = {id:"picked-image", kind:"albums", title:"Existing image", image:cover};
+        var nested = {id:"picked-record", kind:"albums", title:"Existing record art", record:{cover:cover}};
+        var pool = {
+            charts:{albums:[0,1,2,3,4].map(i => chart("albums", "apple-music", i)),
+                songs:[0,1,2,3,4].map(i => chart("songs", "lastfm", i)),
+                artists:[0,1,2,3,4].map(i => chart("artists", "lastfm", i))},
+            forYou:[main, existing, nested],
+            songs:[pick("songs", "KCMCPsUpD3w", "track")],
+            artists:[pick("artists", "UCbRSywya_rl8YS15Lo9ttsA", "artist")]
+        };
+        var recommendations = createTemporaryObject(recommendationFactory, test, {homeSourcePool:pool});
+        var world = createTemporaryObject(worldFactory, test, {
+            preferencesStore:preferences, recommendationService:recommendations
+        });
+        verify(world !== null);
+        hero.slides = world.heroSlides;
+        hero.session = artSession;
+        compare(hero.slideCount, 4);
+        tryVerify(() => artSource.calls.length > 0);
+        var call = artSource.calls[0];
+        compare(call.lane, "home-hero-art");
+        compare(call.operation, "resolveCatalogueArt");
+        compare(call.value, "hero");
+        var requested = call.payload.items.map(item => item.id);
+        compare(requested.sort(), expected.sort());
+        var mainRequest = call.payload.items.find(item => item.id === main.id);
+        compare(mainRequest.artist, "Picked artist");
+        var covers = {};
+        for (var id of requested) covers[id] = cover;
+        artSource.completed(call.lane, call.id, {version:1, covers:covers, settled:requested}, "");
+        for (var i = 0; i < 4; ++i) {
+            jump(i);
+            var slide = findChild(hero, "vinylHeroSlide");
+            var artwork = [slide.children.find(child => child instanceof House.RoundedPosterImage)];
+            for (var row = 0; row < 4; ++row) {
+                var tile = findChild(hero, "vinylHeroSideRow_" + row);
+                artwork.push(tile.children.find(child => child instanceof House.RoundedPosterImage));
+            }
+            for (var image of artwork) {
+                compare(String(image.activeSource), cover, hero.slideKind);
+                tryCompare(image, "ready", true);
+            }
+        }
+        compare(hero.currentSlide.item.id, main.id);
+        compare(hero.currentSlide.item.cover, "");
     }
     function test_actionsKeepTypedItemsAndDistinctRadioDispatch() {
         jump(0); click("vinylHeroPlay"); click("vinylHeroOpen"); click("vinylHeroSave");

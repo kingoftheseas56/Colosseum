@@ -258,6 +258,11 @@ TestCase {
         updated.push({key:"v1:deep-cuts",homeKey:"deep-cuts",title:"Deep cuts",items:cards("songs",8)});
         gateData.v1HomeRows=updated;
         tryVerify(function(){var added=findChild(view,"vinylHomeRow_deep-cuts");return added && added.visible && added.itemCount===8;});
+        var song = findChild(view, "vinylCard_v1:deep-cuts_0");
+        verify(song !== null);
+        tryCompare(song, "height", song.width);
+        compare(song.captionTitle, "");
+        tryCompare(song.exposureRail, "height", song.width + 14);
         compare(findChild(view,"vinylHomeRow_mixes-radio"),shelf,"Unchanged shelf must retain its object");
         compare(findChild(shelf,"vinylCard_v1:mixes-radio_0"),tile,"Unchanged card must retain its object");
         var sameRowItems=updated[0].items.slice();

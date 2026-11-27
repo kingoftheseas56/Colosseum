@@ -74,9 +74,10 @@ Item {
 
     // ── injected world seam ──
     property var adapter: null
-    // Optional square-faced card with up to 64 px of caption. Its Loader parent
-    // supplies modelItem and open(); the grid remains the only keyboard stop.
+    // Optional square-faced card. Its Loader parent supplies modelItem and
+    // open(); the grid remains the only keyboard stop.
     property Component cardDelegate: null
+    property real cardDelegateCaptionHeight: 64
     // Opt-in for delegates whose state can follow a recycled model index.
     property bool reuseCardDelegates: false
     // Retained worlds stay instantiated for state preservation. The host drives this seam so a
@@ -1123,7 +1124,7 @@ Item {
                 // on EXACTLY wallPosterWidth, not floor(width/columnCount)'s residual-inflated value.
                 ? (browser.wallPosterWidth + 14)
                 : Math.floor(parent.width / columnCount)
-            cellHeight: browser.cardDelegate ? cellWidth - gapX + 64 + gapY
+            cellHeight: browser.cardDelegate ? cellWidth - gapX + browser.cardDelegateCaptionHeight + gapY
                 : browser._galleryPosters
                   ? (Math.floor((cellWidth - gapX) * browser._galleryMetrics.posterRatio)
                      + 10 + browser._galleryMetrics.titleMinHeight + gapY + 6)

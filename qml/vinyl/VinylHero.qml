@@ -28,29 +28,50 @@ Item {
     signal saveRequested(var item)
     signal hideRequested(var item)
 
-    // Home ranks Last.fm catalogue candidates, not Discover's Kworb cards.
-    // Send the original catalogue identity to the shared chart-art resolver and
-    // decorate the rendered artwork only; the ranked cards/actions stay intact.
+    // Charts carry catalogue identities; personalized picks can carry only a
+    // YouTube Music recommendation identity. Resolve both on the existing art
+    // lane without modifying the ranked cards or their action destinations.
     property var session: null
     readonly property var artSource: session ? session.source || null : null
     readonly property int artGeneration: session ? session.profileGeneration || 0 : 0
     readonly property bool artActive: visible && !!artSource && session.profileActive !== false && !session.shuttingDown
-    property var artistArt: ({})
+    property var resolvedArt: ({})
     property var artRequest: null
     property double artDeadline: 0
-    readonly property var missingArtistArt: {
+    readonly property var missingArt: {
         var cards = new Map();
         for (var slide of slides) {
             for (var item of [slide.item].concat(slide.sideItems || [])) {
-                var card = item && item.catalogueItem;
-                if (card && card.kind === "artists" && card.source === "lastfm"
-                    && !item.cover && !item.image && artistArt[card.id] === undefined)
-                    cards.set(card.id, card);
+                if (!item || existingArt(item)) continue;
+                var card = artIdentity(item);
+                if (card && resolvedArt[card.id] === undefined) cards.set(card.id, card);
             }
         }
         return Array.from(cards.values()).slice(0, 12);
     }
-    readonly property string missingArtKey: missingArtistArt.map(card => card.id).join("|")
+    readonly property string missingArtKey: missingArt.map(card => card.id).join("|")
+    function existingArt(item) {
+        var card = item.catalogueItem || {};
+        var record = item.record || (item.song || {}).album || {};
+        return item.cover || item.image || card.cover || card.image || record.cover || record.image || "";
+    }
+    function artIdentity(item) {
+        var card = item.catalogueItem;
+        if (card && ["lastfm", "apple-music", "listenbrainz", "youtube-music"].includes(card.source))
+            return card;
+        if (item.provider !== "youtube-music") return null;
+        var kind = Presentation.kind(item), providerId = String(item.providerId || "");
+        var pattern = kind === "albums" ? /^[A-Za-z0-9_-]{1,160}$/ : kind === "songs" ? /^[A-Za-z0-9_-]{11}$/
+            : kind === "artists" ? /^UC[A-Za-z0-9_-]{22}$/ : null;
+        if (!pattern || !pattern.test(providerId) || !item.title) return null;
+        var prefix = kind === "songs" ? "track" : kind.slice(0, -1);
+        var credit = item.artist || ((item.artistRefs || [])[0] || {}).name
+            || (item.relation === "own-release" ? (item.seedArtistRef || {}).name : "")
+            || Presentation.artist(item);
+        return {id:"ytm:" + prefix + ":" + providerId, source:item.provider, providerId:providerId,
+            kind:kind, title:String(item.title).slice(0, 600), artist:String(credit || "").slice(0, 600),
+            album:String(item.albumTitle || "").slice(0, 600)};
+    }
     onMissingArtKeyChanged: artDeadline = Date.now() + 180000
     onArtActiveChanged: if (artActive) artDeadline = Date.now() + 180000; else cancelArt()
     onArtSourceChanged: resetArt()
@@ -64,7 +85,7 @@ Item {
     }
     function resetArt() {
         cancelArt();
-        artistArt = ({});
+        resolvedArt = ({});
         artDeadline = Date.now() + 180000;
     }
     Timer {
@@ -75,7 +96,7 @@ Item {
         onTriggered: {
             if (hero.artRequest) return;
             if (Date.now() >= hero.artDeadline) { hero.artDeadline = 0; return; }
-            var cards = hero.missingArtistArt;
+            var cards = hero.missingArt;
             var id = hero.artSource.request("home-hero-art", "resolveCatalogueArt", "hero", {items:cards});
             if (id >= 0) hero.artRequest = {id:id, source:hero.artSource, cards:cards};
         }
@@ -89,17 +110,21 @@ Item {
             hero.artRequest = null;
             if (error || !data || data.version !== 1 || !data.covers || !data.settled || !data.settled.length) return;
             var settled = new Set(Array.from(data.settled));
-            var next = Object.assign({}, hero.artistArt);
+            var next = Object.assign({}, hero.resolvedArt);
             for (var card of request.cards) {
                 if (!settled.has(card.id)) continue;
                 var cover = data.covers[card.id];
                 next[card.id] = typeof cover === "string" ? cover : "";
             }
-            hero.artistArt = next;
+            hero.resolvedArt = next;
         }
     }
     function artwork(item) {
-        return String(item && (item.cover || item.image || (item.catalogueItem && artistArt[item.catalogueItem.id])) || "");
+        if (!item) return "";
+        var cover = existingArt(item);
+        if (cover) return String(cover);
+        var card = artIdentity(item);
+        return card ? resolvedArt[card.id] || "" : "";
     }
     function genre(item) { var tag=item.genre || (item.genres || item.tags || [])[0] || ""; return String(tag.name || tag); }
     function meta(slide) {

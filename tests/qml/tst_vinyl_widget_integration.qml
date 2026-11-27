@@ -81,7 +81,7 @@ TestCase {
         mouseClick(card, card.width / 2, card.height / 2);
         compare(libraryStub.activated, libraryStub.artists[0]);
     }
-    function test_sameCaptionBlockAcrossEveryWidget() {
+    function test_captionBlocksAndSongFaceOnly() {
         [130, 196].forEach(function(size) {
             var referenceHeight = -1;
             ["songs", "albums", "artists", "mixes", "radio"].forEach(function(kind) {
@@ -91,20 +91,24 @@ TestCase {
                 verify(card !== null);
                 var caption = findChild(card, card.objectName + "_caption");
                 verify(caption !== null);
-                compare(card.captionTop, size + 14);
-                compare(caption.y, size + 14);
-                if (referenceHeight < 0) referenceHeight = caption.height;
-                else compare(caption.height, referenceHeight);
                 if (kind === "songs") {
-                    compare(card.captionTitle, "Fixture singer · from Fixture album");
+                    compare(card.captionTitle, "");
                     compare(card.captionDetail, "");
-                    compare(labelCount(caption, "Fixture singer · from Fixture album"), 1);
+                    tryCompare(caption, "height", 0);
+                    compare(card.implicitHeight, size);
                     compare(labelCount(card, "Fixture title"), 1, "Song title stays inside its face");
-                    verify(card.accessibleName.includes("Fixture singer · from Fixture album"));
-                } else if (kind === "artists") {
-                    compare(card.captionTitle, "Fixture title");
-                    compare(card.captionDetail, "Artist");
-                    compare(labelCount(card, "Fixture title"), 1, "Artist name belongs to its host caption");
+                    compare(labelCount(card, "FIXTURE SINGER"), 1, "The face shows the only artist label");
+                    compare(card.accessibleName, "Fixture title. Fixture singer");
+                } else {
+                    compare(card.captionTop, size + 14);
+                    compare(caption.y, size + 14);
+                    if (referenceHeight < 0) referenceHeight = caption.height;
+                    else compare(caption.height, referenceHeight);
+                    if (kind === "artists") {
+                        compare(card.captionTitle, "Fixture title");
+                        compare(card.captionDetail, "Artist");
+                        compare(labelCount(card, "Fixture title"), 1, "Artist name belongs to its host caption");
+                    }
                 }
             });
         });
@@ -201,10 +205,12 @@ TestCase {
         verify(card !== null);
         compare(card.artistText, "Artist name");
         compare(card.secondaryText, "Unavailable\nFrom your listening");
-        compare(card.captionTitle, "Artist name");
-        compare(card.captionDetail, "Unavailable");
+        compare(card.captionTitle, "");
+        compare(card.captionDetail, "");
         verify(card.includesTitle);
-        verify(card.implicitHeight > 256, "Paper plus recommendation/availability must contribute to shelf height");
+        verify(!card.enabled);
+        compare(card.accessibleName, "Song title, unavailable. Artist name");
+        tryCompare(card, "implicitHeight", card.width);
         compare(String(card.artworkSource), "file:///resolved/cover.jpg");
         card.item = Object.assign({}, item, {unavailable:false, subtitle:"Album name"});
         compare(card.secondaryText, "From your listening\nAlbum name");

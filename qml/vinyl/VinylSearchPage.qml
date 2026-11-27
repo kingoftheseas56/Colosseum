@@ -17,15 +17,6 @@ SearchSurface {
     coverAspect: 1
     resultPresentation: artistPicker ? null : vinylResult
     resultLoadingPresentation: artistPicker ? null : vinylLoading
-    VinylSongWidget {
-        id: songLoadingMetrics
-        objectName: "vinylSearchSongLoadingMetrics"
-        visible: false
-        width: page.desktopResultCardWidth
-        displayFont: footerTheme.display
-        uiFont: footerTheme.ui
-        Accessible.ignored: true
-    }
     Component {
         id: vinylLoading
         Item {
@@ -34,9 +25,9 @@ SearchSurface {
             readonly property string kind: loadingHost ? loadingHost.loadingKind : ""
             readonly property bool artist: kind === "artists"
             readonly property bool song: kind === "songs"
-            readonly property real artworkHeight: artist ? width * 1.084
-                : song ? songLoadingMetrics.implicitHeight : width
-            implicitHeight: artworkHeight + (artist || song ? 8 : 53)
+            readonly property real artworkHeight: artist ? width * 1.084 : width
+            readonly property real songPaperHeight: width * 0.3
+            implicitHeight: artworkHeight + (song ? 0 : artist ? 8 : 53)
             Accessible.ignored: true
             Rectangle {
                 width: parent.width; height: placeholder.artworkHeight
@@ -63,14 +54,15 @@ SearchSurface {
                 }
                 Rectangle {
                     visible: placeholder.song
-                    x: 6; y: parent.width - 6; width: parent.width - 12
-                    height: parent.height - y - 6
+                    x: 6; y: parent.height - height - 6; width: parent.width - 12
+                    height: placeholder.songPaperHeight
                     color: "#45454a"
                 }
                 Column {
                     visible: placeholder.artist || placeholder.song
                     anchors.horizontalCenter: parent.horizontalCenter
-                    y: placeholder.artist ? parent.height * 0.85 : parent.width + 10
+                    y: placeholder.artist ? parent.height * 0.85
+                        : parent.height - 6 - (placeholder.songPaperHeight + height) / 2
                     width: parent.width * 0.56; spacing: 7
                     Rectangle { width: parent.width; height: 7; radius: 3; color: "#62636a" }
                     Rectangle { visible: placeholder.song; anchors.horizontalCenter: parent.horizontalCenter

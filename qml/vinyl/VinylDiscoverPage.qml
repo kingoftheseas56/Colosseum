@@ -42,14 +42,12 @@ Item {
         fallbackType: "songs"
         posterVisualProfile: "gallery"
         reuseCardDelegates: true
+        cardDelegateCaptionHeight: currentType === "songs" ? 0 : 64
         cardDelegate: Component {
             VinylItemCard {
                 id: widget
                 objectName: parent.objectName + "_widget"
-                item: {
-                    var raw = parent.modelItem && parent.modelItem.raw;
-                    return raw ? Object.assign({}, raw, {albumTitle: raw.hints && raw.hints.album || ""}) : ({});
-                }
+                item: (parent.modelItem && parent.modelItem.raw) || ({})
                 focusEnabled: false
                 worldData: QtObject {
                     readonly property var session: root.session

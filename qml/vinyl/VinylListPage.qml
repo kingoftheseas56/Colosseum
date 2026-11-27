@@ -111,7 +111,7 @@ Item {
                 onActiveFocusChanged: if(activeFocus) {root.currentIndex=index;root.selectedId=modelData.id}
                 Keys.onPressed: event => { if([Qt.Key_Left,Qt.Key_Right,Qt.Key_Up,Qt.Key_Down,Qt.Key_Home,Qt.Key_End,Qt.Key_PageUp,Qt.Key_PageDown].indexOf(event.key)>=0) nav.handle(event); }
                 width: (grid.width-(grid.columns-1)*24)/grid.columns
-                height: Math.max(implicitHeight,width+110)
+                height: faceOnlySong ? implicitHeight : Math.max(implicitHeight,width+110)
             }
         }
     }
