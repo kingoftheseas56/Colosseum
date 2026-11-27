@@ -3033,10 +3033,13 @@ _DISCOVER_RESPONSE_LIMIT = 2 * 1024 * 1024
 _DISCOVER_CACHE_LIMIT = 64 * 1024 * 1024
 _DISCOVER_CACHE_FILES = 512
 _DISCOVER_CACHE_LOCK = threading.Lock()
+_GENRE_CACHE_WRITE_LOCK = threading.Lock()
 _LASTFM_LOCK = threading.Lock()
 _LASTFM_NEXT_REQUEST = 0.0
 _LASTFM_TTL = 24 * 3600
 _DISCOVER_ART_TTL = 30 * 24 * 3600
+_VINYL_GENRE_TTL = 30 * 24 * 3600
+_LASTFM_TOP_TAGS = {"songs": "track.getTopTags", "albums": "album.getTopTags", "artists": "artist.getTopTags"}
 _CHART_USER_AGENT = "Colosseum-Vinyl/1.0 (open-source music app)"
 _CHART_TTL = 24 * 3600
 _WIKIPEDIA_TTL = 7 * _CHART_TTL
@@ -3052,11 +3055,11 @@ def _discover_hash(value):
                                      separators=(",", ":")).encode()).hexdigest()
 
 
-def _discover_read(key, valid):
+def _discover_read(key, valid, *, bucket=""):
     root = os.environ.get("COLOSSEUM_VINYL_DISCOVER_CACHE_DIR")
     if not root:
         return None
-    path = Path(root) / ("discover-v1-" + _discover_hash(key) + ".json")
+    path = Path(root) / bucket / ("discover-v1-" + _discover_hash(key) + ".json")
     try:
         with path.open("rb") as f:
             data = json.loads(f.read(_DISCOVER_RESPONSE_LIMIT + 1))
@@ -3070,11 +3073,11 @@ def _discover_read(key, valid):
     return None
 
 
-def _discover_write(key, entry):
+def _discover_write(key, entry, *, bucket="", file_limit=_DISCOVER_CACHE_FILES):
     root = os.environ.get("COLOSSEUM_VINYL_DISCOVER_CACHE_DIR")
     if not root:
         return
-    root = Path(root)
+    root = Path(root) / bucket
     path = root / ("discover-v1-" + _discover_hash(key) + ".json")
     if entry is None:
         with contextlib.suppress(OSError):
@@ -3084,7 +3087,8 @@ def _discover_write(key, entry):
     if len(encoded) > _DISCOVER_RESPONSE_LIMIT:
         return
     temporary = None
-    with _DISCOVER_CACHE_LOCK:
+    # Background tag pruning cannot hold up a foreground snapshot write.
+    with (_GENRE_CACHE_WRITE_LOCK if bucket else _DISCOVER_CACHE_LOCK):
         try:
             root.mkdir(parents=True, exist_ok=True)
             entries = []
@@ -3096,7 +3100,7 @@ def _discover_write(key, entry):
             total = len(encoded) + sum(size for _, size, _ in entries)
             count = len(entries) + 1
             for _, size, candidate in sorted(entries):
-                if total <= _DISCOVER_CACHE_LIMIT and count <= _DISCOVER_CACHE_FILES:
+                if total <= _DISCOVER_CACHE_LIMIT and count <= file_limit:
                     break
                 candidate.unlink(missing_ok=True)
                 total -= size
@@ -3113,20 +3117,39 @@ def _discover_write(key, entry):
                     temporary.unlink(missing_ok=True)
 
 
+_LASTFM_KEY_MISSING_LOGGED = False
+
+
+def _lastfm_key():
+    key = os.environ.get("COLOSSEUM_VINYL_LASTFM_API_KEY", "").strip()
+    if not key:
+        key_file = os.environ.get("COLOSSEUM_VINYL_LASTFM_KEY_FILE")
+        if key_file:
+            try:
+                with Path(key_file).open(encoding="utf-8-sig") as f:
+                    key = f.read(128).strip()
+            except (OSError, UnicodeError):
+                pass
+    return key if re.fullmatch(r"[a-fA-F0-9]{32}", key) else ""
+
+
+def _lastfm_missing_key():
+    global _LASTFM_KEY_MISSING_LOGGED
+    message = "Vinyl's catalogue key is missing"
+    with _LASTFM_LOCK:
+        if not _LASTFM_KEY_MISSING_LOGGED:
+            print(message, file=sys.stderr, flush=True)
+            _LASTFM_KEY_MISSING_LOGGED = True
+    return ProviderError(message, code="catalogue_key_missing")
+
+
 def _discover_http(source, method, params, language="", *, transport=None, timeout=8):
     global _LASTFM_NEXT_REQUEST
+    top_tags = source == "lastfm" and method in _LASTFM_TOP_TAGS.values()
     if source == "lastfm":
-        key = os.environ.get("COLOSSEUM_VINYL_LASTFM_API_KEY", "").strip()
+        key = _lastfm_key()
         if not key:
-            key_file = os.environ.get("COLOSSEUM_VINYL_LASTFM_KEY_FILE")
-            if key_file:
-                try:
-                    with Path(key_file).open(encoding="utf-8-sig") as f:
-                        key = f.read(128).strip()
-                except (OSError, UnicodeError):
-                    pass
-        if not re.fullmatch(r"[a-fA-F0-9]{32}", key):
-            raise ProviderUnavailableError("Last.fm is unavailable because its API key is missing or invalid.")
+            raise _lastfm_missing_key()
         url = "https://ws.audioscrobbler.com/2.0/?" + urllib.parse.urlencode(
             dict(params, method=method, api_key=key, format="json"))
         headers = {"User-Agent": "Colosseum Vinyl"}
@@ -3159,6 +3182,8 @@ def _discover_http(source, method, params, language="", *, transport=None, timeo
             expires = response.headers.get("Expires")
             date = response.headers.get("Date")
     except urllib.error.HTTPError as exc:
+        if top_tags and exc.code == 404:
+            return {"toptags": {"tag": []}}, "", "0", None, None
         if exc.code in (429, 503):
             raise RateLimitError(label + " is limiting catalogue requests.") from None
         raise ProviderUnavailableError(label + " is unavailable for this catalogue request.") from None
@@ -3167,6 +3192,8 @@ def _discover_http(source, method, params, language="", *, transport=None, timeo
             raise ProviderTimeoutError(label + " catalogue request timed out.") from None
         raise ProviderUnavailableError(label + " is unavailable for this catalogue request.") from None
     if isinstance(data, dict) and "error" in data:
+        if top_tags and data["error"] == 6:
+            return {"toptags": {"tag": []}}, directives, age, expires, date
         if source == "lastfm" and data["error"] == 29:
             raise RateLimitError("Last.fm is limiting catalogue requests.")
         raise ProviderUnavailableError(label + " could not provide this catalogue data.")
@@ -3261,14 +3288,15 @@ def _discover_card(source, kind, key, title, credits, image, year="", **hints):
             "source": source, "sourceIds": {"id": key}, "hints": dict(hints, artists=credits)}
 
 
-def _lastfm_page(kind, list_key, cursor, page_size, refresh):
+def _lastfm_page(kind, list_key, cursor, page_size, refresh, *, deep=False):
     # Last.fm's documented global chart only has track and artist methods.
     if list_key not in DISCOVER_TAGS and not (list_key == "chart" and kind != "albums"):
         raise InvalidArgumentError("Unsupported Last.fm list.")
-    binding = _discover_hash(["lastfm", kind, list_key, page_size])[:24]
+    binding = _discover_hash(["vinyl-popular" if deep else "lastfm", kind, list_key, page_size])[:24]
+    max_page = 2**31 - 1 if deep else 20
     page = cursor.get("page", 1)
     if cursor and (set(cursor) != {"page", "binding"} or cursor["binding"] != binding
-                   or type(page) is not int or not 2 <= page <= 20):
+                   or type(page) is not int or not 2 <= page <= max_page):
         raise InvalidArgumentError("Invalid Last.fm page cursor.")
     leaf = "track" if kind == "songs" else kind[:-1]
     chart = list_key == "chart"
@@ -3320,7 +3348,7 @@ def _lastfm_page(kind, list_key, cursor, page_size, refresh):
     data, stamp, stale = _discover_cached(
         ["lastfm-projection", method, params], _LASTFM_TTL, refresh, load, valid, honor_headers=True)
     items = data["items"]
-    complete = data["count"] < page_size or page == 20
+    complete = data["count"] < page_size or page == max_page
     return items, {} if complete else {"page": page + 1, "binding": binding}, stamp, stale, None
 
 
@@ -3512,19 +3540,37 @@ def _jio_page(kind, list_key, cursor, page_size, refresh):
     return items, next_cursor, min(stale_stamps or stamps), bool(stale_stamps), options
 
 
-def fetch_music_catalogue(request):
+def fetch_music_catalogue(request, client=None):
     kind, source, list_key = request.get("value"), request.get("catalogueSource"), request.get("list")
     page_size, cursor, refresh = request.get("pageSize", 50), request.get("cursor", {}), request.get("refresh", False)
     if (kind not in DISCOVER_KINDS or not isinstance(list_key, str) or len(list_key) > 180
             or not isinstance(cursor, dict) or type(page_size) is not int or not 1 <= page_size <= 50
             or type(refresh) is not bool or (cursor and refresh)):
         raise InvalidArgumentError("Invalid music catalogue page request.")
-    fetch = _lastfm_page if source == "lastfm" else _jio_page
-    items, next_cursor, stamp, stale, options = fetch(kind, list_key, cursor, page_size, refresh)
+    if source == "vinyl":
+        selected = request.get("genre", "all")
+        genre = "all" if selected == "all" else _vinyl_genre_key(selected)
+        if not genre or list_key not in ("chartWeek", "popular", "new"):
+            raise InvalidArgumentError("Unsupported Vinyl catalogue list or genre.")
+        if list_key in ("chartWeek", "new"):
+            can_tag = bool(_lastfm_key())
+            if genre != "all" and not can_tag:
+                raise _lastfm_missing_key()
+            snapshot = (fetch_chart_week({"operation": "chartWeek", "value": kind}, client)
+                        if list_key == "chartWeek" else _youtube_new(kind, client, refresh))
+            return _vinyl_snapshot_page(snapshot, kind, list_key, genre, cursor, page_size, can_tag)
+        # Last.fm has no worldwide album chart. Pop is its broadest album tag.
+        tag = ("pop" if kind == "albums" else "chart") if genre == "all" else genre
+        items, next_cursor, stamp, stale, options = _lastfm_page(kind, tag, cursor, page_size, refresh, deep=True)
+    else:
+        fetch = _lastfm_page if source == "lastfm" else _jio_page
+        items, next_cursor, stamp, stale, options = fetch(kind, list_key, cursor, page_size, refresh)
     result = {"version": 1, "kind": kind, "source": source, "list": list_key, "items": items,
               "nextCursor": next_cursor, "complete": not next_cursor,
               "fetchedAt": datetime.datetime.fromtimestamp(stamp, datetime.timezone.utc).isoformat(),
               "stale": stale, "warning": ""}
+    if source == "vinyl":
+        result["genre"] = genre
     if options is not None:
         result["listOptions"] = options
     return result
@@ -3762,6 +3808,191 @@ def fetch_chart_week(request, client=None):
                                kworbScope=kworb_scope if kworb else "")
 
 
+_VINYL_GENRE_ALIASES = {name: genre for genre in DISCOVER_TAGS
+                        for name in (genre.replace("-", " "), genre.replace("-", ""))}
+_VINYL_GENRE_ALIASES.update({"r b": "rnb", "r and b": "rnb", "rhythm and blues": "rnb",
+                             "hip hop rap": "hip-hop", "rap": "hip-hop", "heavy metal": "metal"})
+_GENRE_LOCK = threading.Lock()
+_GENRE_QUEUE = {}
+_GENRE_WORKER = None
+_GENRE_RETRY_AT = 0
+
+
+def _vinyl_genre_key(value):
+    return _VINYL_GENRE_ALIASES.get(_catalogue_text_key(_discover_text(value)), "")
+
+
+def _vinyl_top_genres(data):
+    envelope = data.get("toptags") if isinstance(data, dict) else None
+    if not isinstance(envelope, dict):
+        raise ProviderUnavailableError("Last.fm changed its top tags format.")
+    tags = envelope.get("tag", [])
+    if isinstance(tags, dict):
+        tags = [tags]
+    return sorted({genre for tag in _discover_rows(tags, 1000)
+                   if (genre := _vinyl_genre_key(tag.get("name")))})
+
+
+def _vinyl_genre_lookup(kind, item):
+    title = item["title"]
+    if kind == "artists":
+        return {"artist": title, "autocorrect": 1}
+    credits = item["hints"]["artists"]
+    if credits:
+        # Last.fm identifies tracks/albums by one artist, not a display byline.
+        return {"artist": credits[0], _LASTFM_TOP_TAGS[kind].split(".")[0]: title, "autocorrect": 1}
+    return None
+
+
+def _vinyl_genre_cache_key(kind, params):
+    # The same Last.fm identity may occur in two lists or come from different sources.
+    return _discover_hash([kind, {k: _catalogue_text_key(v) for k, v in params.items()}])
+
+
+def _vinyl_genre_bucket(key):
+    # Shard the bounded cache so each write prunes at most one small directory.
+    return "genres/" + key[0]
+
+
+def _vinyl_cached_genres(key):
+    entry = _discover_read(key, lambda v: isinstance(v, list) and all(g in DISCOVER_TAGS for g in v),
+                           bucket=_vinyl_genre_bucket(key))
+    if entry and time.time() < entry["time"] + entry["ttl"]:
+        return entry["value"]
+    return None
+
+
+def _vinyl_tag_worker():
+    global _GENRE_WORKER, _GENRE_RETRY_AT
+    while True:
+        with _GENRE_LOCK:
+            if not _GENRE_QUEUE:
+                _GENRE_WORKER = None
+                return
+            key = next(iter(_GENRE_QUEUE))
+            kind, params = _GENRE_QUEUE[key]
+        try:
+            if _vinyl_cached_genres(key) is None:
+                data, *_ = _discover_http("lastfm", _LASTFM_TOP_TAGS[kind], params, timeout=4)
+                genres = _vinyl_top_genres(data)
+                _discover_write(key, {"time": time.time(), "ttl": _VINYL_GENRE_TTL, "staleAllowed": False,
+                                      "value": genres}, bucket=_vinyl_genre_bucket(key), file_limit=256)
+        except (RateLimitError, ProviderTimeoutError) as exc:
+            with _GENRE_LOCK:
+                _GENRE_RETRY_AT = time.monotonic() + getattr(exc, "retry_after", 30)
+                _GENRE_QUEUE.clear()
+        except ProviderError:
+            # A request failure is not a successful empty tag result.
+            pass
+        finally:
+            with _GENRE_LOCK:
+                _GENRE_QUEUE.pop(key, None)
+
+
+def _vinyl_queue_genres(jobs):
+    global _GENRE_WORKER
+    if not jobs or not os.environ.get("COLOSSEUM_VINYL_DISCOVER_CACHE_DIR"):
+        return
+    with _GENRE_LOCK:
+        if time.monotonic() < _GENRE_RETRY_AT:
+            return
+        for key, job in jobs.items():
+            if len(_GENRE_QUEUE) >= 1024:
+                break
+            _GENRE_QUEUE.setdefault(key, job)
+        if _GENRE_WORKER is None:
+            # Only this worker tags items. It uses the same Last.fm throttle as Popular.
+            _GENRE_WORKER = threading.Thread(target=_vinyl_tag_worker, name="vinyl-genres")
+            _GENRE_WORKER.start()
+
+
+def _vinyl_snapshot_page(snapshot, kind, list_key, genre, cursor, page_size, can_tag):
+    items = snapshot["items"]
+    binding = _discover_hash(["vinyl", kind, list_key, genre, page_size, [item["id"] for item in items]])[:24]
+    offset = cursor.get("offset", 0)
+    if cursor and (set(cursor) != {"binding", "offset"} or cursor["binding"] != binding
+                   or type(offset) is not int or not 0 < offset < len(items) or (genre == "all" and offset % page_size)):
+        raise InvalidArgumentError("Invalid Vinyl catalogue cursor.")
+    matches, jobs = [], {}
+    for index, item in enumerate(items):
+        params = _vinyl_genre_lookup(kind, item)
+        key = _vinyl_genre_cache_key(kind, params) if params else None
+        genres = _vinyl_cached_genres(key) if key else []
+        if genres is None and can_tag:
+            jobs[key] = (kind, params)
+        if index >= offset and (genre == "all" or genre in (genres or [])):
+            matches.append((index, dict(item, genres=genres or [])))
+    # Offsets refer to the unfiltered snapshot, not the growing set of matches.
+    # New tags cannot move or duplicate cards in a continuation; a fresh filter
+    # selection sees newly tagged cards from the start of the list.
+    page = [item for _, item in matches[:page_size]]
+    next_cursor = {"binding": binding, "offset": matches[page_size - 1][0] + 1} if len(matches) > page_size else {}
+    _vinyl_queue_genres(jobs)
+    return dict(snapshot, source="vinyl", kind=kind, list=list_key, genre=genre, items=page,
+                genresPending=bool(jobs), complete=not next_cursor, nextCursor=next_cursor)
+
+
+def _youtube_new(kind, client, refresh):
+    ttl = 6 * 3600
+
+    def youtube():
+        return client if client is not None else _ytmusic_client("", bounded=True, user_agent=_CHART_USER_AGENT)
+
+    def load_releases():
+        raw = _call_provider(youtube().get_explore)
+        releases = _discover_rows(raw.get("new_releases") if isinstance(raw, dict) else None)
+        return releases, "", "0", None, None
+
+    releases, stamp, stale = _discover_cached(["vinyl-new", "releases"], ttl, refresh, load_releases,
+                                               lambda value: isinstance(value, list))
+    cards = {}
+    albums_read = 0
+    for row in releases:
+        title, key = _discover_text(row.get("title")), row.get("browseId")
+        if not title or not source_key(key):
+            continue
+        credits = _discover_rows(row.get("artists") or [], 100)
+        names = [name for artist in credits if (name := _discover_text(artist.get("name")))]
+        image = cover({"thumbnails": _catalogue_safe_thumbnails(row)})
+        if kind == "albums":
+            card = _discover_card("youtube-music", kind, key, title, names, image)
+            cards.setdefault(card["id"], card)
+        elif kind == "artists":
+            for artist in credits:
+                name, channel = _discover_text(artist.get("name")), artist.get("id")
+                if name and isinstance(channel, str) and re.fullmatch(r"UC[A-Za-z0-9_-]{22}", channel):
+                    card = _discover_card("youtube-music", kind, channel, name, [name], "")
+                    card["subtitle"] = ""
+                    cards.setdefault(card["id"], card)
+        else:
+            # The release shelf lists albums. Take songs from the first ten
+            # releases, not from the unrelated Trending shelf.
+            if albums_read >= 10 or len(cards) >= 100:
+                break
+            tracks, track_stamp, track_stale = _youtube_new_tracks(key, youtube, ttl, refresh)
+            albums_read += 1
+            stamp, stale = min(stamp, track_stamp), stale or track_stale
+            for track in tracks:
+                track_id, name = track.get("videoId"), _discover_text(track.get("title"))
+                if (not name or not isinstance(track_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{11}", track_id)
+                        or track.get("isAvailable") is False):
+                    continue
+                track_names = [name for artist in _discover_rows(track.get("artists") or [], 100)
+                               if (name := _discover_text(artist.get("name")))]
+                card = _discover_card("youtube-music", kind, track_id, name, track_names or names, image, album=title,
+                                      duration=_discover_number(track.get("duration_seconds")))
+                cards.setdefault(card["id"], card)
+    return _editorial_envelope("youtube-music", list(cards.values())[:100], stamp, stale, warning="")
+
+
+def _youtube_new_tracks(key, youtube, ttl, refresh):
+    def load():
+        album = _call_provider(youtube().get_album, key)
+        return _discover_rows(album.get("tracks") if isinstance(album, dict) else None), "", "0", None, None
+
+    return _discover_cached(["vinyl-new", "tracks", key], ttl, refresh, load, lambda value: isinstance(value, list))
+
+
 # List keys bind a directory family and a period, not a guessed article title.
 _WIKIPEDIA_LISTS = {
     "hot100-2025": ("List of Billboard Hot 100 number ones", "of 2025", "2025"),
@@ -3847,7 +4078,7 @@ def _catalogue_input(item, expected_id=None):
     title, artist, hints = item.get("title"), item.get("artist"), item.get("hints")
     ids = item.get("sourceIds")
     key = ids.get("id") if isinstance(ids, dict) else None
-    if (source not in ("lastfm", "jiosaavn", "apple-music", "listenbrainz") or kind not in DISCOVER_KINDS
+    if (source not in ("lastfm", "jiosaavn", "apple-music", "listenbrainz", "kworb", "youtube-music") or kind not in DISCOVER_KINDS
             or not isinstance(key, str) or not 1 <= len(key) <= 1600
             or identifier != f"{source}:{kind}:" + hashlib.sha256(key.encode()).hexdigest()[:24]
             or (expected_id is not None and identifier != expected_id)
@@ -3864,8 +4095,15 @@ def _catalogue_input(item, expected_id=None):
             or not all(isinstance(name, str) and 1 <= len(name) <= 600 for name in credits)
             or ", ".join(credits) != artist):
         raise InvalidArgumentError("Invalid music catalogue credits.")
-    return {"id": identifier, "source": source, "kind": kind, "title": title, "artists": credits,
-            "album": str(hints.get("album") or "")[:600], "duration": _discover_number(hints.get("duration"))}
+    result = {"id": identifier, "source": source, "kind": kind, "title": title, "artists": credits,
+              "album": str(hints.get("album") or "")[:600], "duration": _discover_number(hints.get("duration"))}
+    if source == "youtube-music":
+        pattern = {"songs": r"[A-Za-z0-9_-]{11}", "albums": r"[A-Za-z0-9_-]{1,160}",
+                   "artists": r"UC[A-Za-z0-9_-]{22}"}[kind]
+        if not re.fullmatch(pattern, key):
+            raise InvalidArgumentError("Invalid YouTube Music catalogue identity.")
+        result["youtubeId"] = key
+    return result
 
 
 _CATALOGUE_METADATA_SUFFIX = re.compile(
@@ -3886,6 +4124,18 @@ def resolve_catalogue_item(request, client):
         raise InvalidArgumentError("Invalid music catalogue identity.")
     row = _catalogue_input(request.get("item"), item_id)
     kind = row["kind"]
+    if row["source"] == "youtube-music":
+        # Exact source IDs need no search. The ordinary Vinyl routes still
+        # resolve the stream or fetch the release/profile only when tapped.
+        key = row["youtubeId"]
+        image = _discover_cover(request["item"].get("cover"), ("ytimg.com", "ggpht.com", "googleusercontent.com"))
+        result = {"version": 1, "id": item_id, "kind": kind, "matched": True, "cover": image}
+        if kind == "artists":
+            return dict(result, artistId="ytm:artist:" + key)
+        raw = {"title": row["title"], "artists": [{"name": name} for name in row["artists"]],
+               "thumbnails": [{"url": image}], "duration_seconds": row["duration"]}
+        record = song_record(dict(raw, videoId=key)) if kind == "songs" else album_card(raw, key)
+        return dict(result, albumId=record["id"], record=record)
     cache_key = ["tap", _discover_hash(row)]
     envelope = {"version": 1, "id": item_id, "kind": kind}
     cached = _discover_read(cache_key, lambda value: (
@@ -4360,11 +4610,11 @@ def handle(request, client=None, mb_client=None, population_client=None, source_
     if request.get("operation") == "wikipediaList":
         return fetch_wikipedia_list(request)
     discover_page = (request.get("operation") == "browseCatalogue"
-                     and request.get("catalogueSource") in ("lastfm", "jiosaavn"))
+                     and request.get("catalogueSource") in ("vinyl", "lastfm", "jiosaavn"))
     discover_art = request.get("operation") == "resolveCatalogueArt"
     if discover_page or discover_art:
         try:
-            return fetch_music_catalogue(request) if discover_page else resolve_catalogue_art(request)
+            return fetch_music_catalogue(request, client) if discover_page else resolve_catalogue_art(request)
         except ProviderError:
             raise
         except Exception:
@@ -4513,6 +4763,7 @@ def _wire_answer(raw):
 def main():
     raw = sys.stdin.buffer.read(1024 * 1024 + 1)
     sys.stdout.buffer.write(json.dumps(_wire_answer(raw), ensure_ascii=True).encode("utf-8"))
+    sys.stdout.buffer.flush()
 
 
 def serve():
@@ -4530,6 +4781,12 @@ def serve():
         sys.stdout.buffer.flush()
         if too_large:
             break
+    # A transient server closes stdin after its single request. Its reply is
+    # already flushed; let the background queue populate the cache before exit.
+    with _GENRE_LOCK:
+        worker = _GENRE_WORKER
+    if worker is not None:
+        worker.join()
 
 
 if __name__ == "__main__":

@@ -1,0 +1,6 @@
+{
+  "toptags": {
+    "@attr": {"artist": "Fixture new artist"},
+    "tag": [{"name": "METAL", "count": "100"}, {"name": "hip hop", "count": "40"}]
+  }
+}

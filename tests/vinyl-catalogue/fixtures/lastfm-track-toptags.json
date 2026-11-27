@@ -1,0 +1,11 @@
+{
+  "toptags": {
+    "@attr": {"artist": "KAROL G", "track": "BbY WOW"},
+    "tag": [
+      {"name": " Heavy Metal ", "count": 100},
+      {"name": "METAL", "count": 84},
+      {"name": "R&B", "count": 25},
+      {"name": "fixture tag not in Vinyl", "count": 6}
+    ]
+  }
+}

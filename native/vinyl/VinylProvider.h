@@ -236,7 +236,7 @@ public:
         if(lane=="named-collections" && operation!="album")return -1;
         cancel(lane);const int id=++m_serial;const bool home=homeOperation(operation);
         const bool discoverBrowse=operation=="browseCatalogue"
-            &&QStringList{"lastfm","jiosaavn"}.contains(payload.value("catalogueSource").toString());
+            &&QStringList{"vinyl","lastfm","jiosaavn"}.contains(payload.value("catalogueSource").toString());
         const bool discoverResolver=operation=="resolveCatalogueItem"||operation=="resolveCatalogueArt";
         const bool cacheable=!warming&&operation!="resolve"&&operation!="resolveVideo"&&!discoverBrowse&&!discoverResolver;
         if(home&&!metadata){
@@ -268,6 +268,12 @@ public:
         // Home cannot occupy a foreground warm worker. Overlap beyond the
         // warm pool and external helpers retain the one-shot contract.
         const bool server=warm&&!warm->busy&&reuseHelpers();
+        // A bundled snapshot helper must be able to reply before its tag queue
+        // drains, even if the warm slot is busy or helper reuse is disabled.
+        const bool transientTagger=!server&&discoverBrowse&&payload.value("catalogueSource")=="vinyl"
+            &&QStringList{"chartWeek","new"}.contains(payload.value("list").toString())
+            &&QFileInfo(m_helper).fileName()=="provider.py";
+        const bool lineProtocol=server||transientTagger;
         QProcess *process=nullptr;
         if(server){
             if(warm->process&&warm->process->state()==QProcess::Running){
@@ -304,7 +310,7 @@ public:
             return operation=="chartCandidates"&&(!error.isEmpty()||map.value("status")!="ready"
                 ||!map.value("complete").toBool()||map.value("items").toList().isEmpty());
         };
-        auto publish=[guard=QPointer<VinylProvider>(this),this,process,lane,id,home,homeLane,cacheable,path,key,operation,value,payload,timing,warm,server,deadline,reused,warming,traceEnabled,incompleteChart]
+        auto publish=[guard=QPointer<VinylProvider>(this),this,process,lane,id,home,homeLane,cacheable,path,key,operation,value,payload,timing,warm,server,deadline,reused,warming,traceEnabled,incompleteChart,transientTagger]
             (QVariant data,QString error,bool cleanReply,bool invalidEnvelope,QVariantMap fallback){
             if(!guard||m_active.value(lane)!=process)return;
             const auto received=timing->elapsed.elapsed();
@@ -321,6 +327,21 @@ public:
                     retireProcess(process);
                     if(!warming&&(!error.isEmpty()||cleanReply))replaceWorker(warm);
                 }
+            }else if(transientTagger&&cleanReply&&data.toMap().value("genresPending").toBool()
+                     &&process->state()==QProcess::Running){
+                if(auto *previous=m_tagging.take(lane))retireProcess(previous);
+                m_tagging.insert(lane,process);
+                connect(process,&QProcess::readyReadStandardError,process,[process]{process->readAllStandardError();});
+                connect(process,qOverload<int,QProcess::ExitStatus>(&QProcess::finished),this,[this,process,lane]{
+                    if(m_tagging.value(lane)==process)m_tagging.remove(lane);
+                    process->deleteLater();
+                });
+                QTimer::singleShot(m_catalogueIdleMs,this,[this,tagger=QPointer<QProcess>(process),lane]{
+                    if(tagger&&m_tagging.value(lane)==tagger.data()){
+                        m_tagging.remove(lane);
+                        retireProcess(tagger.data());
+                    }
+                });
             }else{
                 retireProcess(process);
             }
@@ -355,6 +376,10 @@ public:
             QJsonObject replyTrace{{"operation",operation},{"lane",lane},
                 {"requestId",id},{"cacheHit",result.value("_cached").toBool()},{"stale",result.value("_stale").toBool()},
                 {"workerReused",reused},{"elapsedMs",timing->elapsed.elapsed()},{"count",count},{"ok",error.isEmpty()&&result.value("status")!="unavailable"}};
+            if(operation=="browseCatalogue"&&payload.value("catalogueSource")=="vinyl"){
+                replyTrace["source"]="vinyl";
+                replyTrace["stale"]=result.value("stale").toBool();
+            }
             if(traceEnabled){
                 replyTrace["dispatched"]=ran;
                 if(ran){
@@ -416,7 +441,7 @@ public:
             finish({},error==QProcess::FailedToStart?"The music catalogue runtime is unavailable. Local music is still available.":"The music catalogue helper failed.");
         });
         connect(process,&QProcess::readyReadStandardError,this,[process]{process->readAllStandardError();});
-        auto parseReply=[this,finish,operation,timing,traceEnabled](const QByteArray &bytes){
+        auto parseReply=[this,finish,operation,timing,traceEnabled,discoverBrowse](const QByteArray &bytes){
             QJsonParseError parse;
             const auto doc=QJsonDocument::fromJson(bytes,&parse);
             const auto object=doc.object();
@@ -427,15 +452,19 @@ public:
             else if(!object.value("ok").toBool()){
                 if(operation=="lyrics"&&object.value("errorCode")=="rate_limited")
                     m_deferred["lrclib"]=m_clock()+qint64(qBound(1,object.value("retryAfterSeconds").toInt(60),3600))*1000;
+                if(discoverBrowse&&object.value("errorCode")=="catalogue_key_missing"&&!m_catalogueKeyMissingLogged){
+                    m_catalogueKeyMissingLogged=true;
+                    qWarning("Vinyl's catalogue key is missing");
+                }
                 finish({},object.value("error").toString("The music catalogue is unavailable."),true);
             }else finish(object.value("data").toVariant(),{},true);
         };
-        connect(process,&QProcess::readyReadStandardOutput,this,[process,output,finish,parseReply,server]{
+        connect(process,&QProcess::readyReadStandardOutput,this,[process,output,finish,parseReply,lineProtocol]{
             output->append(process->readAllStandardOutput());
-            if(output->size()>4*1024*1024+(server?1:0)){
+            if(output->size()>4*1024*1024+(lineProtocol?1:0)){
                 finish({},"The catalogue response exceeded its limit.");return;
             }
-            if(server){
+            if(lineProtocol){
                 const auto newline=output->indexOf('\n');
                 if(newline>=0){
                     if(newline!=output->size()-1)finish({},"The music catalogue helper failed.");
@@ -444,12 +473,12 @@ public:
             }
         });
         connect(process,qOverload<int,QProcess::ExitStatus>(&QProcess::finished),this,
-            [process,output,finish,parseReply,server](int code,QProcess::ExitStatus status){
+            [process,output,finish,parseReply,lineProtocol](int code,QProcess::ExitStatus status){
                 output->append(process->readAllStandardOutput());
-                if(code!=0||status!=QProcess::NormalExit||output->size()>4*1024*1024+(server?1:0)){
+                if(code!=0||status!=QProcess::NormalExit||output->size()>4*1024*1024+(lineProtocol?1:0)){
                     finish({},"The music catalogue helper failed.");return;
                 }
-                if(server){
+                if(lineProtocol){
                     const auto newline=output->indexOf('\n');
                     if(newline<0||newline!=output->size()-1)finish({},"The music catalogue helper failed.");
                     else parseReply(output->left(newline));
@@ -478,7 +507,7 @@ public:
 #endif
         const auto python=qEnvironmentVariable("COLOSSEUM_VINYL_PYTHON",bundled);
         const bool musicBrainz=QStringList{"artistIdentity","recommendationIdentity","recommendationDiscography"}.contains(operation);
-        auto launch=[guard=QPointer<VinylProvider>(this),this,process,deadline,lane,python,requestBytes,operation,value,payload,home,server,trace,finish,timing,reused]{
+        auto launch=[guard=QPointer<VinylProvider>(this),this,process,deadline,lane,python,requestBytes,operation,value,payload,home,lineProtocol,transientTagger,trace,finish,timing,reused]{
             if(!guard||m_active.value(lane)!=process)return;
             // A source may enter backoff while this accepted request waits for
             // a worker slot. Recheck at the point of actual dispatch as well.
@@ -491,9 +520,12 @@ public:
             if(home)deadline->start(operation=="artistCandidates"?8000:operation=="recommendationDiscography"?30000
                 :operation=="recommendationIdentity"||operation=="songCandidates"?20000:12000);
             else deadline->start(operation=="lyrics"?12000:operation=="discover"?18000:operation=="artistIdentity"?180000:90000);
-            if(server){
+            if(lineProtocol){
                 if(process->state()!=QProcess::Running)process->start(python,{"-I",m_helper,"--serve"});
-                if(guard&&m_active.value(lane)==process)process->write(requestBytes+"\n");
+                if(guard&&m_active.value(lane)==process){
+                    process->write(requestBytes+"\n");
+                    if(transientTagger)process->closeWriteChannel();
+                }
             }else{
                 process->start(python,{"-I",m_helper});
                 if(guard&&m_active.value(lane)==process){process->write(requestBytes);process->closeWriteChannel();}
@@ -534,6 +566,8 @@ public:
     Q_INVOKABLE void cancelAll(){
         m_suppressReplacement=true;
         m_waiting.clear();m_waitingWake->stop();for(const auto &lane:m_active.keys())cancel(lane);
+        for(auto *process:m_tagging)retireProcess(process);
+        m_tagging.clear();
         for(auto *slot:warmSlots()){
             auto *process=slot->process.data();
             slot->process=nullptr;slot->busy=false;++slot->idleGeneration;
@@ -545,6 +579,8 @@ signals:
     void completed(const QString &lane,int requestId,const QVariant &data,const QString &error);
     void profileLeaving();void profileEntered();void checkpointRequested();void shuttingDown();
 private:
+    QHash<QString,QProcess*> m_tagging;
+    bool m_catalogueKeyMissingLogged=false;
     bool reuseHelpers() const {
         return qEnvironmentVariable("COLOSSEUM_VINYL_REUSE_HELPERS")!="0"&&QFileInfo(m_helper).fileName()=="provider.py";
     }

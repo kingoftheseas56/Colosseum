@@ -63,6 +63,15 @@ EditorialRun runEditorialFixtures(const QString &cache, const QList<QJsonObject>
                   {"-I","-B",QStringLiteral(VINYL_FAKE_TRANSPORT),"--editorial-fixtures"});
     if(!process.waitForStarted(5000)) return {{},process.errorString().toUtf8()};
     for(const auto &request:requests) process.write(QJsonDocument(request).toJson(QJsonDocument::Compact)+'\n');
+    if(mode=="VINYL_TEST_TAGS_WAIT_FOR_REPLY"){
+        if(process.bytesAvailable()==0 && !process.waitForReadyRead(3500)){
+            process.kill();
+            process.waitForFinished(5000);
+            return {{},"No page was published while the fixture tag request was blocked."};
+        }
+        QFile release(QDir(cache).filePath("page-replied"));
+        if(!release.open(QIODevice::WriteOnly)) return {{},release.errorString().toUtf8()};
+    }
     process.closeWriteChannel();
     if(!process.waitForFinished(10000)){
         process.kill();
@@ -80,6 +89,12 @@ EditorialRun runEditorialFixtures(const QString &cache, const QList<QJsonObject>
 
 QJsonObject chartWeek(const QString &kind, const QString &scope = "global"){
     return {{"operation","chartWeek"},{"value",kind},{"scope",scope}};
+}
+
+QJsonObject vinylBrowse(const QString &kind, const QString &list, const QString &genre = "all",
+                         int pageSize = 50, const QJsonObject &cursor = {}){
+    return {{"operation","browseCatalogue"},{"catalogueSource","vinyl"},{"value",kind},
+            {"list",list},{"genre",genre},{"pageSize",pageSize},{"cursor",cursor}};
 }
 
 QJsonObject wikipediaList(const QString &key){
@@ -162,6 +177,146 @@ private slots:
             QCOMPARE(items.at(0).toObject().value("artist").toString(),QString("KAROL G, Judeline, rusowsky"));
             for(const auto &item:items) QVERIFY(item.toObject().value("rank").toInt()!=56); // Kworb's duplicate
         }
+    }
+    void vinylRoutesThisWeekAndNewForEveryKind(){
+        QTemporaryDir cache;
+        QVERIFY(cache.isValid());
+        const auto run=runEditorialFixtures(cache.path(),{vinylBrowse("songs","chartWeek","all",2),
+            vinylBrowse("albums","chartWeek"),vinylBrowse("artists","chartWeek"),vinylBrowse("songs","new"),
+            vinylBrowse("albums","new"),vinylBrowse("artists","new")});
+        QVERIFY2(run.answers.size()==6,run.diagnostics.constData());
+        for(int i=0;i<6;++i){
+            QVERIFY2(run.answers.at(i).value("ok").toBool(),qPrintable(QJsonDocument(run.answers.at(i)).toJson()));
+            QCOMPARE(run.data(i).value("source").toString(),QString("vinyl"));
+            QCOMPARE(run.data(i).value("genre").toString(),QString("all"));
+            QCOMPARE(run.data(i).value("list").toString(),i<3?QString("chartWeek"):QString("new"));
+            QVERIFY(!run.items(i).isEmpty());
+        }
+        QCOMPARE(run.items(0).size(),2);
+        QCOMPARE(run.items(0).at(0).toObject().value("source").toString(),QString("kworb"));
+        QCOMPARE(run.items(0).at(1).toObject().value("source").toString(),QString("youtube-music"));
+        QVERIFY(!run.data(0).value("complete").toBool());
+        for(int i=1;i<6;++i) QVERIFY(run.data(i).value("complete").toBool());
+        QCOMPARE(run.items(3).first().toObject().value("title").toString(),QString("Fixture new track"));
+        QCOMPARE(run.items(4).first().toObject().value("title").toString(),QString("Fixture new album"));
+        QCOMPARE(run.items(5).first().toObject().value("title").toString(),QString("Fixture new artist"));
+        QCOMPARE(run.diagnostics.count("YouTube Music new releases"),1);
+
+        const auto cursor=run.data(0).value("nextCursor").toObject();
+        QList<QJsonObject> requests{vinylBrowse("songs","chartWeek","all",2,cursor),
+                                    vinylBrowse("albums","chartWeek","all",2,cursor)};
+        for(int i : {0,3,4,5}){
+            const auto item=run.items(i).at(i==0?1:0).toObject();
+            requests.append(QJsonObject{{"operation","resolveCatalogueItem"},{"value",item.value("id")},{"item",item}});
+        }
+        const auto next=runEditorialFixtures(cache.path(),requests);
+        QVERIFY2(next.answers.size()==requests.size(),next.diagnostics.constData());
+        QVERIFY(!next.items(0).isEmpty());
+        QVERIFY(next.items(0).first()!=run.items(0).first());
+        QCOMPARE(next.answers.at(1).value("errorCode").toString(),QString("invalid_argument"));
+        for(int i=2;i<6;++i) QVERIFY2(next.data(i).value("matched").toBool(),qPrintable(QJsonDocument(next.answers.at(i)).toJson()));
+        QCOMPARE(next.data(3).value("record").toObject().value("tracks").toArray().first().toObject()
+                     .value("videoId").toString(),QString("abcdefghijk"));
+        QCOMPARE(next.data(4).value("record").toObject().value("browseId").toString(),QString("MPRE_fixture"));
+        QCOMPARE(next.data(5).value("artistId").toString(),QString("ytm:artist:UCedvOgsKFzcK3hA5taf3KoQ"));
+    }
+    void vinylSnapshotFiltersByLastfmTagsAndReusesPerItemCache(){
+        QTemporaryDir cache;
+        QVERIFY(cache.isValid());
+        const auto weeklyMetal=vinylBrowse("songs","chartWeek","metal",1);
+        const auto cold=runEditorialFixtures(cache.path(),{weeklyMetal},"VINYL_TEST_TAGS_WAIT_FOR_REPLY");
+        QVERIFY2(cold.answers.size()==1,cold.diagnostics.constData());
+        QVERIFY(cold.answers.at(0).value("ok").toBool());
+        QVERIFY(cold.data(0).value("genresPending").toBool());
+        QVERIFY(cold.items(0).isEmpty());
+        QVERIFY(cold.diagnostics.contains("track.getTopTags"));
+
+        const auto warm=runEditorialFixtures(cache.path(),{weeklyMetal,vinylBrowse("songs","chartWeek")});
+        QVERIFY2(warm.answers.size()==2,warm.diagnostics.constData());
+        QCOMPARE(warm.items(0).size(),1);
+        const auto item=warm.items(0).first().toObject();
+        QCOMPARE(item.value("title").toString(),QString("BbY WOW"));
+        QCOMPARE(item.value("genres").toArray(),QJsonArray({"metal","rnb"}));
+        QVERIFY(!warm.data(0).value("genresPending").toBool());
+        QVERIFY(!warm.diagnostics.contains("getTopTags"));
+        bool untagged=false, pop=false;
+        for(const auto &value:warm.items(1)){
+            const auto card=value.toObject();
+            if(card.value("title")=="Housewife") untagged=card.value("genres").toArray().isEmpty();
+            if(card.value("title")=="Stop The Wedding!") pop=card.value("genres").toArray()==QJsonArray({"pop"});
+        }
+        QVERIFY(untagged);
+        QVERIFY(pop);
+        const auto cursor=warm.data(0).value("nextCursor").toObject();
+        QVERIFY(!cursor.isEmpty());
+        const auto next=runEditorialFixtures(cache.path(),{vinylBrowse("songs","chartWeek","metal",1,cursor),
+                                                           vinylBrowse("songs","chartWeek","all",1,cursor)});
+        QVERIFY2(next.answers.size()==2,next.diagnostics.constData());
+        QCOMPARE(next.items(0).size(),1);
+        QCOMPARE(next.items(0).first().toObject().value("title").toString(),QString("Dai Dai"));
+        QVERIFY(next.data(0).value("complete").toBool());
+        QCOMPARE(next.answers.at(1).value("errorCode").toString(),QString("invalid_argument"));
+    }
+    void vinylNewGenresUseTrackAlbumAndArtistTopTags(){
+        QTemporaryDir cache;
+        QVERIFY(cache.isValid());
+        const auto cold=runEditorialFixtures(cache.path(),{vinylBrowse("songs","new"),vinylBrowse("albums","new"),
+                                                           vinylBrowse("artists","new")});
+        QVERIFY2(cold.answers.size()==3,cold.diagnostics.constData());
+        QVERIFY(cold.diagnostics.contains("track.getTopTags"));
+        QVERIFY(cold.diagnostics.contains("album.getTopTags"));
+        QVERIFY(cold.diagnostics.contains("artist.getTopTags"));
+        const auto warm=runEditorialFixtures(cache.path(),{vinylBrowse("songs","new","metal"),
+            vinylBrowse("albums","new","metal"),vinylBrowse("artists","new","metal"),
+            vinylBrowse("artists","new","hip-hop")});
+        QVERIFY2(warm.answers.size()==4,warm.diagnostics.constData());
+        const QStringList titles{"Fixture new track","Fixture new album","Fixture new artist","Fixture new artist"};
+        for(int i=0;i<titles.size();++i){
+            QCOMPARE(warm.items(i).size(),1);
+            QCOMPARE(warm.items(i).first().toObject().value("title").toString(),titles.at(i));
+        }
+        QVERIFY(!warm.diagnostics.contains("getTopTags"));
+    }
+    void vinylPopularUsesLastfmAndContinuesPastTheOldTwentyPageCap(){
+        QTemporaryDir cache;
+        QVERIFY(cache.isValid());
+        const auto first=runEditorialFixtures(cache.path(),{vinylBrowse("songs","popular","metal",1),
+            vinylBrowse("albums","popular","rock",1),vinylBrowse("artists","popular","all",1)});
+        QVERIFY2(first.answers.size()==3,first.diagnostics.constData());
+        QVERIFY(first.diagnostics.contains("tag.gettoptracks metal"));
+        QVERIFY(first.diagnostics.contains("tag.gettopalbums rock"));
+        QVERIFY(first.diagnostics.contains("chart.gettopartists"));
+        for(int i=0;i<3;++i){
+            QCOMPARE(first.items(i).size(),1);
+            QCOMPARE(first.items(i).first().toObject().value("source").toString(),QString("lastfm"));
+            QVERIFY(!first.data(i).value("complete").toBool());
+        }
+        auto cursor=first.data(0).value("nextCursor").toObject();
+        QCOMPARE(cursor.value("page").toInt(),2);
+        cursor["page"]=21;
+        const auto later=runEditorialFixtures(cache.path(),{vinylBrowse("songs","popular","metal",1,cursor),
+                                                            vinylBrowse("songs","popular","rock",1,cursor)});
+        QVERIFY2(later.answers.size()==2,later.diagnostics.constData());
+        QCOMPARE(later.items(0).first().toObject().value("title").toString(),QString("Fixture track 21-0"));
+        QCOMPARE(later.data(0).value("nextCursor").toObject().value("page").toInt(),22);
+        QCOMPARE(later.answers.at(1).value("errorCode").toString(),QString("invalid_argument"));
+    }
+    void vinylMissingLastfmKeyIsLoggedOnceAndDoesNotBlockWeeklyOrNew(){
+        QTemporaryDir cache;
+        QVERIFY(cache.isValid());
+        const auto popular=vinylBrowse("songs","popular");
+        const auto run=runEditorialFixtures(cache.path(),{popular,popular,vinylBrowse("songs","chartWeek","metal"),
+            vinylBrowse("songs","new","metal"),vinylBrowse("songs","chartWeek"),vinylBrowse("songs","new")},
+            "VINYL_TEST_MISSING_LASTFM");
+        QVERIFY2(run.answers.size()==6,run.diagnostics.constData());
+        for(int i=0;i<4;++i){
+            QCOMPARE(run.answers.at(i).value("errorCode").toString(),QString("catalogue_key_missing"));
+            QCOMPARE(run.answers.at(i).value("error").toString(),QString("Vinyl's catalogue key is missing"));
+        }
+        QCOMPARE(run.diagnostics.count("Vinyl's catalogue key is missing"),1);
+        QVERIFY(!run.items(4).isEmpty());
+        QVERIFY(!run.items(5).isEmpty());
+        QVERIFY(!run.diagnostics.contains("getTopTags"));
     }
     void editorialProviderReusesDailyAndWeeklyCaches(){
         QTemporaryDir cache;
@@ -391,11 +546,12 @@ private slots:
 
         const QVariantMap browseOptions{{"catalogueSource","lastfm"},{"kind","songs"},{"list","tag:rock"},
             {"cursor",QVariantMap{{"offset",0},{"token","next"}}}};
-        for(const auto &catalogueSource:{QString("lastfm"),QString("jiosaavn")}){
+        int replies=2;
+        for(const auto &catalogueSource:{QString("lastfm"),QString("jiosaavn"),QString("vinyl")}){
             auto options=browseOptions;options["catalogueSource"]=catalogueSource;
             for(int attempt=0;attempt<2;++attempt){
                 QVERIFY(source.request("catalogue-songs","browseCatalogue","songs",options)>0);
-                QTRY_COMPARE_WITH_TIMEOUT(done.size(),3+(catalogueSource=="jiosaavn"?2:0)+attempt,10000);
+                ++replies;QTRY_COMPARE_WITH_TIMEOUT(done.size(),replies,10000);
                 QVERIFY(done.last()[3].toString().isEmpty());
                 const auto browse=done.last()[2].toMap();
                 QVERIFY(!browse.value("_cached").toBool());
@@ -406,10 +562,10 @@ private slots:
         }
 
         QVERIFY(source.request("browse","album","discover-album-uuid")>0);
-        QTRY_COMPARE_WITH_TIMEOUT(done.size(),7,10000);QVERIFY(done.last()[3].toString().isEmpty());
+        ++replies;QTRY_COMPARE_WITH_TIMEOUT(done.size(),replies,10000);QVERIFY(done.last()[3].toString().isEmpty());
         QCOMPARE(done.last()[2].toMap().value("browseId").toString(),QString("MPRE_discover_album"));
         QVERIFY(source.request("play","resolve","discover-track")>0);
-        QTRY_COMPARE_WITH_TIMEOUT(done.size(),8,10000);QVERIFY(done.last()[3].toString().isEmpty());
+        ++replies;QTRY_COMPARE_WITH_TIMEOUT(done.size(),replies,10000);QVERIFY(done.last()[3].toString().isEmpty());
         QCOMPARE(done.last()[2].toMap().value("trackId").toString(),QString("discover-track"));
         QCOMPARE(done.last()[2].toMap().value("videoId").toString(),QString("abcdefghijk"));
     }

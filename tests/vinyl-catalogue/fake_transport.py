@@ -20,6 +20,7 @@ def serve_editorial_fixtures():
     provider = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(provider)
     ua = "Colosseum-Vinyl/1.0 (open-source music app)"
+    fake_lastfm_key = "0" * 32
 
     def fixture(name):
         print("fixture: " + name, file=sys.stderr)
@@ -31,9 +32,43 @@ def serve_editorial_fixtures():
 
     class FixtureHttp:
         def open(self, request, *, timeout):
-            assert request.get_header("User-agent") == ua
             url = urlsplit(request.full_url)
             assert url.scheme == "https"
+            if url.netloc == "ws.audioscrobbler.com":
+                assert request.get_header("User-agent") == "Colosseum Vinyl"
+                params = {key: values[0] for key, values in parse_qs(url.query).items()}
+                assert params["api_key"] == fake_lastfm_key
+                method = params["method"]
+                print("Last.fm method: " + method + " " + params.get("tag", ""), file=sys.stderr)
+                if method in ("track.getTopTags", "album.getTopTags", "artist.getTopTags"):
+                    if os.environ.get("VINYL_TEST_TAGS_WAIT_FOR_REPLY"):
+                        marker = Path(os.environ["COLOSSEUM_VINYL_DISCOVER_CACHE_DIR"]) / "page-replied"
+                        deadline = time.monotonic() + 5
+                        while not marker.exists():
+                            if time.monotonic() >= deadline:
+                                raise RuntimeError("The page did not reply before tagging completed")
+                            time.sleep(0.01)
+                    leaf = method.split(".")[0]
+                    assert params["autocorrect"] == "1"
+                    if params.get("track") in ("BbY WOW", "Dai Dai", "Fixture new track"):
+                        artist = {"BbY WOW": "KAROL G", "Dai Dai": "Shakira", "Fixture new track": "Fixture new artist"}
+                        assert params["artist"] == artist[params["track"]]
+                        return Response(fixture("lastfm-track-toptags.json"))
+                    if params.get("album") == "Fixture new album":
+                        assert params["artist"] == "Fixture new artist"
+                        return Response(fixture("lastfm-album-toptags.json"))
+                    if leaf == "artist" and params["artist"] == "Fixture new artist":
+                        return Response(fixture("lastfm-artist-toptags.json"))
+                    if params.get("track") == "Stop The Wedding!":
+                        return Response(b'{"toptags":{"tag":[{"name":"pop","count":100}]}}')
+                    return Response(b'{"toptags":{"tag":[]}}')
+                leaf = next(kind for kind in ("track", "artist", "album") if method.endswith(kind + "s"))
+                root = "topartists" if method == "tag.gettopartists" else leaf + "s"
+                page = int(params["page"])
+                rows = [{"name": f"Fixture {leaf} {page}-{i}", "artist": {"name": "Fixture artist"}}
+                        for i in range(int(params["limit"]))] if page <= 22 else []
+                return Response(json.dumps({root: {leaf: rows}}).encode())
+            assert request.get_header("User-agent") == ua
             if url.netloc == "kworb.net":
                 print("chart path: " + url.path, file=sys.stderr)
                 kind = {"/spotify/country/global_weekly.html": "songs", "/spotify/country/us_weekly.html": "songs",
@@ -58,6 +93,15 @@ def serve_editorial_fixtures():
             return Response(fixture(f"wikipedia-{name}.json"))
 
     class FixtureYouTube:
+        def get_explore(self):
+            print("YouTube Music new releases", file=sys.stderr)
+            return {"new_releases": [{"browseId": "MPRE_fixture", "title": "Fixture new album",
+                                     "artists": [{"id": "UCedvOgsKFzcK3hA5taf3KoQ", "name": "Fixture new artist"}]}]}
+
+        def get_album(self, browse_id):
+            assert browse_id == "MPRE_fixture"
+            return {"tracks": [{"videoId": "abcdefghijk", "title": "Fixture new track"}]}
+
         def get_charts(self, country):
             assert country in ("ZZ", "US")
             print("chart country: " + country, file=sys.stderr)
@@ -79,7 +123,9 @@ def serve_editorial_fixtures():
         return FixtureYouTube()
 
     with patch.object(provider.urllib.request, "build_opener", return_value=FixtureHttp()), \
-         patch.object(provider, "_ytmusic_client", side_effect=make_youtube):
+         patch.object(provider, "_ytmusic_client", side_effect=make_youtube), \
+         patch.dict(os.environ, {"COLOSSEUM_VINYL_LASTFM_API_KEY": "" if os.environ.get("VINYL_TEST_MISSING_LASTFM") else fake_lastfm_key,
+                                 "COLOSSEUM_VINYL_LASTFM_KEY_FILE": ""}):
         provider.serve()
 
 

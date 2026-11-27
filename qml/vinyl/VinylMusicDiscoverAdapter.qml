@@ -7,9 +7,8 @@ QtObject {
     required property var browser
     property var pending: null
     property var pendingArt: null
-    property var chartOptions: ({})
+    property bool catalogueKeyMissing: false
     readonly property string genreGroup: qsTr("Genre")
-    readonly property string languageGroup: qsTr("Language")
     readonly property string listGroup: qsTr("List")
     readonly property var genres: [
         {key:"pop",label:qsTr("Pop")}, {key:"rock",label:qsTr("Rock")},
@@ -25,11 +24,9 @@ QtObject {
         {key:"soundtrack",label:qsTr("Soundtrack")}, {key:"lo-fi",label:qsTr("Lo-fi")},
         {key:"ambient",label:qsTr("Ambient")}
     ]
-    readonly property var languages: [
-        {key:"tamil",label:qsTr("Tamil")}, {key:"telugu",label:qsTr("Telugu")},
-        {key:"malayalam",label:qsTr("Malayalam")}, {key:"kannada",label:qsTr("Kannada")},
-        {key:"hindi",label:qsTr("Hindi")}, {key:"punjabi",label:qsTr("Punjabi")},
-        {key:"bengali",label:qsTr("Bengali")}, {key:"marathi",label:qsTr("Marathi")}
+    readonly property var lists: [
+        {key:"chartWeek",label:qsTr("This week")}, {key:"popular",label:qsTr("Popular")},
+        {key:"new",label:qsTr("New")}
     ]
     signal resetRequested()
 
@@ -37,32 +34,17 @@ QtObject {
         return [{key:"songs",label:qsTr("Songs")},{key:"albums",label:qsTr("Albums")},{key:"artists",label:qsTr("Artists")}];
     }
 
-    function defaultCatalog(type) { return "lastfm"; }
+    function defaultCatalog(type) { return "vinyl"; }
 
     function catalogs(type) {
-        return [
-            {key:"lastfm",title:"Last.fm",sourceKind:"builtin",section:qsTr("Worldwide"),attribution:"Last.fm"},
-            {key:"jiosaavn",title:"JioSaavn",sourceKind:"builtin",section:qsTr("Indian"),attribution:"JioSaavn"}
-        ];
+        return [{key:"vinyl",title:"Vinyl",sourceName:"Vinyl",sourceKind:"builtin"}];
     }
 
-    function combinesFilters(type, catalogKey) { return catalogKey==="jiosaavn"; }
-
-    function listOptions(type, language) {
-        var choices=[{key:"default",label:qsTr("Top hits and editorial")}];
-        if(type==="albums")
-            choices.unshift({key:"new",label:qsTr("New releases")});
-        choices.push({key:"editorial",label:qsTr("Editorial")});
-        return choices.concat(chartOptions[type+":"+language] || []);
-    }
+    function combinesFilters(type, catalogKey) { return true; }
 
     function filters(type, catalogKey) {
-        if(catalogKey==="jiosaavn") {
-            return [{group:languageGroup,options:languages},
-                    {group:listGroup,options:listOptions(type,browser.filters[languageGroup] || "tamil")}];
-        }
-        var choices=type==="albums" ? genres : [{key:"chart",label:qsTr("Top worldwide")}].concat(genres);
-        return [{group:genreGroup,options:choices}];
+        return [{group:listGroup,options:lists},
+                {group:genreGroup,options:[{key:"all",label:qsTr("All")}].concat(genres)}];
     }
 
     function resolvePin(pin) {
@@ -87,54 +69,27 @@ QtObject {
     function reset() {
         if(pending) cancelRequest(pending.id);
         cancelArt();
-        chartOptions=({});
+        catalogueKeyMissing=false;
         resetRequested();
     }
 
     function fetchPage(state, cursor, generation, done) {
         cancelArt();
+        catalogueKeyMissing=false;
         if(!source) {done(generation,{failed:true,retryable:true});return;}
         var kind=state.type;
         var selected=state.filters || {};
         var catalog=state.catalogKey;
-        var list=selected[genreGroup] || (kind==="albums" ? "pop" : "chart");
-        var language="";
-        if(catalog==="jiosaavn") {
-            language=selected[languageGroup] || "tamil";
-            var listKey=selected[listGroup] || "default";
-            if(!listOptions(kind,language).some(choice=>choice.key===listKey))
-                listKey="default";
-            list=language+":"+listKey;
-        }
-        if(!cursor) {
-            browser.noticeText="";
-            if(language) {
-                // Keep the language and effective list visible. Last.fm
-                // defaults stay in the request until a Genre is chosen.
-                var effective={};
-                effective[languageGroup]=language;
-                effective[listGroup]=listKey;
-                if(JSON.stringify(browser.filters)!==JSON.stringify(effective))
-                    browser.filters=effective;
-            }
-        }
+        var list=selected[listGroup] || "chartWeek";
+        var genre=selected[genreGroup] || "all";
+        if(!cursor) browser.noticeText="";
         var lane="catalogue-"+kind;
         var id=source.request(lane,"browseCatalogue",kind,
-                              {catalogueSource:catalog,list:list,cursor:cursor || {},pageSize:50});
+                              {catalogueSource:catalog,list:list,genre:genre,cursor:cursor || {},pageSize:50});
         if(id<0) {done(generation,{failed:true,retryable:true});return;}
-        pending={id:id,source:source,lane:lane,kind:kind,catalog:catalog,list:list,language:language,
+        pending={id:id,source:source,lane:lane,kind:kind,catalog:catalog,list:list,genre:genre,
                  generation:generation,cursor:cursor || {},done:done};
         return function(){root.cancelRequest(id);};
-    }
-
-    function updateChartOptions(request, options) {
-        if(!request.language || !Array.isArray(options)) return;
-        var choices=options.filter(option=>option && typeof option.key==="string"
-            && option.key.length && typeof option.label==="string" && option.label.length
-            && !["default","new","editorial"].includes(option.key));
-        var next=Object.assign({},chartOptions);
-        next[request.kind+":"+request.language]=choices;
-        chartOptions=next;
     }
 
     function accept(lane,id,data,error) {
@@ -147,13 +102,14 @@ QtObject {
         pending=null;
         try {data=JSON.parse(JSON.stringify(data));} catch(conversionError) {data=null;}
         if(error || !data || data.version!==1 || data.kind!==request.kind
-            || data.source!==request.catalog || data.list!==request.list || !Array.isArray(data.items)) {
+            || data.source!==request.catalog || data.list!==request.list || data.genre!==request.genre
+            || !Array.isArray(data.items)) {
+            catalogueKeyMissing=error==="Vinyl's catalogue key is missing";
             request.done(request.generation,{failed:true,retryable:true});return;
         }
-        updateChartOptions(request,data.listOptions);
         var existingIds=Object.keys(request.cursor).length ? new Set(browser.items.map(item=>item.id)) : null;
         var incoming=data.items.filter(item=>item && item.id && item.catalogueCard===true
-            && item.kind===request.kind && item.source===request.catalog);
+            && item.kind===request.kind);
         if(existingIds) {
             incoming=incoming.filter(function(item) {
                 if(existingIds.has(item.id)) return false;
@@ -171,10 +127,14 @@ QtObject {
         request.done(request.generation,{items:items,nextCursor:Object.keys(cursor).length ? cursor : null,
             exhausted:data.complete!==false || !Object.keys(cursor).length || JSON.stringify(cursor)===JSON.stringify(request.cursor),
             freshness:date,warning:String(data.warning || "")});
+        var notices=[];
         if(data.stale && date)
-            browser.noticeText=qsTr("As of %1").arg(date);
-        if(request.catalog==="lastfm" && request.kind!=="albums") {
-            var missing=items.filter(item=>!item.cover).map(item=>item.raw);
+            notices.push(qsTr("As of %1").arg(date));
+        if(request.genre!=="all" && data.genresPending===true)
+            notices.push(qsTr("Genre results may be incomplete. Select the genre again to check for more."));
+        browser.noticeText=notices.join(" · ");
+        if(request.list==="popular" && request.kind!=="albums") {
+            var missing=items.filter(item=>!item.cover && item.raw.source==="lastfm").map(item=>item.raw);
             if(missing.length)
                 Qt.callLater(function(){root.requestArt(request,missing);});
         }

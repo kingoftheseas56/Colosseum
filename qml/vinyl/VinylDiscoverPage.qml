@@ -43,18 +43,19 @@ Item {
         posterVisualProfile: "gallery"
         textNoCatalogue: qsTr("No music charts are available.")
         textCatalogueEmpty: qsTr("This chart returned no music.")
-        textFilterEmpty: qsTr("This chart returned no music.")
+        textFilterEmpty: filters[music.genreGroup] ? qsTr("No music matches this genre.") : textCatalogueEmpty
         onItemOpenRequested: item => root.worldData.activate(item.raw)
         onFetchGenChanged: music.cancelArt()
         onActiveChanged: if(!active) music.cancelArt()
 
-        // Preserve the language when the shared picker selects a list.
+        textPageRetry: music.catalogueKeyMissing ? qsTr("Try again.") : qsTr("Couldn't reach the catalogue. Click to try again.")
+
         function _applyFilterKey(encoded) {
             if(!encoded.length) { clearFilter(); return; }
             var split=encoded.indexOf(_filterSep);
             var group=encoded.substring(0,split);
             var key=encoded.substring(split+_filterSep.length);
-            if(group===music.languageGroup && key!==filters[group]) filters=({});
+            if(group===music.genreGroup && key==="all") { clearFilter(group); return; }
             setFilter(group,key);
         }
     }

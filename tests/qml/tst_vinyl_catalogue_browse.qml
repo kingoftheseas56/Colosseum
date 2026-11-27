@@ -66,6 +66,8 @@ TestCase {
     function test_lazy_no_query_and_categories_cached(){
         compare(source.calls.length,0);
         browse.activeKind="songs";compare(source.calls.length,2);compare(last("songs").operation,"browseCatalogue");compare(last("songs").options.category,"");
+        // The legacy category/market client still uses its original route, not Vinyl Discover's list API.
+        compare(last("songs").options.catalogueSource,undefined);compare(last("songs").options.list,undefined);
         var categories=source.calls[0];source.completed(categories.lane,categories.id,{categories:[{title:"Rock",params:"opaque-rock",group:"Genres"}]},"");
         reply(last("songs"),[{id:"s1"}]);browse.activeKind="albums";compare(source.calls.length,3);reply(last("albums"),[{id:"a1"}]);
         browse.activeKind="songs";compare(source.calls.length,3);compare(browse.page("songs").items[0].id,"s1");compare(browse.categories[0].params,"opaque-rock");

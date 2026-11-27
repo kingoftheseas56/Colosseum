@@ -15,17 +15,18 @@ TestCase {
         }
         function cancel(lane) {}
     }
-    function replyToChart(list, entries, listOptions) {
+    function replyToCatalogue(list, genre, entries) {
         tryVerify(function() {
             return discoverSource.lastRequest && discoverSource.lastRequest.options.list === list
         }, 5000, "Expected Discover request for " + list)
         var request = discoverSource.lastRequest
         compare(request.operation, "browseCatalogue")
         compare(request.kind, "albums")
-        compare(request.options.catalogueSource, "jiosaavn")
+        compare(request.options.catalogueSource, "vinyl")
+        compare(request.options.genre, genre)
         discoverSource.completed(request.lane, request.id, {
-            version: 1, kind: request.kind, source: "jiosaavn", list: list,
-            items: entries, listOptions: listOptions || [], complete: true
+            version: 1, kind: request.kind, source: "vinyl", list: list, genre: genre,
+            items: entries, complete: true
         }, "")
     }
     function openDiscoverFilter() {
@@ -78,40 +79,36 @@ TestCase {
         var world = item("vinylWorld")
         var browser = item("vinylDiscoverBrowser")
         tryCompare(world, "currentTab", "discover")
-        tryCompare(browser, "currentSource", "Worldwide")
+        tryCompare(browser, "currentSource", "Vinyl")
         host.worldScroll.contentY = world.contentTop
         click("vinylDiscoverType_albums")
         tryCompare(browser, "currentType", "albums")
-        browser.selectSource("Indian")
-        compare(browser.currentCatalog.attribution, "JioSaavn")
-        replyToChart("tamil:default", [])
+        replyToCatalogue("chartWeek", "all", [])
 
         var filter = openDiscoverFilter()
-        keyClick(Qt.Key_Home) // All
-        keyClick(Qt.Key_Down) // Tamil (skips the Language heading)
-        keyClick(Qt.Key_Down) // Telugu
-        compare(filter.currentItem.modelData.text, "Telugu")
+        keyClick(Qt.Key_Home) // All filters
+        keyClick(Qt.Key_Down) // This week (skips the List heading)
+        keyClick(Qt.Key_Down) // Popular
+        compare(filter.currentItem.modelData.text, "Popular")
         keyClick(Qt.Key_Return)
-        replyToChart("telugu:default", [], [{key: "telugu-decade", label: "Telugu decade"}])
-        compare(browser.filters.Language, "telugu")
-        shot("discover-language")
+        replyToCatalogue("popular", "all", [])
 
         filter = openDiscoverFilter()
-        keyClick(Qt.Key_End)
-        compare(filter.currentItem.modelData.text, "Telugu decade")
+        keyClick(Qt.Key_Home)
+        for(var step=0;step<12 && filter.currentItem.modelData.text!=="Rock";step++)
+            keyClick(Qt.Key_Down)
+        compare(filter.currentItem.modelData.text, "Rock")
         keyClick(Qt.Key_Return)
-        var chosen = host.worldData.catalogue.albums.find(function(album) {
-            return album.language === "Telugu" && album.tracks.length > 1
-        })
+        var chosen = host.worldData.catalogue.albums.find(function(album) { return album.tracks.length > 1 })
         verify(chosen !== undefined)
-        replyToChart("telugu:telugu-decade", [{
+        replyToCatalogue("popular", "rock", [{
             id: "journey-album", albumId: chosen.id, kind: "albums", catalogueCard: true,
-            title: chosen.title, cover: host.worldData.artwork(chosen.cover), source: "jiosaavn"
+            title: chosen.title, cover: host.worldData.artwork(chosen.cover), source: "lastfm"
         }])
         tryCompare(discover, "loading", false)
         compare(discover.items.length, 1)
-        compare(browser.filters.Language, "telugu")
-        compare(browser.filters.List, "telugu-decade")
+        compare(browser.filters.Genre, "rock")
+        compare(browser.filters.List, "popular")
         shot("discover-list")
         tryVerify(function() { return item("discoverCard_journey-album") !== null })
         var origin = click("discoverCard_journey-album")
@@ -129,9 +126,9 @@ TestCase {
         tryCompare(host,"page","world")
         compare(world.currentTab,"discover")
         compare(browser.currentType, "albums")
-        compare(browser.currentCatalog.attribution, "JioSaavn")
-        compare(browser.filters.Language, "telugu")
-        compare(browser.filters.List, "telugu-decade")
+        compare(browser.currentSource, "Vinyl")
+        compare(browser.filters.Genre, "rock")
+        compare(browser.filters.List, "popular")
         verify(item("discoverCard_journey-album") !== null)
         tryVerify(function(){return Math.abs(host.worldScroll.contentY-origin)<4})
         shot("discover-return")

@@ -50,60 +50,77 @@ TestCase {
         tryVerify(function(){return source.calls.length>0;});
     }
     function last() {return source.calls[source.calls.length-1];}
-    function reply(request,items,cursor,options,stale) {
+    function reply(request,items,cursor,stale) {
         source.completed(request.lane,request.id,{version:1,kind:request.value,source:request.options.catalogueSource,
-            list:request.options.list,items:items,nextCursor:cursor || {},complete:!cursor,
-            fetchedAt:"2026-11-04",stale:!!stale,listOptions:options},"");
+            list:request.options.list,genre:request.options.genre,items:items,nextCursor:cursor || {},complete:!cursor,
+            fetchedAt:"2026-11-04",stale:!!stale},"");
     }
     function entry(id,provider,cover) {
         return {id:id,kind:"songs",catalogueCard:true,title:"Catalogue song",artist:"Artist",
-            source:provider || "lastfm",cover:cover===undefined ? "fixture.svg" : cover};
+            source:provider || "kworb",cover:cover===undefined ? "fixture.svg" : cover};
     }
-    function test_shared_shell_defaults_and_raw_activation() {
+    function pick(group,key) {
+        var picker=findChild(browser,"discoverFilterPicker");verify(picker!==null);
+        picker.picked(group+"|"+key);
+    }
+    function test_one_source_and_raw_activation() {
         compare(browser.posterVisualProfile,"gallery");compare(browser.currentType,"songs");
-        compare(browser.currentSource,"Worldwide");compare(browser.currentCatalog.attribution,"Last.fm");
-        compare(last().operation,"browseCatalogue");compare(last().options.catalogueSource,"lastfm");
-        compare(last().options.list,"chart");compare(last().options.pageSize,50);
-        reply(last(),[entry("one")]);compare(page.items.length,1);verify(browser.exhausted);
+        compare(browser.sources.length,1,"Discover must have exactly one source");
+        compare(browser.catalogMenuModel.filter(row=>row.key).length,1,"Discover must have exactly one catalogue");
+        compare(browser.currentSource,"Vinyl");compare(browser.currentCatalog.title,"Vinyl");
+        compare(last().operation,"browseCatalogue");compare(last().options.catalogueSource,"vinyl");
+        compare(last().options.list,"chartWeek");compare(last().options.pageSize,50);
+        reply(last(),[entry("one"),entry("two","youtube-music")]);compare(page.items.length,2);verify(browser.exhausted);
         compare(source.calls.length,1);compare(world.activated,null);
         browser.itemOpenRequested(page.items[0]);compare(world.activated.id,"one");verify(world.activated.catalogueCard);
-        browser.setFilter(browser.filterGroups[0].group,"rock");compare(last().options.list,"rock");
-        browser.selectType("albums");compare(last().options.list,"pop");
-        verify(!browser.filterGroups[0].options.some(choice=>choice.key==="chart"));
-        browser.selectType("artists");compare(last().options.list,"chart");
-        browser.selectType("songs");compare(last().options.list,"rock");
+        compare(world.activated.source,"kworb");
     }
-    function test_indian_combined_picker() {
-        browser.selectSource("Indian");
-        compare(browser.currentCatalog.attribution,"JioSaavn");
-        compare(last().options.list,"tamil:default");
-        compare(browser.filterGroups[0].options.length,8);
-        var picker=findChild(browser,"discoverFilterPicker");verify(picker!==null);
-        var language=browser.filterGroups[0].group;
-        var list=browser.filterGroups[1].group;
-        picker.picked(language+"|telugu");
-        compare(last().options.list,"telugu:default");
-        reply(last(),[entry("telugu","jiosaavn")],null,[{key:"telugu-chart",label:"Telugu decade"}]);
-        verify(browser.filterMenuModel.some(row=>row.key===list+"|telugu-chart"));
-        var count=source.calls.length;
-        picker.picked(list+"|telugu-chart");
-        compare(source.calls.length,count+1);
-        compare(last().options.list,"telugu:telugu-chart");
-        compare(browser.filters[language],"telugu");
-        count=source.calls.length;
-        picker.picked(language+"|malayalam");
-        compare(source.calls.length,count+1);
-        compare(last().options.list,"malayalam:default");
-        compare(browser.filters[list],"default");
-        verify(browser.activeFilterLabel.indexOf("Top hits and editorial")>=0);
-        browser.selectType("albums");browser.selectSource("Indian");
-        compare(browser.filterGroups[1].options[0].key,"new");
-        picker.picked(list+"|new");compare(last().options.list,"tamil:new");
+    function test_list_and_genre_picker_without_language() {
+        compare(browser.filterGroups.map(group=>group.group),["List","Genre"]);
+        compare(browser.filterGroups[0].options.map(choice=>choice.label),["This week","Popular","New"]);
+        compare(browser.filterGroups[1].options.length,24);
+        verify(browser.filterMenuModel.some(row=>row.key==="Genre|all" && row.text==="All"));
+        verify(!browser.filterMenuModel.some(row=>row.header==="Language"));
+        pick("Genre","metal");compare(last().options.list,"chartWeek");compare(last().options.genre,"metal");
+        compare(browser.filters.Genre,"metal");
+        pick("List","popular");compare(last().options.list,"popular");compare(last().options.genre,"metal");
+        pick("List","new");compare(last().options.list,"new");compare(last().options.genre,"metal");
+        pick("Genre","rock");compare(last().options.list,"new");compare(last().options.genre,"rock");
+        compare(browser.filters.List,"new");compare(browser.filters.Genre,"rock");
+        browser.selectType("albums");compare(last().options.list,"chartWeek");
+        browser.selectType("songs");compare(last().options.list,"new");compare(last().options.genre,"rock");
+        pick("Genre","all");compare(last().options.list,"new");compare(last().options.genre,"all");
+    }
+    function test_missing_key_is_plain_retry_and_does_not_block_other_lists() {
+        for (var list of ["chartWeek", "new", "popular"]) {
+            pick("List",list);
+            if (list!=="popular") {
+                reply(last(),[entry(list)]);
+                compare(page.items.length,1);verify(!browser.pageFailed);verify(!browser.bannerVisible);
+                pick("Genre","metal");
+            }
+            var request=last();
+            source.completed(request.lane,request.id,null,"Vinyl's catalogue key is missing");
+            verify(browser.pageFailed);verify(browser.pageRetryable);compare(browser.bannerText,"Try again.");
+            browser.retryPage();verify(last().id>request.id);compare(last().options.list,list);
+            pick("Genre","all");
+        }
+    }
+    function test_uncached_genre_page_explains_partial_results() {
+        pick("Genre","metal");
+        var request=last();
+        source.completed(request.lane,request.id,{version:1,kind:"songs",source:"vinyl",list:"chartWeek",
+            genre:"metal",items:[],complete:true,genresPending:true},"");
+        verify(!browser.pageFailed);
+        verify(browser.bannerText.indexOf("Genre results may be incomplete")>=0);
+        pick("Genre","metal");reply(last(),[entry("metal")]);
+        compare(page.items.length,1);verify(!browser.bannerVisible);
     }
     function test_art_updates_same_cards_and_stale_notice() {
+        pick("List","popular");
         var items=[];
         for(var i=0;i<40;i++) items.push(entry("song-"+i,"lastfm",""));
-        reply(last(),items,null,null,true);
+        reply(last(),items,null,true);
         compare(page.items.length,40);compare(last().operation,"browseCatalogue");
         verify(browser.bannerText.indexOf("As of 2026-11-04")>=0);
         tryVerify(function(){return last().operation==="resolveCatalogueArt";});
@@ -118,6 +135,7 @@ TestCase {
         compare(last().options.items.length,12);
     }
     function test_next_page_cancels_art() {
+        pick("List","popular");
         reply(last(),[entry("one","lastfm","")],{offset:12});
         tryVerify(function(){return last().operation==="resolveCatalogueArt";});
         var art=last();
@@ -146,6 +164,7 @@ TestCase {
         verify(browser.exhausted);
     }
     function test_duplicate_continuation_can_advance_cursor() {
+        pick("List","popular");
         reply(last(),[entry("one")],{offset:12});
         browser.requestPage();compare(last().options.cursor.offset,12);
         reply(last(),[entry("one")],{offset:24});
@@ -156,6 +175,7 @@ TestCase {
     }
     function test_missing_album_art_does_not_schedule_lookup() {
         browser.selectType("albums");
+        pick("List","popular");
         var call=last();
         var album=entry("album","lastfm","");
         album.kind="albums";
