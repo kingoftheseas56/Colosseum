@@ -86,7 +86,10 @@ QVariantMap convert(const QVariantMap &item,bool includeArtists) {
                 auto artist=value.toMap();artist["kind"]="artist";
                 auto converted=convert(artist,false);if(!converted.value("ok").toBool())continue;
                 const auto key=converted.value("key").toString();if(seen.contains(key))continue;
-                seen.insert(key);converted["name"]=artist.value("name",artist.value("title"));artists.append(converted);
+                seen.insert(key);
+                converted["name"]=VinylRecommendationIdentity::artistDisplayName(
+                    artist.value("name",artist.value("title")),converted.value("destination").toMap().value("providerId").toString());
+                artists.append(converted);
             }
         }
     }
@@ -94,6 +97,14 @@ QVariantMap convert(const QVariantMap &item,bool includeArtists) {
         {"destination",destination},{"artists",artists},{"mappingStatus",status},{"error",""}};
 }
 }
+QString VinylRecommendationIdentity::artistDisplayName(const QVariant &value, const QString &providerItemId) {
+    if(value.metaType().id()!=QMetaType::QString)return {};
+    const auto name=value.toString().trimmed();
+    static const QRegularExpression channelId("^(?:ytm:artist:)?UC[A-Za-z0-9_-]{22}$");
+    if(name.size()>4096||name.contains(QChar::Null)||name==providerItemId||channelId.match(name).hasMatch())return {};
+    return name;
+}
+
 QVariantMap VinylRecommendationIdentity::fromCatalogue(const QVariantMap &item) {
     return convert(item,true);
 }

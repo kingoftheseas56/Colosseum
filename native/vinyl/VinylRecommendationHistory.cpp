@@ -50,7 +50,7 @@ QVariantMap VinylRecommendationHistory::project(const Inputs &inputs,const QVari
     if(nowMs<=0||!inputs.healthy)return emptyProjection(false,true);
     struct Session {
         QString id,item,origin="unknown",outcome;
-        QVariantMap recording;
+        QVariantMap recording,artistNames;
         QVariantList contexts;
         QList<QPair<qint64,qint64>> intervals;
         qint64 at=0,outcomeAt=0,position=0;
@@ -111,8 +111,19 @@ QVariantMap VinylRecommendationHistory::project(const Inputs &inputs,const QVari
                 session.contexts.append(context->toJson().toVariantMap());
         };
         addContext(fact.value("releaseRef"),CanonicalEntityKind::Release);
-        for(const auto &artist:fact.value("artistRefs").toList())addContext(artist,CanonicalEntityKind::Artist);
         const auto action=fact.value("action").toString();
+        const auto names=fact.value("artistNames").toMap();
+        for(const auto &artist:fact.value("artistRefs").toList()) {
+            addContext(artist,CanonicalEntityKind::Artist);
+            if(action!="start")continue;
+            const auto artistRef=readRef(artist);
+            if(!artistRef||artistRef->kind()!=CanonicalEntityKind::Artist)continue;
+            const auto provider=artistRef->providerRef();
+            if(!provider||provider->providerId().value()!="youtube-music")continue;
+            const auto id=provider->itemId().value();
+            const auto name=VinylRecommendationIdentity::artistDisplayName(names.value(id),id);
+            if(!name.isEmpty())session.artistNames.insert(id,name);
+        }
         if(action=="start")session.started=true;
         else if(session.outcome.isEmpty() || at<session.outcomeAt) {
             session.outcome=action;session.outcomeAt=at;session.position=fact.value("positionMs").toLongLong();
@@ -137,6 +148,7 @@ QVariantMap VinylRecommendationHistory::project(const Inputs &inputs,const QVari
         }
         if(qualified>=10000 && session.started && session.origin=="manual")++manual;
         output.append(QVariantMap{{"sessionId",session.id},{"recording",session.recording},{"entities",session.contexts},
+            {"artistNames",session.artistNames},
             {"atMs",session.at},{"qualifiedMs",qualified},{"origin",session.started?session.origin:"unknown"},
             {"outcome",session.started?session.outcome:QString()},{"outcomeAtMs",session.outcomeAt},{"positionMs",session.position}});
     }

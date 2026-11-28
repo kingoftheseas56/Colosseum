@@ -1,4 +1,5 @@
 #include "VinylRecommendationService.h"
+#include "VinylRecommendationIdentity.h"
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QMetaMethod>
@@ -23,6 +24,9 @@ VinylRecommendationService::VinylRecommendationService(QObject *parent,std::func
     m_results={{"items",QVariantList()},{"nextCursor",QVariantMap()},{"query",""},{"status","idle"},{"error",""}};
     initializeHome(std::move(clock));
 }
+QString VinylRecommendationService::artistKey(const QString &provider, const QString &id) {
+    return QString::fromUtf8(QJsonDocument(QJsonArray{provider,"artist",id}).toJson(QJsonDocument::Compact));
+}
 QVariantMap VinylRecommendationService::artist(const QVariantMap &raw) {
     QString provider=raw.value("provider").toString(),id=raw.value("providerId").toString();
     const QString oldId=raw.value("id").toString();
@@ -34,11 +38,10 @@ QVariantMap VinylRecommendationService::artist(const QVariantMap &raw) {
     if((id.isEmpty()&&!legacy)||id.size()>4096||id.contains(QChar(0)))return {};
     if(provider=="youtube-music"&&!legacy&&!QRegularExpression("^UC[A-Za-z0-9_-]{22}$").match(id).hasMatch())return {};
     if(provider!="youtube-music"&&provider!="local"&&provider!="musicbrainz")return {};
-    const QString key=QString::fromUtf8(QJsonDocument(QJsonArray{provider,"artist",id}).toJson(QJsonDocument::Compact));
+    const QString key=artistKey(provider,id);
     if(raw.contains("key")&&raw.value("key").toString()!=key)return {};
-    QString name=raw.value("name",raw.value("title",raw.value("artist"))).toString();
-    if(name.isEmpty())name=id;
-    if(name.size()>4096||name.contains(QChar(0)))return {};
+    const auto name=VinylRecommendationIdentity::artistDisplayName(raw.value("name",raw.value("title",raw.value("artist"))),id);
+    if(name.isEmpty())return {};
     const QString image=raw.value("image",raw.value("cover")).toString();
     if(image.size()>16384||image.contains(QChar(0)))return {};
     QVariantMap out{{"key",key},{"id",key},{"kind","artist"},{"provider",provider},{"providerId",id},

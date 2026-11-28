@@ -131,6 +131,7 @@ private:
     QVariantMap m_results,m_cursor;
     void invalidate();
     void dispatch();
+    static QString artistKey(const QString &provider, const QString &id);
     static QVariantMap artist(const QVariantMap&);
     static QVariantList uniqueArtists(const QVariantList&);
     static int uniqueTasteArtistCount(const QVariantList&);
@@ -139,7 +140,7 @@ private:
     void initializeHome(std::function<qint64()>);
     void cancelHome(bool clear);
     void clearHomeProfile();
-    void homeSeedsChanged(bool refresh=true);
+    void homeSeedsChanged(bool refresh=true, bool playedOnly=false);
     void markHomeDirty();
     void flushHomeInputs();
     void visitHome();

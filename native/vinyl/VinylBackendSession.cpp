@@ -1258,14 +1258,31 @@ QVariantMap VinylBackendSession::listeningIdentity() const {
         if(!release.isEmpty())result["releaseRef"]=release;
     }
     QVariantList artists;
-    auto ids=track.value("artistIds").toStringList();if(ids.isEmpty())ids=album.value("artistIds").toStringList();
-    for(const auto &id:ids) {
+    QVariantMap artistNames;
+    const auto albumIds=album.value("artistIds").toStringList();
+    const auto albumNames=album.value("artists").toStringList();
+    const auto trackIds=track.value("artistIds").toStringList();
+    const auto trackNames=track.value("artists").toStringList();
+    const auto &ids=trackIds.isEmpty()?albumIds:trackIds;
+    for(qsizetype i=0;i<ids.size();++i) {
+        const auto &id=ids[i];
         const bool artistYt=id.startsWith("ytm:artist:");
+        const auto itemId=artistYt?id.mid(11):id;
         const auto ref=VinylRecommendationIdentity::fromCatalogue({{"kind","artist"},{"provider",artistYt?"youtube-music":"local"},
-            {"providerId",artistYt?id.mid(11):id}}).value("ref").toMap();
-        if(!ref.isEmpty() && !artists.contains(ref))artists.append(ref);
+            {"providerId",itemId}}).value("ref").toMap();
+        if(ref.isEmpty()||artists.contains(ref))continue;
+        artists.append(ref);
+        if(!artistYt)continue;
+        auto name=VinylRecommendationIdentity::artistDisplayName(trackIds.isEmpty()?QString():trackNames.value(i),itemId);
+        const auto albumIndex=albumIds.indexOf(id);
+        if(name.isEmpty()&&albumIndex>=0)
+            name=VinylRecommendationIdentity::artistDisplayName(albumNames.value(albumIndex),itemId);
+        if(!name.isEmpty())artistNames.insert(itemId,name);
     }
-    result["artistRefs"]=artists;return result;
+    result["artistRefs"]=artists;
+    // Display metadata travels with the local play fact, not inside typed refs.
+    if(!artistNames.isEmpty())result["artistNames"]=artistNames;
+    return result;
 }
 void VinylBackendSession::beginListeningFacts() {
     m_backend->listenRecorder.reset();m_backend->listens.reset();

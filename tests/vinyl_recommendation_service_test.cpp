@@ -43,7 +43,7 @@ QVariantMap localTasteArtist(int index)
     return {{QStringLiteral("kind"), QStringLiteral("artist")},
             {QStringLiteral("provider"), QStringLiteral("local")},
             {QStringLiteral("providerId"), id},
-            {QStringLiteral("name"), id}};
+            {QStringLiteral("name"), QStringLiteral("Fixture Local Artist %1").arg(index)}};
 }
 
 QVariantList withFiveDistinctTasteArtists(QVariantList seeds)
@@ -399,18 +399,32 @@ QVariantMap homeRow(const VinylRecommendationService &service, const QString &id
     return sectionById(service.homeSourcePool().value("rows").toList(), id);
 }
 
-void recordFixturePlay(ActivityStore &activity, int artist, qint64 at, int activeMs)
+void recordFixturePlay(ActivityStore &activity, int artist, qint64 at, int activeMs, bool skipped=false,
+                       bool includeArtistName=true)
 {
-    const auto id=artistSeed(artist).value("providerId");
-    QVariantMap fact{{"sessionId","played-"+QString::number(artist)},{"world","vinyl"},{"kind","music"},
+    const auto seed=artistSeed(artist);
+    const auto id=seed.value("providerId");
+    QVariantMap fact{{"sessionId",QString("played-%1-%2").arg(artist).arg(at)},{"world","vinyl"},{"kind","music"},
         {"titleKey","album"},{"itemKey","track"},{"title","Track"},{"utcOffsetMinutes",0},{"syncable",false}};
     auto start=fact;start["atMs"]=at;start["action"]="start";start["origin"]="manual";
     start["positionMs"]=0;start["durationMs"]=120000;
     start["entityRef"]=QVariantMap{{"identity","provider"},{"kind","recording"},{"providerId","youtube-music"},{"itemId","Abc123def45"}};
     start["artistRefs"]=QVariantList{QVariantMap{{"identity","provider"},{"kind","artist"},{"providerId","youtube-music"},{"itemId",id}}};
+    if(includeArtistName)start["artistNames"]=QVariantMap{{id.toString(),seed.value("name")}};
     QVERIFY(activity.recordMusicAction(start));
+    if(skipped){
+        auto outcome=start;outcome["atMs"]=at+1000+activeMs;outcome["action"]="skip";outcome["positionMs"]=activeMs;
+        QVERIFY(activity.recordMusicAction(outcome));
+    }
     fact["startAtMs"]=at+1000;fact["endAtMs"]=at+1000+activeMs;fact["activeMs"]=activeMs;fact["rateMilli"]=1000;
     QVERIFY(activity.recordPlaybackDelta(fact));
+}
+
+QSet<QString> requestedArtists(const FakeSource &source, const QString &operation)
+{
+    QSet<QString> ids;
+    for(const auto &call:source.callsFor(operation))ids.insert(call.value);
+    return ids;
 }
 
 QString fixtureArtistMbid(int artist)
@@ -925,13 +939,16 @@ private slots:
     }
 
     void visibleExposureDoesNotRerankTheCurrentVisit() {
-        HomeFixture fixture({artistSeed(1)});ActivityStore activity;fixture.service.setActivityStore(&activity);
+        // A single real pick is valid without the old five-artist gate.
+        HomeFixture fixture({artistSeed(1)},kFixedNowMs,false);
+        ActivityStore activity;fixture.service.setActivityStore(&activity);
+        runHomeVisit(fixture.service);
         const auto call=fixture.source.pendingRequests("artistCandidates").first();
         auto payload=fixture.source.defaultReply(call);QVariantList candidates;
         for(int i=0;i<16;++i)candidates.append(albumCandidate(call.options.value("seed").toMap(),
             QString("MPRE_%1").arg(i,8,10,QLatin1Char('0')),QString("Release %1").arg(i)));
         payload["items"]=candidates;fixture.source.complete(call,payload);QCoreApplication::processEvents();
-        const auto before=sectionItems(fixture.service,"from-your-artists");QCOMPARE(before.size(),3);
+        const auto before=sectionItems(fixture.service,"from-your-artists");QCOMPARE(before.size(),12);
         const auto token=fixture.service.homeSnapshot().value("exposureSnapshotId").toString();
         const auto ref=before.first().toMap().value("ref").toMap();
         QVERIFY(fixture.service.recordVisibleItems("from-your-artists",token,{ref},0));
@@ -939,6 +956,7 @@ private slots:
         // An unrelated input refresh within the visit must not apply the new
         // exposure either. The fatigue is retained for the next Home visit.
         fixture.service.setHomeCollections({{"songs",QVariantList()}});
+        expireHomeInputs(fixture.service);
         QCOMPARE(sectionItems(fixture.service,"from-your-artists"),before);
         runHomeVisit(fixture.service);
         QVERIFY(sectionItems(fixture.service,"from-your-artists")!=before);
@@ -952,8 +970,18 @@ private slots:
         const auto seed=call.options.value("seed").toMap();
         const auto other=artistSeed(2);auto related=other;related["title"]=other.value("name");
         related["relation"]="related-artist";related["seedArtistRef"]=seed;related["artistRefs"]=QVariantList();
-        payload["items"]=QVariantList{own,related};fixture.source.complete(call,payload);QCoreApplication::processEvents();
-        QCOMPARE(sectionItems(fixture.service,"from-your-artists").size(),1);
+        auto credit=seed;credit["name"]="Provider Credit";
+        const auto credited=albumCandidate(seed,"MPRE_provider_credit","Credited Album",{{"artistRefs",QVariantList{credit}}});
+        payload["items"]=QVariantList{own,related,credited};fixture.source.complete(call,payload);QCoreApplication::processEvents();
+        const auto cards=sectionItems(fixture.service,"from-your-artists");
+        QCOMPARE(cards.size(),2);
+        for(const auto &entry:cards) {
+            const auto card=entry.toMap();
+            const auto credits=card.value("artistRefs").toList();
+            QCOMPARE(credits.size(),1);
+            QCOMPARE(credits.first().toMap().value("name").toString(),
+                     card.value("title")==own.value("title")?seed.value("name").toString():QString("Provider Credit"));
+        }
         const QVariantMap artist{{"identity","provider"},{"kind","artist"},{"providerId","youtube-music"},{"itemId",seed.value("providerId")}};
         QVERIFY(fixture.service.setFeedback(artist,"exclude-artist",0));
         QVERIFY(sectionItems(fixture.service,"from-your-artists").isEmpty());
@@ -963,7 +991,7 @@ private slots:
             const auto item=value.toMap();return item.value("title")==own.value("title")&&!item.value("excludedArtistRefs").toList().isEmpty();
         }));
         QVERIFY(fixture.service.setFeedback(artist,"allow-artist",0));
-        QCOMPARE(sectionItems(fixture.service,"from-your-artists").size(),1);
+        QCOMPARE(sectionItems(fixture.service,"from-your-artists").size(),2);
     }
     void retainedLibraryRowsRequireQualifiedHistoryAndOrderByEvidence() {
         HomeFixture fixture({});ActivityStore activity;
@@ -1142,6 +1170,194 @@ private slots:
         QCOMPARE(fixture.service.homeSnapshot().value("qualifiedManualSessions").toInt(),0);
         QCOMPARE(sectionItems(fixture.service,"from-your-artists").first().toMap().value("score").toLongLong(),card.value("score").toLongLong()+1000);
         QVERIFY(!fixture.preferences.feedback.isEmpty());
+    }
+    void playedArtistCandidatesDoNotBlockCorePublication()
+    {
+        ActivityStore activity;
+        const auto picked=artistSeed(1);
+        const auto played=artistSeed(11).value("providerId").toString();
+        HomeFixture fixture({picked},kFixedNowMs,false);
+        fixture.source.cacheArtistSeed(picked);
+        fixture.service.setActivityStore(&activity);
+        recordFixturePlay(activity,11,kFixedNowMs-30000,12000);
+        runHomeVisit(fixture.service);
+
+        QCOMPARE(fixture.service.homeStatus(),QString("ready"));
+        QVERIFY(fixture.source.callsFor("artistCandidates").isEmpty());
+        QTRY_VERIFY(requestedArtists(fixture.source,"artistCandidates").contains(played));
+        QVERIFY(!fixture.source.pendingRequests("artistCandidates").isEmpty());
+        QCOMPARE(fixture.service.homeStatus(),QString("ready"));
+        QVERIFY(sectionHasProviderId(fixture.service,"from-your-artists","MPRE_00000001"));
+    }
+    void listeningSeedsAlbumsAndDeepCutsWithoutPicks()
+    {
+        ActivityStore activity;
+        HomeFixture fixture({},kFixedNowMs,false,false);
+        auto &service=fixture.service;
+        auto &source=fixture.source;
+        source.manualListening=true;
+        service.setActivityStore(&activity);
+        QSet<QString> played;
+        for(int index:{11,12,13}) {
+            recordFixturePlay(activity,index,kFixedNowMs-index*30000,10000);
+            played.insert(artistSeed(index).value("providerId").toString());
+        }
+        runHomeVisit(service);
+        for(int pass=0;pass<24;++pass){
+            QCoreApplication::processEvents(QEventLoop::AllEvents,20);
+            const auto pending=source.pendingRequests("artistCandidates");
+            if(pending.isEmpty())break;
+            for(const auto &call:pending){
+                auto reply=source.defaultReply(call);
+                const auto seed=call.options.value("seed").toMap();
+                const auto name=artistSeed(call.value.right(2).toInt()).value("name");
+                auto credit=seed;credit["name"]=name;
+                QVariantList albums;
+                for(int n=0;n<4;++n){
+                    const auto id=QString("MPRE_played_%1_%2").arg(call.value.right(2)).arg(n);
+                    albums.append(albumCandidate(seed,id,"Album "+id,{{"artistRefs",QVariantList{credit}}}));
+                }
+                reply["items"]=albums;reply["artist"]=QVariantMap{{"name",name}};
+                source.complete(call,reply);
+            }
+        }
+        QVERIFY(service.selectedArtists().isEmpty());
+        QCOMPARE(requestedArtists(source,"artistCandidates"),played); // Fails without organic seeds.
+        const auto seedNameFor=[](const QString &providerId){
+            for(int index:{11,12,13}) {
+                const auto seed=artistSeed(index);
+                if(seed.value("providerId").toString()==providerId)return seed.value("name").toString();
+            }
+            return QString();
+        };
+        const auto checkCard=[&](const QVariantMap &card){
+            const auto credits=card.value("artistRefs").toList();
+            QVERIFY(!credits.isEmpty());
+            const auto seedName=seedNameFor(credits.first().toMap().value("providerId").toString());
+            QVERIFY(!seedName.isEmpty());
+            // The reason names the played artist by display name, never by provider id.
+            QCOMPARE(card.value("reason").toString(),QString("Because you played %1").arg(seedName));
+            for(const auto &value:credits) {
+                const auto creditName=value.toMap().value("name").toString();
+                QCOMPARE(creditName,seedName);
+                QVERIFY(!creditName.startsWith("UC"));
+            }
+        };
+        const auto albums=homeRow(service,"albums-for-you").value("items").toList();
+        QVERIFY(albums.size()>=8);
+        QSet<QString> credited;
+        for(const auto &entry:albums){
+            const auto card=entry.toMap();
+            checkCard(card);
+            credited.insert(card.value("artistRefs").toList().value(0).toMap().value("providerId").toString());
+        }
+        QCOMPARE(credited,played);
+        for(const auto &call:source.callsFor("artistCandidates"))
+            QCOMPARE(call.options.value("seed").toMap().value("name").toString(),seedNameFor(call.value));
+        for(int pass=0;pass<40;++pass){
+            QCoreApplication::processEvents(QEventLoop::AllEvents,20);
+            const auto pending=source.pendingRequests();if(pending.isEmpty())break;
+            for(const auto &call:pending){
+                auto reply=source.defaultReply(call);
+                if(call.operation=="album"){
+                    const auto index=call.value.section('_',2,2).toInt();
+                    const auto seed=artistSeed(index);
+                    const QStringList ids{seed.value("id").toString()},names{seed.value("name").toString()};
+                    const auto video=QString("DeepSong%1").arg(index,3,10,QLatin1Char('0'));
+                    const QVariantMap track{{"id","ytm:track:"+video},{"videoId",video},{"title","Album track"},
+                        {"seconds",170},{"artistIds",ids},{"artists",names},{"available",true}};
+                    reply={{"id",call.value},{"browseId",call.value},{"title",call.value},{"origin","youtube-music"},
+                        {"year",2004},{"type","Album"},{"tracks",QVariantList{track}},{"artistIds",ids},{"artists",names}};
+                }else if(call.operation=="artistTopTracks"){
+                    QCOMPARE(service.homeStatus(),QString("ready"));
+                    reply["status"]="ready";reply["complete"]=true;
+                    reply["provenance"]=QVariantMap{{"source","lastfm"},{"generator","artist-top-tracks"},{"method","artist.getTopTracks"}};
+                    reply["items"]=QVariantList{QVariantMap{{"title","A different hit"},{"artist",call.options.value("seed").toMap().value("name")}}};
+                }else{source.complete(call,{},"Optional fixture unavailable");continue;}
+                source.complete(call,reply);
+            }
+        }
+        QCOMPARE(requestedArtists(source,"artistTopTracks"),played);
+        const auto deep=homeRow(service,"deep-cuts").value("items").toList();
+        QCOMPARE(deep.size(),played.size());
+        QSet<QString> deepArtists;
+        for(const auto &entry:deep) {
+            const auto card=entry.toMap();
+            checkCard(card);
+            deepArtists.insert(card.value("artistRefs").toList().value(0).toMap().value("providerId").toString());
+        }
+        QCOMPARE(deepArtists,played);
+
+        const auto before=source.requests.size();
+        service.setKeepHistory(false);
+        QVERIFY(service.homeSourcePool().isEmpty());
+        expireHomeInputs(service);pumpAllHomeReplies(source);
+        QCOMPARE(source.requests.size(),before);
+        QVERIFY(service.homeSourcePool().value("rows").toList().isEmpty());
+    }
+    void listeningSeedsUseRemainingCapacityAndRefreshOnlyOnMembershipChange()
+    {
+        ActivityStore activity;
+        QVariantList picks;
+        QSet<QString> explicitIds;
+        for(int index:{1,2,3,4,5}){
+            picks.append(artistSeed(index));explicitIds.insert(artistSeed(index).value("providerId").toString());
+        }
+        HomeFixture fixture(picks,kFixedNowMs,false);
+        const auto id=[](int index){return artistSeed(index).value("providerId").toString();};
+        const auto at=[](int seconds){return kFixedNowMs-seconds*1000LL;};
+        fixture.service.setActivityStore(&activity);
+        const auto legacyArtist=artistSeed(12);
+        const QVariantMap legacyAlbum{{"artistIds",QStringList{"ytm:artist:"+id(12)}},
+            {"artists",QStringList{legacyArtist.value("name").toString()}}};
+        fixture.service.setHomeCollections({{"catalogueAlbums",QVariantList{legacyAlbum}}});
+        recordFixturePlay(activity,11,at(180),12000);
+        recordFixturePlay(activity,11,at(160),12000);
+        recordFixturePlay(activity,12,at(140),12000,false,false); // Use the exact catalogue channel for an older fact.
+        for(int seconds:{260,240,220})recordFixturePlay(activity,13,at(seconds)-75LL*86400000,12000);
+        recordFixturePlay(activity,1,at(120),12000); // Already picked; keep its explicit slot.
+        runHomeVisit(fixture.service);
+        pumpAllHomeReplies(fixture.source);
+        QCOMPARE(requestedArtists(fixture.source,"artistCandidates"),explicitIds+QSet<QString>{id(11)});
+        const auto firstHash=fixture.service.homeSnapshot().value("seedHash");
+        QVERIFY(!firstHash.toString().isEmpty());
+        const auto before=fixture.source.callsFor("artistCandidates").size();
+        recordFixturePlay(activity,11,at(100),12000);
+        expireHomeInputs(fixture.service);pumpAllHomeReplies(fixture.source);
+        QCOMPARE(fixture.service.homeSnapshot().value("seedHash"),firstHash);
+        QCOMPARE(fixture.source.callsFor("artistCandidates").size(),before);
+        for(int seconds:{80,60,40})recordFixturePlay(activity,12,at(seconds),12000,false,false);
+        expireHomeInputs(fixture.service);pumpAllHomeReplies(fixture.source);
+        QVERIFY(fixture.service.homeSnapshot().value("seedHash")!=firstHash);
+        QCOMPARE(fixture.source.callsFor("artistCandidates").size(),before+1);
+        const auto legacyCall=fixture.source.callsFor("artistCandidates").last();
+        QCOMPARE(legacyCall.value,id(12));
+        QCOMPARE(legacyCall.options.value("seed").toMap().value("name"),legacyArtist.value("name"));
+        QVERIFY(!sectionHasProviderId(fixture.service,"from-your-artists","MPRE_00000011"));
+        QVERIFY(sectionHasProviderId(fixture.service,"from-your-artists","MPRE_00000012"));
+        QCOMPARE(fixture.service.selectedArtists().size(),picks.size());
+        QCOMPARE(fixture.preferences.tasteWrites,0);
+    }
+    void emptyOrIneligibleHistoryDoesNotStartPersonalRequests()
+    {
+        ActivityStore activity;
+        HomeFixture fixture({},kFixedNowMs,false,false);
+        fixture.service.setActivityStore(&activity);
+        runHomeVisit(fixture.service);
+        pumpAllHomeReplies(fixture.source);
+        QVERIFY(fixture.source.requests.isEmpty());
+        QVERIFY(fixture.service.homeSourcePool().value("rows").toList().isEmpty());
+        const auto ref=[](int index){return VinylRecommendationIdentity::fromCatalogue(artistSeed(index)).value("ref").toMap();};
+        QVERIFY(fixture.service.setFeedback(ref(23),"hide",0));
+        QVERIFY(fixture.service.setFeedback(ref(24),"exclude-artist",0));
+        recordFixturePlay(activity,21,kFixedNowMs-160000,9999);
+        recordFixturePlay(activity,22,kFixedNowMs-140000,12000,true); // Explicit skip even after 10 s.
+        recordFixturePlay(activity,23,kFixedNowMs-120000,12000);
+        recordFixturePlay(activity,24,kFixedNowMs-100000,12000);
+        recordFixturePlay(activity,25,kFixedNowMs-80000,12000,false,false); // ID-only legacy fact with no catalogue name.
+        expireHomeInputs(fixture.service);pumpAllHomeReplies(fixture.source);
+        QVERIFY(fixture.source.requests.isEmpty());
+        QVERIFY(fixture.service.homeSourcePool().value("rows").toList().isEmpty());
     }
     void becauseYouPlayedAndArtistsLikeYoursUseSimilarityWithoutKnownArtists()
     {
@@ -2102,7 +2318,8 @@ private slots:
     void savedCollectionArtistRemainsAvailableAfterTasteReset()
     {
         const QVariantMap seed = artistSeed(51);
-        HomeFixture fixture(withFiveDistinctTasteArtists({}), kFixedNowMs, false);
+        const QVariantList taste{localTasteArtist(0)};
+        HomeFixture fixture(taste, kFixedNowMs, false);
         fixture.source.cacheArtistSeed(seed);
         fixture.service.setHomeCollections({{QStringLiteral("artists"),
                                              QVariantList{savedArtistRecord(seed)}}});
@@ -2112,12 +2329,13 @@ private slots:
 
         fixture.preferences.setTaste({}, true);
         QVERIFY(fixture.service.canEnterVinyl());
+        QVERIFY(fixture.service.selectedArtists().isEmpty());
         QTRY_VERIFY(sectionHasProviderId(fixture.service,"from-your-artists","MPRE_00000051"));
 
-        fixture.preferences.setTaste(withFiveDistinctTasteArtists({}), true);
+        fixture.preferences.setTaste(taste, true);
         QTRY_VERIFY(sectionHasProviderId(fixture.service, QStringLiteral("from-your-artists"),
                                          QStringLiteral("MPRE_00000051")));
-        QCOMPARE(fixture.service.selectedArtists().size(), 5);
+        QCOMPARE(fixture.service.selectedArtists().size(), 1);
         QVERIFY(fixture.source.callsFor("artistCandidates").isEmpty());
     }
 

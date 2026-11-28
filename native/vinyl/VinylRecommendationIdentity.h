@@ -6,6 +6,7 @@
 class VinylRecommendationIdentity final {
 public:
     static QVariantMap fromCatalogue(const QVariantMap &item);
+    static QString artistDisplayName(const QVariant &value, const QString &providerItemId);
     // Direct catalogue selection, not a match against another recording/version.
     static QVariantMap fromProviderSong(const QVariantMap &item);
 };
