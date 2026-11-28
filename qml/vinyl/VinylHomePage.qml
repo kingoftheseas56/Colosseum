@@ -49,7 +49,7 @@ Item {
             }))
         && (typeof worldData.retryHomeRow === "function"
             || typeof worldData.retryHomeRecommendations === "function")
-    readonly property int cardColumns: Math.max(1, Math.min(6, Math.ceil(width / 204)))
+    readonly property int cardColumns: Math.max(1, Math.min(8, Math.ceil(width / 168))) // 7 across at 1280 (Hemanth, 2026-11-28: smaller)
     readonly property real cardSize: Math.max(120,
         Math.floor((width - (cardColumns - 1) * 24) / cardColumns))
     readonly property real contentStartY: showTasteEdit || showHomeRefresh ? 56 : 0
