@@ -168,6 +168,44 @@ TestCase {
     }
     function clipBounds(){var box=bounds(view.pageFlickable);box.bottom=Math.min(box.bottom,height);box.right=Math.min(box.right,width);return box;}
     function fits(item){var box=bounds(item),clip=clipBounds();return item.visible && box.x>=clip.x-0.5 && box.y>=clip.y-0.5 && box.right<=clip.right+0.5 && box.bottom<=clip.bottom+0.5;}
+    function test_homeRowIndexUsesDistinctIcons() {
+        const sidebar = findChild(view, "vinylHomeRowIndexSidebar");
+        verify(sidebar && sidebar.visible);
+        compare(sidebar.visibleRows.map(row => row.key),
+                ["crate", "spin", "mixes-radio", "new-from-your-artists", "albums-for-you"]);
+        const seen = new Set();
+        for (const row of sidebar.visibleRows) {
+            const icon = findChild(sidebar, "vinylHomeRowIndexRow_" + row.key.replace(/-/g, "_") + "Icon");
+            verify(icon && icon.visible, row.key);
+            tryCompare(icon, "status", Image.Ready);
+            const glyph = decodeURIComponent(icon.source.toString()).replace(/stroke="[^"]*"/, "");
+            verify(!seen.has(glyph), "Duplicate Home icon on " + row.key);
+            seen.add(glyph);
+        }
+        const crate = findChild(view, "vinylCrate");
+        const spin = findChild(view, "vinylSpin");
+        const albums = findChild(view, "vinylHomeRow_albums-for-you");
+        const crateSize = crate.tileSize;
+        try {
+            sidebar.collapsed = false;
+            tryCompare(sidebar, "width", sidebar.openWidth);
+            compare(crate.tileSize, crateSize);
+            spin.view = "artists";
+            const lastTile = findChild(spin, "vinylSpinTile_" + (spin.pageSize - 1));
+            verify(lastTile && bounds(lastTile).right <= bounds(spin).right);
+            view.parkPage(0);
+            const y = Math.min(view.parkY(albums), view.pageFlickable.contentHeight - view.pageFlickable.height);
+            verify(y > 0);
+            sidebar.rowRequested(albums);
+            tryCompare(view.pageFlickable, "contentY", y);
+            compare(sidebar.automationCurrentRow, albums.row.title);
+            view.setTab("library");
+            verify(!sidebar.visible);
+        } finally {
+            sidebar.collapsed = true;
+            tryCompare(sidebar, "width", sidebar.closedWidth);
+        }
+    }
     function test_01_firstScreenHasFullHeroAndFirstCrateRow(){
         var hero=findChild(view,"vinylHero"),crate=findChild(view,"vinylCrate"),spin=findChild(view,"vinylSpin");
         var header=findChild(spin,"vinylSpinSwitch").parent,tiles=[],kinds=[];

@@ -19,7 +19,8 @@ Item {
     property real tileSize:130
     property int page:0
     readonly property var items: view==="albums" ? albums : view==="artists" ? artists : songs
-    readonly property int columns: view==="songs" ? 3 : Math.max(1,Math.min(8,Math.floor(width/tileSize)))
+    readonly property int columns: view === "songs" ? 3
+        : Math.max(1, Math.min(8, Math.floor((width + grid.columnSpacing) / (tileSize + grid.columnSpacing))))
     readonly property int pageSize: view==="songs" ? 12 : columns
     readonly property int pageCount: Math.ceil((items ? items.length : 0)/pageSize)
     readonly property var pageItems: items ? items.slice(page*pageSize,(page+1)*pageSize) : []

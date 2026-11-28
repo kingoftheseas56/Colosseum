@@ -1,6 +1,7 @@
 // RowIndexSidebar — a compact table of contents for shelf pages.
 // The host supplies page-ordered descriptors: { key, title, target }. Targets are the
 // real row items, so activation can use the page's existing parking/scrolling path.
+// Optional icons: iconText (short label), iconSource (URL), or iconPaths (24x24 SVG markup).
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
@@ -226,7 +227,23 @@ Item {
                     required property var modelData
                     required property int index
                     readonly property bool current: rowItem.index === rail.currentIndex
+                    readonly property color iconColor: rowItem.current ? theme.gold : theme.inkDim
                     readonly property alias action: rowAction
+
+                    function fallbackIconPaths() {
+                        const title = String(rowItem.modelData.title || "").toLowerCase()
+                        if (/collection|library|shelf|shelves/.test(title))
+                            return '<path d="M4 4v16h5V4zM9 6h5v14H9zM16 4l4 15-4 1-4-15z"/>'
+                        if (/top|rated|popular|best/.test(title))
+                            return '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z"/>'
+                        if (/recent|new|available|release|continue/.test(title))
+                            return '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'
+                        if (/explore|discover|genre/.test(title))
+                            return '<circle cx="12" cy="12" r="9"/><path d="m16 8-3 5-5 3 3-5z"/>'
+                        if (/edition|omnibus|omnibuses|complete|run/.test(title))
+                            return '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/>'
+                        return '<path d="M4 6h16M4 12h16M4 18h16"/>'
+                    }
                     objectName: rail.automationPrefix + "Row_" + rail._sanitise(rowItem.modelData.key)
                     width: rail.collapsed ? 44 : rowColumn.width
                     height: rail.collapsed ? 46 : Math.max(46, rowLabel.implicitHeight + 20)
@@ -257,6 +274,7 @@ Item {
                         color: theme.gold
                     }
                     Image {
+                        id: rowIcon
                         objectName: rowItem.objectName + "Icon"
                         x: 12
                         anchors.verticalCenter: parent.verticalCenter
@@ -265,22 +283,29 @@ Item {
                         sourceSize.width: 40
                         sourceSize.height: 40
                         fillMode: Image.PreserveAspectFit
+                        visible: !iconTextLoader.active
                         source: {
+                            if (iconTextLoader.active) return ""
                             if (rowItem.modelData.iconSource) return rowItem.modelData.iconSource
-                            const title = String(rowItem.modelData.title || "").toLowerCase()
-                            let paths = '<path d="M4 6h16M4 12h16M4 18h16"/>'
-                            if (/collection|library|shelf|shelves/.test(title))
-                                paths = '<path d="M4 4v16h5V4zM9 6h5v14H9zM16 4l4 15-4 1-4-15z"/>'
-                            else if (/top|rated|popular|best/.test(title))
-                                paths = '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z"/>'
-                            else if (/recent|new|available|release|continue/.test(title))
-                                paths = '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'
-                            else if (/explore|discover|genre/.test(title))
-                                paths = '<circle cx="12" cy="12" r="9"/><path d="m16 8-3 5-5 3 3-5z"/>'
-                            else if (/edition|omnibus|omnibuses|complete|run/.test(title))
-                                paths = '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/>'
-                            const color = rowItem.current ? theme.gold : theme.inkDim
-                            return "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="' + color + '" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + paths + '</svg>')
+                            const paths = rowItem.modelData.iconPaths || rowItem.fallbackIconPaths()
+                            return "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="' + rowItem.iconColor + '" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + paths + '</svg>')
+                        }
+                    }
+                    Loader {
+                        id: iconTextLoader
+                        anchors.fill: rowIcon
+                        active: !!rowItem.modelData.iconText
+                        sourceComponent: Text {
+                            objectName: rowItem.objectName + "IconText"
+                            text: String(rowItem.modelData.iconText || "")
+                            textFormat: Text.PlainText
+                            color: rowItem.iconColor
+                            font.family: theme.ui
+                            font.bold: true
+                            font.pixelSize: 14
+                            fontSizeMode: Text.Fit
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
                         }
                     }
                     Text {

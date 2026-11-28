@@ -55,6 +55,7 @@ KeyboardAction {
     spaceActivates: albumPlayAvailable || artistRadioAvailable
     readonly property string reason: item.reason || ""
     readonly property string presentationKind: Presentation.kind(item)
+    readonly property bool centerArtistCaption: presentationKind === "artists" && !wide && !songLine && !compactCaption
     readonly property string artistText: Presentation.artist(item)
     readonly property string secondaryText: Presentation.secondary(item, artistText)
         + (feedbackError ? "\n" + feedbackError : "")
@@ -201,10 +202,11 @@ KeyboardAction {
         Item {
             id: copy
             objectName: root.objectName + "_caption"
-            x: root.songLine ? art.x + art.width + 12 : root.wide ? art.width + 16 : 2
+            x: root.songLine ? art.x + art.width + 12 : root.wide ? art.width + 16 : root.centerArtistCaption ? art.x : 2
             y: root.songLine ? 9 : root.wide ? 6 : art.height + (root.compactCaption ? 6 : 7) // Crate: room under the tile (Hemanth 2026-11-28)
-            width: Math.max(0, tile.width - x - (root.songLine ? 10 + root.lineActionsWidth : root.wide ? 0 : 2))
+            width: root.centerArtistCaption ? art.width : Math.max(0, tile.width - x - (root.songLine ? 10 + root.lineActionsWidth : root.wide ? 0 : 2))
             height: root.songLine ? 38 : root.wide ? tile.height - y - 12 : root.compactCaption ? 42 : 48
+            readonly property real hintInset: !root.wide && !root.songLine && hint.active ? hint.width + 6 : 0
 
             Loader {
                 active: root.wide
@@ -232,6 +234,7 @@ KeyboardAction {
                 font.family: root.songLine || root.compactCaption ? theme.ui : theme.display // Crate matches The Spin
                 font.pixelSize: root.songLine ? 14 : root.compactCaption ? 16 : 17
                 font.weight: root.compactCaption ? Font.Bold : Font.Normal
+                horizontalAlignment: root.centerArtistCaption ? Text.AlignHCenter : undefined
                 maximumLineCount: 1
                 elide: Text.ElideRight
                 verticalAlignment: Text.AlignVCenter
@@ -239,7 +242,10 @@ KeyboardAction {
             Text {
                 objectName: root.objectName + "_captionDetail"
                 y: root.songLine ? 20 : root.wide ? 46 : root.compactCaption ? 24 : 24
-                width: Math.max(0, parent.width - (!root.wide && !root.songLine && hint.active ? hint.width + 6 : 0))
+                // Reserve the hint's space on both sides of a centred caption.
+                x: root.centerArtistCaption ? (copy.width - width) / 2 : 0
+                width: Math.max(0, copy.width - copy.hintInset * (root.centerArtistCaption ? 2 : 1))
+                horizontalAlignment: root.centerArtistCaption ? Text.AlignHCenter : undefined
                 height: root.songLine ? 16 : root.wide ? 14 : root.compactCaption ? 18 : 24
                 text: root.feedbackError || root.captionDetail
                 visible: text.length > 0

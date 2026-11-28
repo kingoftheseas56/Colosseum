@@ -11,8 +11,9 @@ Item {
     property Flickable pageFlick: null
     property VinylWallpaperFrost frost: null
     readonly property real tilePadding: 6
-    property real tileSize: width >= 760
-        ? Math.min(120, Math.floor((width - 7 * tiles.columnSpacing) / 8) - 2 * tilePadding) : 120
+    property real tileSizingWidth: width
+    property real tileSize: tileSizingWidth >= 760
+        ? Math.min(120, Math.floor((tileSizingWidth - 7 * tiles.columnSpacing) / 8) - 2 * tilePadding) : 120
     readonly property real tileExtent: tileSize + 2 * tilePadding
     property bool compact: false
     property int page: 0

@@ -296,7 +296,10 @@ Item {
             page.shelfRevision;
             return Array.from({length: shelves.count}, function(_, i) {
                 var shelf = shelves.itemAt(i);
-                return shelf ? {key: shelf.modelData.key, title: shelf.modelData.title, target: shelf} : null;
+                if (!shelf) return null;
+                const row = shelf.modelData;
+                return {key: row.key, title: row.title, target: shelf,
+                    iconPaths: row.iconPaths, iconText: row.iconText};
             });
         }
         onRowRequested: target => {
@@ -314,18 +317,25 @@ Item {
             onItemAdded: page.shelfRevision++
             onItemRemoved: page.shelfRevision++
             model: [
-                {key:"chill", title:qsTr("Chill"), tag:"chill"},
-                {key:"feel-good", title:qsTr("Feel good"), tag:"happy"},
-                {key:"sad", title:qsTr("Sad songs"), tag:"sad"},
-                {key:"love", title:qsTr("Love songs"), tag:"romantic"},
-                {key:"party", title:qsTr("Party"), tag:"party"},
-                {key:"year-end-100-2025", title:qsTr("Biggest songs of 2025"), operation:"wikipediaList", value:"year-end-100-2025"},
-                {key:"2010s", title:qsTr("The 2010s"), tag:"2010s"},
-                {key:"2000s", title:qsTr("The 2000s"), tag:"00s"},
-                {key:"90s", title:qsTr("The '90s"), tag:"90s"},
-                {key:"80s", title:qsTr("The '80s"), tag:"80s"},
-                {key:"70s", title:qsTr("The '70s"), tag:"70s"},
-                {key:"most-streamed", title:qsTr("Most streamed ever"), operation:"mostStreamed", value:"songs"}
+                {key:"chill", title:qsTr("Chill"), tag:"chill",
+                    iconPaths:'<path d="M20.8 14.4A9 9 0 0 1 9.6 3.2 9 9 0 1 0 20.8 14.4Z"/>'},
+                {key:"feel-good", title:qsTr("Feel good"), tag:"happy",
+                    iconPaths:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.4 1.4m11.2 11.2L19 19M5 19l1.4-1.4M17.6 6.4 19 5"/>'},
+                {key:"sad", title:qsTr("Sad songs"), tag:"sad",
+                    iconPaths:'<path d="M6 14a4 4 0 1 1 .8-7.9 5.5 5.5 0 0 1 10.4 1.4A3.3 3.3 0 1 1 18 14H6Zm1 3-2 4m7-4-2 4m7-4-2 4"/>'},
+                {key:"love", title:qsTr("Love songs"), tag:"romantic",
+                    iconPaths:'<path d="M12 20 4.4 12.5a4.6 4.6 0 0 1 6.5-6.5L12 7.1l1.1-1.1a4.6 4.6 0 0 1 6.5 6.5Z"/>'},
+                {key:"party", title:qsTr("Party"), tag:"party",
+                    iconPaths:'<path d="m9 3 1.6 4.4L15 9l-4.4 1.6L9 15l-1.6-4.4L3 9l4.4-1.6L9 3Zm8 10 1.1 2.9L21 17l-2.9 1.1L17 21l-1.1-2.9L13 17l2.9-1.1L17 13ZM19 3v5m-2.5-2.5h5"/>'},
+                {key:"year-end-100-2025", title:qsTr("Biggest songs of 2025"), operation:"wikipediaList", value:"year-end-100-2025",
+                    iconPaths:'<path d="M7 3h10v7a5 5 0 0 1-10 0V3Zm0 2H3v2a4 4 0 0 0 4 4m10-6h4v2a4 4 0 0 1-4 4m-5 4v6m-4 0h8"/>'},
+                {key:"2010s", title:qsTr("The 2010s"), tag:"2010s", iconText:"10s"},
+                {key:"2000s", title:qsTr("The 2000s"), tag:"00s", iconText:"00s"},
+                {key:"90s", title:qsTr("The '90s"), tag:"90s", iconText:"90s"},
+                {key:"80s", title:qsTr("The '80s"), tag:"80s", iconText:"80s"},
+                {key:"70s", title:qsTr("The '70s"), tag:"70s", iconText:"70s"},
+                {key:"most-streamed", title:qsTr("Most streamed ever"), operation:"mostStreamed", value:"songs",
+                    iconPaths:'<path d="M4 20v-5m5 5v-8m5 8V9m5 11V5M3 11l6-5 5-1 5-3"/>'}
             ]
             delegate: VinylShelf {
                 id: shelf

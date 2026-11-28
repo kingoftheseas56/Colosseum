@@ -163,6 +163,34 @@ TestCase {
     function card(key, index) { return findChild(view, "vinylCard_explore-" + key + "_" + index); }
     function shelf(key) { return findChild(view, "vinylExploreRow_" + key); }
 
+    function test_each_row_has_a_distinct_icon() {
+        open();
+        const sidebar = findChild(view, "vinylExploreRowIndexSidebar");
+        const decades = {"2010s": "10s", "2000s": "00s", "90s": "90s", "80s": "80s", "70s": "70s"};
+        const seen = new Set();
+        compare(sidebar.visibleRows.length, 12);
+        for (const row of sidebar.visibleRows) {
+            const prefix = "vinylExploreRowIndexRow_" + row.key.replace(/[^A-Za-z0-9]/g, "_");
+            const icon = findChild(sidebar, prefix + "Icon");
+            verify(icon !== null, row.key);
+            let glyph;
+            if (decades[row.key]) {
+                const label = findChild(sidebar, prefix + "IconText");
+                verify(label && label.visible, row.key);
+                compare(label.text, decades[row.key]);
+                verify(!icon.visible, row.key);
+                glyph = label.text;
+            } else {
+                verify(icon.visible, row.key);
+                tryCompare(icon, "status", Image.Ready);
+                // Changing the current row's stroke colour must not count as a different glyph.
+                glyph = decodeURIComponent(icon.source.toString()).replace(/stroke="[^"]*"/, "");
+            }
+            verify(!seen.has(glyph), "Duplicate Explore icon on " + row.key);
+            seen.add(glyph);
+        }
+    }
+
     function test_rowsInOrderAndRequests() {
         open();
         var page = findChild(view, "vinylExplorePage");

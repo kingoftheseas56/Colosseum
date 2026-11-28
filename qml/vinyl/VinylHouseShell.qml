@@ -79,6 +79,12 @@ WorldPage {
     // Provider replies can insert, remove or resize sections above a reader.
     // Preserve the first surviving section at the viewport edge, not the old absolute Y.
     property var homeLayout: []
+    // The closed rail fits mostly in the existing gutter. Keep the usual row
+    // width when there is room, and let the existing row scrollers take over when expanded.
+    readonly property real homeLeft: homeIndex.visible
+        ? Math.max(0, homeIndexHost.x + homeIndex.width + 18 - outerPageMargin) : 0
+    readonly property real homeWidth: homeIndex.visible
+        ? Math.max(0, Math.min(surface.width, width - outerPageMargin - homeLeft - 12)) : surface.width
     readonly property bool trackHomeLayout: componentReady && lifecycleActive && visible && contentVisible && !gated
         && currentTab === "home" && !listKey && !worldData.tastePickerOpen && !homeLoading.visible
     onTrackHomeLayoutChanged: {
@@ -224,6 +230,43 @@ WorldPage {
         function onArtistSearchFocusRequested() { Qt.callLater(root.focusArtistSearch); }
     }
     Theme { id: theme }
+    Item {
+        id: homeIndexHost
+        parent: root.pageFlickable.contentItem
+        x: 8
+        y: surface.parent.y + surface.y + crate.y
+        z: 2
+        height: body.y + body.height - crate.y
+        visible: root.trackHomeLayout && root.worldData.pickerAnswered === true
+        RowIndexSidebar {
+            id: homeIndex
+            pageFlick: root.pageFlickable
+            flowHost: homeIndexHost
+            visible: homeIndexHost.visible && visibleRows.length > 0
+            pinLine: root.parkDockSpace
+            currentOffset: root.parkDockSpace + root.parkGap
+            backdrop: root.backdrop
+            worldName: "Vinyl"
+            automationPrefix: "vinylHomeRowIndex"
+            rows: {
+                const entries = [];
+                if (crate.count > 0)
+                    entries.push({key: "crate", title: qsTr("The Crate"), target: crate,
+                        iconPaths: '<path d="M3 6h18v14H3zM3 10h18m-18 6h18M9 6V4h6v2"/>'});
+                if (spin.items.length > 0)
+                    entries.push({key: "spin", title: qsTr("The Spin"), target: spin,
+                        iconPaths: '<path d="M9 18V5l11-2v12M9 9l11-2"/><ellipse cx="6" cy="18" rx="3" ry="2"/><ellipse cx="17" cy="15" rx="3" ry="2"/>'});
+                for (let i = 0; i < homeShelves.count; ++i) {
+                    const shelf = homeShelves.itemAt(i);
+                    if (shelf && shelf.itemCount > 0)
+                        entries.push({key: shelf.homeKey, title: shelf.row.title, target: shelf,
+                            iconPaths: shelf.modelData.iconPaths});
+                }
+                return entries;
+            }
+            onRowRequested: target => root.parkRow(target)
+        }
+    }
     Rectangle {
         id: vinylBacking
         objectName: "vinylPageBacking"
@@ -336,7 +379,9 @@ WorldPage {
             id: crate
             objectName: "vinylCrate"
             visible: !root.gated && !homeLoading.visible && root.currentTab === "home" && !root.listKey
-            width: parent.width; height: implicitHeight
+            x: root.homeLeft
+            width: root.homeWidth; height: implicitHeight
+            tileSizingWidth: surface.width
             compact: true
             items: root.worldData.crateItems || []
             frost: homeFrost
@@ -351,7 +396,8 @@ WorldPage {
             id: spin
             objectName: "vinylSpin"
             visible: !root.gated && !homeLoading.visible && root.currentTab === "home" && !root.listKey
-            width: parent.width; height: implicitHeight
+            x: root.homeLeft
+            width: root.homeWidth; height: implicitHeight
             songs: root.worldData.spinSongs || []
             albums: root.worldData.spinAlbums || []
             artists: root.worldData.spinArtists || []
@@ -366,7 +412,8 @@ WorldPage {
         Item {
             id: body
             visible: !homeLoading.visible
-            width: parent.width
+            x: root.homeLeft
+            width: root.homeWidth
             height: root.listKey ? list.implicitHeight
                 : root.currentTab === "home" ? homeContent.implicitHeight
                 : root.currentTab === "discover" ? discover.height
@@ -402,11 +449,19 @@ WorldPage {
                 Repeater {
                     id: homeShelves
                     // Stable slots preserve unaffected shelf/card objects as other sources finish.
-                    model: ["mixes-radio", "new-from-your-artists", "albums-for-you",
-                        "because-you-played", "deep-cuts", "rediscover", "artists-like-yours"]
+                    model: [
+                        {key: "mixes-radio", iconPaths: '<rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="7" cy="11" r="2"/><circle cx="17" cy="11" r="2"/><path d="M7 9h10M7 19l2-4h6l2 4"/>'},
+                        // The adjacent album rows use distinct record variants.
+                        {key: "new-from-your-artists", iconPaths: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M6 12a6 6 0 0 1 6-6m6 6a6 6 0 0 1-6 6"/>'},
+                        {key: "albums-for-you", iconPaths: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1"/>'},
+                        {key: "because-you-played", iconPaths: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z"/>'},
+                        {key: "deep-cuts", iconPaths: '<path d="m12 2 8 10-8 10-8-10Z"/>'},
+                        {key: "rediscover", iconPaths: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'},
+                        {key: "artists-like-yours", iconPaths: '<circle cx="12" cy="7" r="4"/><path d="M4 21v-2a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v2Z"/>'}
+                    ]
                     delegate: VinylShelf {
-                        required property string modelData
-                        readonly property string homeKey: modelData
+                        required property var modelData
+                        readonly property string homeKey: modelData.key
                         readonly property var emptyRow: ({key:"v1:"+homeKey,homeKey:homeKey,title:"",items:[]})
                         objectName: "vinylHomeRow_"+homeKey
                         readonly property int itemCount: (row.items || []).length
@@ -421,7 +476,7 @@ WorldPage {
                         backdrop: root.backdrop; pageFlick: root.pageFlickable
                         // Seven across at 1280 (Hemanth, 2026-11-28: "everything under mixes is too big").
                         cardSize: row.kind === "artists" ? 124
-                            : Math.max(0, Math.floor((homeContent.width - 6 * 22) / 7))
+                            : Math.max(0, Math.floor((surface.width - 6 * 22) / 7))
                         squareSpacing: 22
                         home: true
                     }

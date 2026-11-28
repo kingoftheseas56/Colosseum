@@ -121,6 +121,8 @@ TestCase {
         const albumDetail = findChild(jewel, jewel.objectName + "_captionDetail");
         compare(albumDetail.text, "Band");
         compare(albumDetail.style, Text.Raised);
+        compare(findChild(jewel, jewel.objectName + "_captionTitle").horizontalAlignment, Text.AlignLeft);
+        compare(albumDetail.horizontalAlignment, Text.AlignLeft);
         compare(albumDetail.styleColor.toString(), Qt.rgba(0, 0, 0, 0.55).toString());
         compare(wall.cellHeight, jewel.width + 55 + wall.gapY);
         compare(findChild(jewel,"vinylArtworkImage").status, Image.Null);
@@ -145,6 +147,22 @@ TestCase {
         compare(fallback.radius,fallback.width/2);
         var initials=findChild(record,"vinylArtistInitials");
         verify(initials.visible);compare(initials.text,"BN");
+
+        const artistTitle = findChild(record, record.objectName + "_captionTitle");
+        record.showArtistKindLabel = true;
+        verify(artistDetail.visible);
+        const hint = findChild(record, "vinylTileHint");
+        const centerX = fallback.mapToItem(record, fallback.width / 2, 0).x;
+        for (const focused of [false, true]) {
+            record.keyboardFocused = focused;
+            compare(hint.active, focused);
+            for (const line of [artistTitle, artistDetail]) {
+                compare(line.horizontalAlignment, Text.AlignHCenter);
+                fuzzyCompare(line.mapToItem(record, line.width / 2, 0).x, centerX, 1);
+                compare(line.elide, Text.ElideRight);
+            }
+        }
+        verify(artistDetail.width < artistTitle.width, "the hint reserves room without shifting the detail");
     }
     function test_list_and_genre_picker_without_language() {
         var byline=findChild(browser,"vinylDiscoverHeadingProvider");

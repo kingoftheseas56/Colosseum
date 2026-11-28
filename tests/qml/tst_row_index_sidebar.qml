@@ -31,6 +31,7 @@ TestCase {
             property alias secondRow: secondRow
             property alias thirdRow: thirdRow
             property alias flowHost: flowHost
+            property Theme testTheme: Theme {}
 
             Item {
                 id: flowHost
@@ -122,6 +123,30 @@ TestCase {
         tryCompare(fixture.rail, "currentIndex", 1)
         compare(fixture.rail.automationCurrentRow, "Beta")
         verify(findChild(fixture, "theatreRowIndexRow_beta").current)
+    }
+
+    function test_opt_in_icons_keep_the_active_and_idle_colours() {
+        const paths = '<path d="M3 3l18 18"/>'
+        fixture.rail.rows = [
+            { key: "alpha", title: "Alpha", target: fixture.firstRow, iconPaths: paths },
+            { key: "beta", title: "Beta", target: fixture.secondRow, iconText: "90s" },
+            { key: "gamma", title: "Gamma", target: fixture.thirdRow }
+        ]
+        const custom = findChild(fixture, "theatreRowIndexRow_alphaIcon")
+        const decade = findChild(fixture, "theatreRowIndexRow_betaIconText")
+        const fallback = findChild(fixture, "theatreRowIndexRow_gammaIcon")
+        verify(decodeURIComponent(custom.source.toString()).includes(paths))
+        verify(decodeURIComponent(custom.source.toString()).includes('stroke="' + fixture.testTheme.gold + '"'))
+        tryCompare(custom, "status", Image.Ready)
+        verify(decodeURIComponent(fallback.source.toString()).includes('<path d="M4 6h16M4 12h16M4 18h16"/>'))
+        verify(!findChild(fixture, "theatreRowIndexRow_gammaIconText"))
+        verify(decade.visible)
+        compare(decade.text, "90s")
+        compare(decade.color, fixture.testTheme.inkDim)
+        verify(!findChild(fixture, "theatreRowIndexRow_betaIcon").visible)
+        fixture.scroller.contentY = 225
+        tryCompare(decade, "color", fixture.testTheme.gold)
+        verify(decodeURIComponent(custom.source.toString()).includes('stroke="' + fixture.testTheme.inkDim + '"'))
     }
 
     function test_expanded_long_names_wrap_without_truncation() {
