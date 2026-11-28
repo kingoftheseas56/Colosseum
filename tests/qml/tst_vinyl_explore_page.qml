@@ -11,6 +11,8 @@ TestCase {
     width: 1280
     height: 720
     property var view: null
+    readonly property string lastfmArtLane: "explore-art-lastfm"
+    readonly property string editorialArtLane: "explore-art"
     readonly property var fixtures: [
         ["chill", "Chill", "chill", "Sweater Weather"],
         ["feel-good", "Feel good", "happy", "I'm Yours"],
@@ -30,6 +32,7 @@ TestCase {
         id: transport
         property int serial: 0
         property var calls: ({})
+        property var canceled: []
         signal completed(string lane, int id, var data, string error)
         function request(lane, operation, value, payload) {
             var next = Object.assign({}, calls);
@@ -37,7 +40,7 @@ TestCase {
             calls = next;
             return serial;
         }
-        function cancel(lane) {}
+        function cancel(lane) { canceled.push(lane); }
         function pageReply(fixture, count) {
             var key = fixture[0];
             var list = fixture[2] || key;
@@ -87,6 +90,7 @@ TestCase {
         fixtureWorld.selected = null;
         fixtureWorld.opened = null;
         transport.calls = ({});
+        transport.canceled = [];
         view = createTemporaryObject(host, test);
         verify(view !== null);
         tryVerify(() => Object.keys(transport.calls).length === fixtures.length);
@@ -167,51 +171,87 @@ TestCase {
         verify(!card("chill", 0));
         verify(findChild(view, "vinylShelfRetry_explore-chill").visible);
     }
+    function waitForArt(lane, value, ids, after = 0) {
+        tryVerify(() => transport.calls[lane] && transport.calls[lane].id > after,
+            5000, "Expected a new " + value + " artwork request");
+        var batch = transport.calls[lane];
+        compare(batch.operation, "resolveCatalogueArt");
+        compare(batch.value, value);
+        compare(batch.payload.items.map(item => item.id), ids);
+        return batch.id;
+    }
+    function finishArt(lane, id, result) {
+        transport.completed(lane, id, Object.assign({version: 1, covers: {}}, result), "");
+    }
     function test_previewArtworkBatchesBySourceAndUpdatesCardsInPlace() {
         takeReplies({chill: 10, "feel-good": 8});
-        var page = findChild(view, "vinylExplorePage");
         var moodCard = card("chill", 0);
         var wikiCard = card("year-end-100-2025", 0);
-        var streamedCard = card("most-streamed", 0);
-        tryVerify(() => !!transport.calls["explore-art"]);
-        var request = transport.calls["explore-art"];
-        compare(request.operation, "resolveCatalogueArt");
-        compare(request.value, "lastfm");
-        compare(request.payload.items.length, 12);
-        compare(request.payload.items.map(item => item.id),
-            Array.from({length: 8}, (_, i) => "chill-" + i).concat(Array.from({length: 4}, (_, i) => "feel-good-" + i)));
-        page.requestArt();
-        compare(transport.calls["explore-art"].id, request.id);
         var moodCover = "https://lastfm-img.freetls.fastly.net/chill.jpg";
         var wikiCover = "https://is1-ssl.mzstatic.com/song/600x600bb.jpg";
-        transport.completed("catalogue-art", request.id, {version: 1, covers: {"chill-0": moodCover}}, "");
+        var lastfm = waitForArt(lastfmArtLane, "lastfm", Array.from({length: 8}, (_, i) => "chill-" + i)
+            .concat(Array.from({length: 4}, (_, i) => "feel-good-" + i)));
+        var moodResult = {covers: {"chill-0": moodCover}};
+        finishArt("catalogue-art", lastfm, moodResult);
         verify(!moodCard.item.cover);
-        transport.completed("explore-art", request.id, {version: 1, covers: {"chill-0": moodCover}}, "");
+        finishArt(lastfmArtLane, lastfm, moodResult);
         compare(card("chill", 0), moodCard);
         compare(moodCard.item.cover, moodCover);
 
-        function nextBatch(value, ids, result) {
-            var previous = transport.calls["explore-art"].id;
-            page.requestArt();
-            var batch = transport.calls["explore-art"];
-            verify(batch.id > previous);
-            compare(batch.operation, "resolveCatalogueArt");
-            compare(batch.value, value);
-            compare(batch.payload.items.map(item => item.id), ids);
-            transport.completed("explore-art", batch.id, Object.assign({version: 1, covers: {}}, result), "");
-        }
-        nextBatch("lastfm", ["feel-good-4", "feel-good-5", "feel-good-6", "feel-good-7", "sad-0", "love-0", "party-0"], {});
-        nextBatch("editorial", ["year-end-100-2025-0"], {settled: [], covers: {"year-end-100-2025-0": wikiCover}});
+        var chartIds = ["year-end-100-2025-0", "most-streamed-0"];
+        var editorial = waitForArt(editorialArtLane, "editorial", chartIds);
+        var chartCovers = {"year-end-100-2025-0": wikiCover};
+        finishArt(editorialArtLane, editorial, {settled: [], covers: chartCovers});
         verify(!wikiCard.item.cover);
-        nextBatch("editorial", ["year-end-100-2025-0"], {settled: ["year-end-100-2025-0"], covers: {"year-end-100-2025-0": wikiCover}});
+        lastfm = waitForArt(lastfmArtLane, "lastfm", ["feel-good-4", "feel-good-5", "feel-good-6", "feel-good-7",
+            "sad-0", "love-0", "party-0", "2010s-0", "2000s-0", "90s-0", "80s-0", "70s-0"], lastfm);
+        finishArt(lastfmArtLane, lastfm, {});
+        editorial = waitForArt(editorialArtLane, "editorial", chartIds, editorial);
+        finishArt(editorialArtLane, editorial, {settled: [chartIds[0]], covers: chartCovers});
         compare(card("year-end-100-2025", 0), wikiCard);
         compare(wikiCard.item.cover, wikiCover);
-        nextBatch("lastfm", ["2010s-0", "2000s-0", "90s-0", "80s-0", "70s-0"], {});
-        nextBatch("editorial", ["most-streamed-0"], {settled: ["most-streamed-0"]});
-        verify(!streamedCard.item.cover);
+        editorial = waitForArt(editorialArtLane, "editorial", [chartIds[1]], editorial);
+        finishArt(editorialArtLane, editorial, {settled: [chartIds[1]]});
+        verify(!card("most-streamed", 0).item.cover);
         var serial = transport.serial;
-        page.requestArt();
+        wait(1400);
         compare(transport.serial, serial);
+    }
+    function test_stalledEditorialDoesNotBlockVisibleDecadeArtwork() {
+        var chart = fixtures.find(fixture => fixture[0] === "year-end-100-2025");
+        var decade = fixtures.find(fixture => fixture[0] === "2010s");
+        transport.finish(chart);
+        var stalled = waitForArt(editorialArtLane, "editorial", ["year-end-100-2025-0"]);
+
+        transport.finish(fixtures[0]);
+        transport.finish(decade);
+        findChild(view, "vinylExplorePage").forceLayout();
+        view.pageFlickable.contentY = view.parkY(shelf("2010s"));
+        var lastfm = waitForArt(lastfmArtLane, "lastfm", ["2010s-0", "chill-0"]);
+        var cover = "https://lastfm-img.freetls.fastly.net/2010s.jpg";
+        finishArt(lastfmArtLane, lastfm, {covers: {"2010s-0": cover}});
+        compare(card("2010s", 0).item.cover, cover);
+        compare(transport.calls[editorialArtLane].id, stalled);
+        verify(!card("year-end-100-2025", 0).item.cover);
+    }
+    function test_cancelsBothArtworkLanes_data() {
+        return [{tag: "leave", profileChange: false}, {tag: "profile change", profileChange: true}];
+    }
+    function test_cancelsBothArtworkLanes(data) {
+        var page = findChild(view, "vinylExplorePage");
+        transport.finish(fixtures[0]);
+        transport.finish(fixtures[5]);
+        var lastfm = waitForArt(lastfmArtLane, "lastfm", ["chill-0"]);
+        var editorial = waitForArt(editorialArtLane, "editorial", ["year-end-100-2025-0"]);
+        if (data.profileChange) fixtureWorld.session.profileGeneration++;
+        else page.active = false;
+        compare(transport.canceled.filter(lane => lane === lastfmArtLane || lane === editorialArtLane).sort(),
+            [editorialArtLane, lastfmArtLane]);
+        var covers = {"chill-0": "https://lastfm-img.freetls.fastly.net/chill.jpg",
+            "year-end-100-2025-0": "https://is1-ssl.mzstatic.com/song/600x600bb.jpg"};
+        finishArt(lastfmArtLane, lastfm, {covers: covers});
+        finishArt(editorialArtLane, editorial, {settled: ["year-end-100-2025-0"], covers: covers});
+        compare(page.artResults, {});
     }
     function test_failedRowRetriesWithoutReloadingOtherRows() {
         var fixture = fixtures[1];

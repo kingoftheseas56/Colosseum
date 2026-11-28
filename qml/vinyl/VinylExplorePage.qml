@@ -17,9 +17,6 @@ Item {
     readonly property int rowCount: shelves.count
     property int shelfRevision: 0
     property var artResults: ({})
-    property var artBatch: []
-    property double artDeadline: 0
-    property var pendingArt: null
     readonly property real contentLeft: rowIndex.contentLeft
     implicitHeight: shelfColumn.implicitHeight
     signal rowRequested(var target)
@@ -56,70 +53,76 @@ Item {
     Component.onDestruction: stopArt()
 
     function stopArt() {
-        if (artPoll) artPoll.stop();
-        var request = pendingArt;
-        pendingArt = null;
-        artBatch = [];
-        if (request && request.source) request.source.cancel("explore-art");
+        if (lastfmArt) lastfmArt.clear();
+        if (editorialArt) editorialArt.clear();
     }
     function scheduleArt() {
-        if (active && profileReady && !pendingArt && !artPoll.running) artPoll.start();
+        lastfmArt.schedule();
+        editorialArt.schedule();
     }
     function artSource(item) {
         if (item.source === "lastfm") return "lastfm";
         if (item.source === "kworb" || item.source === "wikipedia") return "editorial";
         return "";
     }
-    function requestArt() {
-        if (!active || !profileReady || pendingArt) return;
-        var batch = artBatch.filter(card => !artResults[card.id]);
-        if (batch.length && Date.now() >= artDeadline) {
+    function nextArtBatch(kind) {
+        // Re-rank each new batch by distance from the viewport. Keep row order for ties.
+        var ranked = [];
+        for (var i = 0; i < shelves.count; ++i) {
+            var shelf = shelves.itemAt(i);
+            if (!shelf || !shelf.items.length) continue;
+            var top = shelf.mapToItem(pageFlick, 0, 0).y;
+            var distance = Math.max(0, -top - shelf.height, top - pageFlick.height);
+            ranked.push({shelf: shelf, distance: distance, index: i});
+        }
+        ranked.sort((a, b) => a.distance - b.distance || a.index - b.index);
+        var batch = [];
+        var seen = new Set();
+        for (var row of ranked) {
+            for (var item of row.shelf.items.slice(0, row.shelf.previewCount)) {
+                if (artSource(item) !== kind || item.cover || artResults[item.id] || seen.has(item.id)) continue;
+                batch.push(item);
+                seen.add(item.id);
+                if (batch.length === 12) return batch;
+            }
+        }
+        return batch;
+    }
+    function requestArt(walk) {
+        if (!active || !profileReady || walk.pending) return;
+        var batch = walk.batch.filter(card => !artResults[card.id]);
+        if (batch.length && Date.now() >= walk.deadline) {
             var timedOut = Object.assign({}, artResults);
             for (var card of batch) timedOut[card.id] = {};
             artResults = timedOut;
             batch = [];
         }
         if (!batch.length) {
-            // Walk previews top-down without mixing the two artwork sources.
-            var seen = new Set();
-            var batchSource = "";
-            previews: for (var i = 0; i < shelves.count; ++i) {
-                var shelf = shelves.itemAt(i);
-                if (!shelf) continue;
-                for (var item of shelf.items.slice(0, shelf.previewCount)) {
-                    var itemSource = artSource(item);
-                    if (!itemSource || item.cover || artResults[item.id] || seen.has(item.id)) continue;
-                    if (batchSource && batchSource !== itemSource) break previews;
-                    batchSource = itemSource;
-                    batch.push(item);
-                    seen.add(item.id);
-                    if (batch.length === 12) break previews;
-                }
-            }
-            artDeadline = Date.now() + 180000;
+            batch = nextArtBatch(walk.kind);
+            walk.deadline = Date.now() + 180000;
         }
-        artBatch = batch;
+        walk.batch = batch;
         if (!batch.length) return;
-        var id = source.request("explore-art", "resolveCatalogueArt", artSource(batch[0]), {items: batch});
-        if (id >= 0) pendingArt = {id: id, source: source, generation: profileGeneration};
-        else scheduleArt();
+        var id = source.request(walk.lane, "resolveCatalogueArt", walk.kind, {items: batch});
+        if (id >= 0) walk.pending = {id: id, source: source, generation: profileGeneration};
+        else walk.schedule();
     }
-    function acceptArt(id, data, error) {
-        var request = pendingArt;
+    function acceptArt(walk, id, data, error) {
+        var request = walk.pending;
         if (!request || request.id !== id) return;
-        pendingArt = null;
+        walk.pending = null;
         if (!active || !profileReady || request.source !== source || request.generation !== profileGeneration) return;
         try { data = JSON.parse(JSON.stringify(data)); } catch (conversionError) { data = null; }
         // Last.fm resolves the batch inline; only editorial polls return settled IDs.
         if (!error && data && data.version === 1 && data.covers) {
-            var ids = artSource(artBatch[0]) === "lastfm" ? artBatch.map(item => item.id) : data.settled;
+            var ids = walk.kind === "lastfm" ? walk.batch.map(item => item.id) : data.settled;
             if (!Array.isArray(ids) || !ids.length) {
-                scheduleArt();
+                walk.schedule();
                 return;
             }
             var settled = new Set(ids);
             var next = Object.assign({}, artResults);
-            for (var item of artBatch) {
+            for (var item of walk.batch) {
                 if (!settled.has(item.id)) continue;
                 var cover = data.covers[item.id];
                 var album = data.albums && data.albums[item.id];
@@ -128,7 +131,7 @@ Item {
             }
             artResults = next;
         }
-        scheduleArt();
+        walk.schedule();
     }
     function withArt(item) {
         var art = artResults[item.id];
@@ -137,12 +140,34 @@ Item {
         if (art.album) card.hints = Object.assign({}, item.hints, {album: art.album});
         return card;
     }
-    Timer { id: artPoll; interval: 1200; onTriggered: page.requestArt() }
+    component ArtWalk: Timer {
+        id: walk
+        required property string kind
+        required property string lane
+        property var batch: []
+        property double deadline: 0
+        property var pending: null
+        interval: 1200
+        onTriggered: page.requestArt(walk)
+        function schedule() {
+            if (page.active && page.profileReady && !pending && !running) start();
+        }
+        function clear() {
+            stop();
+            var request = pending;
+            pending = null;
+            batch = [];
+            if (request && request.source) request.source.cancel(lane);
+        }
+    }
+    ArtWalk { id: lastfmArt; kind: "lastfm"; lane: "explore-art-lastfm" }
+    ArtWalk { id: editorialArt; kind: "editorial"; lane: "explore-art" }
     Connections {
         target: page.source
         ignoreUnknownSignals: true
         function onCompleted(lane, id, data, error) {
-            if (lane === "explore-art") page.acceptArt(id, data, error);
+            if (lane === lastfmArt.lane) page.acceptArt(lastfmArt, id, data, error);
+            else if (lane === editorialArt.lane) page.acceptArt(editorialArt, id, data, error);
         }
     }
 

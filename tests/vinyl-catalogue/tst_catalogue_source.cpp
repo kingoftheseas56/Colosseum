@@ -532,18 +532,26 @@ private slots:
         QCOMPARE(pages.value(streamed).value("items").toList().size(),4);
 
         const QVariantMap artwork{{"items",QVariantList{song}}};
-        QVERIFY(source.request("explore-art","resolveCatalogueArt","lastfm",artwork)>0);
-        QTRY_COMPARE_WITH_TIMEOUT(replies.size(),4,12000);
-        QVERIFY2(replies.last()[3].toString().isEmpty(),qPrintable(replies.last()[3].toString()));
-        const auto covers=replies.last()[2].toMap().value("covers").toMap();
-        QCOMPARE(covers.value(song.value("id").toString()).toString(),
-            QString("https://lastfm-img.freetls.fastly.net/chill.jpg"));
-
         const QVariantMap editorialArtwork{{"items",QVariantList{wikiItems.first()}}};
         QCOMPARE(source.request("catalogue-art","resolveCatalogueArt","editorial",editorialArtwork),-1);
-        QVERIFY(source.request("explore-art","resolveCatalogueArt","editorial",editorialArtwork)>0);
-        QTRY_COMPARE_WITH_TIMEOUT(replies.size(),5,12000);
-        QVERIFY2(replies.last()[3].toString().isEmpty(),qPrintable(replies.last()[3].toString()));
+        QCOMPARE(source.request("explore-art-lastfm","resolveCatalogueArt","editorial",editorialArtwork),-1);
+        QCOMPARE(source.request("explore-art","resolveCatalogueArt","lastfm",artwork),-1);
+        replies.clear();
+        const auto editorialArt=source.request("explore-art","resolveCatalogueArt","editorial",editorialArtwork);
+        const auto lastfmArt=source.request("explore-art-lastfm","resolveCatalogueArt","lastfm",artwork);
+        QVERIFY(editorialArt>0&&lastfmArt>0);
+        QTRY_COMPARE_WITH_TIMEOUT(replies.size(),2,12000);
+        QHash<int,QList<QVariant>> artReplies;
+        for(const auto &reply:replies){
+            QVERIFY2(reply[3].toString().isEmpty(),qPrintable(reply[3].toString()));
+            artReplies.insert(reply[1].toInt(),reply);
+        }
+        QVERIFY(artReplies.contains(editorialArt)&&artReplies.contains(lastfmArt));
+        QCOMPARE(artReplies.value(editorialArt)[0].toString(),QString("explore-art"));
+        QCOMPARE(artReplies.value(lastfmArt)[0].toString(),QString("explore-art-lastfm"));
+        const auto covers=artReplies.value(lastfmArt)[2].toMap().value("covers").toMap();
+        QCOMPARE(covers.value(song.value("id").toString()).toString(),
+            QString("https://lastfm-img.freetls.fastly.net/chill.jpg"));
     }
     void exploreTagsDoNotOpenUnknownTagsOrDiscoverGenres(){
         QTemporaryDir cache;

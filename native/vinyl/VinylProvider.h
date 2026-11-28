@@ -209,7 +209,7 @@ public:
                                          "mainstream-rock-2020s","hot100-1990s"};
         const bool editorial=operation=="chartWeek"||operation=="wikipediaList"||operation=="mostStreamed";
         const bool editorialArt=operation=="resolveCatalogueArt"&&value=="editorial";
-        const bool exploreArt=editorialArt||(operation=="resolveCatalogueArt"&&value=="lastfm"&&lane=="explore-art");
+        const bool exploreArt=editorialArt||(operation=="resolveCatalogueArt"&&value=="lastfm"&&lane=="explore-art-lastfm");
         const bool heroArt=operation=="resolveCatalogueArt"&&value=="hero";
         const bool exploreBrowse=operation=="browseCatalogue"&&value=="songs"
             &&payload.value("catalogueSource")=="lastfm"&&lane=="explore-tag-"+payload.value("list").toString();
@@ -239,7 +239,7 @@ public:
                 ||!QStringList{"songs","albums","artists"}.contains(item.toMap().value("kind").toString()))return -1;
         }else if(operation=="resolveCatalogueArt"){
             const auto items=payload.value("items");
-            if((exploreArt ? lane!="explore-art" : heroArt ? lane!="home-hero-art"
+            if((exploreArt ? lane!=(editorialArt ? "explore-art" : "explore-art-lastfm") : heroArt ? lane!="home-hero-art"
                          : lane!="catalogue-art"||(value!="lastfm"&&value!="kworb"))
                 ||payload.size()!=1||items.metaType().id()!=QMetaType::QVariantList||items.toList().size()>12)return -1;
         }else if(lane.startsWith("catalogue-")||lane=="home-hero-art")return -1;
