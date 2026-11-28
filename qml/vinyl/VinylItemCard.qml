@@ -79,6 +79,7 @@ KeyboardAction {
         : compactCaption ? songCredit : artistText || (presentationKind === "songs" ? "" : String(item.subtitle || ""))
     readonly property real captionTop: copy.y
     readonly property url artworkSource: worldData ? worldData.artwork(item.cover) : ""
+    readonly property bool artworkSettled: !artworkSource.toString() || (!!art.item && art.item.artworkSettled === true)
     readonly property var mixArtworkSources: presentationKind === "mixes" && worldData
         ? (item.artworkCovers || []).slice(0, wide ? 3 : 4).map(cover => worldData.artwork(cover)) : []
     implicitWidth: wide ? 270 : 196

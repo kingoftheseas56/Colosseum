@@ -11,6 +11,7 @@ TestCase {
     width: 1280
     height: 720
     property var view: null
+    readonly property url fixtureCover: Qt.resolvedUrl("../../qml/vinyl/assets/record-ring.svg")
     readonly property string lastfmArtLane: "explore-art-lastfm"
     readonly property string editorialArtLane: "explore-art"
     readonly property var fixtures: [
@@ -33,11 +34,13 @@ TestCase {
         property int serial: 0
         property var calls: ({})
         property var canceled: []
+        property var requests: []
         signal completed(string lane, int id, var data, string error)
         function request(lane, operation, value, payload) {
             var next = Object.assign({}, calls);
             next[lane] = {id: ++serial, operation: operation, value: value, payload: payload};
             calls = next;
+            requests.push(lane);
             return serial;
         }
         function cancel(lane) { canceled.push(lane); }
@@ -60,6 +63,16 @@ TestCase {
         id: fixtureWorld
         property var selected: null
         property var opened: null
+        property string homeStatus: "loading"
+        property string homeError: ""
+        property bool pickerAnswered: false
+        property bool tastePickerOpen: false
+        property bool tasteGateLocked: false
+        property string pickerQuery: ""
+        property bool artistSearchLoading: false
+        property string artistSearchError: ""
+        property bool artistSearchHasMore: false
+        property var pickerDraft: []
         property var session: QtObject {
             property var source: transport
             property int profileGeneration: 1
@@ -67,7 +80,10 @@ TestCase {
             property bool shuttingDown: false
         }
         function activate(item) { selected = item; }
-        function artwork(url) { return ""; }
+        function selectTab(tab) {}
+        function artistOptions(query) { return []; }
+        function row(key, home) { return {key: key, title: "", items: []}; }
+        function artwork(url) { return String(url) === String(test.fixtureCover) ? url : ""; }
     }
     Component {
         id: host
@@ -86,27 +102,90 @@ TestCase {
             }
         }
     }
+    Component {
+        id: warmHost
+        Vinyl.VinylHouseShell {
+            width: test.width
+            height: test.height
+            contentBottomInset: 80
+            worldData: fixtureWorld
+            runtimeReady: true
+            hostReady: true
+        }
+    }
     function init() {
+        fixtureWorld.homeStatus = "loading";
         fixtureWorld.selected = null;
         fixtureWorld.opened = null;
+        fixtureWorld.session.shuttingDown = false;
+        fixtureWorld.session.profileActive = true;
         transport.calls = ({});
         transport.canceled = [];
+        transport.requests = [];
+    }
+    function open() {
         view = createTemporaryObject(host, test);
         verify(view !== null);
-        tryVerify(() => Object.keys(transport.calls).length === fixtures.length);
+        tryVerify(() => !!transport.calls[lane(fixtures[0])]);
+    }
+    function visibleFixtures() {
+        return fixtures.filter(fixture => {
+            var row = shelf(fixture[0]);
+            var y = row.mapToItem(view.pageFlickable, 0, 0).y;
+            return y < view.pageFlickable.height && y + row.height > 0;
+        });
+    }
+    function firstRequests() {
+        var visible = visibleFixtures();
+        var below = fixtures.indexOf(visible[visible.length - 1]) + 1;
+        return visible.concat(fixtures.slice(below, below + 1));
+    }
+    function scrollTo(key) {
+        view.pageFlickable.contentY = Math.max(0, Math.min(view.parkY(shelf(key)),
+            view.pageFlickable.contentHeight - view.pageFlickable.height));
+        tryVerify(() => !!transport.calls[lane(fixtures.find(f => f[0] === key))]);
+    }
+    function requestAllByScrolling() {
+        fixtures.forEach(fixture => {
+            if (!transport.calls[lane(fixture)]) scrollTo(fixture[0]);
+        });
+        compare(transport.requests, fixtures.map(lane));
+        view.pageFlickable.contentY = 0;
     }
     function takeReplies(counts) {
         fixtures.forEach(fixture => transport.finish(fixture, transport.pageReply(fixture, counts[fixture[0]] || 1)));
+    }
+    function finishCovered(fixture, count = 1) {
+        var data = transport.pageReply(fixture, count);
+        data.items.forEach(item => item.cover = String(fixtureCover));
+        transport.finish(fixture, data);
     }
     function card(key, index) { return findChild(view, "vinylCard_explore-" + key + "_" + index); }
     function shelf(key) { return findChild(view, "vinylExploreRow_" + key); }
 
     function test_rowsInOrderAndRequests() {
+        open();
         var page = findChild(view, "vinylExplorePage");
         var sidebar = findChild(view, "vinylExploreRowIndexSidebar");
         compare(page.rowCount, 12);
         compare(sidebar.rows.map(row => [row.key, row.title]), fixtures.map(fixture => fixture.slice(0, 2)));
-        compare(Object.keys(transport.calls), fixtures.map(lane));
+        var initial = firstRequests();
+        verify(initial.length > 1 && initial.length < fixtures.length);
+        compare(transport.requests, initial.map(lane));
+        var extent = view.pageFlickable.contentHeight;
+        var deferred = fixtures[initial.length];
+        var deferredHeight = shelf(deferred[0]).height;
+        verify(deferredHeight > 132);
+        verify(!card(deferred[0], 0));
+        verify(!transport.calls[lane(deferred)]);
+        view.pageFlickable.contentY += 250;
+        tryVerify(() => !!transport.calls[lane(deferred)]);
+        verify(!transport.calls[lane(fixtures[fixtures.length - 1])]);
+        finishCovered(deferred);
+        tryVerify(() => card(deferred[0], 0) && card(deferred[0], 0).visible);
+        compare(shelf(deferred[0]).height, deferredHeight);
+        compare(view.pageFlickable.contentHeight, extent);
+        requestAllByScrolling();
         fixtures.forEach(fixture => {
             var req = transport.calls[lane(fixture)];
             if (fixture[2]) {
@@ -125,10 +204,49 @@ TestCase {
             verify(!transport.calls["explore-" + key]);
         });
         compare(findChild(page, "vinylExploreAttribution").text, "Lists from Last.fm, Kworb and Wikipedia");
-        takeReplies({});
-        fixtures.forEach(fixture => compare(card(fixture[0], 0).item.title, fixture[3]));
+    }
+    function test_firstScreenRevealsTogetherAfterArtwork() {
+        open();
+        var first = visibleFixtures();
+        verify(first.length >= 2);
+        var keys = first.map(f => f[0]);
+        var extent = view.pageFlickable.contentHeight;
+        first.slice(0, -1).forEach(f => transport.finish(f));
+        var art = waitForArt(lastfmArtLane, "lastfm", keys.slice(0, -1).map(key => key + "-0"));
+        var covers = {};
+        keys.slice(0, -1).forEach(key => covers[key + "-0"] = String(fixtureCover));
+        finishArt(lastfmArtLane, art, {covers: covers});
+        tryCompare(findChild(card(keys[0], 0), "vinylArtworkImage"), "status", Image.Ready);
+        verify(!card(keys[0], 0).visible, "A ready row must still wait for the other visible lists");
+        transport.finish(first[first.length - 1]);
+        art = waitForArt(lastfmArtLane, "lastfm", [keys[keys.length - 1] + "-0"], art);
+        keys.forEach(key => {
+            verify(!card(key, 0).visible, "Lists alone must not reveal any first-screen row");
+            verify(shelf(key).showCardPlaceholder);
+        });
+        var shown = [];
+        keys.forEach(key => {
+            var tile = card(key, 0);
+            tile.visibleChanged.connect(() => { if (tile.visible) shown.push(key); });
+        });
+        covers[keys[keys.length - 1] + "-0"] = String(fixtureCover);
+        finishArt(lastfmArtLane, art, {covers: covers});
+        tryVerify(() => card(keys[0], 0).visible, 1000);
+        compare(shown.slice().sort(), keys.slice().sort());
+        keys.forEach(key => compare(findChild(card(key, 0), "vinylArtworkImage").status, Image.Ready));
+        compare(view.pageFlickable.contentHeight, extent);
+    }
+    function test_firstScreenRevealsTogetherOnArtworkTimeout() {
+        open();
+        var first = visibleFixtures();
+        first.forEach(f => transport.finish(f));
+        wait(250);
+        first.forEach(f => verify(!card(f[0], 0).visible));
+        tryVerify(() => card(first[0][0], 0).visible, 2500);
+        first.forEach(f => verify(card(f[0], 0).visible));
     }
     function test_moodPreviewActivatesAndOpensFullFirstPage() {
+        open();
         var page = findChild(view, "vinylExplorePage");
         var status = findChild(page, "vinylShelfStatus_explore-chill");
         verify(status.visible);
@@ -137,8 +255,10 @@ TestCase {
         var data = transport.pageReply(fixture, 50);
         data.stale = true;
         data.fetchedAt = "2026-11-27T00:00:00Z";
+        data.items.forEach(item => item.cover = String(fixtureCover));
         transport.finish(fixture, data);
-        compare(shelf("chill").row.status, "ready");
+        visibleFixtures().slice(1).forEach(f => finishCovered(f));
+        tryVerify(() => shelf("chill").row.status === "ready");
         compare(status.text, "As of 2026-11-27 (cached)");
         verify(card("chill", 7));
         verify(!card("chill", 8));
@@ -153,7 +273,7 @@ TestCase {
         verify(fixtureWorld.opened);
         compare(fixtureWorld.opened.key, "explore-chill");
         compare(fixtureWorld.opened.items.length, 50);
-        compare(Object.keys(transport.calls).filter(lane => lane.startsWith("explore-tag-")).length, 10);
+        compare(transport.requests, firstRequests().map(lane));
     }
     function test_invalidMoodReply_data() {
         return [{tag: "wrong list", field: "list", value: "happy"},
@@ -163,6 +283,7 @@ TestCase {
                     title: "Fixture song", kind: "songs", source: "wikipedia"}]}];
     }
     function test_invalidMoodReply(testData) {
+        open();
         var fixture = fixtures[0];
         var data = transport.pageReply(fixture, 1);
         data[testData.field] = testData.value;
@@ -184,6 +305,8 @@ TestCase {
         transport.completed(lane, id, Object.assign({version: 1, covers: {}}, result), "");
     }
     function test_previewArtworkBatchesBySourceAndUpdatesCardsInPlace() {
+        open();
+        requestAllByScrolling();
         takeReplies({chill: 10, "feel-good": 8});
         var moodCard = card("chill", 0);
         var wikiCard = card("year-end-100-2025", 0);
@@ -218,6 +341,8 @@ TestCase {
         compare(transport.serial, serial);
     }
     function test_stalledEditorialDoesNotBlockVisibleDecadeArtwork() {
+        open();
+        scrollTo("2010s");
         var chart = fixtures.find(fixture => fixture[0] === "year-end-100-2025");
         var decade = fixtures.find(fixture => fixture[0] === "2010s");
         transport.finish(chart);
@@ -238,6 +363,8 @@ TestCase {
         return [{tag: "leave", profileChange: false}, {tag: "profile change", profileChange: true}];
     }
     function test_cancelsBothArtworkLanes(data) {
+        open();
+        scrollTo("year-end-100-2025");
         var page = findChild(view, "vinylExplorePage");
         transport.finish(fixtures[0]);
         transport.finish(fixtures[5]);
@@ -252,11 +379,17 @@ TestCase {
         finishArt(lastfmArtLane, lastfm, {covers: covers});
         finishArt(editorialArtLane, editorial, {settled: ["year-end-100-2025-0"], covers: covers});
         compare(page.artResults, {});
+        verify(transport.canceled.includes(lane(fixtures[1])));
     }
     function test_failedRowRetriesWithoutReloadingOtherRows() {
+        open();
         var fixture = fixtures[1];
         var page = findChild(view, "vinylExplorePage");
-        fixtures.forEach(entry => transport.finish(entry, null, entry === fixture ? "Fixture failure" : ""));
+        firstRequests().forEach(entry => {
+            if (entry === fixture) transport.finish(entry, null, "Fixture failure");
+            else finishCovered(entry);
+        });
+        tryVerify(() => card("chill", 0) && card("chill", 0).visible);
         var existing = card("chill", 0);
         var retry = findChild(view, "vinylShelfRetry_explore-feel-good");
         verify(retry.visible && retry.enabled);
@@ -267,22 +400,99 @@ TestCase {
         compare(transport.serial, serial + 1);
         compare(transport.calls[lane(fixture)].id, serial + 1);
         verify(!retry.visible);
-        transport.finish(fixture);
+        finishCovered(fixture);
+        tryVerify(() => card("feel-good", 0) && card("feel-good", 0).visible);
         compare(card("feel-good", 0).item.title, "I'm Yours");
         compare(card("chill", 0), existing);
     }
+    function beginWarmUp() {
+        view = createTemporaryObject(warmHost, test);
+        verify(view);
+        wait(700);
+        compare(transport.requests, []);
+        fixtureWorld.homeStatus = "ready";
+        tryVerify(() => !!transport.calls[lane(fixtures[0])]);
+        var page = findChild(view, "vinylExplorePage");
+        verify(page && !page.active && !page.visible);
+        compare(view.activeTab, "Home");
+        return page;
+    }
+    function test_warmUpUsesFirstScreenOnceAndExploreReusesIt_data() {
+        return [{tag: "already warm", openDuringArt: false}, {tag: "in-flight handoff", openDuringArt: true}];
+    }
+    function test_warmUpUsesFirstScreenOnceAndExploreReusesIt(data) {
+        var page = beginWarmUp();
+        var lists = transport.requests.slice();
+        verify(lists.length > 1 && lists.length < fixtures.length);
+        compare(lists, fixtures.slice(0, lists.length).map(lane));
+        fixtures.slice(0, lists.length).forEach(f => transport.finish(f));
+        var ids = fixtures.slice(0, lists.length).map(f => f[0] + "-0");
+        var art = waitForArt(lastfmArtLane, "lastfm", ids);
+        var covers = {};
+        ids.forEach(id => covers[id] = String(fixtureCover));
+        if (data.openDuringArt) {
+            view.setTab("explore");
+            tryVerify(() => page.active);
+            verify(!transport.canceled.includes(lastfmArtLane));
+            verify(!card("chill", 0).visible);
+        }
+        finishArt(lastfmArtLane, art, {covers: covers});
+        tryVerify(() => page.firstScreenRevealed);
+        var first = card("chill", 0);
+        compare(findChild(first, "vinylArtworkImage").status, Image.Ready);
+        view.setTab("explore");
+        tryVerify(() => first.visible);
+        compare(lists, firstRequests().map(lane));
+        compare(transport.requests, lists.concat(lastfmArtLane));
+        view.setTab("home");
+        wait(750);
+        compare(transport.requests, lists.concat(lastfmArtLane));
+        view.setTab("explore");
+        tryVerify(() => first.visible);
+        compare(card("chill", 0), first);
+        compare(transport.requests, lists.concat(lastfmArtLane));
+    }
+    function test_profileChangeAndShutdownCancelWarmUp() {
+        var page = beginWarmUp();
+        var first = fixtures[0];
+        var second = fixtures[1];
+        var oldList = transport.calls[lane(second)].id;
+        transport.finish(first);
+        var oldArt = waitForArt(lastfmArtLane, "lastfm", ["chill-0"]);
+        fixtureWorld.session.profileActive = false;
+        fixtureWorld.session.profileGeneration++;
+        verify(transport.canceled.includes(lastfmArtLane));
+        verify(transport.canceled.includes(lane(second)));
+        transport.completed(lane(second), oldList, transport.pageReply(second, 1), "");
+        finishArt(lastfmArtLane, oldArt, {covers: {"chill-0": String(fixtureCover)}});
+        verify(!card("feel-good", 0));
+        compare(page.artResults, {});
+        fixtureWorld.session.profileActive = true;
+        tryVerify(() => transport.calls[lane(second)].id > oldList);
+        transport.finish(first);
+        waitForArt(lastfmArtLane, "lastfm", ["chill-0"], oldArt);
+        transport.canceled = [];
+        fixtureWorld.session.shuttingDown = true;
+        verify(transport.canceled.includes(lastfmArtLane));
+        verify(transport.canceled.includes(lane(second)));
+    }
     function test_rowIndexJumps() {
-        takeReplies({});
+        open();
         var sidebar = findChild(view, "vinylExploreRowIndexSidebar");
         var action = findChild(sidebar, "vinylExploreRowIndexRow_year_end_100_2025Action");
         var row = shelf("year-end-100-2025");
         verify(action !== null && row !== null);
+        verify(!transport.calls[lane(fixtures[5])]);
+        verify(!card(fixtures[5][0], 0));
         compare(view.pageFlickable.contentY, 0);
         verify(waitForRendering(action));
         var y = view.parkY(row);
         verify(y > 0);
         mouseClick(action);
+        tryVerify(() => !!transport.calls[lane(fixtures[5])]);
         tryVerify(() => Math.abs(view.pageFlickable.contentY - y) < 2);
+        finishCovered(fixtures[5]);
+        tryVerify(() => card(fixtures[5][0], 0) && card(fixtures[5][0], 0).visible);
         compare(sidebar.automationCurrentRow, "Biggest songs of 2025");
     }
 }

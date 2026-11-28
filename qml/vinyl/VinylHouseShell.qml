@@ -30,6 +30,18 @@ WorldPage {
     property string currentTab: "home"
     property bool discoverVisited: false
     property bool exploreVisited: false
+    property bool explorePrimed: false
+    readonly property bool exploreWarmEligible: ready && lifecycleActive && visible && contentVisible && navigationEnabled
+        && !gated && currentTab === "home" && !listKey && !worldData.tastePickerOpen && !homeLoading.visible
+        && !!worldData.session && !!worldData.session.source && worldData.session.profileActive !== false
+        && !worldData.session.shuttingDown && pageFlickable.height > 0
+        && worldData.homeStatus !== "loading" && worldData.homeStatus !== "idle"
+        && !(Number((worldData.homeSourcePool || {}).pendingCount) > 0)
+    Timer {
+        interval: 600
+        running: root.exploreWarmEligible && !root.exploreVisited && !root.explorePrimed
+        onTriggered: root.explorePrimed = true
+    }
     property string listKey: ""
     property bool listHome: false
     property real listReturnY: 0
@@ -350,7 +362,7 @@ WorldPage {
             onRadioRequested: item => root.worldData.radioHomeItem(item)
             onFeedbackRequested: (item,action) => root.worldData.feedbackHomeItem(item,action)
         }
-        Item { width: 1; height: 30; visible: flowBar.visible && body.visible && body.height > 0 }
+        Item { id: tabBodyGap; width: 1; height: 30; visible: flowBar.visible && body.visible && body.height > 0 }
         Item {
             id: body
             visible: !homeLoading.visible
@@ -433,12 +445,15 @@ WorldPage {
             Loader {
                 id: explore
                 width: parent.width
-                active: root.exploreVisited || root.currentTab === "explore"
+                active: root.explorePrimed || root.exploreVisited || root.currentTab === "explore"
                 height: item ? item.implicitHeight : 0
                 visible: !root.listKey && root.currentTab === "explore"
                 sourceComponent: VinylExplorePage {
                     width: explore.width
-                    active: root.lifecycleActive && root.ready && explore.visible
+                    active: root.lifecycleActive && root.ready && root.visible && root.contentVisible && explore.visible
+                    warmUp: root.exploreWarmEligible
+                    // A first visit parks the bottom of the tab bar at dockedInset.
+                    warmTopInset: root.boardTopPadding + root.dockedInset + tabBodyGap.height
                     worldData: root.worldData
                     backdrop: root.backdrop
                     pageFlick: root.pageFlickable

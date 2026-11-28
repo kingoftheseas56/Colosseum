@@ -19,6 +19,7 @@ Item {
     readonly property string initials: title.trim().split(/\s+/).slice(0, 2)
         .map(word => word.charAt(0)).join("").toUpperCase()
     readonly property bool collage: artworkSources.length > 0
+    readonly property bool artworkSettled: first.status === Image.Ready || first.status === Image.Error
     implicitWidth: 196
     implicitHeight: width
 

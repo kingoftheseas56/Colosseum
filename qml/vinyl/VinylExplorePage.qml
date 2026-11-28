@@ -10,6 +10,8 @@ Item {
     required property Flickable pageFlick
     property Item backdrop: null
     property bool active: true
+    property bool warmUp: false
+    property real warmTopInset: 0
     readonly property var session: worldData.session || null
     readonly property var source: session ? session.source : null
     readonly property int profileGeneration: session ? session.profileGeneration || 0 : 0
@@ -17,48 +19,143 @@ Item {
     readonly property int rowCount: shelves.count
     property int shelfRevision: 0
     property var artResults: ({})
+    property bool entered: false
+    property bool visitStarted: false
+    property bool warmAttempted: false
+    property bool warming: false
+    readonly property bool working: profileReady && (active || (warming && warmUp))
+    property var firstRows: []
+    property bool firstScreenRevealed: false
+    readonly property bool firstListsReady: firstRows.length > 0 && firstRows.every(shelf => shelf.reply && !shelf.pending)
+    readonly property bool firstArtReady: !firstScreenRevealed && firstListsReady
+        && firstRows.every(shelf => shelf.previewArtSettled && shelf.cardArtworkSettled)
     readonly property real contentLeft: rowIndex.contentLeft
     implicitHeight: shelfColumn.implicitHeight
     signal rowRequested(var target)
     signal listRequested(var row)
 
     function forceLayout() { shelfColumn.forceLayout(); }
-    function loadRows() {
-        if (!active || !profileReady) return;
+    function viewportRowTop() {
+        return warming ? warmTopInset : page.mapToItem(pageFlick, 0, 0).y;
+    }
+    function loadRows(initial) {
+        if (!working || pageFlick.height <= 0 || !shelves.count) return false;
+        forceLayout();
+        var height = pageFlick.height;
+        var origin = viewportRowTop();
+        var rows = [];
+        var below = null;
         for (var i = 0; i < shelves.count; ++i) {
             var shelf = shelves.itemAt(i);
-            if (shelf) shelf.load(false);
+            if (!shelf) continue;
+            var top = origin + shelf.y;
+            if (initial) {
+                if (top < height && top + shelf.height > 0) rows.push(shelf);
+                else if (top >= height && !below) below = shelf;
+            } else if (top < 2 * height && top + shelf.height > -height) rows.push(shelf);
+        }
+        if (initial && (!entered || !firstScreenRevealed)) {
+            if (rows.length !== firstRows.length || rows.some((row, i) => row !== firstRows[i]))
+                firstScreenRevealed = false;
+            firstRows = rows;
+        }
+        for (var row of rows) row.load(false);
+        if (initial && below) below.load(false);
+        return true;
+    }
+    function syncLoading() {
+        if (!profileReady) return;
+        // Opening Explore adopts any warm-up in flight; the same page owns both modes.
+        if (active && !visitStarted) {
+            warming = false;
+            visitStarted = loadRows(true);
+            entered = entered || visitStarted;
+            scheduleArt(true);
+        } else if (!active && !warmUp && warming) {
+            warming = false;
+            stopRequests();
+        } else if (!active && warmUp && !entered && !warmAttempted && pageFlick.height > 0) {
+            warming = true;
+            warmAttempted = loadRows(true);
+        }
+        maybeReveal();
+    }
+    function stopRequests() {
+        streamTimer.stop();
+        stopArt();
+        for (var i = 0; i < shelves.count; ++i) {
+            var shelf = shelves.itemAt(i);
+            if (shelf) shelf.cancelList();
         }
     }
-    function resetRows() {
-        stopArt();
-        artResults = ({});
+    function resetRows(newProfile) {
         if (!shelves) return;
+        warming = false;
+        visitStarted = false;
+        if (newProfile) {
+            entered = false;
+            warmAttempted = false;
+        }
+        firstRows = [];
+        firstScreenRevealed = false;
+        stopRequests();
+        artResults = ({});
         for (var i = 0; i < shelves.count; ++i) {
             var shelf = shelves.itemAt(i);
-            if (shelf) shelf.reset();
+            if (shelf) shelf.reply = null;
         }
-        Qt.callLater(page.loadRows);
+        Qt.callLater(page.syncLoading);
     }
     onActiveChanged: {
-        if (active) {
-            Qt.callLater(page.loadRows);
-            scheduleArt();
-        } else stopArt();
+        if (!active && visitStarted) {
+            visitStarted = false;
+            stopRequests();
+        }
+        Qt.callLater(page.syncLoading);
     }
-    onSourceChanged: resetRows()
-    onProfileGenerationChanged: resetRows()
-    onProfileReadyChanged: resetRows()
-    Component.onCompleted: Qt.callLater(page.loadRows)
+    onWarmUpChanged: Qt.callLater(page.syncLoading)
+    onSourceChanged: resetRows(true)
+    onProfileGenerationChanged: resetRows(true)
+    onProfileReadyChanged: {
+        if (!profileReady) resetRows(false);
+        else Qt.callLater(page.syncLoading);
+    }
+    Component.onCompleted: Qt.callLater(page.syncLoading)
     Component.onDestruction: stopArt()
+
+    function maybeReveal() {
+        if (working && firstArtReady) firstScreenRevealed = true;
+    }
+    onFirstArtReadyChanged: Qt.callLater(page.maybeReveal)
+    Timer {
+        id: revealTimer
+        interval: 1500
+        running: page.working && page.firstListsReady && !page.firstScreenRevealed
+        onTriggered: page.firstScreenRevealed = true
+    }
+    Timer {
+        id: streamTimer
+        interval: 80
+        onTriggered: if (page.active) page.loadRows(false)
+    }
+    Connections {
+        target: page.active ? page.pageFlick : null
+        function onContentYChanged() {
+            if (page.visitStarted && !streamTimer.running) streamTimer.start();
+        }
+        function onHeightChanged() {
+            if (page.visitStarted && !streamTimer.running) streamTimer.start();
+            else if (!page.visitStarted) Qt.callLater(page.syncLoading);
+        }
+    }
 
     function stopArt() {
         if (lastfmArt) lastfmArt.clear();
         if (editorialArt) editorialArt.clear();
     }
-    function scheduleArt() {
-        lastfmArt.schedule();
-        editorialArt.schedule();
+    function scheduleArt(immediate) {
+        lastfmArt.schedule(immediate);
+        editorialArt.schedule(immediate);
     }
     function artSource(item) {
         if (item.source === "lastfm") return "lastfm";
@@ -68,10 +165,11 @@ Item {
     function nextArtBatch(kind) {
         // Re-rank each new batch by distance from the viewport. Keep row order for ties.
         var ranked = [];
+        var origin = viewportRowTop();
         for (var i = 0; i < shelves.count; ++i) {
             var shelf = shelves.itemAt(i);
             if (!shelf || !shelf.items.length) continue;
-            var top = shelf.mapToItem(pageFlick, 0, 0).y;
+            var top = origin + shelf.y;
             var distance = Math.max(0, -top - shelf.height, top - pageFlick.height);
             ranked.push({shelf: shelf, distance: distance, index: i});
         }
@@ -89,7 +187,7 @@ Item {
         return batch;
     }
     function requestArt(walk) {
-        if (!active || !profileReady || walk.pending) return;
+        if (!working || walk.pending) return;
         var batch = walk.batch.filter(card => !artResults[card.id]);
         if (batch.length && Date.now() >= walk.deadline) {
             var timedOut = Object.assign({}, artResults);
@@ -111,7 +209,7 @@ Item {
         var request = walk.pending;
         if (!request || request.id !== id) return;
         walk.pending = null;
-        if (!active || !profileReady || request.source !== source || request.generation !== profileGeneration) return;
+        if (!working || request.source !== source || request.generation !== profileGeneration) return;
         try { data = JSON.parse(JSON.stringify(data)); } catch (conversionError) { data = null; }
         // Last.fm resolves the batch inline; only editorial polls return settled IDs.
         if (!error && data && data.version === 1 && data.covers) {
@@ -130,6 +228,10 @@ Item {
                     album: typeof album === "string" ? album : ""};
             }
             artResults = next;
+            if (walk.kind === "lastfm") {
+                walk.schedule(true);
+                return;
+            }
         }
         walk.schedule();
     }
@@ -147,10 +249,11 @@ Item {
         property var batch: []
         property double deadline: 0
         property var pending: null
-        interval: 1200
         onTriggered: page.requestArt(walk)
-        function schedule() {
-            if (page.active && page.profileReady && !pending && !running) start();
+        function schedule(immediate) {
+            if (!page.working || pending || running) return;
+            interval = immediate ? 1 : 1200;
+            start();
         }
         function clear() {
             stop();
@@ -168,6 +271,15 @@ Item {
         function onCompleted(lane, id, data, error) {
             if (lane === lastfmArt.lane) page.acceptArt(lastfmArt, id, data, error);
             else if (lane === editorialArt.lane) page.acceptArt(editorialArt, id, data, error);
+            else if (page.working && lane.startsWith("explore-")) {
+                for (var i = 0; i < shelves.count; ++i) {
+                    var shelf = shelves.itemAt(i);
+                    if (shelf && shelf.lane === lane) {
+                        shelf.accept(id, data, error);
+                        break;
+                    }
+                }
+            }
         }
     }
 
@@ -187,7 +299,10 @@ Item {
                 return shelf ? {key: shelf.modelData.key, title: shelf.modelData.title, target: shelf} : null;
             });
         }
-        onRowRequested: target => page.rowRequested(target)
+        onRowRequested: target => {
+            if (page.active) target.load(false);
+            page.rowRequested(target);
+        }
     }
     Column {
         id: shelfColumn
@@ -222,6 +337,10 @@ Item {
                 pageFlick: page.pageFlick
                 backdrop: page.backdrop
                 cardSize: 132
+                reservedCardHeight: cardSize + 55
+                cardsRevealed: !firstScreen || page.firstScreenRevealed
+                trackCardArtwork: firstScreen && !page.firstScreenRevealed
+                showCardPlaceholder: page.active && (!!pending || !!reply) && (loading || !cardsRevealed) && !failed
                 openRowHandler: function(row) { page.listRequested(row); }
                 retryRowHandler: function() { shelf.load(true); }
                 property var pending: null
@@ -231,31 +350,34 @@ Item {
                 readonly property string operation: tag ? "browseCatalogue" : modelData.operation
                 readonly property string value: tag ? "songs" : modelData.value
                 readonly property bool loading: !reply || !!pending
+                readonly property bool firstScreen: page.firstRows.includes(shelf)
+                readonly property bool previewArtSettled: items.slice(0, previewCount).every(item =>
+                    item.cover || !page.artSource(item) || page.artResults[item.id])
                 readonly property bool failed: !!reply && reply.failed
                 readonly property string staleDate: (reply && reply.staleDate) || ""
                 readonly property var items: ((reply && reply.items) || []).map(item => page.withArt(item))
                 row: ({key: "explore-" + modelData.key, title: modelData.title, items: items,
-                    personal: false, status: loading ? "loading" : failed ? "error" : "ready",
+                    personal: false, status: failed ? "error" : loading || !cardsRevealed ? "loading" : "ready",
                     canRetry: failed && !loading})
-                statusNote: !hasCards ? "" : loading ? qsTr("Loading this shelf…")
+                statusNote: !hasCards ? "" : loading || !cardsRevealed ? qsTr("Loading this shelf…")
                     : failed ? qsTr("Some charts could not load.")
                     : staleDate ? qsTr("As of %1 (cached)").arg(staleDate) : ""
 
                 function load(retry) {
-                    if (!page.active || !page.profileReady || pending || (reply && !(retry && failed))) return;
+                    if (!page.working || pending || (reply && !(retry && failed))) return;
+                    if (retry) reply = null;
                     var payload = tag ? {catalogueSource: "lastfm", list: tag, cursor: {}, pageSize: 50} : {};
                     var id = page.source.request(lane, operation, value, payload);
                     if (id < 0) reply = {failed: true};
                     else pending = {id: id, source: page.source, generation: page.profileGeneration};
                 }
-                function reset() {
+                function cancelList() {
                     var request = pending;
                     pending = null;
-                    reply = null;
                     if (request && request.source) request.source.cancel(lane);
                 }
-                function accept(responseLane, id, data, error) {
-                    if (responseLane !== lane || !pending || pending.id !== id || pending.source !== page.source
+                function accept(id, data, error) {
+                    if (!pending || pending.id !== id || pending.source !== page.source
                             || pending.generation !== page.profileGeneration) return;
                     pending = null;
                     var expected = tag ? "lastfm" : operation === "wikipediaList" ? "wikipedia" : "kworb";
@@ -268,14 +390,9 @@ Item {
                         && item.kind === "songs" && item.id && item.title && item.source === expected);
                     reply = {items: cards, failed: !cards.length,
                         staleDate: data.stale ? String(data.fetchedAt || "").slice(0, 10) : ""};
-                    if (cards.length) page.scheduleArt();
+                    if (cards.length) page.scheduleArt(true);
                 }
-                Component.onDestruction: reset()
-                Connections {
-                    target: page.source
-                    ignoreUnknownSignals: true
-                    function onCompleted(lane, id, data, error) { shelf.accept(lane, id, data, error); }
-                }
+                Component.onDestruction: cancelList()
             }
         }
         Text {

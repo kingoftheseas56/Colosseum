@@ -21,6 +21,23 @@ Item {
     property var openRowHandler: null
     property var retryRowHandler: null
     property string statusNote: ""
+    // Opt-in stable slot for streamed square shelves; other shelves size to their contents.
+    property real reservedCardHeight: 0
+    property bool cardsRevealed: true
+    property bool showCardPlaceholder: false
+    property bool trackCardArtwork: false
+    readonly property bool cardArtworkSettled: {
+        if (!trackCardArtwork) return true;
+        artworkRevision;
+        for (var i = 0; i < cardRepeater.count; ++i) {
+            var card = cardRepeater.itemAt(i);
+            if (!card || !card.artworkSettled) return false;
+        }
+        return true;
+    }
+    property int artworkRevision: 0
+    readonly property bool reducedMotion: !!(Window.window && Window.window["reducedMotion"] === true)
+    readonly property int statusHeight: 36
     readonly property string rowStatus: String(root.row && root.row.status || "")
     readonly property bool showRowStatus: statusNote.length > 0 || (!root.hasCards && root.row
         && (root.row.recommendation === true || root.row.personal === false)
@@ -68,17 +85,20 @@ Item {
     }
     Keys.onPressed: event => root.handleKeys(event)
     KeyboardCollectionController {
-        id:nav;view:root;count:cardRepeater.count;orientation:"horizontal"
+        id:nav;view:root;count:root.cardsRevealed ? cardRepeater.count : 0;orientation:"horizontal"
         positionIndexFn:function(index){root.reveal(index);Qt.callLater(function(){var card=cardRepeater.itemAt(index);if(card)card.forceActiveFocus()})}
         onActivated:index=>root.worldData.activate(root.row.items[index])
     }
-    implicitHeight: header.height + rowStatusBar.height + (hasCards ? 22 + rail.height : 0)
+    // Keep space for the optional status line so stale and failed replies cannot move later shelves.
+    implicitHeight: reservedCardHeight > 0 ? header.height + statusHeight + 22 + reservedCardHeight + 2 * cards.y
+        : header.height + rowStatusBar.height + (hasCards ? 22 + rail.height : 0)
+    Theme { id: theme }
     WidgetHeader {
         id: header
         width: Math.max(0,parent.width-16)
         title: root.row.title
         moreLabel: "See all"
-        navigable: root.hasCards
+        navigable: root.hasCards && root.cardsRevealed
         automationId: (root.home ? "vinylHomeSeeAll_" : "vinylShelfSeeAll_") + root.row.key
         onMoreClicked: {
             if (root.openRowHandler) root.openRowHandler(root.row);
@@ -90,7 +110,7 @@ Item {
         objectName: "vinylShelfStatusBar_" + root.row.key
         y: header.height
         width: parent.width
-        height: root.showRowStatus ? 36 : 0
+        height: root.showRowStatus ? root.statusHeight : 0
         visible: root.showRowStatus
 
         Text {
@@ -128,6 +148,26 @@ Item {
             }
         }
     }
+    Item {
+        id: placeholder
+        y: rail.y
+        width: rail.width
+        height: root.reservedCardHeight + 2 * cards.y
+        visible: root.showCardPlaceholder && root.reservedCardHeight > 0
+        clip: true
+        Row {
+            x: cards.x; y: cards.y
+            spacing: root.squareSpacing
+            Repeater {
+                model: placeholder.visible ? Math.min(root.previewCount,
+                    Math.ceil(rail.width / (root.cardSize + root.squareSpacing))) : 0
+                delegate: VinylArtwork {
+                    width: root.cardSize; height: width
+                    backgroundColor: theme.vaultSurface
+                }
+            }
+        }
+    }
     Flickable {
         id: rail
         y: header.height + rowStatusBar.height + 22
@@ -139,7 +179,13 @@ Item {
         onWidthChanged: root.exposureGeometryChanged()
         clip: true
         boundsBehavior: Flickable.StopAtBounds
-        visible: root.hasCards
+        visible: root.hasCards && root.cardsRevealed
+        enabled: visible
+        opacity: root.reservedCardHeight <= 0 || (root.hasCards && root.cardsRevealed) ? 1 : 0
+        Behavior on opacity {
+            enabled: root.reservedCardHeight > 0 && !root.reducedMotion && root.cardsRevealed && root.hasCards
+            NumberAnimation { duration: theme.vaultMotionDuration; easing.type: Easing.OutCubic }
+        }
         Grid {
             id: cards
             x: 3; y: 3
@@ -151,6 +197,7 @@ Item {
             Repeater {
                 id: cardRepeater
                 model: Math.min(root.previewCount,(root.row.items || []).length)
+                onItemAdded: if (root.trackCardArtwork) root.artworkRevision++
                 delegate: VinylItemCard {
                     required property int index
                     objectName: "vinylCard_" + (root.cold ? "cold-" : "") + root.row.key + "_" + index
@@ -187,7 +234,7 @@ Item {
         gradient:Gradient { orientation:Gradient.Horizontal; GradientStop { position:0; color:"transparent" } GradientStop { position:1; color:"#06070b" } }
     }
     Connections {
-        target: root.pageFlick
+        target: root.home ? root.pageFlick : null
         ignoreUnknownSignals: true
         function onContentYChanged() { root.exposureGeometryChanged() }
         function onHeightChanged() { root.exposureGeometryChanged() }
