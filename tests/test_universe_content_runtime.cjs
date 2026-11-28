@@ -60,11 +60,14 @@ content['audio-dune'] = {
     { id: 'first', englishTitle: 'Dune', language: 'en', workId: 'audio-work', recordingId: 'edition-a',
       narrators: ['Narrator A'], availability: source('audiobookbay', 'edition-a') },
     { id: 'second', englishTitle: 'Dune', language: 'English', workId: 'audio-work', recordingId: 'edition-b',
-      narrators: ['Narrator B'], availability: source('audiobookbay', 'edition-b') },
+      narrators: ['Narrator B'], availability: { ...source('audiobookbay', 'edition-b'),
+        sourceId: 'https://audiobookbay.lu/abss/dune-edition-b/' } },
     { id: 'wrong-edition', englishTitle: 'Dune', language: 'en', workId: 'audio-work', recordingId: 'edition-c',
       availability: source('audiobookbay', 'edition-a') },
     { id: 'japanese', englishTitle: 'Dune', language: 'ja', workId: 'audio-work', recordingId: 'edition-ja',
       availability: source('audiobookbay', 'edition-ja') },
+    { id: 'unverified-domain', englishTitle: 'Dune', language: 'en', workId: 'audio-work', recordingId: 'edition-c',
+      availability: { ...source('audiobookbay', 'edition-c'), sourceId: 'https://audiobookbay.lu.example/abss/dune/' } },
     { id: 'unmatched', title: 'Dune', listenUrl: 'https://example.com/catalogue' }
   ],
   soundtrackReleases: [{
@@ -74,6 +77,12 @@ content['audio-dune'] = {
   }, {
     id: 'playlist-only', englishTitle: 'Unmatched score', screenWorkId: 'tt1160419',
     youtubePlaylistId: 'PL123456789a', listenUrl: 'https://example.com/official'
+  }, {
+    id: 'restricted', englishTitle: 'Restricted soundtrack', screenWorkId: 'tt1160419',
+    youtubeMusicBrowseId: 'MPREb_restricted', availability: {
+      ...source('youtube-music', 'MPREb_restricted'), status: 'restricted-catalogue-metadata', region: 'IN'
+    },
+    tracks: [{ title: 'Official track credit', availableIn: false }]
   }],
   themes: [{
     id: 'theme', englishTitle: 'Theme song', role: 'opening', screenWorkId: 'tt1160419',
@@ -98,6 +107,12 @@ assert.equal(music.runs[1].works.length, 2);
 assert.equal(album.tracks[0].listenUrl, 'https://www.youtube.com/watch?v=123456789ab');
 assert.equal(audio.vinylItem(album).destination.providerId, 'MPREb_x');
 assert.equal(audio.vinylItem(full).record.tracks[0].videoId, 'abcdefghijk');
+const webMusic = audio.audioShelves(content['audio-dune'], true)[1];
+const restricted = webMusic.runs.find(run => run.label === 'Restricted soundtracks').works[0];
+assert.equal(restricted.status, 'Playback unavailable in India');
+assert.equal(restricted.listenUrl, '');
+assert.equal(restricted.tracks[0].title, 'Official track credit');
+assert.equal(audio.vinylItem(restricted), null);
 assert.equal(tv.title, 'Theme song (TV size)');
 assert.notEqual(full.key, tv.key);
 assert.equal(audio.slugFor('Weekly Shōnen Jump'), 'weekly-shonen-jump');

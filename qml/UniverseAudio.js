@@ -21,10 +21,11 @@ function englishTitle(row) {
 
 function sourceConfirmed(row, provider, id) {
     const check = row.availability;
-    return !!id && !!check && check.provider === provider && check.identity === id
-        && validId(check.sourceId, /^[a-zA-Z0-9:_-]{1,200}$/) !== ""
-        && (provider !== "youtube-music" || check.sourceId === id)
-        && /^\d{4}-\d{2}-\d{2}$/.test(check.checkedOn || "");
+    if (!id || !check || check.provider !== provider || check.identity !== id
+            || !/^\d{4}-\d{2}-\d{2}$/.test(check.checkedOn || "")) return false;
+    if (provider === "youtube-music") return check.sourceId === id;
+    return !!validId(check.sourceId, /^[a-zA-Z0-9:_-]{1,200}$/)
+        || /^https:\/\/audiobookbay\.lu\/abss\/[a-z0-9][a-z0-9_%.-]*\/?$/i.test(check.sourceId || "");
 }
 
 function isEnglishRecording(row) {
@@ -37,12 +38,22 @@ function isScreenRecording(row) {
     return !!englishTitle(row) && /^tt\d{7,}$/.test(row.screenWorkId || "");
 }
 
-function hasAlbum(row) {
+function hasAlbumIdentity(row) {
     return sourceConfirmed(row, "youtube-music", validId(row.youtubeMusicBrowseId, /^MPREb_[a-zA-Z0-9_-]+$/));
 }
 
+function isUnavailable(row) {
+    return row.availableIn === false
+        || /^(?:unavailable|restricted)(?:$|-)/.test(row.availability?.status || row.availabilityStatus || "");
+}
+
+function hasAlbum(row) {
+    return hasAlbumIdentity(row) && !isUnavailable(row);
+}
+
 function hasVideo(row) {
-    return sourceConfirmed(row, "youtube-music", validId(row.youtubeVideoId, /^[a-zA-Z0-9_-]{11}$/));
+    return !isUnavailable(row)
+        && sourceConfirmed(row, "youtube-music", validId(row.youtubeVideoId, /^[a-zA-Z0-9_-]{11}$/));
 }
 
 function song(row, parent, id, title, subtitle) {
@@ -56,8 +67,8 @@ function song(row, parent, id, title, subtitle) {
     };
 }
 
-function audioShelves(document) {
-    const books = [], albums = [], tracks = [], openings = [], endings = [];
+function audioShelves(document, includeUnavailable) {
+    const books = [], albums = [], unavailable = [], tracks = [], openings = [], endings = [];
     for (const row of list(document.audiobooks)) {
         if (!row || !row.id || !isEnglishRecording(row)) continue;
         const narrators = names(row.narrators);
@@ -69,20 +80,35 @@ function audioShelves(document) {
     }
     for (const row of list(document.soundtrackReleases)) {
         if (!row || !row.id || !isScreenRecording(row)) continue;
+        const albumIdentified = hasAlbumIdentity(row);
         const albumAvailable = hasAlbum(row);
         const browseId = row.youtubeMusicBrowseId;
         const albumTracks = list(row.tracks).filter(Boolean)
             .map(function(track, index) {
-                return song(track, { artists: row.artists || row.composers, coverUrl: row.coverUrl },
+                const item = song(track, { artists: row.artists || row.composers, coverUrl: row.coverUrl },
                     "score:" + row.id + ":" + index, englishTitle(track), englishTitle(row));
+                if (item) return item;
+                if (includeUnavailable && albumIdentified)
+                    return { title: englishTitle(track) || track.title, unavailable: isUnavailable(track) };
+                return null;
             }).filter(Boolean);
-        if (albumAvailable) albums.push({
-            key: "music:album:" + row.id, medium: "music", title: englishTitle(row),
-            subtitle: [row.screenWorkEnglishTitle, names(row.artists || row.composers).join(", ")].filter(Boolean).join(" · "),
-            cover: httpsUrl(row.coverUrl), browseId: browseId, listenUrl: "https://music.youtube.com/browse/" + browseId,
-            tracks: albumTracks
-        });
-        else tracks.push.apply(tracks, albumTracks);
+        if (albumAvailable || (includeUnavailable && albumIdentified)) {
+            const status = albumAvailable
+                ? (row.availability.status === "partially-restricted" ? "Some tracks restricted" : "")
+                : (row.availability.region === "IN" ? "Playback unavailable in India" : "Playback restricted");
+            const destination = albumAvailable ? albums : unavailable;
+            destination.push({
+                key: "music:album:" + row.id, medium: "music", title: englishTitle(row),
+                subtitle: [row.screenWorkEnglishTitle, names(row.artists || row.composers).join(", ")].filter(Boolean).join(" · "),
+                cover: httpsUrl(row.coverUrl), browseId: albumAvailable ? browseId : "",
+                listenUrl: albumAvailable ? "https://music.youtube.com/browse/" + browseId : "",
+                tracks: albumTracks, status: status, resolved: albumAvailable
+            });
+        } else if (!albumIdentified) {
+            const individual = song(row, row, "score:" + row.id, englishTitle(row), row.screenWorkEnglishTitle);
+            if (individual) tracks.push(individual);
+            tracks.push.apply(tracks, albumTracks);
+        }
     }
     for (const row of list(document.themes)) {
         if (!row || !row.id || !isScreenRecording(row)
@@ -100,7 +126,8 @@ function audioShelves(document) {
         { key: "audiobooks", kind: "audiobook", title: "Audiobooks", runs: [{ label: "", works: books }] },
         { key: "music", kind: "music", title: "Music", runs: [
             { label: "Soundtracks", works: albums }, { label: "Soundtrack tracks", works: tracks },
-            { label: "Openings", works: openings }, { label: "Endings", works: endings }
+            { label: "Openings", works: openings }, { label: "Endings", works: endings },
+            { label: "Restricted soundtracks", works: unavailable }
         ] }
     ].map(function(shelf) {
         shelf.runs = shelf.runs.filter(function(run) { return run.works.length > 0; });
@@ -115,7 +142,7 @@ function shelvesFor(name, musicAvailable) {
 }
 
 function vinylItem(item) {
-    if (!item || item.medium !== "music") return null;
+    if (!item || item.medium !== "music" || item.resolved === false) return null;
     if (item.browseId)
         return { destination: { kind: "album", provider: "youtube-music", providerId: item.browseId } };
     if (!item.videoId) return null;

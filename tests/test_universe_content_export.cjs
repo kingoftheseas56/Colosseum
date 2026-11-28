@@ -33,18 +33,25 @@ try {
     const audiobook = { id: 'dune-edition', title: 'Dune', englishTitle: 'Dune', language: 'en',
       workId: 'exact-work', recordingId: 'exact-recording',
       availability: { provider: 'audiobookbay', identity: 'exact-recording', sourceId: 'posting-1', checkedOn: '2026-11-28' } };
+    const restrictedAlbum = { title: 'Dune Soundtrack', englishTitle: 'Dune Soundtrack', screenWorkId: 'tt1160419',
+      youtubeMusicBrowseId: 'MPREb_dune', tracks: [{ title: 'Track credit', availableIn: false }],
+      availability: { provider: 'youtube-music', identity: 'MPREb_dune', sourceId: 'MPREb_dune',
+        checkedOn: '2026-11-28', region: 'IN', status: 'restricted-catalogue-metadata' } };
     const input = { schemaVersion: 1, universeSlug: 'dune',
       audiobooks: [
         { ...audiobook, sources: [{ url: 'https://example.com/research' }] },
         { id: 'unmatched', title: 'Unknown recording', listenUrl: 'https://example.com/recording' }
       ],
-      soundtrackReleases: [{ id: 'unrelated-film', title: 'Unrelated soundtrack', englishTitle: 'Unrelated soundtrack',
+      soundtrackReleases: [{ ...restrictedAlbum, releaseId: 'dune-score' }, {
+        id: 'unrelated-film', title: 'Unrelated soundtrack', englishTitle: 'Unrelated soundtrack',
         screenWorkId: 'tt0096283', youtubeMusicBrowseId: 'MPREb_unrelated',
         availability: { provider: 'youtube-music', identity: 'MPREb_unrelated', sourceId: 'MPREb_unrelated', checkedOn: '2026-11-28' } }],
       themes: [], coverage: [] };
     fs.writeFileSync(fixture, JSON.stringify(input));
-    assert.deepEqual(documents(audioDirectory)['audio-dune'], {
-      audiobooks: [audiobook], soundtrackReleases: [], themes: []
+    const publishedScreenPins = { dune: [{ id: 'tt1160419', title: 'Dune' }] };
+    assert.deepEqual(documents(audioDirectory, undefined, publishedScreenPins)['audio-dune'], {
+      audiobooks: [audiobook], soundtrackReleases: [{ ...restrictedAlbum, id: 'dune-score', screenWorkEnglishTitle: 'Dune' }],
+      themes: []
     });
     input.audiobooks.push(audiobook);
     fs.writeFileSync(fixture, JSON.stringify(input));
