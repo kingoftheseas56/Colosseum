@@ -30,10 +30,18 @@ try {
   const audioDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'colosseum-universe-audio-'));
   try {
     const fixture = path.join(audioDirectory, 'dune.json');
-    const audiobook = { id: 'dune-edition', title: 'Dune', workId: 'exact-work', recordingId: 'exact-recording' };
+    const audiobook = { id: 'dune-edition', title: 'Dune', englishTitle: 'Dune', language: 'en',
+      workId: 'exact-work', recordingId: 'exact-recording',
+      availability: { provider: 'audiobookbay', identity: 'exact-recording', sourceId: 'posting-1', checkedOn: '2026-11-28' } };
     const input = { schemaVersion: 1, universeSlug: 'dune',
-      audiobooks: [{ ...audiobook, sources: [{ url: 'https://example.com/research' }] }],
-      soundtrackReleases: [], themes: [], coverage: [] };
+      audiobooks: [
+        { ...audiobook, sources: [{ url: 'https://example.com/research' }] },
+        { id: 'unmatched', title: 'Unknown recording', listenUrl: 'https://example.com/recording' }
+      ],
+      soundtrackReleases: [{ id: 'unrelated-film', title: 'Unrelated soundtrack', englishTitle: 'Unrelated soundtrack',
+        screenWorkId: 'tt0096283', youtubeMusicBrowseId: 'MPREb_unrelated',
+        availability: { provider: 'youtube-music', identity: 'MPREb_unrelated', sourceId: 'MPREb_unrelated', checkedOn: '2026-11-28' } }],
+      themes: [], coverage: [] };
     fs.writeFileSync(fixture, JSON.stringify(input));
     assert.deepEqual(documents(audioDirectory)['audio-dune'], {
       audiobooks: [audiobook], soundtrackReleases: [], themes: []

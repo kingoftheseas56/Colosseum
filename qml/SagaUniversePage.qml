@@ -48,7 +48,8 @@ Item {
     readonly property string displayFace: sagaDisplay.name
     property bool reducedMotion: true
     readonly property var guide: (root.universeContentGeneration, UDB.configFor)(root.universeName || root.uni.name)
-    readonly property var audioShelves: (root.universeContentGeneration, UniverseAudio.shelvesFor)(root.universeName)
+    property bool musicAvailable: true
+    readonly property var audioShelves: (root.universeContentGeneration, UniverseAudio.shelvesFor)(root.universeName, root.musicAvailable)
     readonly property var audiobookShelf: root.audioShelves.find(shelf => shelf.kind === "audiobook")
     readonly property var musicShelf: root.audioShelves.find(shelf => shelf.kind === "music")
     // an anime universe (curated manga list) is the same page with the read form in manga:

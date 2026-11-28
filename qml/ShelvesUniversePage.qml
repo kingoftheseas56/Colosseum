@@ -92,7 +92,8 @@ Item {
         k = k.replace(/^-+|-+$/g, "")
         return k || ("shelf-" + index)
     }
-    readonly property var audioShelves: (root.universeContentGeneration, UniverseAudio.shelvesFor)(root.universeName)
+    property bool musicAvailable: true
+    readonly property var audioShelves: (root.universeContentGeneration, UniverseAudio.shelvesFor)(root.universeName, root.musicAvailable)
     readonly property var shelves: (root.uni.shelves || []).concat(root.audioShelves)
     readonly property var activeShelves: root.shelves.filter(function(s) { return root.shelfCount(s) > 0 })
     readonly property var rowShelves: root.activeShelves.filter(function(s) { return s.form !== "table" })

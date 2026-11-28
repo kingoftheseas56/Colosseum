@@ -54,31 +54,47 @@ assert.equal(payload.title, 'API revision', 'process lifetime extension cache mu
 
 const audio = load('UniverseAudio.js', { ContentApi: bridge });
 assert.equal(audio.shelvesFor('Dune').length, 0);
+const source = (provider, identity) => ({ provider, identity, sourceId: identity, checkedOn: '2026-11-28' });
 content['audio-dune'] = {
   audiobooks: [
-    { id: 'first', title: 'Dune', workId: 'audio-work', recordingId: 'edition-a', narrators: ['Narrator A'] },
-    { id: 'second', title: 'Dune', workId: 'audio-work', recordingId: 'edition-b', narrators: ['Narrator B'] },
-    { id: 'unmatched', title: 'Dune', listenUrl: 'javascript:alert(1)' }
+    { id: 'first', englishTitle: 'Dune', language: 'en', workId: 'audio-work', recordingId: 'edition-a',
+      narrators: ['Narrator A'], availability: source('audiobookbay', 'edition-a') },
+    { id: 'second', englishTitle: 'Dune', language: 'English', workId: 'audio-work', recordingId: 'edition-b',
+      narrators: ['Narrator B'], availability: source('audiobookbay', 'edition-b') },
+    { id: 'wrong-edition', englishTitle: 'Dune', language: 'en', workId: 'audio-work', recordingId: 'edition-c',
+      availability: source('audiobookbay', 'edition-a') },
+    { id: 'japanese', englishTitle: 'Dune', language: 'ja', workId: 'audio-work', recordingId: 'edition-ja',
+      availability: source('audiobookbay', 'edition-ja') },
+    { id: 'unmatched', title: 'Dune', listenUrl: 'https://example.com/catalogue' }
   ],
   soundtrackReleases: [{
-    id: 'score', title: 'Original Soundtrack', screenWorkTitle: 'Dune', youtubeMusicBrowseId: 'MPREb_x',
-    tracks: [{ title: 'Score track', youtubeVideoId: '123456789ab' }]
+    id: 'score', englishTitle: 'Original Soundtrack', screenWorkEnglishTitle: 'Dune', screenWorkId: 'tt1160419',
+    youtubeMusicBrowseId: 'MPREb_x', availability: source('youtube-music', 'MPREb_x'),
+    tracks: [{ englishTitle: 'Score track', youtubeVideoId: '123456789ab', availability: source('youtube-music', '123456789ab') }]
+  }, {
+    id: 'playlist-only', englishTitle: 'Unmatched score', screenWorkId: 'tt1160419',
+    youtubePlaylistId: 'PL123456789a', listenUrl: 'https://example.com/official'
   }],
   themes: [{
-    id: 'theme', title: 'Theme song', role: 'opening', screenWorkTitle: 'Example',
-    versions: [{ edit: 'Full', youtubeVideoId: 'abcdefghijk' }, { edit: 'TV size', youtubeVideoId: '123456789ab' }]
+    id: 'theme', englishTitle: 'Theme song', role: 'opening', screenWorkId: 'tt1160419',
+    versions: [{ edit: 'Full', youtubeVideoId: 'abcdefghijk', availability: source('youtube-music', 'abcdefghijk') },
+      { edit: 'TV size', youtubeVideoId: '123456789ab', availability: source('youtube-music', '123456789ab') },
+      { edit: 'Draft', youtubeVideoId: '11111111111' }]
   }]
 };
 const [books, music] = audio.shelvesFor('Dune');
 assert.equal(books.title, 'Audiobooks');
 assert.equal(books.runs[0].works[0].recordingId, 'edition-a');
 assert.equal(books.runs[0].works[1].recordingId, 'edition-b');
-assert.equal(books.runs[0].works[2].resolved, false);
-assert.equal(books.runs[0].works[2].listenUrl, '');
+assert.equal(books.runs[0].works.length, 2);
+assert.equal(books.runs[0].works[0].listenUrl, undefined);
 assert.equal(music.title, 'Music');
+assert.equal(audio.shelvesFor('Dune', false).length, 1);
 assert.equal(music.runs.length, 2);
 const album = music.runs[0].works[0];
 const [full, tv] = music.runs[1].works;
+assert.equal(music.runs[0].works.length, 1);
+assert.equal(music.runs[1].works.length, 2);
 assert.equal(album.tracks[0].listenUrl, 'https://www.youtube.com/watch?v=123456789ab');
 assert.equal(audio.vinylItem(album).destination.providerId, 'MPREb_x');
 assert.equal(audio.vinylItem(full).record.tracks[0].videoId, 'abcdefghijk');

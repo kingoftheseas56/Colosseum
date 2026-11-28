@@ -3041,7 +3041,7 @@ Window {
     }
     function openUniverseAudio(item) {
         if (!item) return
-        if (item.medium === "audiobook" && item.workId) {
+        if (item.medium === "audiobook" && item.workId && item.recordingId) {
             openAudiobookBridge(item, "", null, false)
             return
         }
@@ -3053,8 +3053,6 @@ Window {
             pendingVinylResume = null
             pendingUniverseVinyl = target
             applyUniverseVinyl()
-        } else if (item.listenUrl) {
-            Qt.openUrlExternally(item.listenUrl)
         }
     }
     function applyUniverseVinyl() {
@@ -6688,7 +6686,10 @@ Window {
                 if (accountHost.visible) accountHost.focusReturnItem = item
                 item.watchRequested.connect(win.openTheatreSeries)
                 if (item.bookRequested) item.bookRequested.connect(win.openBook)
-                if (item.audioRequested) item.audioRequested.connect(win.openUniverseAudio)
+                if (item.audioRequested) {
+                    item.musicAvailable = Qt.binding(function() { return win.vinylEnabled && win.vinylProfileActive })
+                    item.audioRequested.connect(win.openUniverseAudio)
+                }
                 if (item.comicsArchiveRequested) item.comicsArchiveRequested.connect(win.openUniverseComic)
                 if (item.seriesRequested) item.seriesRequested.connect(win.openSeries)
                 // an edition manga (e.g. the One Piece colour edition) arrives as a whole

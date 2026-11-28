@@ -21,24 +21,40 @@ function readModule(file) {
     Object.prototype.toString.call(value) === '[object RegExp]'
       ? { source: value.source, flags: value.flags } : value));
 }
-function projectAudio(data) {
+function screenPins(node, pins = new Map()) {
+  if (!node || typeof node !== 'object') return pins;
+  const title = node.t || node.title;
+  if (typeof title === 'string' && /^tt\d{7,}$/.test(node.id)) pins.set(node.id, title);
+  for (const child of Object.values(node)) screenPins(child, pins);
+  return pins;
+}
+function projectAudio(data, rules, pins) {
   function fields(row, keys) {
-    return Object.fromEntries(keys.split(' ').filter(key => row[key] != null).map(key => [key, row[key]]));
+    return Object.fromEntries(keys.split(' ').filter(key => row[key] != null).map(key => [
+      key, key === 'availability' ? fields(row[key], 'provider identity sourceId checkedOn') : row[key]
+    ]));
   }
-  function versions(rows, keys) {
-    return Array.isArray(rows) ? rows.filter(row => row && typeof row === 'object').map(row => fields(row, keys)) : [];
+  function playableSongs(rows, keys, needsOwnTitle) {
+    return Array.isArray(rows) ? rows
+      .filter(row => row && (!needsOwnTitle || rules.englishTitle(row)) && rules.hasVideo(row))
+      .map(row => fields(row, keys)) : [];
+  }
+  function pinnedScreenWork(row) {
+    return rules.isScreenRecording(row) && pins.has(row.screenWorkId);
   }
   return {
-    audiobooks: data.audiobooks.map(row => fields(row,
-      'id title bookTitle authors narrators workId recordingId language region publisher releaseDate durationMinutes abridgement dramatized coverUrl listenUrl')),
-    soundtrackReleases: data.soundtrackReleases.map(row => ({
-      ...fields(row, 'id title screenWorkTitle screenWorkId season artists composers releaseDate label format edition coverUrl listenUrl youtubeMusicBrowseId youtubePlaylistId'),
-      tracks: versions(row.tracks, 'title artists disc trackNumber durationSeconds coverUrl youtubeVideoId listenUrl')
-    })),
-    themes: data.themes.map(row => ({
-      ...fields(row, 'id title screenWorkTitle screenWorkId season role number usedInEpisodes uses artists coverUrl youtubeVideoId listenUrl'),
-      versions: versions(row.versions, 'edit artists coverUrl youtubeVideoId listenUrl')
-    }))
+    audiobooks: data.audiobooks.filter(rules.isEnglishRecording).map(row => fields(row,
+      'id title englishTitle bookTitle authors narrators workId recordingId language region publisher releaseDate durationMinutes abridgement dramatized coverUrl availability')),
+    soundtrackReleases: data.soundtrackReleases.filter(pinnedScreenWork).map(row => ({
+      ...fields(row, 'id title englishTitle screenWorkId season artists composers releaseDate label format edition coverUrl youtubeMusicBrowseId availability'),
+      screenWorkEnglishTitle: pins.get(row.screenWorkId),
+      tracks: playableSongs(row.tracks, 'title englishTitle artists disc trackNumber durationSeconds coverUrl youtubeVideoId availability', true)
+    })).filter(row => rules.hasAlbum(row) || row.tracks.length),
+    themes: data.themes.filter(row => pinnedScreenWork(row) && (row.role === 'opening' || row.role === 'ending')).map(row => ({
+      ...fields(row, 'id title englishTitle screenWorkId season role number usedInEpisodes uses artists coverUrl youtubeVideoId availability'),
+      screenWorkEnglishTitle: pins.get(row.screenWorkId),
+      versions: playableSongs(row.versions, 'edit artists coverUrl youtubeVideoId availability', false)
+    })).filter(row => rules.hasVideo(row) || row.versions.length)
   };
 }
 function documents(audioDirectory = path.join(root, 'assets/universe-audio')) {
@@ -77,12 +93,13 @@ function documents(audioDirectory = path.join(root, 'assets/universe-audio')) {
     out['universe-' + stem] = JSON.parse(fs.readFileSync(path.join(root, 'assets/universes', stem + '.json'), 'utf8'));
   }
   if (fs.existsSync(audioDirectory)) {
-    const { slugFor } = evaluateModule('UniverseAudio.js');
-    const slugs = new Set(roster.universes.concat(roster.archive).map(entry => slugFor(entry.name)));
+    const audioRules = evaluateModule('UniverseAudio.js');
+    const entries = new Map(roster.universes.concat(roster.archive).map(entry => [audioRules.slugFor(entry.name), entry]));
     for (const file of fs.readdirSync(audioDirectory).filter(name => name.endsWith('.json')).sort()) {
       const slug = path.basename(file, '.json');
       const data = JSON.parse(fs.readFileSync(path.join(audioDirectory, file), 'utf8'));
-      if (!slugs.has(slug) || data?.schemaVersion !== 1 || data.universeSlug !== slug)
+      const entry = entries.get(slug);
+      if (!entry || data?.schemaVersion !== 1 || data.universeSlug !== slug)
         throw new Error('Invalid Universe audio document: ' + file);
       for (const key of ['audiobooks', 'soundtrackReleases', 'themes']) {
         const rows = data[key];
@@ -91,7 +108,9 @@ function documents(audioDirectory = path.join(root, 'assets/universe-audio')) {
             || new Set(rows.map(row => row.id)).size !== rows.length)
           throw new Error('Invalid Universe audio catalogue entries: ' + file + ' ' + key);
       }
-      out['audio-' + slug] = projectAudio(data);
+      const pins = screenPins([entry, roster.shelfOverlays?.[entry.name], out['universe-' + slug]]);
+      const projected = projectAudio(data, audioRules, pins);
+      if (Object.values(projected).some(rows => rows.length)) out['audio-' + slug] = projected;
     }
   }
   return JSON.parse(JSON.stringify(out));
