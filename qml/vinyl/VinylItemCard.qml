@@ -74,9 +74,7 @@ KeyboardAction {
         : resumeCaption ? reason
         : presentationKind === "artists" ? (compactCaption && reason || qsTr("Artist"))
         : presentationKind === "mixes" ? String(item.subtitle || qsTr("Made for you"))
-        : presentationKind === "radio" ? (wide
-            ? (item.subtitle && item.subtitle !== "Radio" ? String(item.subtitle) : qsTr("Keeps going"))
-            : qsTr("Personal radio"))
+        : presentationKind === "radio" ? (item.subtitle && item.subtitle !== "Radio" ? String(item.subtitle) : qsTr("Keeps going"))
         : presentationKind === "albums" ? Presentation.albumDetail(item, artistText)
         : compactCaption ? songCredit : artistText || (presentationKind === "songs" ? "" : String(item.subtitle || ""))
     readonly property real captionTop: copy.y
@@ -84,7 +82,7 @@ KeyboardAction {
     readonly property var mixArtworkSources: presentationKind === "mixes" && worldData
         ? (item.artworkCovers || []).slice(0, wide ? 3 : 4).map(cover => worldData.artwork(cover)) : []
     implicitWidth: wide ? 270 : 196
-    implicitHeight: songLine ? 56 : wide ? 124 : width + (compactCaption ? 42 : 55)
+    implicitHeight: songLine ? 56 : wide ? 124 : width + (compactCaption ? 54 : 55)
     accessibleName: captionTitle + (captionDetail ? ". " + captionDetail : "")
     accessibleDescription: secondaryText === captionDetail ? "" : secondaryText
     onTriggered: if(worldData) worldData.activate(item)
@@ -160,7 +158,9 @@ KeyboardAction {
             y: root.songLine ? (tile.height - height) / 2 : 0
             width: root.songLine ? 44 : root.wide ? 124 : tile.width
             height: width
-            sourceComponent: root.wide ? listeningFace : squareArt
+            // Mixes and stations: the original cassette/radio faces fill the square card (Hemanth 2026-11-28: self-contained).
+            sourceComponent: root.wide ? listeningFace
+                : !root.songLine && (root.presentationKind === "mixes" || root.presentationKind === "radio") ? listeningFace : squareArt
         }
         Component {
             id: squareArt
@@ -200,9 +200,9 @@ KeyboardAction {
             id: copy
             objectName: root.objectName + "_caption"
             x: root.songLine ? art.x + art.width + 12 : root.wide ? art.width + 16 : 2
-            y: root.songLine ? 9 : root.wide ? 6 : art.height + (root.compactCaption ? 0 : 7)
+            y: root.songLine ? 9 : root.wide ? 6 : art.height + (root.compactCaption ? 10 : 7) // Crate: room under the tile (Hemanth 2026-11-28)
             width: Math.max(0, tile.width - x - (root.songLine ? 10 + root.lineActionsWidth : root.wide ? 0 : 2))
-            height: root.songLine ? 38 : root.wide ? tile.height - y - 12 : root.compactCaption ? 38 : 48
+            height: root.songLine ? 38 : root.wide ? tile.height - y - 12 : root.compactCaption ? 42 : 48
 
             Loader {
                 active: root.wide
@@ -223,28 +223,28 @@ KeyboardAction {
                 objectName: root.objectName + "_captionTitle"
                 y: root.wide ? 20 : 0
                 width: parent.width
-                height: root.songLine ? 20 : root.compactCaption ? 18 : 22
+                height: root.songLine ? 20 : root.compactCaption ? 22 : 22
                 text: root.captionTitle
                 textFormat: Text.PlainText
                 color: root.playing ? theme.gold : theme.ink
-                font.family: root.songLine ? theme.ui : theme.display
-                font.pixelSize: root.songLine || root.compactCaption ? 14 : 17
+                font.family: root.songLine || root.compactCaption ? theme.ui : theme.display // Crate matches The Spin
+                font.pixelSize: root.songLine ? 14 : root.compactCaption ? 16 : 17
+                font.weight: root.compactCaption ? Font.Bold : Font.Normal
                 maximumLineCount: 1
                 elide: Text.ElideRight
                 verticalAlignment: Text.AlignVCenter
             }
             Text {
                 objectName: root.objectName + "_captionDetail"
-                y: root.songLine ? 20 : root.wide ? 46 : root.compactCaption ? 18 : 24
+                y: root.songLine ? 20 : root.wide ? 46 : root.compactCaption ? 24 : 24
                 width: Math.max(0, parent.width - (!root.wide && !root.songLine && hint.active ? hint.width + 6 : 0))
-                height: root.songLine ? 16 : root.wide ? 14 : root.compactCaption ? 20 : 24
-                text: root.feedbackError || ((root.pinned ? "✓  " : "")
-                    + (!root.wide && root.presentationKind === "radio" && !root.item.unavailable ? "((•))  " : "")
+                height: root.songLine ? 16 : root.wide ? 14 : root.compactCaption ? 18 : 24
+                text: root.feedbackError || (""
                     + root.captionDetail)
                 textFormat: Text.PlainText
                 color: root.resumeCaption ? theme.gold : theme.inkDim
                 font.family: theme.ui
-                font.pixelSize: 12
+                font.pixelSize: root.compactCaption ? 13 : 12
                 maximumLineCount: 1
                 elide: Text.ElideRight
                 verticalAlignment: Text.AlignVCenter

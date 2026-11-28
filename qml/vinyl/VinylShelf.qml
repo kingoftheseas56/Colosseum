@@ -12,7 +12,8 @@ Item {
     property bool homePageVisible: false
     property int exposureRevision: 0
     property real cardSize: 196
-    readonly property bool wideListeningRow: home && (row.homeKey || row.key) === "mixes-radio"
+    // Square, self-contained cassette/radio widgets like every other card (Hemanth 2026-11-28).
+    readonly property bool wideListeningRow: false
     readonly property bool songLines: home && ["quick-picks", "continue-listening"].includes(row.homeKey || row.key)
     property real squareSpacing: home ? 18 : 24
     property int previewCount: songLines ? 12 : 8

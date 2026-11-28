@@ -464,7 +464,7 @@ TestCase {
                 ? Object.assign({},row,{items:[station]}) : row);
             var tile=findChild(view,"vinylCard_v1:mixes-radio_0");
             scrollToCard(tile);
-            verify(tile.wide);
+            verify(!tile.wide);
             compare(tile.captionDetail,"Keeps going");
             compare(findChild(tile,tile.objectName+"_artistRadio"),null);
             mouseClick(tile,20,80);

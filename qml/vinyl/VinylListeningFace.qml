@@ -10,6 +10,7 @@ Image {
     required property url portrait
     required property var covers
     readonly property real unit: width / 220
+    readonly property real artRadius: 10
 
     source: cassette ? "assets/vinyl-cassette-face.png" : "assets/vinyl-radio-face.png"
     asynchronous: true

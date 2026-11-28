@@ -59,8 +59,8 @@ TestCase {
             compare(face.width,120);
             compare(face.artRadius,tile.kind==="artists" ? 60 : 10);
             var card=findChild(tile,"vinylCrateTile_"+i+"_card");
-            compare(findChild(card,card.objectName+"_captionTitle").font.pixelSize,14);
-            compare(findChild(card,card.objectName+"_captionDetail").font.pixelSize,12);
+            compare(findChild(card,card.objectName+"_captionTitle").font.pixelSize,16);
+            compare(findChild(card,card.objectName+"_captionDetail").font.pixelSize,13);
             verify(card.captionDetail.length>0);
             if(tile.kind==="songs") { compare(card.captionTitle,"Fixture "+i); compare(card.captionDetail,"Fixture artist · from Fixture album"); }
         }
@@ -98,7 +98,7 @@ TestCase {
         var missing=findChild(crate,"vinylCrateTile_4"), unpin=findChild(crate,"vinylCrateTilePin_4");
         verify(missing!==null && missing.visible); compare(missing.pinned,true); compare(missing.available,false);
         var card=findChild(missing,"vinylCrateTile_4_card"); verify(!card.enabled); verify(card.opacity<1);
-        verify(findChild(card, card.objectName + "_captionDetail").text.startsWith("✓"));
+        verify(findChild(card, card.objectName + "_captionDetail").text.indexOf("✓") < 0, "No tick marks in captions");
         mouseClick(missing,20,100); compare(activated.count,0);
         verify(unpin.enabled,"Unavailable pinned tiles must allow unpin"); click(unpin); compare(pinned.count,2); compare(pinned.signalArguments[1][1],false);
         compare(missing.pinned,true); compare(JSON.stringify(rows),before); compare(activated.count,0);

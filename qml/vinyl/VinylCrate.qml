@@ -108,7 +108,7 @@ Item {
                     id: pin
                     objectName: "vinylCrateTilePin_"+tile.itemIndex
                     x:parent.width-width-7; y:7; z:2
-                    symbol: tile.pinned ? "check" : "playlistAdd"
+                    symbol: tile.pinned ? "saved" : "playlistAdd" // no tick marks (Hemanth 2026-11-28)
                     enabled: tile.available || tile.pinned
                     pointerEnabled: revealed || tile.pinned
                     revealed: tileHover.hovered || card.activeFocus || activeFocus

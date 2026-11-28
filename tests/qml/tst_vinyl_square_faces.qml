@@ -52,12 +52,22 @@ TestCase {
             {tag:"song", kind:"songs", pieces:3, detail:"Fixture artist"},
             {tag:"album", kind:"albums", pieces:3, detail:"Fixture artist · 1977"},
             {tag:"artist", kind:"artists", pieces:3, detail:"Artist"},
-            {tag:"station", kind:"radio", pieces:3, detail:"((•))  Personal radio"},
+            {tag:"station", kind:"radio", pieces:3, detail:"Keeps going"},
             {tag:"mix", kind:"mixes", pieces:6, detail:"Made for you"}
         ];
     }
     function test_restingFamily(data) {
         const card = make(data.kind);
+        if (data.kind === "radio" || data.kind === "mixes") {
+            // Self-contained cassette/radio: the baked face fills the square card, caption below.
+            const face = findChild(card, "testCard_cover");
+            compare([face.x, face.y, face.width, face.height], [0,0,196,196]);
+            compare(String(face.source).split("/").pop(), data.kind === "radio" ? "vinyl-radio-face.png" : "vinyl-cassette-face.png");
+            compare(card.captionTop, 203);
+            compare(findChild(card, "testCard_captionDetail").text, data.detail);
+            tryCompare(face, "status", Image.Ready);
+            return;
+        }
         compare(card.width, 196);
         compare(card.height, 251);
         const art = findChild(card, "testCard_cover");
