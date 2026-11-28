@@ -64,6 +64,7 @@ TestCase {
             draftArtists=selectedArtists.slice();
             onboardingState="editing";
         }
+        function cancelTasteEdit() { onboardingState = selectedArtists.length ? "answered" : "unanswered"; }
         function refreshHomeSelection() {}
     }
     QtObject {
@@ -188,17 +189,15 @@ TestCase {
         verify(row.recommendation);
         compare(row.items.map(item => item.id), ["mix-one", "radio-one"]);
     }
-    function test_artistPickerRequiresFiveAndHasNoSkip() {
+    function test_artistPickerSavesOneOrCancelsWithoutSaving() {
         var picker=pickerFactory.createObject(test);
         verify(picker!==null);
         var done=findChild(picker,"vinylPickerDone");
         verify(done!==null);
         verify(!done.enabled);
-        fakeTasteService.draftArtistCount=4;
-        verify(!done.enabled);
-        fakeTasteService.draftArtistCount=5;
+        verify(findChild(picker,"vinylPickerCancel").enabled);
+        fakeTasteService.draftArtistCount=1;
         verify(done.enabled);
-        compare(findChild(picker,"vinylPickerSkip"),null);
         picker.destroy();
     }
     function test_eachTabRestoresOwnQueryKindSortAndMode() {
@@ -267,53 +266,40 @@ TestCase {
         viewData.restoreBrowseState(libraryRoute);compare(viewData.query,"Alpha");
         viewData.selectTab("discover");compare(viewData.query,"Remote");compare(viewData.albums[0].id,"remote");
     }
-    function test_homeGateAndRecommendationsUseSuppliedServiceData() {
+    function test_homeRecommendationsUseSuppliedServiceData() {
         verify(viewData.canEnterVinyl);
         compare(viewData.homeQuickPicks[0].id,"quick-one");
         compare(viewData.homeListeningCards[0].id,"mix-one");
         verify(viewData.homeRows.some(function(row){return row.key==="taste-artists";}));
         fakeRecommendationService.selectedArtists=fixtureArtists().slice(0,4);
-        verify(!viewData.canEnterVinyl,"four saved artists must not pass the five artist gate");
-        compare(viewData.homeRows.length,0);
-        compare(viewData.carouselSlides.length,0);
+        verify(viewData.canEnterVinyl);
+        verify(viewData.homeRows.some(function(row){return row.key==="taste-artists";}));
         fakeRecommendationService.selectedArtists=fixtureArtists();
         verify(viewData.canEnterVinyl);
     }
-    function test_fewerThanFiveSavedArtistsLockVinylToThePicker() {
+    function test_artistChoicesNeverBlockAccessOrAutomaticallyOpenPicker() {
         viewData.selectTab("home");
-        verify(!viewData.tasteGateLocked);verify(viewData.canEnterVinyl);
-        compare(viewData.minimumArtistCount,5);
-        fakeRecommendationService.selectedArtists=fixtureArtists().slice(0,1);
-        verify(viewData.tasteGateLocked,"one saved artist is a locked profile");
-        verify(!viewData.canEnterVinyl);verify(viewData.tastePickerOpen);
-        tryCompare(fakeRecommendationService,"onboardingState","editing");
-        compare(fakeRecommendationService.beginTasteEditCalls,1);
-        fakeRecommendationService.onboardingState="answered";
-        compare(viewData.cancelTasteEdit(),false,"the first-time gate cannot be cancelled");
-        fakeRecommendationService.selectedArtists=fixtureArtists().slice(0,4);
-        verify(viewData.tasteGateLocked);
-        fakeRecommendationService.selectedArtists=fixtureArtists();
-        verify(!viewData.tasteGateLocked);verify(viewData.canEnterVinyl);
-        fakeRecommendationService.onboardingState="answered";verify(!viewData.tastePickerOpen);
-    }
-    function test_fiveSavedArtistsAreNeverGatedAndEditingStaysCancellable() {
-        viewData.selectTab("home");verify(!viewData.tasteGateLocked);
-        viewData.beginTasteEdit();compare(fakeRecommendationService.onboardingState,"editing");
-        verify(viewData.tastePickerOpen);verify(!viewData.tasteGateLocked);
-    }
-    function test_constructionGateNeverOpensPickerOverSavedArtists() {
-        // An asynchronous world Loader can run a queued gate check before
-        // Component.onCompleted. Five saved artists must not reopen the picker.
-        viewData.selectTab("home");
-        viewData.tasteStateReady=false;
-        verify(viewData.tasteGateLocked,"construction keeps the gate closed");
-        viewData.ensureGateDraft();
+        fakeRecommendationService.selectedArtists=[];
+        fakeRecommendationService.onboardingState="unanswered";
+        wait(0);
+        verify(viewData.canEnterVinyl);
+        verify(!viewData.tastePickerOpen);
         compare(fakeRecommendationService.beginTasteEditCalls,0);
-        compare(fakeRecommendationService.onboardingState,"answered");
-        viewData.tasteStateReady=true;
-        viewData.ensureGateDraft();
-        compare(fakeRecommendationService.beginTasteEditCalls,0);
-        verify(viewData.pickerAnswered);verify(!viewData.tastePickerOpen);
+        viewData.beginTasteEdit();
+        verify(viewData.tastePickerOpen);
+        viewData.cancelTasteEdit();
+        verify(!viewData.tastePickerOpen);
+        for (var count of [1,4,5]) {
+            fakeRecommendationService.selectedArtists=fixtureArtists().slice(0,count);
+            fakeRecommendationService.onboardingState="answered";
+            verify(viewData.canEnterVinyl);
+            verify(!viewData.tastePickerOpen);
+            viewData.beginTasteEdit();
+            verify(viewData.tastePickerOpen);
+            viewData.cancelTasteEdit();
+            verify(!viewData.tastePickerOpen);
+            compare(viewData.picks.length,count);
+        }
     }
     function test_yourArtistsSeeAllOpensTasteEditorAndPreservesPicks() {
         viewData.selectTab("home");

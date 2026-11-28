@@ -24,6 +24,8 @@ Item {
         return photos.length || !fallback || root.failedPhotoIds.includes(fallback.id) ? photos : [fallback];
     }
     readonly property int trackCount: artistData.trackCount === undefined ? artistData.singlesRows.length : artistData.trackCount
+    readonly property var releaseCount: artistData.liveMode ? artistData.totalReleaseCount : artistData.allDiscographyCards.length
+    readonly property bool showTrackCount: !(artistData.liveMode && artistData.online) && trackCount > 0
     readonly property string coverFallback: {
         var firstRelease = artistData.record.releases[0];
         return artistData.artwork((firstRelease && firstRelease.album.cover) || artistData.openingCover || "");
@@ -142,7 +144,7 @@ Item {
                     if (!photo) return;
                     root.failedPhotoIds = root.failedPhotoIds.concat([photo.id]);
                     if (root.artistData.selectedWallpaper === photo.id) root.artistData.selectedWallpaper = "auto";
-                    root.syncInitialBackdrop();
+                    root.refreshLivePhoto();
                 });
                 return;
             }
@@ -232,14 +234,28 @@ Item {
         transitionToPhoto(photo, true);
     }
 
+    function refreshLivePhoto() {
+        const photo = resolvePhotoObject(artistData.selectedWallpaper || "auto");
+        const source = resolvedUrlForPhoto(photo, false);
+        const pendingSource = pendingVisualLayer === 0 ? layerASource : layerBSource;
+        if (!source || source === String(currentSynchronizedSource)
+                || (pendingVisualLayer >= 0 && source === String(pendingSource))) return;
+        transitionToPhoto(photo, false);
+    }
+
+    function updatePhotos() {
+        if (artistData.liveMode) Qt.callLater(root.refreshLivePhoto);
+        else syncInitialBackdrop();
+    }
+
     Component.onCompleted: syncInitialBackdrop()
 
     Connections {
         target: root.artistData
         ignoreUnknownSignals: true
-        function onHeroPhotosChanged() { root.failedPhotoIds = []; root.syncInitialBackdrop(); }
-        function onNameChanged() { root.syncInitialBackdrop(); }
-        function onProviderHeroUrlChanged() { root.syncInitialBackdrop(); }
+        function onHeroPhotosChanged() { root.updatePhotos(); }
+        function onNameChanged() { root.failedPhotoIds = []; root.syncInitialBackdrop(); }
+        function onProviderHeroUrlChanged() { root.updatePhotos(); }
         function onOverrideHeroPhotosChanged() { root.syncInitialBackdrop(); }
         function onCustomBackdropUrlChanged() {
             if (root.artistData.customBackdropUrl && String(root.artistData.customBackdropUrl).length > 0)
@@ -452,7 +468,7 @@ Item {
                 font.weight: Font.Medium
             }
             Text {
-                visible: !root.artistData.loading
+                visible: root.releaseCount !== undefined
                 text: "·"
                 color: theme.inkDimmer
                 font.family: theme.ui
@@ -460,11 +476,12 @@ Item {
                 font.weight: Font.Bold
             }
             Text {
+                objectName: "vinylArtistTotalReleaseCount"
                 text: (!root.artistData.liveMode && root.artistData.record.name === "Eminem")
                     ? "12 studio albums"
-                    : (root.artistData.allDiscographyCards.length === 1 ? qsTr("1 release")
-                        : qsTr("%1 releases").arg(root.artistData.allDiscographyCards.length))
-                visible: !root.artistData.loading
+                    : root.releaseCount === undefined ? "" : root.releaseCount === 1 ? qsTr("1 release")
+                        : qsTr("%1 releases").arg(root.releaseCount)
+                visible: text.length > 0
                 textFormat: Text.PlainText
                 color: Qt.rgba(0.969, 0.969, 0.961, 0.90)
                 font.family: theme.ui
@@ -472,7 +489,7 @@ Item {
                 font.weight: Font.Medium
             }
             Text {
-                visible: (!root.artistData.liveMode && root.artistData.record.name === "Eminem") || root.trackCount > 0
+                visible: (!root.artistData.liveMode && root.artistData.record.name === "Eminem") || root.showTrackCount
                 text: "·"
                 color: theme.inkDimmer
                 font.family: theme.ui
@@ -480,7 +497,7 @@ Item {
                 font.weight: Font.Bold
             }
             Text {
-                visible: (!root.artistData.liveMode && root.artistData.record.name === "Eminem") || root.trackCount > 0
+                visible: (!root.artistData.liveMode && root.artistData.record.name === "Eminem") || root.showTrackCount
                 text: (!root.artistData.liveMode && root.artistData.record.name === "Eminem")
                     ? "1996—present"
                     : (root.trackCount === 1 ? qsTr("1 track") : qsTr("%1 tracks").arg(root.trackCount))

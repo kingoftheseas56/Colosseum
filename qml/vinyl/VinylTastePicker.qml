@@ -10,12 +10,7 @@ Item {
     required property Flickable pageFlick
     readonly property string query: worldData.pickerQuery
     readonly property var selected: worldData.pickerDraft
-    readonly property int minimumArtistCount: Math.max(5, Number(worldData.minimumArtistCount) || 1)
     readonly property var offered: worldData.artistOptions(query)
-    readonly property bool editing: worldData.onboardingState === "editing"
-    readonly property int minimumArtists: Math.max(5, worldData.recommendationService
-        ? Number(worldData.recommendationService.minimumArtists) || 1 : 1)
-    readonly property bool gated: worldData.tasteGateLocked === true
     readonly property int selectedArtistCount: worldData.usesRecommendationService
         ? Number(worldData.recommendationService.draftArtistCount) || 0 : selected.length
     implicitHeight: header.height + 30 + grid.implicitHeight
@@ -133,9 +128,7 @@ Item {
 
             VinylWorldButton {
                 objectName: "vinylPickerCancel"
-                visible: root.editing && !root.gated
-                enabled: visible
-                label: "Cancel taste editing"
+                label: qsTr("Cancel taste editing")
                 accessibleName: label
                 symbol: "cancel"
                 backdrop: root.backdrop
@@ -143,7 +136,7 @@ Item {
             }
             VinylWorldButton {
                 objectName: "vinylPickerDone"
-                enabled: root.selectedArtistCount >= root.minimumArtists
+                enabled: root.selectedArtistCount > 0
                 label: qsTr("Save artist choices")
                 accessibleName: label
                 symbol: "check"
@@ -164,9 +157,8 @@ Item {
                 ? "Searching artists…"
                 : root.offered.length === 0
                     ? (root.query ? qsTr("No artists found.") : qsTr("Search for artists or choose from your library."))
-                    : root.selectedArtistCount >= root.minimumArtists
-                        ? qsTr("%1 artists selected.").arg(root.selectedArtistCount)
-                        : qsTr("%1 of %2 artists selected.").arg(root.selectedArtistCount).arg(root.minimumArtists)
+                    : root.selectedArtistCount === 1 ? qsTr("1 artist selected.")
+                        : qsTr("%1 artists selected.").arg(root.selectedArtistCount)
         color: root.worldData.artistSearchError ? theme.ink : theme.inkDim
         font.family: theme.ui
         font.pixelSize: 12

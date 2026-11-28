@@ -57,18 +57,16 @@ TestCase {
  function test_orderedPlaylistAndMissingSource(){verify(artist.createPlaylist("Ordered"));compare(artist.playlists.length,1);compare(artist.playlists[0].songs[1].track.title,"Second");compare(artist.playlists[0].songs[1].trackIndex,1);session.library=[];compare(artist.playlists[0].songs.length,2);verify(artist.playlists[0].songs[0].unavailable);}
  function test_tasteFailureAndProfileReplacement(){
   prefs.setVinylTaste(false,[]);
-  verify(world.tasteGateLocked);verify(!world.canEnterVinyl);
+  verify(world.canEnterVinyl);
   verify(world.beginTasteEdit());
-  for(var i=0;i<4;++i)world.togglePickerArtist(tasteArtists[i]);
-  compare(world.pickerDraft.length,4);verify(!world.answerPicker());
-  verify(world.tasteGateLocked);verify(!world.canEnterVinyl);compare(prefs.vinylTasteArtistIds.length,0);
-  world.togglePickerArtist(tasteArtists[4]);
-  verify(world.answerPicker());compare(world.picks,tasteArtists);
-  verify(!world.tasteGateLocked);verify(world.canEnterVinyl);
+  verify(!world.answerPicker());compare(prefs.vinylTasteArtistIds.length,0);
+  var selection=[tasteArtists[0]];world.togglePickerArtist(selection[0]);
+  verify(world.answerPicker());compare(world.picks,selection);
+  verify(world.canEnterVinyl);
   prefs.fail=true;verify(world.beginTasteEdit());verify(!world.answerPicker());
-  compare(world.picks,tasteArtists);compare(prefs.vinylTasteArtistIds,tasteArtists);
-  verify(!world.tasteGateLocked);verify(world.canEnterVinyl);
+  compare(world.picks,selection);compare(prefs.vinylTasteArtistIds,selection);
+  verify(world.canEnterVinyl);
   world.preferencesStore=null;compare(world.picks.length,0);verify(!world.pickerAnswered);
-  verify(world.tasteGateLocked);verify(!world.canEnterVinyl);
+  verify(world.canEnterVinyl);
  }
 }

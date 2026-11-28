@@ -442,7 +442,7 @@
     },
     {
       "cmd": "qml-get",
-      "label": "Verify Because you played is empty and hidden without qualified playback",
+      "label": "Verify More like is empty and hidden without qualified playback",
       "payload": {
         "object": "vinylHomeRow_because-you-played",
         "props": [

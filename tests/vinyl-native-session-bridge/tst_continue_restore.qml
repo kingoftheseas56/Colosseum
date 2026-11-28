@@ -309,20 +309,22 @@ TestCase {
     }
     function test_readyWorldPresentationHoldsHomeUntilRouteCommit() {
         var prefs=preferencesFactory.createObject(test);
-        var component=Qt.createComponent("../../qml/vinyl/VinylLiveWorld.qml");
+        var component=Qt.createComponent("../../qml/vinyl/VinylAppWorld.qml");
         compare(component.status,Component.Ready,component.errorString());
-        var world=component.createObject(test,{width:1000,height:720,homeLanding:true,deferInitialRestore:true,resumePresentationPending:true});
+        var world=component.createObject(test,{width:1000,height:720,deferInitialRestore:true,resumePresentationPending:true,hostedHomeLoading:true});
         verify(world!==null);
         try {
             verify(!world.visible,"The initial world cannot present its default route");
             world.session.source=source;world.worldData.preferencesStore=prefs;
             var recommendations=world.recommendationService;
             compare(recommendations.selectedArtists.length,5);
-            recommendations.profileGeneration=world.session.profileGeneration+1;
-            verify(!world.canEnterVinyl);verify(!world.resumeRequiresArtistSelection);
-            wait(80);verify(!world.visible,"A ready world with five artists stays hidden during admission delay");
-            recommendations.profileGeneration=world.session.profileGeneration;
-            tryVerify(()=>world.canEnterVinyl);verify(!world.visible);
+            world.session.source=null;
+            verify(!world.canEnterVinyl);
+            wait(80);verify(!world.visible,"A pending open never exposes Home while the source is unavailable");
+            world.session.source=source;
+            tryCompare(world,"canEnterVinyl",true);
+            tryCompare(world,"ready",true);
+            compare(world.page,"home");verify(!world.visible);
             world.page="song";verify(!world.visible);
             world.resumePresentationPending=false;verify(world.visible);compare(world.page,"song");
             world.resumePresentationPending=true;verify(!world.visible);
@@ -331,14 +333,18 @@ TestCase {
             verify(findChild(world,"vinylStatus").text.indexOf("Synthetic restore failure")>=0);
             world.resumePresentationPending=true;world.resumePresentationPending=false;verify(world.visible);
             world.resumePresentationPending=true;
+            world.page="home";
             prefs.vinylTasteAnswered=false;prefs.vinylTasteArtists=[];prefs.vinylTasteChanged();
-            recommendations.beginHomeVisit();world.enforceTasteGate();
-            tryVerify(()=>recommendations.canEnterVinyl);
-            verify(!world.canEnterVinyl,"An active profile still needs five artists at the UI gate");
-            verify(world.resumeRequiresArtistSelection);
-            verify(world.worldData.tastePickerOpen,"An unanswered listener must see the mandatory picker");
-            verify(world.visible,"The artist gate must be visible even while a restore route is pending");
-            world.resumePresentationPending=false;verify(world.visible);
+            compare(recommendations.selectedArtists.length,0);
+            verify(world.canEnterVinyl,"No artist choices are required to accept the route");
+            verify(!world.worldData.tastePickerOpen);
+            verify(!world.showHostLoading,"Cold Home is not waiting for artist choices or recommendations");
+            wait(0);
+            verify(!world.visible && !world.worldView.visible,
+                "An unanswered listener stays on the opening surface until route commit");
+            verify(!world.worldData.homePageVisible);
+            world.page="song";verify(!world.visible);
+            world.resumePresentationPending=false;verify(world.visible);compare(world.page,"song");
         } finally {world.destroy();wait(0);prefs.destroy();wait(0);}
     }
 }

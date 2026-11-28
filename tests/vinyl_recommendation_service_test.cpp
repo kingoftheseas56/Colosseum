@@ -1202,7 +1202,7 @@ private slots:
         QVERIFY(source.pendingRequests().isEmpty());
         QTRY_VERIFY(!homeRow(service,"because-you-played").isEmpty());
         const auto row=homeRow(service,"because-you-played");
-        QCOMPARE(row.value("title").toString(),QString("Because you played Fixture Artist 1"));
+        QCOMPARE(row.value("title").toString(),QString("More like Fixture Artist 1"));
         const auto played=row.value("items").toList();
         QSet<QString> neighbors;
         for(const auto &entry:played) {
@@ -1742,8 +1742,7 @@ private slots:
     {
         HomeFixture fixture({},QDateTime::fromString("2026-11-13T12:00:00.000Z",Qt::ISODateWithMs).toMSecsSinceEpoch(),false,false);
         QVERIFY(fixture.service.canEnterVinyl());
-        // Native scope access permits background preparation; QML owns tasteGateLocked.
-        QCOMPARE(fixture.service.minimumArtists(),5);
+        QCOMPARE(fixture.service.minimumArtists(),1);
         QVERIFY(fixture.service.selectedArtists().isEmpty());
         fixture.source.runtimeFixtures=true;
         runHomeVisit(fixture.service);
@@ -1814,7 +1813,7 @@ private slots:
         fixture.service.beginTasteEdit();
         QCOMPARE(fixture.service.onboardingState(), QStringLiteral("editing"));
         QVERIFY(fixture.service.canEnterVinyl());
-        QCOMPARE(fixture.service.minimumArtists(), 5); // Changed by Hemanth 2026-11-13: five artists unlock Vinyl.
+        QCOMPARE(fixture.service.minimumArtists(), 1);
         for (int i = 41; i < 46; ++i)
             fixture.service.toggleDraftArtist(artistSeed(i));
         QCOMPARE(fixture.service.draftArtistCount(), 5);
@@ -1833,11 +1832,10 @@ private slots:
         QCOMPARE(dispatchedSeeds.size(), 5);
     }
 
-    void nativeScopeAccessDoesNotReplaceTheFiveArtistUiGate()
+    void nativeScopeAccessIsIndependentOfSavedArtists()
     {
-        // canEnterVinyl is the active-profile seam, not the UI taste lock.
         HomeFixture empty({}, kFixedNowMs, false, true);
-        QCOMPARE(empty.service.minimumArtists(),5);
+        QCOMPARE(empty.service.minimumArtists(),1);
         QVERIFY(empty.service.canEnterVinyl());
         QCOMPARE(empty.service.onboardingState(), QStringLiteral("answered"));
 
@@ -1845,10 +1843,10 @@ private slots:
         for (int i = 50; i < 54; ++i)
             four.append(artistSeed(i));
         four.append(artistSeed(50));
-        HomeFixture underMinimum(four, kFixedNowMs, false, true);
-        QVERIFY(underMinimum.service.canEnterVinyl());
-        QCOMPARE(underMinimum.service.selectedArtists().size(), 4);
-        QCOMPARE(underMinimum.service.onboardingState(), QStringLiteral("answered"));
+        HomeFixture returning(four, kFixedNowMs, false, true);
+        QVERIFY(returning.service.canEnterVinyl());
+        QCOMPARE(returning.service.selectedArtists().size(), 4);
+        QCOMPARE(returning.service.onboardingState(), QStringLiteral("answered"));
 
         four.append(artistSeed(54));
         HomeFixture eligible(four, kFixedNowMs, false, true);
@@ -1874,15 +1872,12 @@ private slots:
         QVERIFY(fixture.service.canEnterVinyl());
         QCOMPARE(fixture.service.onboardingState(), QStringLiteral("answered"));
         fixture.service.beginTasteEdit();
-        QVERIFY(!fixture.service.commitTaste(false));
-        QCOMPARE(fixture.preferences.tasteWrites,0);
-        fixture.service.toggleDraftArtist(artistSeed(65));
-        QCOMPARE(fixture.service.draftArtistCount(),5);
         QVERIFY(fixture.service.commitTaste(false));
         QCOMPARE(fixture.preferences.tasteWrites,1);
+        QCOMPARE(fixture.service.draftArtistCount(),4);
     }
 
-    void tastePickerNeedsFiveArtistsAndKeepsCancelForEdits()
+    void tastePickerSavesOneArtistAndKeepsCancelForEdits()
     {
         HomeFixture fixture({}, kFixedNowMs, false, false);
         runHomeVisit(fixture.service);
@@ -1896,28 +1891,22 @@ private slots:
         QVERIFY(fixture.service.canEnterVinyl());
         fixture.service.beginTasteEdit();
         fixture.service.toggleDraftArtist(artistSeed(70));
-        QVERIFY(!fixture.service.commitTaste(false));
-        QCOMPARE(fixture.preferences.tasteWrites,0);
         QCOMPARE(fixture.service.draftArtistCount(),1);
-        for (int i = 71; i < 74; ++i)
-            fixture.service.toggleDraftArtist(artistSeed(i));
-        QVERIFY(!fixture.service.commitTaste(false));
-        QCOMPARE(fixture.preferences.tasteWrites,0);
-        QCOMPARE(fixture.service.draftArtistCount(),4);
-        fixture.service.toggleDraftArtist(artistSeed(74));
-        QCOMPARE(fixture.service.draftArtistCount(),5);
         QVERIFY(fixture.service.commitTaste(false));
         QCOMPARE(fixture.preferences.tasteWrites,1);
-        QCOMPARE(fixture.service.selectedArtists().size(),5);
+        QCOMPARE(fixture.service.selectedArtists().size(),1);
+        QTRY_VERIFY(!fixture.source.callsFor("artistCandidates").isEmpty());
+        QCOMPARE(fixture.source.callsFor("artistCandidates").first().options.value("seed").toMap().value("providerId"),
+                 artistSeed(70).value("providerId"));
         fixture.service.beginTasteEdit();
         fixture.service.toggleDraftArtist(artistSeed(75));
         QVERIFY(fixture.service.commitTaste(true));
         QCOMPARE(fixture.preferences.tasteWrites,1);
-        QCOMPARE(fixture.service.selectedArtists().size(),5);
+        QCOMPARE(fixture.service.selectedArtists().size(),1);
         QVERIFY(fixture.service.canEnterVinyl());
     }
 
-    void legacyFourArtistSelectionsRequireAFifthToSaveEdits()
+    void returningProfileCanSaveFewerArtists()
     {
         QVariantList legacy{artistSeed(80), artistSeed(81), artistSeed(82), artistSeed(83)};
         HomeFixture fixture(legacy, kFixedNowMs, false, true);
@@ -1930,19 +1919,17 @@ private slots:
         QCOMPARE(fixture.service.onboardingState(), QStringLiteral("editing"));
         fixture.service.toggleDraftArtist(artistSeed(80));
         QCOMPARE(fixture.service.draftArtistCount(), 3);
-        QVERIFY(!fixture.service.commitTaste(false));
-        QCOMPARE(fixture.preferences.tasteWrites,0);
         fixture.service.cancelTasteEdit();
         QCOMPARE(fixture.service.onboardingState(), QStringLiteral("answered"));
         QCOMPARE(fixture.service.selectedArtists().size(), 4);
         QCOMPARE(fixture.service.draftArtistCount(), 4);
         QCOMPARE(fixture.preferences.tasteWrites,0);
         fixture.service.beginTasteEdit();
-        fixture.service.toggleDraftArtist(artistSeed(84));
-        QCOMPARE(fixture.service.draftArtistCount(),5);
+        fixture.service.toggleDraftArtist(artistSeed(80));
+        QCOMPARE(fixture.service.draftArtistCount(),3);
         QVERIFY(fixture.service.commitTaste(false));
         QCOMPARE(fixture.preferences.tasteWrites,1);
-        QCOMPARE(fixture.service.selectedArtists().size(),5);
+        QCOMPARE(fixture.service.selectedArtists().size(),3);
         QVERIFY(fixture.service.canEnterVinyl());
     }
 

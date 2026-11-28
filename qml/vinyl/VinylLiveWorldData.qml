@@ -25,30 +25,9 @@ Item {
     property string artistSearchText: ""
     readonly property bool usesRecommendationService: !!recommendationService && !!preferencesStore
         && typeof preferencesStore.setVinylTasteSelections === "function"
-    // A new listener must pick five artists before Vinyl unlocks (Hemanth, 2026-11-13).
-    readonly property int minimumArtistCount: Math.max(5, usesRecommendationService
-        ? Number(recommendationService.minimumArtistCount) || 1 : 1)
-    readonly property int savedArtistCount: usesRecommendationService
-        ? (recommendationService.selectedArtists || []).length : (fallbackPicks || []).length
-    // Locked = an active profile with fewer than five saved taste artists.
-    // Reading native service bindings during construction can initialize the
-    // service and synchronously re-notify this gate through Runtime visibility.
-    // Stay locked until this component's inputs have completed construction.
-    property bool tasteStateReady: false
-    // The preference store can already hold a completed picker while the service
-    // is rebuilding its profile projection. That gap is loading, not onboarding.
-    readonly property bool tastePresentationPending: !tasteStateReady || (usesRecommendationService
-        && session.profileActive !== false && !session.shuttingDown
-        && preferencesStore.vinylTasteAnswered === true
-        && (preferencesStore.vinylTasteArtistIds || []).length >= minimumArtistCount
-        && (savedArtistCount < minimumArtistCount || onboardingState === "unanswered"))
-    readonly property bool tasteGateLocked: tastePresentationPending || (usesRecommendationService
-            ? recommendationService.profileActive === true && String(recommendationService.profileScope || "") !== ""
-            : session.profileActive!==false && !session.shuttingDown)
-        && savedArtistCount < minimumArtistCount
-    readonly property bool canEnterVinyl: (usesRecommendationService
-        ? recommendationService.canEnterVinyl === true
-        : session.profileActive!==false && !session.shuttingDown) && !tasteGateLocked
+    // Taste is optional and never participates in session admission.
+    property bool canEnterVinyl: session.profileActive !== false && !session.shuttingDown
+    readonly property int savedArtistCount: picks ? picks.length : 0
     readonly property int homeRevision: usesRecommendationService
         ? Number(recommendationService.homeRevision) || 0 : 0
     readonly property bool homePublicDiscovery: false
@@ -114,7 +93,7 @@ Item {
         append(personal[0]);append((homeSourcePool.songs || [])[0]);append((homeSourcePool.artists || [])[0]);
         personal.forEach(append);
         var fallback=picks.length<5;
-        if(fallback)picks=(charts.artists || []).slice(4,9).map(function(item){return Object.assign({},item,{reason:qsTr("From this week’s charts")});});
+        if(fallback && savedArtistCount>0)picks=(charts.artists || []).slice(4,9).map(function(item){return Object.assign({},item,{reason:qsTr("From this week’s charts")});});
         if(picks.length>=5)result.push({kind:"forYou",item:picks[0],sideItems:picks.slice(1,5),
             kicker:fallback ? qsTr("For you · from this week’s charts") : qsTr("For you · picked today")});
         return result;
@@ -253,9 +232,8 @@ Item {
         : fallbackEditing ? "editing" : fallbackTastePickerOpen ? "draft" : fallbackPickerAnswered ? "answered" : "unanswered"
     readonly property bool pickerAnswered: usesRecommendationService
         ? onboardingState === "answered" : fallbackPickerAnswered
-    readonly property bool tastePickerOpen: !tastePresentationPending && (usesRecommendationService
-        ? activeTab === "home" && (onboardingState === "draft" || onboardingState === "editing" || tasteGateLocked)
-        : fallbackTastePickerOpen || tasteGateLocked)
+    readonly property bool tastePickerOpen: canEnterVinyl && activeTab === "home" && (usesRecommendationService
+        ? onboardingState === "draft" || onboardingState === "editing" : fallbackTastePickerOpen)
     readonly property var picks: usesRecommendationService
         ? recommendationService.selectedArtists : fallbackPicks
     readonly property var pickerDraft: usesRecommendationService
@@ -276,24 +254,12 @@ Item {
         personalError = "";
         fallbackPicks = preferencesStore ? JSON.parse(JSON.stringify(preferencesStore.vinylTasteArtistIds || [])) : [];
         fallbackPickerAnswered = !!preferencesStore && !!preferencesStore.vinylTasteAnswered
-            && fallbackPicks.length>=minimumArtistCount;
+            && fallbackPicks.length > 0;
         fallbackPickerDraft = fallbackPicks.slice(); fallbackPickerQuery = "";
         fallbackTastePickerOpen = false;
     }
-    // The picker needs the service in an editing draft; open one whenever the gate is locked.
-    function ensureGateDraft() {
-        // Do not turn a temporary startup lock into an actual edit session.
-        if(tastePresentationPending || !usesRecommendationService || !tasteGateLocked || activeTab!=="home") return;
-        if(onboardingState==="draft" || onboardingState==="editing") return;
-        artistSearchText="";
-        recommendationService.beginTasteEdit();
-    }
-    onTastePresentationPendingChanged: Qt.callLater(ensureGateDraft)
-    onTasteGateLockedChanged: Qt.callLater(ensureGateDraft)
-    onOnboardingStateChanged: Qt.callLater(ensureGateDraft)
-    onActiveTabChanged: Qt.callLater(ensureGateDraft)
     onPreferencesStoreChanged: loadTaste()
-    Component.onCompleted: {loadTaste();tasteStateReady=true;Qt.callLater(ensureGateDraft);}
+    Component.onCompleted: loadTaste()
     Connections { target: root.preferencesStore; ignoreUnknownSignals:true; function onVinylTasteChanged() { root.loadTaste(); } }
 
     // Transient presentation state only: the three destinations do not share
@@ -589,8 +555,6 @@ Item {
     }
     function selectTab(tab) {
         if(["home","songs","albums","artists","discover","explore","library"].indexOf(tab)<0) return;
-        if(tab==="home" && !usesRecommendationService && !fallbackPickerAnswered)
-            fallbackTastePickerOpen=true;
         if(tab===activeTab) {
             // Explicit Home navigation still refreshes an already-visible Home.
             // Returning from a detail/list/hidden surface is handled by visibility.
@@ -897,9 +861,6 @@ Item {
         }).filter(function(item){return !!item.id && !!item.title;});
     }
     function answerPicker(values) {
-        if(pickerDraft.length<minimumArtistCount) {
-            personalError="Choose at least "+minimumArtistCount+" artists.";return false;
-        }
         if(usesRecommendationService) {
             var committed=recommendationService.commitTaste(false);
             if(!committed) personalError=recommendationService.error || "Taste choices could not be saved.";
@@ -909,8 +870,9 @@ Item {
         var valid=artistOptions("").map(function(a){return a.id});
         values=values || fallbackPickerDraft;
         var selected=values.filter(function(v,i){return valid.indexOf(v)>=0 && values.indexOf(v)===i});
-        if(selected.length<minimumArtistCount) {
-            personalError="Choose at least "+minimumArtistCount+" artists.";return false;
+        if (!selected.length) {
+            personalError = qsTr("Choose an artist to save your preferences.");
+            return false;
         }
         if(!preferencesStore || !preferencesStore.setVinylTaste(true,selected)) {personalError="Taste choices could not be saved.";return false;}
         fallbackPicks=selected;fallbackPickerAnswered=true;fallbackEditing=false;fallbackPickerDraft=selected.slice();fallbackTastePickerOpen=false; return true;
@@ -927,7 +889,7 @@ Item {
         fallbackEditing=true;fallbackTastePickerOpen=true;return true;
     }
     function cancelTasteEdit() {
-        if(tasteGateLocked) return false; // the first-time gate cannot be skipped
+        personalError = "";
         if(usesRecommendationService) return recommendationService.cancelTasteEdit();
         fallbackPickerDraft=fallbackPicks.slice();fallbackPickerQuery="";fallbackEditing=false;fallbackTastePickerOpen=false;return true;
     }

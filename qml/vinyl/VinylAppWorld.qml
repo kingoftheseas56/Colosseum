@@ -15,7 +15,7 @@ VinylRuntime {
     property bool hostedHomeLoading: false
     readonly property bool homeLoadingFinishing: houseShell.homeLoadingFinishing
     readonly property bool homeLoadingIndeterminate: page === "home" && !searchOpen
-        && (houseShell.homeLoadingIndeterminate || worldData.tastePresentationPending)
+        && houseShell.homeLoadingIndeterminate
     // Keep the world alive for Home work without revealing its chrome at Loader.Ready.
     readonly property bool showHostLoading: hostedHomeLoading && homeLoadingIndeterminate
     onShowHostLoadingChanged: if (!showHostLoading && hostReady && lifecycleActive && visible)

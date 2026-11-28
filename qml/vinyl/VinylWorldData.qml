@@ -117,6 +117,12 @@ Item {
         var states=Object.assign({},profileStates);states[profile]={answered:true,picks:selected};profileStates=states
     }
     function skipPicker() { answerPicker([]) }
+    function cancelTasteEdit() {
+        var states=Object.assign({},profileStates)
+        states[profile]=Object.assign({},states[profile],{draft:picks.slice(),query:""})
+        profileStates=states
+        tastePickerOpen=false
+    }
     function resetPicker() {
         tastePickerOpen=true;
         var states=Object.assign({},profileStates);states[profile]={answered:false,picks:[]};profileStates=states

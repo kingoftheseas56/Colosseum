@@ -165,13 +165,10 @@ TestCase {
         function recordPicker() { if (world.tastePickerOpen) ++flashes; }
         world.tastePickerOpenChanged.connect(recordPicker);
         try {
-            world.tasteStateReady = false;
-            verify(!world.tastePickerOpen, "Construction is not an unanswered profile");
             recommendations.selectedArtists = [];
             recommendations.onboardingState = "unanswered";
-            world.tasteStateReady = true;
-            verify(world.tastePresentationPending && !world.tastePickerOpen);
-            wait(300); // Let the deferred gate check run while persisted taste is still being published.
+            verify(world.canEnterVinyl && !world.tastePickerOpen);
+            wait(300); // Simulate a delay in publishing persisted taste.
             compare(recommendations.onboardingState, "unanswered");
             recommendations.selectedArtists = [1, 2, 3, 4, 5];
             recommendations.onboardingState = "answered";
@@ -181,7 +178,6 @@ TestCase {
             verify(world.tastePickerOpen, "Intentional editing still opens the picker");
         } finally {
             world.tastePickerOpenChanged.disconnect(recordPicker);
-            world.tasteStateReady = true;
             recommendations.selectedArtists = [1, 2, 3, 4, 5];
             recommendations.onboardingState = "answered";
         }

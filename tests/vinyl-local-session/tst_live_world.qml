@@ -585,16 +585,26 @@ TestCase {
         var artists=world.worldData.artistOptions("");compare(artists.length,5);
         compare(new Set(artists.map(function(artist){return artist.id;})).size,5);
         var selectedArtist=artists.find(function(artist){return artist.id==="artist-two";});
+        // Taste is optional: dismissing an empty edit never blocks entry, and
+        // a single canonical artist is enough to save recommendation seeds.
+        verify(world.worldData.canEnterVinyl);
+        verify(!world.worldData.tastePickerOpen);
+        verify(world.worldData.beginTasteEdit());
+        verify(!world.worldData.answerPicker(), "An empty draft cannot be saved as artist picks.");
+        verify(world.worldData.skipPicker());
+        compare(world.worldData.picks.length,0);
+        verify(!preferences.vinylTasteAnswered);
+        verify(world.worldData.canEnterVinyl);
+
+        verify(world.worldData.beginTasteEdit());
         world.worldData.togglePickerArtist(selectedArtist);
         compare(world.worldData.pickerDraft.length,1);
-        verify(!world.worldData.answerPicker());
-        compare(world.worldData.picks.length,0);verify(!world.worldData.canEnterVinyl);
-        artists.filter(function(artist){return artist.id!=="artist-two";})
-            .forEach(function(artist){world.worldData.togglePickerArtist(artist);});
-        compare(world.worldData.pickerDraft.length,5);
-        verify(world.worldData.answerPicker());compare(world.worldData.picks.length,5);
+        verify(world.worldData.answerPicker());
+        compare(world.worldData.picks,["artist-two"]);
+        compare(preferences.vinylTasteArtistIds,["artist-two"]);
+        verify(preferences.vinylTasteAnswered);
         verify(world.worldData.canEnterVinyl);
-        world.activateItem(artists.find(function(artist){return artist.id==="artist-two";}));
+        world.activateItem(selectedArtist);
         compare(world.page,"artist");compare(world.artistData.artistId,"artist-two");
     }
     function test_nestedBackRetainsLibraryAndArtist(){

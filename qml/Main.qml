@@ -208,14 +208,11 @@ Window {
         return !!pendingVinylResume && vinylProfileActive
             && pendingVinylResume.generation === vinylShellGeneration
     }
-    function holdVinylResumePresentation(world) {
-        return hasPendingVinylResume() && (!world || !world.resumeRequiresArtistSelection)
-    }
     function applyVinylResume() {
         if (!vinylWorld || !pendingVinylResume) return
         var pending = pendingVinylResume
         if (!vinylProfileActive || pending.generation !== vinylShellGeneration) {pendingVinylResume=null;return}
-        if (!vinylWorld.canEnterVinyl) {vinylWorld.enforceTasteGate();return}
+        if (!vinylWorld.canEnterVinyl) return
         win.traceVinylResume("restore", pending)
         var restored = !!pending.entry && vinylWorld.session.restore(pending.entry) === true
         if (pending !== pendingVinylResume || !vinylProfileActive
@@ -5401,7 +5398,7 @@ Window {
                 Text {
                     anchors.centerIn: parent
                     visible: worldLoader.mode === "Vinyl"
-                        ? (win.holdVinylResumePresentation(worldLoader.item)
+                        ? (win.hasPendingVinylResume()
                             || (!worldLoader.continuousVinylLoading && worldLoader.status !== Loader.Ready))
                         : (Qt.platform.os === "android" && worldLoader.mode !== "Universes"
                             && worldLoader.status !== Loader.Ready)

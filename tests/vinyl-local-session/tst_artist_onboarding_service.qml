@@ -48,18 +48,14 @@ TestCase {
     function pickDraft(count) {
         for(var i=0;i<count;++i)service.toggleDraftArtist(makeArtist("UC"+String.fromCharCode(97+i).repeat(22)));
     }
-    function test_firstHomeNeedsFiveArtistsAndEditCancelKeepsSavedChoices() {
-        // Changed by Hemanth 2026-11-13: the minimum is five and the first pick is a gate, not an option.
-        compare(service.minimumArtists,5);compare(service.minimumArtistCount,5);
+    function test_firstHomeNeedsNoChoicesAndEditCancelKeepsSavedChoices() {
+        compare(service.minimumArtists,1);compare(service.minimumArtistCount,1);
         compare(service.onboardingState,"unanswered");
         service.beginHomeVisit();compare(service.onboardingState,"unanswered");
         compare(service.draftArtists.length,0);compare(prefs.writeCalls,0);
         tryVerify(()=>source.calls.some(function(call){return call.operation==="chartCandidates";}));
         service.beginTasteEdit();compare(service.onboardingState,"editing");
-        pickDraft(4);compare(service.draftArtists.length,4);
-        verify(!service.commitTaste(false),"Four artists cannot unlock Vinyl.");compare(prefs.writeCalls,0);
-        compare(service.onboardingState,"editing");
-        service.toggleDraftArtist(makeArtist("UC"+"e".repeat(22)));
+        pickDraft(5);compare(service.draftArtists.length,5);
         verify(service.commitTaste(false));compare(service.onboardingState,"answered");compare(prefs.vinylTasteArtists.length,5);
         compare(prefs.writeCalls,1);
         service.beginHomeVisit();compare(service.onboardingState,"answered");compare(prefs.writeCalls,1);
@@ -72,18 +68,16 @@ TestCase {
         compare(service.selectedArtists.length,5);compare(prefs.writeCalls,1);
     }
 
-    function test_unansweredTasteRequiresFiveAndFailedWriteCanBeRetried() {
+    function test_emptyDraftCannotSaveAndOneArtistWriteCanBeRetried() {
         service.beginHomeVisit();service.beginTasteEdit();
-        pickDraft(4);compare(service.draftArtists.length,4);
-        verify(!service.commitTaste(false),"Four artists cannot unlock Vinyl.");
+        verify(!service.commitTaste(false),"An empty draft cannot be saved.");
         compare(service.onboardingState,"editing");compare(prefs.writeCalls,0);
-        service.toggleDraftArtist(makeArtist("UC"+"e".repeat(22)));
-        compare(service.draftArtists.length,5);
+        pickDraft(1);compare(service.draftArtists.length,1);
         prefs.failWrites=true;verify(!service.commitTaste(false));compare(service.onboardingState,"editing");
         compare(prefs.writeCalls,1);verify(!prefs.vinylTasteAnswered);compare(prefs.vinylTasteArtists.length,0);
         prefs.failWrites=false;
         verify(service.commitTaste(false));compare(service.onboardingState,"answered");
-        compare(service.selectedArtists.length,5);compare(prefs.vinylTasteArtists.length,5);
+        compare(service.selectedArtists.length,1);compare(prefs.vinylTasteArtists.length,1);
         compare(prefs.writeCalls,2);
     }
 
@@ -122,8 +116,7 @@ TestCase {
         source.completed("taste-artists",source.tasteCalls[1].id,bad,"");
         tryVerify(()=>service.artistResults.status!=="loading");compare(service.artistResults.status,"error");
     }
-    function test_serviceProfileAvailabilityDoesNotReplaceTheWorldTasteGate() {
-        // This service property checks active profile scope. VinylLiveWorldData owns the five-artist gate.
+    function test_serviceAvailabilityTracksProfileNotArtistChoices() {
         verify(service.canEnterVinyl);compare(service.onboardingState,"unanswered");
         service.profileActive=false;verify(!service.canEnterVinyl);
         service.beginTasteEdit();compare(service.onboardingState,"unanswered");
@@ -133,7 +126,6 @@ TestCase {
         compare(prefs.writeCalls,0);verify(!prefs.vinylTasteAnswered);
     }
     function test_storedMappingStatusSurvivesServiceRead() {
-        // A one-artist saved record is a valid legacy profile input; the QML gate still locks it until five.
         var artist={key:JSON.stringify(["youtube-music","artist","UCaaaaaaaaaaaaaaaaaaaaaa"]),kind:"artist",provider:"youtube-music",providerId:"UCaaaaaaaaaaaaaaaaaaaaaa",name:"Ambiguous artist",image:"",mappingStatus:"ambiguous"};
         prefs.vinylTasteArtists=[artist];prefs.vinylTasteAnswered=true;prefs.vinylTasteChanged();
         compare(service.selectedArtists.length,1);compare(service.selectedArtists[0].mappingStatus,"ambiguous");

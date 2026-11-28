@@ -9,12 +9,15 @@ Column {
     property bool fullView: false
     property bool compactListMode: false
     property bool inlinePopular: false
+    readonly property bool reservePopularRows: inlinePopular && !!artistData.liveMode && !!artistData.online
+    readonly property int previewRows: 5
+    readonly property int popularRowHeight: 56
     readonly property string title: compactListMode
         ? "Singles & Tracks"
-        : (artistData.popularSongs.length ? "Popular Songs" : "Songs")
+        : (inlinePopular || artistData.popularSongs.length ? "Popular Songs" : "Songs")
     readonly property var shownSongs: compactListMode
         ? artistData.singlesRows
-        : inlinePopular ? (artistData.allSongs ? artistData.popularSongs : artistData.popularSongs.slice(0, 5))
+        : inlinePopular ? (artistData.allSongs ? artistData.popularSongs : artistData.popularSongs.slice(0, previewRows))
         : (fullView ? artistData.songOrder
             : (artistData.popularSongs.length ? artistData.popularSongs : artistData.songOrder).slice(0, 5))
     readonly property bool compactQueueAvailable: root.compactListMode && !!root.artistData
@@ -26,7 +29,7 @@ Column {
     signal itemFocused(var item)
 
     spacing: 12
-    visible: shownSongs.length > 0
+    visible: shownSongs.length > 0 || reservePopularRows
     Theme { id: theme }
 
     function focusRowAt(targetIndex) {
@@ -41,11 +44,13 @@ Column {
     }
 
     WidgetHeader {
+        id: songHeader
         width: parent.width
         visible: !root.fullView && !root.compactListMode
+            && (!root.reservePopularRows || root.artistData.loading || root.shownSongs.length > 0)
         title: root.title
         sub: root.artistData.popularSongs.length ? root.artistData.popularSource : ""
-        navigable: !root.inlinePopular || root.artistData.popularSongs.length > 5
+        navigable: !root.inlinePopular || root.artistData.popularSongs.length > root.previewRows
         moreLabel: root.inlinePopular ? (root.artistData.allSongs ? "Show less" : "Show more") : "See all"
         automationId: "vinylArtistSeeAll_songs"
         onMoreClicked: root.seeAllRequested()
@@ -55,7 +60,10 @@ Column {
         id: listContainer
         objectName: root.compactListMode ? "vinylArtistSinglesListContainer" : "vinylArtistSongsContainer"
         width: parent.width
-        height: tableColumn.implicitHeight
+        // Keep Discography at the same document position even when the service
+        // returns fewer than five songs (or no songs at all).
+        height: Math.max(tableColumn.implicitHeight, root.reservePopularRows
+            ? root.previewRows * root.popularRowHeight + (songHeader.visible ? 0 : songHeader.height + root.spacing) : 0)
         radius: root.compactListMode ? 13 : 0
         color: root.compactListMode ? Qt.rgba(0.024, 0.027, 0.043, 0.78) : "transparent"
         border.width: root.compactListMode ? 1 : 0
@@ -129,6 +137,25 @@ Column {
             }
 
             Repeater {
+                model: root.reservePopularRows && root.artistData.loading
+                    ? Math.max(0, root.previewRows - root.shownSongs.length) : 0
+                delegate: Item {
+                    width: tableColumn.width
+                    height: root.popularRowHeight
+                    Rectangle {
+                        x: 60; width: 42; height: 42; radius: 5
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: theme.glassTint
+                    }
+                    Rectangle {
+                        x: 114; width: Math.max(0, Math.min(200, parent.width - x - 16)); height: 12; radius: 4
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: theme.glassTint
+                    }
+                }
+            }
+
+            Repeater {
                 id: rowRepeater
                 model: root.shownSongs.length
                 delegate: Item {
@@ -150,18 +177,23 @@ Column {
                         ? String(row.modelData.cover || "")
                         : String(row.modelData.album.cover || "")
                     readonly property var songPayload: isCompact ? row.modelData.song : row.modelData
-                    readonly property var albumPayload: isCompact ? row.modelData.album : row.modelData.album
+                    readonly property var albumPayload: row.modelData.album
+                    readonly property var session: root.inlinePopular ? root.artistData.session || null : null
+                    readonly property var personalRow: session && typeof session.albumTrackRow === "function"
+                        ? session.albumTrackRow(albumPayload, songPayload.index, songPayload.editionId) : null
+                    readonly property bool saved: !!personalRow && session.songSaved(personalRow)
 
                     width: parent ? parent.width : 0
-                    height: isCompact ? 62 : 56
+                    height: isCompact ? 62 : root.popularRowHeight
 
                     Rectangle {
+                        objectName: root.inlinePopular ? "vinylArtistPopularHover_" + row.index : ""
                         anchors.fill: parent
-                        color: row.isQueued
-                            ? Qt.rgba(0.94, 0.77, 0.29, 0.11)
-                            : (play.interactionActive || album.interactionActive
-                                || nextAction.interactionActive || queueAction.interactionActive
-                                ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
+                        color: row.isQueued ? Qt.rgba(0.94, 0.77, 0.29, 0.11)
+                            : (root.inlinePopular ? rowPointer.containsMouse
+                                : play.interactionActive || album.interactionActive
+                                    || nextAction.interactionActive || queueAction.interactionActive)
+                                ? Qt.rgba(1, 1, 1, 0.05) : "transparent"
                     }
 
                     KeyboardAction {
@@ -170,7 +202,7 @@ Column {
                         objectName: root.compactListMode
                             ? ("vinylArtistSinglesRow_" + row.index)
                             : ((root.fullView ? "vinylArtistFullSong_" : "vinylArtistSong_") + row.index)
-                        width: root.inlinePopular ? Math.max(0, parent.width - 52)
+                        width: root.inlinePopular ? Math.max(0, parent.width - (row.session ? 124 : 52))
                             : parent.width >= 680 ? parent.width * 0.61
                             : parent.width - (root.compactQueueAvailable ? 124 : 84)
                         height: parent.height
@@ -340,15 +372,17 @@ Column {
                     // Year (compact mode) or duration (legacy mode)
                     Text {
                         anchors.right: parent.right
+                        objectName: root.inlinePopular ? "vinylArtistPopularDuration_" + row.index : ""
                         anchors.rightMargin: row.isCompact
-                            ? (root.compactQueueAvailable ? 88 : 20) : 8
+                            ? (root.compactQueueAvailable ? 88 : 20) : row.session ? 88 : 8
                         anchors.verticalCenter: parent.verticalCenter
                         readonly property real seconds: (!row.isCompact && row.modelData.track)
                             ? Number(row.modelData.track.seconds) : 0
                         text: row.isCompact
                             ? String(row.modelData.year || "")
                             : (Number.isFinite(seconds) && seconds > 0
-                                ? Math.floor(seconds / 60) + ":" + ("0" + Math.floor(seconds % 60)).slice(-2) : "")
+                                ? Math.floor(seconds / 60) + ":" + ("0" + Math.floor(seconds % 60)).slice(-2)
+                                : root.inlinePopular ? "—" : "")
                         color: theme.inkDimmer
                         font.family: theme.ui
                         font.pixelSize: row.isCompact ? 13 : 12
@@ -379,19 +413,51 @@ Column {
                     }
 
                     KeyboardAction {
+                        id: saveAction
+                        focusOnPointer: false
+                        objectName: root.inlinePopular ? "vinylArtistPopularSave_" + row.index : ""
+                        visible: !!row.session
+                        enabled: visible && !!row.session.personalEnabled && !!row.personalRow
+                        opacity: enabled ? 1 : 0.35
+                        x: parent.width - 76
+                        y: (parent.height - height) / 2
+                        width: 32; height: 32
+                        accessibleName: row.saved ? qsTr("Unsave song") : qsTr("Save song")
+                        onActiveFocusChanged: if (activeFocus) root.itemFocused(saveAction)
+                        onTriggered: row.session.toggleSongSaved(row.personalRow)
+                        Rectangle { anchors.fill: parent; radius: 6; color: parent.interactionActive ? theme.glassTint : "transparent" }
+                        VinylControlIcon { anchors.centerIn: parent; symbol: row.saved ? "saved" : "save"; color: theme.inkDim }
+                    }
+
+                    KeyboardAction {
                         id: queueAction
                         focusOnPointer: false
-                        objectName: row.isCompact ? "vinylArtistSinglesQueue_" + row.index : ""
-                        visible: row.isCompact && root.compactQueueAvailable
+                        objectName: row.isCompact ? "vinylArtistSinglesQueue_" + row.index
+                            : root.inlinePopular ? "vinylArtistPopularQueue_" + row.index : ""
+                        visible: row.isCompact ? root.compactQueueAvailable : !!row.session
                         x: parent.width - 40
                         y: (parent.height - 32) / 2
                         width: 32; height: 32
-                        enabled: visible && row.modelData.playable !== false
-                        accessibleName: "Add to queue: " + row.trackTitle
+                        enabled: visible && (row.isCompact ? row.modelData.playable !== false
+                            : typeof row.session.enqueueSong === "function" && row.songPayload.track.available !== false)
+                        opacity: enabled ? 1 : 0.35
+                        accessibleName: qsTr("Add to queue: %1").arg(row.trackTitle)
                         onActiveFocusChanged: if (activeFocus) root.itemFocused(queueAction)
-                        onTriggered: root.artistData.enqueueDemoSong(row.index, false)
+                        onTriggered: {
+                            if (row.isCompact) root.artistData.enqueueDemoSong(row.index, false);
+                            else row.session.enqueueSong(row.albumPayload, row.songPayload.index, row.songPayload.editionId, false);
+                        }
                         Rectangle { anchors.fill: parent; radius: 7; color: parent.interactionActive ? theme.glassTint : "transparent" }
                         VinylControlIcon { anchors.centerIn: parent; symbol: "queue"; color: theme.inkDim }
+                    }
+                    // Observe the whole row without accepting any clicks; the
+                    // individual keyboard actions still own activation.
+                    MouseArea {
+                        id: rowPointer
+                        anchors.fill: parent
+                        visible: root.inlinePopular
+                        acceptedButtons: Qt.NoButton
+                        hoverEnabled: true
                     }
                 }
             }

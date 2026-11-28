@@ -388,7 +388,7 @@ QVariantList VinylSourcePool::newReleaseNeighbors(const QVariantList &seeds, con
 QVariantList VinylSourcePool::homeRows(const QVariantMap &buckets, bool history) {
     const QStringList keys{"mixes-radio","new-from-your-artists","albums-for-you","because-you-played","deep-cuts","rediscover","artists-like-yours","quick-picks"};
     const QStringList titles{"Mixes & radio","New from your artists","Albums for you",
-        QString::fromUtf8("Because you played…"),"Deep cuts from your artists","Rediscover","Artists like the ones you love","Quick picks"};
+        QString::fromUtf8("More like…"),"Deep cuts from your artists","Rediscover","Artists like the ones you love","Quick picks"};
     const QStringList claimOrder{"because-you-played","deep-cuts","new-from-your-artists","albums-for-you","artists-like-yours","quick-picks","rediscover"};
     QSet<QString> claimed;
     QMap<QString,QVariantList> picked;

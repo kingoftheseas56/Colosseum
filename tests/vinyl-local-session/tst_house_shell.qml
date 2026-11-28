@@ -21,6 +21,7 @@ TestCase {
             property var artistIdentity: ({})
             property var artistArtwork: ({})
             property bool artistBusy: false
+            property bool artistCatalogueBusy: false
             property string artistError: ""
             property bool cached: false
             property int artistRetryCount: 0
@@ -28,9 +29,9 @@ TestCase {
             function request(lane: string, operation: string, id: string): int { return ++serial; }
             function cancel(lane: string) {}
             function setAlbums(albums) {}
-            function openArtist(ref) { artist = ref; artistBusy = true; }
-            function leaveArtist() { artist = {}; artistBusy = false; }
-            function retryArtist() { ++artistRetryCount; artistBusy = true; artistError = ""; }
+            function openArtist(ref) { artist = ref; artistCatalogueBusy = true; artistBusy = true; }
+            function leaveArtist() { artist = {}; artistCatalogueBusy = false; artistBusy = false; }
+            function retryArtist() { ++artistRetryCount; artistCatalogueBusy = true; artistBusy = true; artistError = ""; }
         }
     }
     Component {
@@ -193,6 +194,7 @@ TestCase {
         compare(status.text, "");
         verify(findChild(runtime, "vinylArtistLoadingIndicator").visible);
         source.artistError = "Artist request failed.";
+        source.artistCatalogueBusy = false;
         source.artistBusy = false;
         tryCompare(status, "text", "Artist request failed.");
         const retry = findChild(runtime, "vinylCatalogueRetry");
@@ -232,6 +234,135 @@ TestCase {
         runtime.showLibrary();
         tryCompare(picker, "open", false);
     }
+    function artistRelease(kind, index) {
+        return {id: kind + index, browseId: "MPREb_" + kind + index, title: kind + " " + index,
+            year: 2025 - index, kind: kind, origin: "youtube-music", artists: ["Fixture artist"],
+            artistIds: [runtime.artistData.artistId], tracks: []};
+    }
+    function openOnlineArtist() {
+        const source = prepareDetailRuntime();
+        runtime.showArtist({name: "Fixture artist", id: "ytm:artist:UC" + "a".repeat(22)});
+        tryCompare(runtime, "page", "artist");
+        return source;
+    }
+    function test_artistReleaseCountsAndAlbumRoundTrip() {
+        const source = openOnlineArtist();
+        const artist = runtime.detailView;
+        const picker = findChild(artist, "vinylArtistReleasePicker");
+        const total = findChild(artist, "vinylArtistTotalReleaseCount");
+        const count = findChild(artist, "vinylArtistDiscographyCount");
+        const albums = Array.from({length: 32}, (_, i) => artistRelease("album", i));
+        const singles = Array.from({length: 92}, (_, i) => artistRelease("single", i));
+        function counts(all, selected) {
+            compare(picker.options[0].sub, all);
+            compare(total.text, all === "" ? "" : all + " releases");
+            compare(picker.current.sub, selected);
+            compare(count.text, selected === "" ? "" : selected + " releases");
+        }
+        compare(picker.currentKey, "Album");
+        counts("", "");
+        source.artistAlbums = albums.slice(0, 12);
+        source.artistSingles = singles.slice(0, 8);
+        source.artistCatalogueBusy = false; // overview done; continuations still pending
+        counts("", "");
+        source.artistAlbums = albums;
+        source.artistSingles = singles;
+        compare(runtime.artistData.discographyCards.length, 32);
+        counts("", "");
+
+        // The shared picker must close synchronously, before committing a new grid.
+        const pill = findChild(picker, "vinylArtistReleasePickerPill");
+        artist.contentY = pill.mapToItem(artist.contentItem, 0, 0).y - 240;
+        picker.openPopup();
+        tryCompare(picker, "open", true);
+        picker.choose(0);
+        verify(!picker.open);
+        compare(picker.currentKey, "Album");
+        tryCompare(picker, "currentKey", "All");
+        picker.choose(1);
+        tryCompare(picker, "currentKey", "Album");
+
+        const tile = findChild(artist, "vinylArtistDiscographyCard_0");
+        tile.cardRequested(tile.record);
+        verify(runtime.openingAlbum);
+        source.completed("browse", runtime.session.browseRequest, Object.assign(detailRecord(), {id: tile.record.album.id}), "");
+        tryCompare(runtime, "page", "album");
+
+        // Native identity enrichment retains the editions but publishes one card
+        // per group. It can finish while the album detail is on screen.
+        source.artistIdentity = {releases: albums.map(a => ({browseId: a.browseId, ytShelf: "albums"}))};
+        const editions = albums.slice(0, 21).map(a => ({browseId: a.browseId, title: a.title, year: a.year}));
+        source.artistAlbums = [Object.assign({}, albums[0], {category: "Album", providerEditions: editions})]
+            .concat(albums.slice(21));
+        compare(source.artistAlbums.length, 12);
+        // Artwork can still be in flight after release/identity work is settled.
+        mouseClick(runtime.detailTitleBar.backItem);
+        tryCompare(runtime, "page", "artist");
+        compare(picker.currentKey, "Album");
+        counts("124", "32");
+        compare(runtime.artistData.discographyCards.length, 32);
+        compare(runtime.artistData.discographyCards.map(c => c.album.browseId).sort(), albums.map(a => a.browseId).sort());
+
+        // One of the restored edition cards opens its own provider release.
+        const editionTile = findChild(artist, "vinylArtistDiscographyCard_1");
+        editionTile.cardRequested(editionTile.record);
+        compare(runtime.session.browseValue, albums[1].browseId);
+        source.completed("browse", runtime.session.browseRequest, Object.assign(detailRecord(), {browseId: albums[1].browseId}), "");
+        tryCompare(runtime, "page", "album");
+        mouseClick(runtime.detailTitleBar.backItem);
+        tryCompare(runtime, "page", "artist");
+        counts("124", "32");
+    }
+    function test_artistPopularArrivalKeepsDiscographyStill() {
+        const source = openOnlineArtist();
+        const artist = runtime.detailView;
+        const popular = findChild(artist, "vinylArtistPopularSongs");
+        const grid = findChild(artist, "vinylArtistDiscographyGrid");
+        const top = findChild(artist, "vinylArtistScrollToTop");
+        const create = findChild(artist, "vinylArtistCreatePlaylistAction");
+        source.artistAlbums = Array.from({length: 24}, (_, i) => artistRelease("album", i));
+        verify(waitForRendering(artist));
+        verify(!top.visible);
+        compare(popular.shownSongs.length, 0);
+        artist.contentY = grid.mapToItem(artist.contentItem, 0, 0).y - 260;
+        verify(top.visible);
+        const y = artist.contentY;
+        const gridY = grid.mapToItem(artist, 0, 0).y;
+        const topX = top.mapToItem(runtime.detailTitleBar, 0, 0).x;
+        const artistId = runtime.artistData.artistId;
+        const track = {id: "exact-track", videoId: "abcdefghijk", title: "Fixture song", seconds: 243};
+        const song = {id: "exact-song", origin: "youtube-music", type: "Song", title: track.title, tracks: [track]};
+        source.artist = {id: artistId, songs: [{videoId: track.videoId, record: song}]};
+        source.artistCatalogueBusy = false;
+        tryCompare(popular, "shownSongs", runtime.artistData.popularSongs);
+        verify(waitForRendering(artist));
+        compare(artist.contentY, y);
+        compare(grid.mapToItem(artist, 0, 0).y, gridY);
+        compare(top.mapToItem(runtime.detailTitleBar, 0, 0).x, topX);
+        verify(create.visible);
+        mouseClick(top);
+        tryCompare(artist, "contentY", 0);
+        verify(!top.visible);
+
+        const row = findChild(popular, "vinylArtistSong_0");
+        const wash = findChild(popular, "vinylArtistPopularHover_0");
+        const save = findChild(popular, "vinylArtistPopularSave_0");
+        const queueAction = findChild(popular, "vinylArtistPopularQueue_0");
+        compare(findChild(popular, "vinylArtistPopularDuration_0").text, "4:03");
+        verify(save.visible && save.accessibleName === "Save song" && save.parent.personalRow);
+        verify(queueAction.visible && queueAction.enabled);
+        mouseClick(queueAction);
+        compare(runtime.session.queue[0].track.id, track.id);
+        artist.contentY = Math.max(0, row.mapToItem(artist.contentItem, 0, 0).y - 230);
+        row.forceActiveFocus(Qt.TabFocusReason);
+        verify(waitForRendering(artist));
+        mouseMove(artist, 2, 300);
+        mouseMove(row, 180, row.height / 2);
+        tryVerify(() => wash.color.a > 0, 1500, "Pointer should light the row");
+        mouseMove(artist, 2, 300);
+        tryVerify(() => wash.color.a === 0);
+        verify(row.activeFocus, "Focus must not look like a stuck hover");
+    }
     function test_houseUsesOneExistingSessionAndNoLegacyBoard() {
         createRuntime("VinylAppWorld.qml");
         verify(runtime.session !== null);
@@ -258,6 +389,7 @@ TestCase {
     function test_playerHudStartsClosedAndSongKeepsItsControls() {
         createRuntime("VinylAppWorld.qml");
         runtime.worldData.preferencesStore = createTemporaryObject(preferencesFactory, test);
+        runtime.session.source = createTemporaryObject(detailSourceFactory, test);
         runtime.hostReady = true;
         tryCompare(runtime, "canEnterVinyl", true);
         tryCompare(runtime, "ready", true);

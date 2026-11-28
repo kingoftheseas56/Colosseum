@@ -46,7 +46,18 @@ Flickable {
     ScrollGlide { flick: root }
     // Scrolling is keyboard/wheel driven; the artist destination has no visible bars.
     onContentYChanged: if (sysPopup.visible) sysPopup.close()
-    onVisibleChanged: if (!visible && sysPopup.visible) sysPopup.close()
+    onVisibleChanged: if (!visible) {
+        applyReleaseCategory.stop();
+        if (sysPopup.visible) sysPopup.close();
+    }
+
+    // Give the shared picker a frame to close before instantiating release cards.
+    Timer {
+        id: applyReleaseCategory
+        interval: 32
+        property string category: ""
+        onTriggered: root.artistData.selectReleaseCategory(category)
+    }
     onSelectedCategoryChanged: if (sysPopup.visible) sysPopup.close()
 
     function switchTab(tabKey, focusTabButton) {
@@ -54,6 +65,7 @@ Flickable {
         if (valid.indexOf(tabKey) < 0)
             return;
         releasePicker.closePopup(false);
+        applyReleaseCategory.stop();
         artistData.activeTab = tabKey;
         Qt.callLater(function() {
             root.contentY = Math.max(0, Math.min(root.contentHeight - root.height, tabBarSlot.y - root.titleBarHeight));
@@ -208,6 +220,7 @@ Flickable {
             root.selectedCategory = "";
             root.sectionReturnY = 0;
             root.contentY = 0;
+            applyReleaseCategory.stop();
             releasePicker.closePopup(false);
             sysPopup.close();
             mediaDialog.close();
@@ -337,11 +350,12 @@ Flickable {
                                 font.weight: Font.Normal
                             }
                             Text {
-                                visible: false
+                                objectName: "vinylArtistDiscographyCount"
+                                visible: !!root.artistData.liveMode && text.length > 0
                                 anchors.bottom: parent.bottom
                                 anchors.bottomMargin: 5
-                                text: String(root.artistData.discographyCards.length)
-                                    + (root.artistData.discographyCards.length === 1 ? " release" : " releases")
+                                readonly property string count: releasePicker.current ? releasePicker.current.sub : ""
+                                text: count === "" ? "" : count === "1" ? qsTr("1 release") : qsTr("%1 releases").arg(count)
                                 color: theme.inkDim
                                 font.family: theme.ui
                                 font.pixelSize: 13
@@ -386,7 +400,14 @@ Flickable {
                                 return rows;
                             }
                             currentKey: root.artistData.categoryFilter
-                            onPicked: key => root.artistData.selectReleaseCategory(key)
+                            onPicked: key => {
+                                if (!root.artistData.liveMode) {
+                                    root.artistData.selectReleaseCategory(key);
+                                    return;
+                                }
+                                applyReleaseCategory.category = key;
+                                applyReleaseCategory.restart();
+                            }
                         }
 
 
@@ -917,35 +938,49 @@ Flickable {
             anchors.rightMargin: root.gutter
             anchors.verticalCenter: parent.verticalCenter
             spacing: 10
-            VinylWorldButton {
-                id: createPlaylist
-                objectName: "vinylArtistCreatePlaylistAction"
-                visible: root.artistData.songs.length > 0
-                enabled: root.artistData.playlistEnabled !== false
-                label: qsTr("Create playlist")
-                symbol: "playlistAdd"
-                backdrop: root.backdrop
-                onTriggered: {
-                    root.dialogReturnItem = createPlaylist.activeFocus ? createPlaylist : null;
-                    playlistName.text = "";
-                    createDialog.open();
+            Item {
+                width: createPlaylist.implicitWidth
+                height: createPlaylist.implicitHeight
+                VinylWorldButton {
+                    id: createPlaylist
+                    objectName: "vinylArtistCreatePlaylistAction"
+                    visible: root.artistData.songs.length > 0
+                    enabled: root.artistData.playlistEnabled !== false
+                    label: qsTr("Create playlist")
+                    symbol: "playlistAdd"
+                    backdrop: root.backdrop
+                    onTriggered: {
+                        root.dialogReturnItem = createPlaylist.activeFocus ? createPlaylist : null;
+                        playlistName.text = "";
+                        createDialog.open();
+                    }
                 }
             }
-            VinylWorldButton {
-                id: showPlaylists
-                objectName: "vinylArtistShowPlaylists"
-                visible: !!root.artistData.liveMode && root.artistData.playlists.length > 0
-                label: qsTr("Your playlists")
-                symbol: "queue"
-                backdrop: root.backdrop
-                onTriggered: { root.dialogReturnItem = showPlaylists; savedPlaylistsDialog.open(); }
+            Item {
+                width: showPlaylists.implicitWidth
+                height: showPlaylists.implicitHeight
+                VinylWorldButton {
+                    id: showPlaylists
+                    objectName: "vinylArtistShowPlaylists"
+                    visible: !!root.artistData.liveMode && root.artistData.playlists.length > 0
+                    label: qsTr("Your playlists")
+                    symbol: "queue"
+                    backdrop: root.backdrop
+                    onTriggered: { root.dialogReturnItem = showPlaylists; savedPlaylistsDialog.open(); }
+                }
             }
-            VinylWorldButton {
-                objectName: "vinylArtistScrollToTop"
-                label: qsTr("Top of page")
-                symbol: "arrowUp"
-                backdrop: root.backdrop
-                onTriggered: { root.cancelFlick(); root.contentY = 0; }
+            Item {
+                width: scrollToTop.implicitWidth
+                height: scrollToTop.implicitHeight
+                VinylWorldButton {
+                    id: scrollToTop
+                    objectName: "vinylArtistScrollToTop"
+                    visible: !root.atYBeginning
+                    label: qsTr("Top of page")
+                    symbol: "arrowUp"
+                    backdrop: root.backdrop
+                    onTriggered: { root.cancelFlick(); root.contentY = root.originY; }
+                }
             }
         }
 

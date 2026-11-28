@@ -44,7 +44,7 @@ class VinylRecommendationService : public QObject {
     Q_PROPERTY(bool keepHistory READ keepHistory WRITE setKeepHistory NOTIFY stateChanged)
     Q_PROPERTY(QVariantMap historySnapshot READ historySnapshot NOTIFY homeChanged)
 public:
-    static constexpr int MinimumArtistCount = 5;
+    static constexpr int MinimumArtistCount = 1;
     int minimumArtistCount() const { return MinimumArtistCount; }
     explicit VinylRecommendationService(QObject *parent=nullptr,std::function<qint64()> clock={});
     ~VinylRecommendationService() override;

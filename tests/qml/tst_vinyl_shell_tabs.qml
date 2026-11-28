@@ -29,8 +29,7 @@ TestCase {
             property int minimumArtistCount: 5
             property bool usesRecommendationService: false
             property var recommendationService: null
-            property bool canEnterVinyl: !tasteGateLocked
-            property bool tasteGateLocked: false
+            property bool canEnterVinyl: true
             property bool tastePickerOpen: false
             property bool pickerAnswered: true
             property string onboardingState: "answered"
@@ -96,7 +95,6 @@ TestCase {
                 savedPicks = pickerDraft.slice();
                 onboardingState = "answered";
                 pickerAnswered = true;
-                tasteGateLocked = false;
                 tastePickerOpen = false;
             }
             function retryArtistSearch() {}
@@ -200,37 +198,29 @@ TestCase {
         view.hostReady = false;
         verify(!view.ready);
     }
-    function lockTasteGate() {
-        gateData.tasteGateLocked = true;
-        gateData.pickerAnswered = false;
-        gateData.onboardingState = "draft";
-        gateData.tastePickerOpen = true;
-        tryCompare(view, "navigationEnabled", false);
-    }
-    function test_gateAndStricterRuntimeFenceKeepHomeReachable() {
+    function test_unavailableSessionDisablesTabNavigation() {
         clickTab("Library", "Library");
-        lockTasteGate();
+        gateData.canEnterVinyl = false;
         tryCompare(view, "activeTab", "Home");
         compare(view.flowTabs.visible, false);
         compare(view.dockedTabBar.visible, false);
         compare(view.tabBarSource, null);
-        verify(findChild(view, "vinylTastePicker").visible);
+        verify(!findChild(view, "vinylTastePicker").visible);
         view.setTab("discover");
         compare(view.activeTab, "Home");
-        gateData.tasteGateLocked = false;
-        gateData.pickerAnswered = true;
-        gateData.onboardingState = "answered";
-        gateData.tastePickerOpen = false;
+        gateData.canEnterVinyl = true;
         clickTab("Library", "Library");
         view.navigationEnabled = false;
         tryCompare(view, "activeTab", "Home");
-        clickTab("Library", "Home");
+        verify(!view.flowTabs.visible);
         view.setTab("discover");
         compare(view.activeTab, "Home");
     }
-    function test_gatedPickerCanSaveAfterScrollingArtists() {
+    function test_optionalPickerCanSaveAfterScrollingArtists() {
         gateData.offeredArtists = Array.from({length: 70}, (_, i) => ({key: "artist-" + i, title: "Artist " + i}));
-        lockTasteGate();
+        gateData.pickerAnswered = false;
+        gateData.onboardingState = "editing";
+        gateData.tastePickerOpen = true;
         var flick = view.pageFlickable;
         var picker = findChild(view, "vinylTastePicker");
         var done = findChild(picker, "vinylPickerDone");
@@ -239,8 +229,8 @@ TestCase {
             return done.visible && y >= 0 && y + done.height <= flick.height;
         }
         verify(waitForRendering(picker));
-        compare(flick.contentY, 0, "The gated picker must start at the top of its page");
-        verify(fitsDone(), "Save must fit in the initial picker viewport");
+        tryVerify(fitsDone, 5000, "Save must fit in the initial picker viewport");
+        var origin = flick.contentY;
         verify(!done.enabled);
         for (var i = 0; i < 5; ++i) {
             var card = findChild(picker, "vinylPickerArtist_" + i);
@@ -253,10 +243,9 @@ TestCase {
         }
         verify(done.enabled);
         mouseWheel(flick, flick.width / 2, flick.height / 2, 0, -480);
-        tryVerify(function() { return flick.contentY > 200 && !fitsDone(); });
+        tryVerify(function() { return flick.contentY > origin + 200 && !fitsDone(); });
         mouseWheel(flick, flick.width / 2, flick.height / 2, 0, 480);
-        tryCompare(flick, "contentY", 0);
-        verify(fitsDone());
+        tryVerify(fitsDone);
         mouseClick(done);
         compare(gateData.savedPicks, ["artist-0", "artist-1", "artist-2", "artist-3", "artist-4"]);
         tryCompare(view, "navigationEnabled", true);

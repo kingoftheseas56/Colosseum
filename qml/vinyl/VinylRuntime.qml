@@ -17,7 +17,7 @@ Item {
     property bool homeLanding: false
     property bool deferInitialRestore: false
     property bool resumePresentationPending: false
-    visible: !resumePresentationPending || resumeRequiresArtistSelection
+    visible: !resumePresentationPending
     property Item backdrop
     property Item blackBrowseBackdrop
     readonly property Item browseBackdrop: blackBrowseBackdrop || backdrop
@@ -41,14 +41,7 @@ Item {
     property alias personalLibrary: personalData
     readonly property var recommendationService: recommendations
     readonly property bool canEnterVinyl: componentReady && session.profileActive && !session.shuttingDown
-        && recommendations.profileActive && recommendations.profileScope === session.profileScope
-        && recommendations.profileGeneration === session.profileGeneration
-        && recommendations.canEnterVinyl === true && !worldData.tasteGateLocked
-    readonly property bool resumeRequiresArtistSelection: componentReady && session.profileActive && !session.shuttingDown
-        && recommendations.profileActive && recommendations.profileScope === session.profileScope
-        && recommendations.profileGeneration === session.profileGeneration && !!recommendations.preferences
-        && !worldData.tastePresentationPending
-        && (recommendations.canEnterVinyl !== true || worldData.tasteGateLocked === true)
+        && session.profileScope !== "" && !!session.source
     property string importStatus: ""
     readonly property bool importing: session.importing
     property var routeStack: []
@@ -95,7 +88,7 @@ Item {
         ? bar.y - playerContentGap
         : height - Math.max(62, shellDockBottomExtent)
     readonly property bool worldVisible: canEnterVinyl
-        ? ["home","songs","albums","artists","discover","explore","library"].indexOf(page)>=0 : worldData.tastePickerOpen===true
+        && ["home","songs","albums","artists","discover","explore","library"].indexOf(page)>=0
     property bool fullWindowDetails: false
     // Show the album shell immediately, without committing the route until the
     // requested release arrives. Cancel/error leaves the original route intact.
@@ -138,20 +131,16 @@ Item {
     signal accountClicked(real anchorRight, real anchorBottom)
     signal dlnaClicked(real anchorRight, real anchorBottom)
     property bool componentReady: false
-    property bool enforcingTasteGate: false
-    onCanEnterVinylChanged: if (componentReady && !canEnterVinyl) Qt.callLater(root.enforceTasteGate)
-    onPageChanged: if (componentReady && !canEnterVinyl && page !== "home") enforceTasteGate()
-    function enforceTasteGate() {
+    property bool resettingUnavailableSession: false
+    onCanEnterVinylChanged: if (componentReady && !canEnterVinyl) Qt.callLater(root.resetUnavailableSession)
+    onPageChanged: if (componentReady && !canEnterVinyl && page !== "home") resetUnavailableSession()
+    function resetUnavailableSession() {
         if(!root.componentReady)return false;
         if (root.canEnterVinyl) return true;
         if(!session.paused)session.paused=true;
         if(recommendations.homeRadioActive)recommendations.stopHomeRadio();
-        if (root.page === "home" && world.currentTab === "home"
-                && worldData.activeTab === "home" && worldData.tastePickerOpen
-                && (!root.searchOpen || root.artistSearchOpen))
-            return false;
-        if (root.enforcingTasteGate) return false;
-        root.enforcingTasteGate = true;
+        if (root.resettingUnavailableSession) return false;
+        root.resettingUnavailableSession = true;
         try {
             root.cancelNamedCollectionOpen();
             if (session.browsing) session.cancelBrowse();
@@ -168,11 +157,11 @@ Item {
             if(audioFolderDialog)audioFolderDialog.close();
             world.listKey = "";
             if (world.currentTab !== "home") world.setTab("home");
-            if (worldData.activeTab !== "home" || recommendations.onboardingState === "unanswered")
+            if (worldData.activeTab !== "home")
                 worldData.selectTab("home");
             page = "home";
         } finally {
-            root.enforcingTasteGate = false;
+            root.resettingUnavailableSession = false;
         }
         Qt.callLater(root.parkFocus);
         return false;
@@ -204,15 +193,9 @@ Item {
         }
         return goBack();
     }
-    function openArtistOnboarding() {
-        if(lifecycleActive && page==="home" && worldData.tastePickerOpen
-            && worldData.onboardingState==="draft" && !searchOpen)
-            enterDiscoverSearch(true,false);
-    }
     onLifecycleActiveChanged: {
         if (lifecycleActive) {
             hudOpen = false;
-            Qt.callLater(root.openArtistOnboarding);
             revealVideoHud();
         }
         else {root.cancelPendingVideoOpen(true);exitVideoFullscreen();videoHudVisible=true;videoHudTimer.stop();}
@@ -314,14 +297,14 @@ Item {
     }
     function enterDiscoverSearch(online,modeToggle) {
         if(searchOpen) return;
-        var pickingArtists=page==="home" && world.currentTab==="home" && worldData.tastePickerOpen===true;
-        if(pickingArtists) {
-            Qt.callLater(function(){
-                if(!root.searchOpen && worldData.tastePickerOpen===true)world.focusArtistSearch();
+        if(!root.canEnterVinyl){root.resetUnavailableSession();return;}
+        if(page==="home" && worldData.tastePickerOpen) {
+            Qt.callLater(function() {
+                if(root.page==="home" && !root.searchOpen && worldData.tastePickerOpen)
+                    world.focusArtistSearch();
             });
             return;
         }
-        if(!pickingArtists && !root.canEnterVinyl){root.enforceTasteGate();return;}
         if(session.browsing && session.browseOperation==="album") {
             session.cancelBrowse();pendingAlbumRoute=null;
         }
@@ -341,18 +324,18 @@ Item {
         Qt.callLater(root.parkFocus);
     }
     function submitSearch() {
-        if(!artistSearchOpen && !root.canEnterVinyl){root.enforceTasteGate();return;}
+        if(!artistSearchOpen && !root.canEnterVinyl){root.resetUnavailableSession();return;}
         if(searchLayer.item) searchLayer.item.fillAndSearch(searchLayer.item.query);
         else worldData.submitSearch();
     }
     function setQuery(value) {
-        if(!artistSearchOpen && !root.canEnterVinyl){root.enforceTasteGate();return;}
+        if(!artistSearchOpen && !root.canEnterVinyl){root.resetUnavailableSession();return;}
         if(searchLayer.item) searchLayer.item.query=String(value || "");
         else worldData.setQuery(value);
     }
     function activateSearchItem(item) {
         if(artistSearchOpen) {worldData.togglePickerArtist(item);return;}
-        if(!root.canEnterVinyl){root.enforceTasteGate();return;}
+        if(!root.canEnterVinyl){root.resetUnavailableSession();return;}
         searchSnapshot=searchLayer.item.captureState();
         if(item.kind==="songs" && item.record)
             showBrowseSong(item.record,item.trackIndex);
@@ -365,7 +348,7 @@ Item {
     }
     function focusLibrary() {Qt.callLater(root.parkFocus);}
     function showHome() {
-        if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
+        if(!root.canEnterVinyl) {root.resetUnavailableSession();return;}
         var alreadyOnHome=world.currentTab==="home";
         var homeWasVisible=worldData.homePageVisible;
         searchOpen=false;artistSearchOpen=false;
@@ -376,11 +359,10 @@ Item {
         }
         page="home";
         world.parkPage(0);Qt.callLater(root.parkFocus);
-        Qt.callLater(root.openArtistOnboarding);
     }
     function openHomeDestination(tab,section,id) {
         if(tab==="discover"){root.enterDiscoverSearch(true,false);return;}
-        if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
+        if(!root.canEnterVinyl) {root.resetUnavailableSession();return;}
         root.pushRoute();
         searchOpen=false;artistSearchOpen=false;
         session.cancelBrowse();pendingAlbumRoute=null;world.listKey="";world.setTab("library");page="library";
@@ -390,7 +372,7 @@ Item {
         world.parkPage(Math.max(0,world.contentTop-world.dockedInset));Qt.callLater(root.parkFocus);
     }
     function showLibrary() {
-        if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
+        if(!root.canEnterVinyl) {root.resetUnavailableSession();return;}
         searchOpen=false;artistSearchOpen=false;
         session.cancelBrowse();pendingAlbumRoute=null;session.refreshLibrary();routeStack=[];world.listKey="";world.setTab("library");
         if(typeof worldData.selectTab==="function") worldData.selectTab("library");
@@ -405,7 +387,7 @@ Item {
         });
     }
     function openAlbum(id,action,item) {
-        if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
+        if(!root.canEnterVinyl) {root.resetUnavailableSession();return;}
         pendingAlbumRoute=Object.assign(captureRoute(),{homeAction:action || "",homeItem:item || {}});session.openAlbum(id);
         if (openingAlbum) Qt.callLater(root.parkFocus);
     }
@@ -426,7 +408,7 @@ Item {
         namedCollectionOpened(success, message || "")
     }
     function openNamedCollectionReference(reference) {
-        if(!root.canEnterVinyl) {root.enforceTasteGate();namedCollectionOpened(false,"Choose at least five artists to open Vinyl.");return;}
+        if(!root.canEnterVinyl) {root.resetUnavailableSession();namedCollectionOpened(false,qsTr("Music is unavailable for this profile."));return;}
         cancelNamedCollectionOpen()
         var p = reference.payload || {}
         if (!session.profileActive || !session.source) {
@@ -456,7 +438,7 @@ Item {
         collectionOpenTimeout.restart()
     }
     function acceptNamedCollectionAlbum(data, failure) {
-        if(!root.canEnterVinyl) {root.enforceTasteGate();root.namedCollectionOpened(false,"Choose at least five artists to open Vinyl.");return;}
+        if(!root.canEnterVinyl) {root.resetUnavailableSession();root.namedCollectionOpened(false,qsTr("Music is unavailable for this profile."));return;}
         var reference = namedCollectionPending
         if (!reference) return
         data = session.plainData(data)
@@ -510,7 +492,7 @@ Item {
         }
     }
     function showSong() {
-        if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
+        if(!root.canEnterVinyl) {root.resetUnavailableSession();return;}
         if(session.playingIndex<0) return;
         session.cancelBrowse();
         if(page!=="song" || browsingSong) pushRoute();
@@ -519,17 +501,17 @@ Item {
         Qt.callLater(root.parkFocus);
     }
     function showBrowseSong(record,index,editionId) {
-        if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
+        if(!root.canEnterVinyl) {root.resetUnavailableSession();return;}
         session.cancelBrowse();pushRoute();searchOpen=false;artistSearchOpen=false;browseSong.album=record;browseSong.editionId=editionId || "";browseSong.trackIndex=index;
         browsingSong=true;page="song";Qt.callLater(root.parkFocus);
     }
     function showArtist(name) {
-        if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
+        if(!root.canEnterVinyl) {root.resetUnavailableSession();return;}
         session.cancelBrowse();pushRoute();searchOpen=false;artistSearchOpen=false;artistData.open(name);artist.contentY=0;artist.selectedCategory="";page="artist";
         Qt.callLater(root.parkFocus);
     }
     function showRecordArtist(name,record) {
-        if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
+        if(!root.canEnterVinyl) {root.resetUnavailableSession();return;}
         var at=(record.artists || []).indexOf(name);
         if(at>=0 && (record.artistIds || [])[at]) {showArtist({name:name,id:record.artistIds[at]});return;}
         var tracks=record.tracks || [];
@@ -627,7 +609,7 @@ Item {
     }
 
     function activateItem(item) {
-        if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
+        if(!root.canEnterVinyl) {root.resetUnavailableSession();return;}
         if(item.catalogueCard===true || (item.requiresResolution && item.catalogueItem)) {
             root.resolveDiscoverItem(item.catalogueItem || item,"open",page!=="discover");
             return;
@@ -768,7 +750,7 @@ Item {
         if(searchOpen) {closeSearch();return true;}
         if(!root.canEnterVinyl) {
             if(artistSearchOpen) {artistSearchOpen=false;searchOpen=false;return true;}
-            root.enforceTasteGate();return true;
+            root.resetUnavailableSession();return true;
         }
         if (namedCollectionReturn && page === namedCollectionReturn.page
                 && routeStack.length === namedCollectionReturn.depth) {
@@ -800,7 +782,13 @@ Item {
             page=state.page;restoringRoute=false;
             Qt.callLater(function(){
                 if(!root) return;
-                worldScroll.contentY=state.worldY;album.contentY=state.albumY;artist.contentY=state.artistY;
+                // Finish the now-visible browse layout before restoring its offset.
+                // Home's layout anchoring would otherwise rebase against positions
+                // left over from when the browse shell was hidden.
+                if (root.worldVisible && typeof world.restorePageOffset === "function")
+                    world.restorePageOffset(state.worldY);
+                else worldScroll.contentY=state.worldY;
+                album.contentY=state.albumY;artist.contentY=state.artistY;
                 // Page visibility and delegated list items settle after the route
                 // mutation; focus can only be restored once the destination is visible.
                 Qt.callLater(function(){
@@ -833,7 +821,7 @@ Item {
         if(!importStatus) importStatus=albums>0 ? "Updated " + albums + (albums===1 ? " album." : " albums.") : "No tracks were added.";
     }
     function importLocalFiles(paths) {
-        if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
+        if(!root.canEnterVinyl) {root.resetUnavailableSession();return;}
         if (!paths || !paths.length || session.importing) return;
         showLibrary();
         importStatus = "";
@@ -877,7 +865,7 @@ Item {
             }
         }
         onAlbumOpened: {
-            if(!root.canEnterVinyl){session.cancelBrowse();root.pendingAlbumRoute=null;root.enforceTasteGate();return;}
+            if(!root.canEnterVinyl){session.cancelBrowse();root.pendingAlbumRoute=null;root.resetUnavailableSession();return;}
             var pending=root.pendingAlbumRoute;
             if(pending && pending.homeAction) {
                 root.pendingAlbumRoute=null;
@@ -913,11 +901,12 @@ Item {
                 if(!root)return;
                 if(root.deferInitialRestore || root.page!=="home")return;
                 if(root.canEnterVinyl){if(root.homeLanding)root.showHome();else root.showLibrary();}
-                else root.enforceTasteGate();
+                else root.resetUnavailableSession();
             });
         }
     }
     VinylLiveWorldData {id:worldData;session:session;personalLibrary:personalData;recommendationService:recommendations;
+        canEnterVinyl: root.canEnterVinyl
         legacyCarouselEnabled: false
         homePageVisible: root.componentReady && root.visible && root.lifecycleActive && root.canEnterVinyl
             && root.page === "home" && root.world && root.world.currentTab === "home" && !root.world.listKey
@@ -925,9 +914,6 @@ Item {
         onItemRequested: item => root.activateItem(item);onResumeRequested:root.activateItem({kind:"resume",resumeCurrent:true});onHomeDestinationRequested:(tab,section,id)=>root.openHomeDestination(tab,section,id);onRecommendationActionsRequested:request=>root.showRecommendationActions(request)}
     Connections {
         target:recommendations
-        function onStateChanged() {
-            if(root.componentReady && !recommendations.canEnterVinyl)root.enforceTasteGate();
-        }
         function onHomeChanged() {Qt.callLater(root.restoreHomeRadio);}
         function onHomeRadioBatchReady(songs,append) {
             if(!root.canEnterVinyl || !recommendations.homeRadioActive)return;
@@ -982,16 +968,8 @@ Item {
     Connections {
         target:worldData
         function onHomeActionRequested(item,action){root.activateHomeItem(item,action);}
-        function onTastePickerOpenChanged() {
-            if(worldData.tastePickerOpen) Qt.callLater(root.openArtistOnboarding);
-            if(!worldData.tastePickerOpen && root.artistSearchOpen) {
-                root.artistSearchOpen=false;
-                root.searchOpen=false;
-
-            }
-        }
         function onActiveTabChanged() {
-            if(!root.canEnterVinyl && worldData.activeTab!=="home")root.enforceTasteGate();
+            if(!root.canEnterVinyl && worldData.activeTab!=="home")root.resetUnavailableSession();
         }
     }
     VinylPersonalLibraryData {
@@ -1005,7 +983,7 @@ Item {
     Connections {
         target:session
         function onPlaylistAddRequested(rows){if(root.canEnterVinyl)personalData.openAddPicker(rows);}
-        function onProfileActiveChanged(){if(!root.canEnterVinyl)Qt.callLater(root.enforceTasteGate);}
+        function onProfileActiveChanged(){if(!root.canEnterVinyl)Qt.callLater(root.resetUnavailableSession);}
     }
     VinylLiveArtistData {id:artistData;session:session}
     VinylBrowseSongData {id:browseSong;session:session}
@@ -1068,7 +1046,7 @@ Item {
         target: root.world
         function onCurrentTabChanged() {
             if (!root.componentReady || !root.world) return;
-            if (!root.canEnterVinyl && root.world.currentTab !== "home") { root.enforceTasteGate(); return; }
+            if (!root.canEnterVinyl && root.world.currentTab !== "home") { root.resetUnavailableSession(); return; }
             if (root.worldVisible) { root.page = root.world.currentTab; root.searchOpen = false; root.artistSearchOpen = false; }
         }
     }
@@ -1175,7 +1153,7 @@ Item {
         onVideoInteraction: if(root.videoDisplayed)root.revealVideoHud()
         backLabel:"Back";onBackRequested:root.goBack();onArtistRequested:name=>root.showRecordArtist(name,root.browsingSong ? browseSong.album : session.playingEdition.sourceAlbum || {})
         onPlayRequested:if(browseSong.playingTrack.available!==false)browseSong.play()
-        onAlbumRequested:{if(!root.canEnterVinyl){root.enforceTasteGate();return;}if(root.browsingSong)root.openAlbum(browseSong.album.id);else {root.pushRoute();session.showPlayingAlbum();root.page="album";root.parkFocus();}}
+        onAlbumRequested:{if(!root.canEnterVinyl){root.resetUnavailableSession();return;}if(root.browsingSong)root.openAlbum(browseSong.album.id);else {root.pushRoute();session.showPlayingAlbum();root.page="album";root.parkFocus();}}
         DetailBar {
             id: songTitle
             backObjectName: song.titleBarHeight > 0 ? "vinylSongBack" : ""
@@ -1295,5 +1273,5 @@ Item {
         onSelectedSongPlayRequested:if(browseSong.playingTrack.available!==false)browseSong.play()
         onSongRequested:root.showSong()
     }
-    Component.onCompleted:{root.componentReady=true;session.refreshLibrary();if(root.canEnterVinyl)root.focusLibrary();else root.enforceTasteGate();}
+    Component.onCompleted:{root.componentReady=true;session.refreshLibrary();if(root.canEnterVinyl)root.focusLibrary();else root.resetUnavailableSession();}
 }

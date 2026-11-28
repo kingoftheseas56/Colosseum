@@ -23,7 +23,10 @@ Item {
     readonly property int pageCount: Math.ceil(count / pageSize)
     readonly property var pageItems: items ? items.slice(page * pageSize, (page + 1) * pageSize) : []
     readonly property int currentPage: page
-    implicitHeight: header.height + (tiles.height > 0 ? 12 + tiles.height : 0)
+    property bool showTasteSetup: false
+    readonly property real musicHeight: header.height + (tiles.height > 0 ? 12 + tiles.height : 0)
+    implicitHeight: musicHeight + (showTasteSetup ? 12 + tasteSetup.height : 0)
+    signal tasteSetupRequested()
     signal activateRequested(var item)
     signal openRequested(var item)
     signal radioRequested(var item)
@@ -67,6 +70,17 @@ Item {
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; spacing:6
             PageArrow { objectName:"vinylCratePrevious"; glyph:"\u2039"; accessibleName:qsTr("Previous"); enabled:root.page>0; onTriggered:root.page-- }
             PageArrow { objectName:"vinylCrateNext"; glyph:"\u203a"; accessibleName:qsTr("Next"); enabled:root.page+1<root.pageCount; onTriggered:root.page++ }
+        }
+    }
+    Loader {
+        id: tasteSetup
+        active: root.showTasteSetup
+        y: root.musicHeight + 12
+        sourceComponent: VinylWorldButton {
+            objectName: "vinylCrateTasteSetup"
+            label: qsTr("Pick a few artists to personalise Home")
+            backdrop: root.backdrop
+            onTriggered: root.tasteSetupRequested()
         }
     }
     Grid {

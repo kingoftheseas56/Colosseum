@@ -106,7 +106,8 @@ TestCase {
                 verify(p.y>=host.worldScroll.y-1 && p.y+it.height<=fold+1,name+" must lie fully inside the visible page")
             })
             verify(item("vinylPickerSkip")===null,"artist onboarding has no Skip action")
-            verify(!item("vinylPickerDone").enabled,"Done stays disabled until five artists are selected")
+            verify(!item("vinylPickerDone").enabled,"An empty draft cannot be saved")
+            verify(item("vinylPickerCancel").visible)
         }
         tryVerify(function(){return Math.abs(host.worldScroll.contentY-world.pickerParkY)<1})
         verify(item("vinylTastePicker").visible)
@@ -160,7 +161,7 @@ TestCase {
         search.text=""
         host.worldData.setPickerQuery("")
         var status=item("vinylPickerStatus")
-        compare(status.text,"0 of 5 artists selected.","the picker shows progress below its five artist minimum")
+        compare(status.text,"0 artists selected.")
         var done=selectFiveArtists(picker)
         compare(status.text,"5 artists selected.")
         var extra=uniqueOfferedArtists(picker).find(function(artist) {
@@ -170,7 +171,7 @@ TestCase {
         picker.toggleArtist(extra)
         compare(picker.selected.length,6)
         compare(status.text,"6 artists selected.","the picker does not imply five is a selection cap")
-        verify(done.enabled,"Done stays enabled above the five artist minimum")
+        verify(done.enabled,"The optional picker also accepts larger selections")
         picker.toggleArtist(extra)
         compare(picker.selected.length,5)
         mouseClick(done)
@@ -209,17 +210,19 @@ TestCase {
         compare(picker.selected.length,0)
         compare(host.worldData.picks.length,0,"draft selections do not cross profiles")
     }
-    function test_doneRequiresFiveAndDiscoverRemainsAccessible() {
+    function test_doneAcceptsOneAndDiscoverRemainsAccessible() {
         verify(host.worldData!==undefined)
-        var world=item("vinylWorld");verify(item("vinylTastePicker").visible)
+        var world=item("vinylWorld"), picker=item("vinylTastePicker")
+        verify(picker.visible)
         var done=item("vinylPickerDone")
-        verify(done!==null && !done.enabled,"Done is gated below five artists")
+        verify(done!==null && !done.enabled,"An empty draft cannot be saved")
         world.setTab("discover");compare(world.currentTab,"discover")
         world.setTab("home");host.worldScroll.contentY=world.contentTop
-        selectFiveArtists(item("vinylTastePicker"))
+        picker.toggleArtist(uniqueOfferedArtists(picker)[0])
+        tryCompare(done,"enabled",true)
         mouseClick(done)
-        compare(host.worldData.picks.length,5)
-        verify(host.worldData.pickerAnswered,"selecting five artists completes onboarding")
+        compare(host.worldData.picks.length,1)
+        verify(host.worldData.pickerAnswered)
     }
     function test_seasonedRowsAndOffline() {
         verify(host.worldData!==undefined)

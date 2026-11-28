@@ -12,7 +12,6 @@ WorldPage {
     readonly property bool shortDesktop: width>=760 && height<=760
     required property var worldData
     property bool navigationEnabled: !!worldData && worldData.canEnterVinyl !== false
-    readonly property bool gated: !!worldData && worldData.tasteGateLocked === true
     property bool contentVisible: true
     property bool showPageBacking: true
     property Image wallpaperImage: null
@@ -32,7 +31,7 @@ WorldPage {
     property bool exploreVisited: false
     property bool explorePrimed: false
     readonly property bool exploreWarmEligible: ready && lifecycleActive && visible && contentVisible && navigationEnabled
-        && !gated && currentTab === "home" && !listKey && !worldData.tastePickerOpen && !homeLoading.visible
+        && currentTab === "home" && !listKey && !worldData.tastePickerOpen && !homeLoading.visible
         && !!worldData.session && !!worldData.session.source && worldData.session.profileActive !== false
         && !worldData.session.shuttingDown && pageFlickable.height > 0
         && worldData.homeStatus !== "loading" && worldData.homeStatus !== "idle"
@@ -63,7 +62,7 @@ WorldPage {
     dockContentLeft: discover.visible ? discover.contentLeft : explore.visible && explore.item ? explore.item.contentLeft : 0
 
     function validTab(tab) { return tabModel.some(entry => entry.key === tab); }
-    function parkPage(y) {
+    function finishPageLayout() {
         // Tab/list changes dirty nested positioners. Finish them inside-out so
         // scroll bounds and pointer hit targets both belong to the new route.
         if (listKey) list.forceLayout();
@@ -72,9 +71,17 @@ WorldPage {
         else if (currentTab === "explore" && explore.item) explore.item.forceLayout();
         surface.forceLayout();
         surface.parent.forceLayout(); // WorldPage's board
+    }
+    function parkPage(y) {
+        finishPageLayout();
         const target = y === undefined ? contentTop - dockedInset : y;
         const maximum = Math.max(0, pageFlickable.contentHeight - pageFlickable.height);
         pageFlickable.contentY = Math.min(maximum, Math.max(0, Number(target) || 0));
+    }
+    function restorePageOffset(y) {
+        // Back replays the captured viewport, rather than parking at a new target.
+        finishPageLayout();
+        pageFlickable.contentY = y;
     }
     // Provider replies can insert, remove or resize sections above a reader.
     // Preserve the first surviving section at the viewport edge, not the old absolute Y.
@@ -85,7 +92,7 @@ WorldPage {
         ? Math.max(0, homeIndexHost.x + homeIndex.width + 18 - outerPageMargin) : 0
     readonly property real homeWidth: homeIndex.visible
         ? Math.max(0, Math.min(surface.width, width - outerPageMargin - homeLeft - 12)) : surface.width
-    readonly property bool trackHomeLayout: componentReady && lifecycleActive && visible && contentVisible && !gated
+    readonly property bool trackHomeLayout: componentReady && lifecycleActive && visible && contentVisible && navigationEnabled
         && currentTab === "home" && !listKey && !worldData.tastePickerOpen && !homeLoading.visible
     onTrackHomeLayoutChanged: {
         homeLayout = [];
@@ -116,7 +123,7 @@ WorldPage {
             break;
         }
     }
-    function enforceHomeGate() {
+    function resetUnavailableNavigation() {
         if (navigationEnabled) return false;
         currentTab = "home";
         listKey = ""; listHome = false; listReturnY = 0; listReturnFocus = null;
@@ -133,7 +140,7 @@ WorldPage {
             listIndex:list.currentIndex, listSelectedId:list.selectedId};
     }
     function restoreRouteState(state) {
-        if (!state || enforceHomeGate()) return;
+        if (!state || resetUnavailableNavigation()) return;
         if(state.libraryState && worldData.personalLibrary && typeof worldData.personalLibrary.restoreViewState==="function")
             worldData.personalLibrary.restoreViewState(state.libraryState);
         currentTab = validTab(state.currentTab) ? state.currentTab : "home";
@@ -150,7 +157,7 @@ WorldPage {
         listKey = ""; listHome = false; listReturnY = 0; listReturnFocus = null;
         list.currentIndex = 0; list.selectedId = "";
         currentTab = validTab(tab) ? tab : "home";
-        if (!enforceHomeGate()) parkPage(0);
+        if (!resetUnavailableNavigation()) parkPage(0);
     }
     function rememberCurrentTab() {
         var offsets = Object.assign({}, tabOffsets);
@@ -159,7 +166,7 @@ WorldPage {
         routes[currentTab] = captureRouteState(); tabRoutes = routes;
     }
     function setTab(tab) {
-        if (!validTab(tab) || enforceHomeGate() || tab === currentTab) return;
+        if (!validTab(tab) || resetUnavailableNavigation() || tab === currentTab) return;
         rememberCurrentTab();
         currentTab = tab;
         if (tabRoutes[tab]) restoreRouteState(tabRoutes[tab]);
@@ -175,7 +182,7 @@ WorldPage {
     }
     function focusArtistSearch() { return worldData.tastePickerOpen ? picker.focusArtistSearch() : false; }
     function showList(key, home) {
-        if (enforceHomeGate()) return;
+        if (resetUnavailableNavigation()) return;
         listReturnY = pageFlickable.contentY;
         listReturnFocus = root.Window.window ? root.Window.window.activeFocusItem : null;
         listHome = home; listKey = key;
@@ -198,32 +205,32 @@ WorldPage {
         if(!playlistDetail.active || !playlistDetail.item)return false;
         playlistDetail.item.showPlaylistList();return true;
     }
-    onNavigationEnabledChanged: if (componentReady) enforceHomeGate()
+    onNavigationEnabledChanged: if (componentReady) resetUnavailableNavigation()
     onCurrentTabChanged: {
         if(currentTab==="discover")discoverVisited=true;
         if(currentTab==="explore")exploreVisited=true;
         if (!componentReady) return;
         if (!validTab(currentTab)) { currentTab = "home"; return; }
-        if (!navigationEnabled && currentTab !== "home") { enforceHomeGate(); return; }
+        if (!navigationEnabled && currentTab !== "home") { resetUnavailableNavigation(); return; }
         worldData.selectTab(currentTab);
     }
     Component.onCompleted: {
         backdrop = vinylBacking;
         componentReady = true;
-        if (!enforceHomeGate()) worldData.selectTab(currentTab);
+        if (!resetUnavailableNavigation()) worldData.selectTab(currentTab);
     }
     Connections {
         target: root.worldData
         ignoreUnknownSignals: true
         function onListRequested(key, home) { root.showList(key, home); }
-        function onCanEnterVinylChanged() { root.enforceHomeGate(); }
+        function onCanEnterVinylChanged() { root.resetUnavailableNavigation(); }
         function onTastePickerOpenChanged() {
             if (root.currentTab !== "home" || !root.worldData.tastePickerOpen) return;
             Qt.callLater(function() {
-                if (root.currentTab !== "home" || !root.worldData.tastePickerOpen) return;
-                // Onboarding has no tabs. The hidden bar retains its old y, which
-                // can park the page below the picker header and its Save button.
-                root.parkPage(root.gated ? 0 : undefined);
+                if (!root.visible || !root.contentVisible || !picker.visible) return;
+                root.parkPage(root.pageFlickable.contentY);
+                const pickerTop = picker.mapToItem(root.pageFlickable.contentItem, 0, 0).y;
+                root.parkPage(pickerTop - root.dockedInset);
                 root.focusArtistSearch();
             });
         }
@@ -307,8 +314,8 @@ WorldPage {
                 onTriggered: homeLoading.optionalWaitExpired = true
             }
             readonly property bool canPresentContent: hasContent && !indeterminate
-                && root.contentVisible && !root.gated && !root.worldData.tastePickerOpen
-                && root.worldData.pickerAnswered === true && root.currentTab === "home" && !root.listKey
+                && root.contentVisible && root.navigationEnabled && !root.worldData.tastePickerOpen
+                && root.currentTab === "home" && !root.listKey
             // Latch only after the first-load wait has let content through, not as rows arrive.
             function rememberContent() {
                 if (!canPresentContent || contentShown) return;
@@ -336,8 +343,10 @@ WorldPage {
                 }
             }
             topPadding: Math.max(0,root.pageFlickable.height*0.4)
-            visible: !root.gated && !root.worldData.tastePickerOpen && root.worldData.pickerAnswered === true
-                && root.currentTab === "home" && !root.listKey
+            // Cold Home is usable while charts arrive. Keep the existing first-load
+            // presentation for returning listeners with saved choices.
+            visible: root.navigationEnabled && !root.worldData.tastePickerOpen && root.worldData.pickerAnswered === true
+                && root.worldData.savedArtistCount !== 0 && root.currentTab === "home" && !root.listKey
                 && (finishing || (!contentShown && (indeterminate || !hasContent)))
             indeterminate: root.worldData.homeStatus === "loading" || root.worldData.homeStatus === "idle"
                 || (Number((root.worldData.homeSourcePool || {}).pendingCount) > 0 && !optionalWaitExpired)
@@ -350,7 +359,7 @@ WorldPage {
             objectName: "vinylHero"
             width: parent.width
             height: surface.compactIntro ? 260 : implicitHeight
-            visible: slideCount>0 && !root.gated && !homeLoading.visible
+            visible: slideCount>0 && root.navigationEnabled && !homeLoading.visible
             slides: root.worldData.heroSlides || []
             session: root.worldData.session || null
             onPlayRequested: item => root.worldData.playHomeItem(item)
@@ -363,7 +372,7 @@ WorldPage {
         WorldTabBar {
             id: flowBar
             objectName: "vinylFlowTabs"
-            visible: !root.gated && !homeLoading.visible
+            visible: root.navigationEnabled && !homeLoading.visible
             width: parent.width
             height:54
             backdrop: root.backdrop
@@ -378,7 +387,9 @@ WorldPage {
         VinylCrate {
             id: crate
             objectName: "vinylCrate"
-            visible: !root.gated && !homeLoading.visible && root.currentTab === "home" && !root.listKey
+            visible: root.navigationEnabled && !homeLoading.visible && root.currentTab === "home" && !root.listKey
+            showTasteSetup: !root.worldData.tastePickerOpen && root.worldData.savedArtistCount === 0
+            onTasteSetupRequested: root.worldData.beginTasteEdit()
             x: root.homeLeft
             width: root.homeWidth; height: implicitHeight
             tileSizingWidth: surface.width
@@ -395,7 +406,7 @@ WorldPage {
         VinylSpin {
             id: spin
             objectName: "vinylSpin"
-            visible: !root.gated && !homeLoading.visible && root.currentTab === "home" && !root.listKey
+            visible: root.navigationEnabled && !homeLoading.visible && root.currentTab === "home" && !root.listKey
             x: root.homeLeft
             width: root.homeWidth; height: implicitHeight
             songs: root.worldData.spinSongs || []
@@ -411,7 +422,7 @@ WorldPage {
         Item { id: tabBodyGap; width: 1; height: 30; visible: flowBar.visible && body.visible && body.height > 0 }
         Item {
             id: body
-            visible: !homeLoading.visible
+            visible: root.navigationEnabled && !homeLoading.visible
             x: root.homeLeft
             width: root.homeWidth
             height: root.listKey ? list.implicitHeight

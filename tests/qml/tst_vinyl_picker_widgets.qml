@@ -131,16 +131,14 @@ TestCase {
         var cancel=findChild(picker,"vinylPickerCancel"); verify(cancel.visible);
         mouseClick(cancel,cancel.width/2,cancel.height/2); compare(worldStub.cancels,1);
     }
-    function test_lockedGateNeedsFiveAndCannotBeCancelled() {
-        worldStub.tasteGateLocked=true; worldStub.onboardingState="editing"; wait(30);
+    function test_emptyDraftCanBeCancelledAndOneArtistCanBeSaved() {
         var done=findChild(picker,"vinylPickerDone"), cancel=findChild(picker,"vinylPickerCancel");
-        verify(!cancel.visible);
+        verify(cancel.visible);
         verify(!done.enabled);
-        for (var i=0;i<4;++i) worldStub.togglePickerArtist(worldStub.initial[i]);
-        wait(30); verify(!done.enabled);
-        compare(findChild(picker,"vinylPickerStatus").text,"4 of 5 artists selected.");
-        worldStub.togglePickerArtist(worldStub.initial[4]);
+        mouseClick(cancel, cancel.width/2, cancel.height/2);
+        compare(worldStub.cancels, 1);
+        worldStub.togglePickerArtist(worldStub.initial[0]);
         tryCompare(done,"enabled",true);
-        compare(findChild(picker,"vinylPickerStatus").text,"5 artists selected.");
+        compare(findChild(picker,"vinylPickerStatus").text,"1 artist selected.");
     }
 }

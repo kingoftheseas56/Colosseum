@@ -25,29 +25,27 @@ function fixture() {
     session.rowFor=(edition,discIndex,trackIndex)=>({edition,discIndex,trackIndex,trackId:edition.discs[discIndex][trackIndex].id});
     session.restore=load(adapter,'restore',session);
     const win={vinylEnabled:true,vinylProfileActive:true,vinylShellGeneration:4,vinylResumeSerial:0,pendingVinylResume:null,
-        vinylWorld:{session,page:'home',canEnterVinyl:true,enforceTasteGate(){this.gated=true;}},qsTr:s=>s,
+        vinylWorld:{session,page:'home',canEnterVinyl:true},qsTr:s=>s,
         openWorld(){}};
     win.win=win;
-    for(const name of ['traceVinylResume','openVinylResume','hasPendingVinylResume','holdVinylResumePresentation','applyVinylResume'])win[name]=load(main,name,win);
+    for(const name of ['traceVinylResume','openVinylResume','hasPendingVinylResume','applyVinylResume'])win[name]=load(main,name,win);
     return {session,win};
 }
 const entry={title:'Requested song',resume:{version:3,valid:true,trackId:'requested'}};
 {
     const {win}=fixture();win.pendingVinylResume={entry,play:true,generation:4};
-    assert.equal(win.holdVinylResumePresentation(null),true,'incubation keeps the opening surface');
-    win.vinylWorld.canEnterVinyl=false;win.vinylWorld.resumeRequiresArtistSelection=false;
-    win.applyVinylResume();assert.equal(win.holdVinylResumePresentation(win.vinylWorld),true,'ready but admission-pending never presents Home');
-    win.vinylWorld.resumeRequiresArtistSelection=true;
-    assert.equal(win.holdVinylResumePresentation(win.vinylWorld),false,'confirmed onboarding remains visible');
-    win.vinylWorld.resumeRequiresArtistSelection=false;win.vinylWorld.canEnterVinyl=true;
+    assert.equal(win.hasPendingVinylResume(),true,'incubation keeps the opening surface');
+    win.vinylWorld.canEnterVinyl=false;
+    win.applyVinylResume();assert.equal(win.hasPendingVinylResume(),true,'an unavailable provider never presents the start page');
+    win.vinylWorld.canEnterVinyl=true;
     let pending=win.pendingVinylResume;const releasePages=[];
     Object.defineProperty(win,'pendingVinylResume',{get:()=>pending,set:value=>{pending=value;if(!value)releasePages.push(win.vinylWorld.page);}});
     win.applyVinylResume();assert.deepEqual(releasePages,['song'],'presentation releases only after committing requested destination');
-    assert.equal(win.holdVinylResumePresentation(win.vinylWorld),false);
+    assert.equal(win.hasPendingVinylResume(),false);
     pending={entry:{resume:{version:99}},play:true,generation:4};win.applyVinylResume();
-    assert.equal(win.holdVinylResumePresentation(win.vinylWorld),false);assert.ok(win.vinylWorld.session.browseError);
+    assert.equal(win.hasPendingVinylResume(),false);assert.ok(win.vinylWorld.session.browseError);
     pending={entry,play:true,generation:4};win.pendingVinylResume=null;
-    assert.equal(win.holdVinylResumePresentation(win.vinylWorld),false,'cancellation releases the hold');
+    assert.equal(win.hasPendingVinylResume(),false,'cancellation releases the hold');
 }
 for(const resume of [{version:3,valid:false},{version:3,valid:true,rejected:true},null,{version:99}]) {
     const {session,win}=fixture();win.openVinylResume({resume},true);
@@ -97,7 +95,8 @@ for(const play of [false,true]) {
     const setup=main.match(/                    var initialProperties = \{([\s\S]*?)                    active = true/);
     assert.ok(setup);
     vm.runInNewContext('(function(){var initialProperties = {'+setup[1]+'})',{
-        win,worldStack:{current:'Vinyl'},mode:'Vinyl',wall:thatObject,Qt:{binding:f=>f},
+        win,worldStack:{current:'Vinyl'},mode:'Vinyl',wall:thatObject,vinylWall:thatObject,vinylWallImage:thatObject,
+        worldLoader:{continuousVinylLoading:true},Qt:{binding:f=>f},
         setSource:(_url,props)=>initial=props,active:false
     })();
     assert.strictEqual(initial.backdrop,thatObject);
@@ -157,4 +156,4 @@ for(const play of [false,true]) {
     session.playingTrack={id:'https://invalid.test/private'};phase('active-song');
     assert.match(messages.at(-1),/track=unavailable/);assert.ok(!messages.at(-1).includes('https:'));
 }
-console.log('PASS Continue failure/profile fences, selected song/play intent, newest taste-gated request, live incubation startup binding, default/legacy restoration');
+console.log('PASS Continue failure/profile fences, selected song/play intent, newest provider-pending request, live incubation startup binding, default/legacy restoration');

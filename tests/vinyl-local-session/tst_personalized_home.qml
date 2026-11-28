@@ -216,13 +216,15 @@ TestCase {
         compare(component.status,Component.Ready,component.errorString());
         world = component.createObject(host.contentItem,{width:960,height:720});
         verify(world !== null);
+        // Install the test Home model before activating the source, so the
+        // native model cannot start a competing first-load presentation.
+        world.worldData.recommendationService = recommendations;
+        world.worldData.preferencesStore = preferences;
+        world.recommendationService.preferences = gatePreferences;
         world.session.source = NativeSource;
         world.session.collectionStore = collection;
         world.session.refreshLibrary();
         world.personalLibrary.refreshModels();
-        world.worldData.preferencesStore = preferences;
-        world.worldData.recommendationService = recommendations;
-        world.recommendationService.preferences = gatePreferences;
         tryVerify(function(){return world.recommendationService.canEnterVinyl;});
         world.worldData.loadTaste();
         world.showHome();
@@ -487,37 +489,33 @@ TestCase {
             "Cached cards must remain usable during a partial recommendation failure.");
     }
 
-    function test_emptySkippedHomeOffersLoadingAndAvailableDestinations() {
-        var source=recommendationAlbumSource.createObject(test);
-        world.session.source=source;
+    function test_zeroPicksShowPublicChartsWithoutPersonalRows() {
         collection.seed([]);
         world.session.refreshLibrary();
         world.personalLibrary.refreshModels();
-        recommendations.selectedArtists=[];
-        world.worldData.recentContinue=[];
-        recommendations.setHome([],"loading","");
-        world.session.discoverySections={};
-        world.session.discoveryRequests={"new-releases":1};
-
-        // e9875c366 retires skipped/public Home; fewer than five artists now gates all routes.
-        tryCompare(world.worldData,"canEnterVinyl",false);
-        world.worldView.setTab("discover");
-        compare(world.worldView.currentTab,"home");
-        world.worldView.setTab("library");
-        compare(world.worldView.currentTab,"home");
-        verify(findChild(world,"vinylTastePicker").visible);
-        verify(!world.worldData.homePublicDiscovery);
-        compare(world.worldData.homeRows.length,0);
-        verify(findChild(world,"vinylHomeDiscover")===null);
-        verify(findChild(world,"vinylHomeLibrary")===null);
-        world.session.discoveryRequests={};
-        world.session.discoverySections={"new-releases":{title:"New releases",items:[],
-            error:"The catalogue could not be reached. Retry when it is available."}};
-        compare(world.worldData.homeRows.length,0);
-        compare(world.worldView.currentTab,"home");
-        compare(world.session.queue.length,0);
-        world.session.source=NativeSource;
-        source.destroy();
+        recommendations.selectedArtists = [];
+        recommendations.onboardingState = "unanswered";
+        recommendations.setHome([], "loading", "");
+        verify(world.canEnterVinyl);
+        verify(findChild(world, "vinylFlowTabs").visible, "Tabs stay usable while charts load.");
+        verify(findChild(world, "vinylCrateTasteSetup").visible);
+        verify(!findChild(world, "vinylTastePicker").visible);
+        var charts = {};
+        for (var kind of ["albums", "songs", "artists"]) {
+            charts[kind] = Array.from({length: 5}, (_, index) =>
+                card(kind + index, "Chart " + kind + " " + index, kind, {}));
+        }
+        recommendations.homeSourcePool = {charts: charts, rows: [], pendingCount: 0};
+        recommendations.homeStatus = "ready";
+        var hero = findChild(world, "vinylHero");
+        tryCompare(hero, "slideCount", 3);
+        verify(hero.visible);
+        var spin = findChild(world, "vinylSpin");
+        verify(spin.visible);
+        compare(world.worldData.spinSongs.length, 5);
+        compare(world.worldData.v1HomeRows.length, 0);
+        verify(!findChild(world, "vinylHomeRow_albums-for-you").visible);
+        compare(world.session.queue.length, 0);
     }
 
     function test_homeCardBoundsAndPointerEntryRemainStable() {

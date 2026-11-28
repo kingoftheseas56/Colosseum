@@ -18,8 +18,8 @@ Item {
     property string name: ""
     property string artistId: ""
     property string openingCover: ""
-    property string filter: "all"
-    property string categoryFilter: "All"
+    property string filter: "Album"
+    property string categoryFilter: "Album"
     property bool newestFirst: true
     property bool allSongs: false
     property string activeTab: "albums"
@@ -65,7 +65,40 @@ Item {
     readonly property var localAlbums: ((session && session.library) || []).map(function(entry) {
         return entry.payload && entry.payload.album ? entry.payload.album : entry;
     })
-    readonly property var albums: online && catalogueService ? catalogueService.artistAlbums.concat(catalogueService.artistSingles).concat(localAlbums.filter(function(a){return a.origin === "local" && (a.artists || []).indexOf(name)>=0;})) : localAlbums
+    readonly property var onlineIdentity: online && catalogueService ? (catalogueService.artistIdentity || {}) : ({})
+    // Identity is requested after the release continuation lanes settle. Its
+    // terminal value also lets artwork load without holding up these numbers.
+    readonly property bool releaseCountsKnown: !online || (!!catalogueService && !!onlineArtist.id
+        && !loading && !catalogueError
+        && (!catalogueService.artistBusy || Object.keys(onlineIdentity).length > 0))
+
+    // The native source groups matched editions for canonical identity, but the
+    // Artist Room browses concrete releases. Reuse exact provider browse IDs for
+    // grouped-out cards; the source still owns the actual records and tracklists.
+    function concreteReleases(rows, shelf, editionsOnShelf) {
+        const seen = new Set(rows.map(album => album.browseId));
+        const result = rows.slice();
+        for (const album of rows) {
+            for (const edition of album.providerEditions || []) {
+                const browseId = edition.browseId;
+                if (!browseId || seen.has(browseId) || editionsOnShelf.get(browseId) !== shelf)
+                    continue;
+                seen.add(browseId);
+                result.push(Object.assign({}, album, {
+                    id: browseId, browseId: browseId, title: edition.title,
+                    year: edition.year, cover: edition.thumbnail || "", tracks: []
+                }));
+            }
+        }
+        return result;
+    }
+    readonly property var albums: {
+        if (!online || !catalogueService) return localAlbums;
+        const shelves = new Map((onlineIdentity.releases || []).map(row => [row.browseId, row.ytShelf]));
+        return concreteReleases(catalogueService.artistAlbums, "albums", shelves)
+            .concat(concreteReleases(catalogueService.artistSingles, "singles", shelves))
+            .concat(localAlbums.filter(a => a.origin === "local" && (a.artists || []).includes(name)));
+    }
     readonly property var record: {
         var releases = [], songs = [];
         albums.forEach(function(album) {
@@ -124,12 +157,16 @@ Item {
     readonly property var singleCards: releaseCards(singles)
     readonly property var allDiscographyCards: releaseCards(releases.concat(singles.map(function(a) { return {album:a}; })))
     readonly property var releaseCategories: {
-        var cats = [{id:"All", key:"all", label:"All releases", count:allDiscographyCards.length}];
-        var seen = {};
-        allDiscographyCards.forEach(function(card) { seen[card.category] = (seen[card.category] || 0) + 1; });
-        Object.keys(seen).sort().forEach(function(key) { cats.push({id:key, key:key, label:key, count:seen[key]}); });
-        return cats;
+        const known = releaseCountsKnown;
+        const counts = Object.create(null);
+        counts.Album = 0;
+        allDiscographyCards.forEach(card => { counts[card.category] = (counts[card.category] || 0) + 1; });
+        if (categoryFilter !== "All" && counts[categoryFilter] === undefined)
+            counts[categoryFilter] = 0;
+        return [{id:"All", label:qsTr("All releases"), count:known ? allDiscographyCards.length : undefined}]
+            .concat(Object.keys(counts).sort().map(key => ({id:key, label:key, count:known ? counts[key] : undefined})));
     }
+    readonly property var totalReleaseCount: releaseCategories[0].count
     readonly property var discographyCards: allDiscographyCards.filter(function(card) {
         return categoryFilter === "All" || card.category === categoryFilter;
     }).sort(function(a,b) { return (newestFirst ? -1 : 1) * (a.year-b.year) || a.title.localeCompare(b.title); })
@@ -257,7 +294,7 @@ Item {
             && !localAlbums.some(function(a){return (a.artists || []).indexOf(nextName)>=0;}));
         if(catalogueService) {if(online) catalogueService.openArtist({id:nextId,name:nextName,cover:openingCover});else catalogueService.leaveArtist();}
         name = nextName; artistId = nextId; personalError = ""; lastCreatedPlaylistId = "";
-        filter = "all"; categoryFilter = "All"; newestFirst = true; allSongs = false;
+        selectReleaseCategory("Album"); newestFirst = true; allSongs = false;
         activeTab = "albums"; selectedWallpaper = "auto"; customBackdropUrl = "";
     }
     function queueDemoSong(index) {

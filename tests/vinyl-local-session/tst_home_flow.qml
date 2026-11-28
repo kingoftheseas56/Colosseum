@@ -201,7 +201,7 @@ TestCase {
 
     function test_coldHomeNeedsNoTasteAnswerAndSearchOpensDiscover() {
         world.worldData.preferencesStore.setVinylTasteSelections(false, []);
-        tryCompare(world, "canEnterVinyl", false);
+        tryCompare(world, "canEnterVinyl", true);
         collection.seed([]);
         world.session.refreshLibrary();
         world.personalLibrary.refreshModels();
@@ -211,15 +211,15 @@ TestCase {
         compare(world.worldData.pickerAnswered, false);
         compare(world.page, "home");
         compare(world.worldView.currentTab, "home");
-        // e9875c366 requires five artists even with an empty local library.
-        verify(findChild(world, "vinylTastePicker").visible);
+        verify(!findChild(world, "vinylTastePicker").visible);
+        verify(findChild(world, "vinylCrateTasteSetup").visible);
         verify(findChild(world, "vinylHomeSearch") === null,
             "Home uses the shared top-bar search entry.");
         findChild(world, "vinylTopBar").searchClicked();
         compare(world.page, "home");
         compare(world.worldView.currentTab, "home");
-        verify(!world.searchOpen);
-        tryCompare(findChild(world, "vinylPickerArtistSearch"), "activeFocus", true);
+        tryCompare(world, "searchOpen", true);
+        verify(!findChild(world, "vinylTastePicker").visible);
     }
 
     SignalSpy {
@@ -297,6 +297,9 @@ TestCase {
         world.worldScroll.contentY = Math.min(180, maxScroll);
         wait(0);
         var savedScroll = world.worldScroll.contentY;
+        var shelf = findChild(world, "vinylHomeRow_new-from-your-artists");
+        verify(shelf && shelf.visible);
+        var shelfViewportY = shelf.mapToItem(world.worldScroll, 0, 0).y;
         world.worldData.activate(world.worldData.v1HomeRows[0].items[0]);
         compare(world.page, "song");
         verify(world.goBack());
@@ -304,6 +307,9 @@ TestCase {
         tryCompare(world.worldView, "currentTab", "home", 2000);
         tryCompare(world.worldData, "query", "home-only query", 2000);
         tryCompare(world.worldScroll, "contentY", savedScroll, 2000);
+        verify(waitForRendering(shelf));
+        compare(world.worldScroll.contentY, savedScroll);
+        compare(shelf.mapToItem(world.worldScroll, 0, 0).y, shelfViewportY);
     }
 
     function test_homePlaylistCardOpensTheMatchingLibraryPlaylist() {

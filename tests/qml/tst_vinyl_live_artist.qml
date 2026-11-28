@@ -83,7 +83,9 @@ TestCase {
         a.tracks=[a.tracks[0],Object.assign({},a.tracks[0],{id:"a2"}),Object.assign({},a.tracks[0],{id:"a3"})];
         b.tracks=[b.tracks[0],Object.assign({},b.tracks[0],{id:"b2"}),Object.assign({},b.tracks[0],{id:"b3"})];
         session.library=[a,b,single,video,live];
-        compare(data.record.releases.length,5); compare(data.discographyCards.length,3);
+        compare(data.record.releases.length,5);
+        compare(data.categoryFilter,"Album"); compare(data.discographyCards.length,2);
+        data.selectReleaseCategory("All"); compare(data.discographyCards.length,3);
         compare(data.media.videos.length,1); compare(data.liveCards.length,1); compare(data.singlesRows.length,9);
         compare(data.singleCards[0].category,"Single"); compare(data.singleCards[0].subtitle,"2024 · Single");
         compare(data.allDiscographyCards.filter(function(c){return c.id==="single";})[0].subtitle,"2024 · Single");
@@ -148,7 +150,7 @@ TestCase {
         var trigger=findChild(page,"vinylArtistReleasePickerAction");
         trigger.activate(); tryCompare(picker,"open",true);
         keyClick(Qt.Key_Escape); tryCompare(picker,"open",false); tryCompare(trigger,"activeFocus",true);
-        picker.choose(2); compare(data.categoryFilter,"Single"); compare(data.discographyCards.length,1);
+        picker.choose(2); tryCompare(data,"categoryFilter","Single"); compare(data.discographyCards.length,1);
         var changed=album("a"); changed.artist.backdrops=[blue]; session.library=[changed,b];
         compare(data.heroPhotos.length,1); compare(data.categoryFilter,"Single");
         page.heroItem.setBackdrop("auto"); compare(page.heroItem.rotationMode,"static");
@@ -174,7 +176,8 @@ TestCase {
         provider.artistBusy = true;
         provider.artistCatalogueBusy = true;
         verify(artist.loading);
-        compare(artist.catalogueStatus,"Loading artist catalogue…");
+        compare(artist.catalogueStatus, "", "Loading uses an indicator, not a progress tag");
+        compare(artist.totalReleaseCount, undefined);
         var wide = "https://lh3.googleusercontent.com/fixture-wide";
         provider.artist = {id:artist.artistId,images:[
             {url:"https://lh3.googleusercontent.com/fixture-square",width:2048,height:2048},

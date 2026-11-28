@@ -37,9 +37,8 @@ TestCase {
             property var lens:({kind:"albums",genre:"",decade:"",country:"",language:""})
             property bool catalogueReachable:true
             property bool canEnterVinyl:true
-            property int minimumArtistCount:5
+            readonly property int savedArtistCount: picks.length
             property bool tastePickerOpen:false
-            property bool tasteGateLocked:false
             property bool pickerAnswered:true
             property string onboardingState:"answered"
             property string pickerQuery:""
@@ -359,7 +358,7 @@ TestCase {
     }
     function test_becauseYouPlayedUsesExistingAlbumCaptionForReason() {
         const original = gateData.v1HomeRows;
-        const title = "Because you played 50 Cent";
+        const title = "More like 50 Cent";
         const reason = "Listeners of 50 Cent also play Lloyd Banks";
         const album = Object.assign({}, cards("albums", 1)[0], {anchorReason: title, reason: reason});
         try {
@@ -553,17 +552,29 @@ TestCase {
             gateData.v1HomeRows=rows;
         }
     }
-    function test_zz_lockedTasteGateShowsOnlyThePicker(){
-        var hero=findChild(view,"vinylHero"),crate=findChild(view,"vinylCrate"),spin=findChild(view,"vinylSpin");
-        var picker=findChild(view,"vinylTastePicker"),tabs=findChild(view,"vinylFlowTabs");
-        verify(hero.visible&&crate.visible&&spin.visible&&tabs.visible);compare(picker.visible,false);
-        gateData.canEnterVinyl=false;gateData.tasteGateLocked=true;gateData.tastePickerOpen=true;
-        tryCompare(picker,"visible",true);
-        compare(hero.visible,false);compare(crate.visible,false);compare(spin.visible,false);compare(tabs.visible,false);
-        compare(findChild(view,"vinylCrateTasteCard"),null);
-        var cancel=findChild(view,"vinylPickerCancel");verify(cancel===null||!cancel.visible);
-        gateData.tasteGateLocked=false;gateData.canEnterVinyl=true;gateData.tastePickerOpen=false;
-        tryCompare(picker,"visible",false);
-        verify(hero.visible&&crate.visible&&spin.visible&&tabs.visible);
+    function test_zz_freshHomeOffersAnOptionalPicker() {
+        var hero = findChild(view, "vinylHero"), crate = findChild(view, "vinylCrate");
+        var spin = findChild(view, "vinylSpin"), tabs = findChild(view, "vinylFlowTabs");
+        var picker = findChild(view, "vinylTastePicker");
+        compare(findChild(crate, "vinylCrateTasteSetup"), null, "Returning listeners keep their existing Crate.");
+        gateData.picks = [];
+        gateData.pickerAnswered = false;
+        gateData.onboardingState = "unanswered";
+        gateData.crateItems = [];
+        gateData.v1HomeRows = [];
+        gateData.homeStatus = "loading";
+        verify(hero.visible && crate.visible && spin.visible && tabs.visible);
+        verify(!picker.visible);
+        var setup = findChild(crate, "vinylCrateTasteSetup");
+        verify(setup && setup.visible);
+        compare(setup.label, "Pick a few artists to personalise Home");
+        setup.activate(Qt.MouseFocusReason);
+        tryCompare(picker, "visible", true);
+        verify(hero.visible && tabs.visible, "Editing does not lock the rest of Vinyl.");
+        var cancel = findChild(picker, "vinylPickerCancel");
+        verify(cancel.visible && cancel.enabled);
+        cancel.activate(Qt.MouseFocusReason);
+        tryCompare(picker, "visible", false);
+        verify(findChild(crate, "vinylCrateTasteSetup").visible);
     }
 }

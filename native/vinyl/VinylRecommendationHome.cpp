@@ -1503,7 +1503,7 @@ VinylRecommendationService::HomeComposition VinylRecommendationService::composeH
                 if(known)continue;
                 album["artistRefs"]=credits;
                 album["reason"]=tr("Listeners of %1 also play %2").arg(anchorName,neighbor.value("name").toString());
-                album["anchorReason"]=tr("Because you played %1").arg(anchorName);
+                album["anchorReason"]=tr("More like %1").arg(anchorName);
                 album["similarArtistKey"]=match.mbid.isEmpty()?artistNameKey(neighbor.value("name").toString()):match.mbid;
                 add(album,work.anchor,"home-album-similarity","because-you-played",false,match.strength());
                 if(++admitted==6)break;

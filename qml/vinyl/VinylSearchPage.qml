@@ -114,7 +114,7 @@ SearchSurface {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 6
             Text {
-                width: parent.width; text: "Choose at least "+page.worldData.minimumArtistCount+" artists"
+                width: parent.width; text: qsTr("Pick a few artists you love")
                 color: footerTheme.ink; font.family: footerTheme.display
                 font.pixelSize: page.phoneNarrow ? 18 : 22; elide: Text.ElideRight
             }
@@ -129,13 +129,12 @@ SearchSurface {
             anchors.verticalCenter: parent.verticalCenter; spacing: 12
             VinylWorldButton {
                 objectName: "vinylSearchPickerCancel"
-                visible: page.worldData.onboardingState==="editing" && page.worldData.tasteGateLocked!==true
                 label: "Cancel artist selection"; symbol: "cancel"; backdrop: page.backdrop
                 onTriggered: page.worldData.cancelTasteEdit()
             }
             VinylWorldButton {
                 objectName: "vinylSearchPickerDone"
-                enabled: page.selectedArtistCount>=page.worldData.minimumArtistCount
+                enabled: page.selectedArtistCount > 0
                 label: "Continue"; symbol: "check"; selected: true; backdrop: page.backdrop
                 onTriggered: page.worldData.answerPicker()
             }

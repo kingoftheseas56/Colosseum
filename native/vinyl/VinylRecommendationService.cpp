@@ -136,7 +136,7 @@ bool VinylRecommendationService::commitTaste(bool skip) {
     if(skip){cancelTasteEdit();return true;}
     auto rows=uniqueArtists(m_draft);
     if(uniqueTasteArtistCount(rows)<minimumArtists()){
-        m_error=QStringLiteral("Choose at least five artists to open Vinyl.");
+        m_error=tr("Choose an artist to save your preferences.");
         emit stateChanged();return false;
     }
     for(auto &value:rows){auto row=value.toMap();row.remove("id");row.remove("title");row.remove("cover");value=row;}
