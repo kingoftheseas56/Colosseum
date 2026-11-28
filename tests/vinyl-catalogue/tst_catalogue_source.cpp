@@ -852,6 +852,45 @@ private slots:
         QCOMPARE(helper.size(),1);QCOMPARE(helper.first()[0].toString(),QString("play"));
         QCOMPARE(torrent.serial,0);
     }
+    void playbackKeepsTheAlbumRecordingAndOfficialVideoSeparate(){
+        QTemporaryDir dir;VaultIdentity identity(dir.filePath("identity.json"));VinylLocalSource local(&identity);
+        VinylProvider provider(QStringLiteral(VINYL_FAKE_TRANSPORT));VinylCatalogueSource source(&local,&provider,nullptr);
+        const QString id="paired-song",audio="audioTrack1",video="musicVideo1";
+        const QVariantMap options{{"browseId","MPRE_paired"},{"source","youtube"}};
+        const QVariantMap track{{"id",id},{"videoId",video},{"audioVideoId",audio},{"musicVideoId",video},
+            {"title","Many Men"},{"seconds",257}};
+        source.registerRemoteAlbum({{"id","paired-album"},{"browseId","MPRE_paired"},
+            {"origin","youtube-music"},{"tracks",QVariantList{track}}});
+        QSignalSpy done(&source,&VinylCatalogueSource::completed);
+        const QList<QPair<QString,QString>> audioRoutes{{"play","resolve"},{"prepare-next","resolve"},
+            {"video-stream","resolveFallback"}};
+        for(const auto &route:audioRoutes){
+            const int request=source.request(route.first,route.second,id,options);
+            QVERIFY(request>0);QTRY_VERIFY_WITH_TIMEOUT(!done.isEmpty(),10000);
+            const auto reply=done.takeFirst();
+            QVERIFY2(reply[3].toString().isEmpty(),qPrintable(reply[3].toString()));
+            QCOMPARE(reply[1].toInt(),request);
+            QCOMPARE(reply[2].toMap().value("trackId").toString(),id);
+            QCOMPARE(reply[2].toMap().value("videoId").toString(),audio);
+        }
+        QVERIFY(source.request("video-match","relatedVideo",id,options)>0);
+        QTRY_VERIFY_WITH_TIMEOUT(!done.isEmpty(),10000);
+        const auto candidate=done.takeFirst()[2].toMap();
+        QCOMPARE(candidate.value("sourceVideoId").toString(),video);
+        QCOMPARE(candidate.value("videoId").toString(),video);
+        QVERIFY(source.request("video-stream","resolveVideo",id,{{"videoId",candidate.value("videoId")}})>0);
+        QTRY_VERIFY_WITH_TIMEOUT(!done.isEmpty(),10000);
+        QCOMPARE(done.takeFirst()[2].toMap().value("videoId").toString(),video);
+
+        auto unpaired=track;unpaired.remove("audioVideoId");unpaired.remove("musicVideoId");
+        source.registerRemoteAlbum({{"id","unpaired-album"},{"browseId","MPRE_unpaired"},
+            {"origin","youtube-music"},{"tracks",QVariantList{unpaired}}});
+        QVERIFY(source.request("play","resolve",id,{{"browseId","MPRE_unpaired"}})>0);
+        QTRY_VERIFY_WITH_TIMEOUT(!done.isEmpty(),10000);
+        const auto fallback=done.takeFirst()[2].toMap();
+        QCOMPARE(fallback.value("videoId").toString(),video);
+        QCOMPARE(fallback.value("audioTrack").toMap().value("seconds").toInt(),257);
+    }
     void invalidPlaybackSourceIsRejected_data(){
         QTest::addColumn<QVariant>("choice");
         QTest::newRow("unknown")<<QVariant("automatic");

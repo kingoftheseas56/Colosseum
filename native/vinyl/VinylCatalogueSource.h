@@ -87,7 +87,7 @@ private:
     };
     VinylLocalSource *m_local;VinylProvider *m_provider;QPointer<CollectionStore> m_collection;
     int m_serial=0;QHash<QString,Pending> m_pending;
-    QHash<QString,QVariantMap> m_albums;QHash<QString,QString> m_videos;
+    QHash<QString,QVariantMap> m_albums,m_playbackTracks;
     QHash<QString,QVariantMap> m_remoteTracks;
     std::function<QVariantMap(const QString &)> m_downloadedMusicResolver;
     QPointer<QObject> m_torrent;

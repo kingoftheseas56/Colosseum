@@ -201,10 +201,25 @@ def album_card(record, browse_id=None):
             "providerIds": {"youtube-music": key}}
 
 
+def youtube_video_id(value):
+    return isinstance(value, str) and bool(re.fullmatch(r"[A-Za-z0-9_-]{11}", value))
+
+
+def playback_pair(track):
+    other = track.get("counterpart")
+    if not isinstance(other, dict) or other.get("isAvailable") is False:
+        return {}
+    ids = {row.get("videoType"): row.get("videoId") for row in (track, other)
+           if isinstance(row.get("videoType"), str) and youtube_video_id(row.get("videoId"))}
+    audio, video = ids.get("MUSIC_VIDEO_TYPE_ATV"), ids.get("MUSIC_VIDEO_TYPE_OMV")
+    return {"audioVideoId": audio, "musicVideoId": video} if audio and video and audio != video else {}
+
+
 def normalize_album(record, key, track_offset=0):
     result = album_card(record, key)
     result["tracks"] = []
     for index, track in enumerate(record.get("tracks") or []):
+        # Keep the catalogue/queue identity stable even when playback uses a counterpart.
         video = track.get("videoId") or ""
         normalized = {
             "id": identity("recording", video) if video else identity("unavailable", key + ":" + str(track_offset + index)),
@@ -212,9 +227,9 @@ def normalize_album(record, key, track_offset=0):
             "artists": artists(track) or result["artists"],
             "artistIds": [("ytm:artist:" + a["id"]) if a.get("id") else ""
                           for a in track.get("artists", []) if a.get("name")],
-            "seconds": int(track.get("duration_seconds") or 0),
+            "seconds": song_candidate_duration_seconds(track),
             "available": bool(video) and track.get("isAvailable", True),
-            "explicit": bool(track.get("isExplicit"))}
+            "explicit": bool(track.get("isExplicit")), **playback_pair(track)}
         track_album = track.get("album")
         album_name = track_album.get("name") if isinstance(track_album, dict) else None
         if not isinstance(album_name, str) or not album_name.strip():
@@ -224,6 +239,8 @@ def normalize_album(record, key, track_offset=0):
         video_type = track.get("videoType")
         if isinstance(video_type, str) and video_type in YTM_VIDEO_TYPES:
             normalized["videoType"] = video_type
+            if video_type == "MUSIC_VIDEO_TYPE_ATV" and youtube_video_id(video):
+                normalized["audioVideoId"] = video
         result["tracks"].append(normalized)
     # A truncated album is not silently presented as a complete release.
     expected = record.get("trackCount")
@@ -627,13 +644,80 @@ def read_playlist_page(client, key, token):
     return {"items": items, "meta": meta, "continuation": continuation or ""}
 
 
+def row_play_endpoint(row):
+    return (row.get("overlay", {}).get("musicItemThumbnailOverlayRenderer", {}).get("content", {})
+            .get("musicPlayButtonRenderer", {}).get("playNavigationEndpoint", {}))
+
+
+def track_with_playback_endpoints(track, row):
+    # The upstream playlist parser takes the ID from the play button, but the
+    # type from a menu endpoint. Inspect typed endpoints on this same row so
+    # an ATV type belonging to a different ID cannot label the play-button ID.
+    endpoints = [row_play_endpoint(row), row.get("navigationEndpoint", {})]
+    endpoints.extend(run.get("navigationEndpoint", {}) for column in row.get("flexColumns", [])
+                     for run in column.get("musicResponsiveListItemFlexColumnRenderer", {}).get("text", {}).get("runs", []))
+    endpoints.extend(item.get("menuNavigationItemRenderer", {}).get("navigationEndpoint", {})
+                     for item in row.get("menu", {}).get("menuRenderer", {}).get("items", []))
+    typed = {}
+    for endpoint in endpoints:
+        watch = endpoint.get("watchEndpoint", {})
+        video = watch.get("videoId")
+        kind = watch.get("watchEndpointMusicSupportedConfigs", {}).get("watchEndpointMusicConfig", {}).get("musicVideoType")
+        if youtube_video_id(video) and isinstance(kind, str) and kind in YTM_VIDEO_TYPES:
+            typed.setdefault(kind, set()).add(video)
+    source = track.get("videoId")
+    kinds = [kind for kind, ids in typed.items() if source in ids]
+    if len(kinds) == 1:
+        kind = kinds[0]
+        track["videoType"] = kind
+        other = {"MUSIC_VIDEO_TYPE_ATV": "MUSIC_VIDEO_TYPE_OMV", "MUSIC_VIDEO_TYPE_OMV": "MUSIC_VIDEO_TYPE_ATV"}.get(kind)
+        ids = typed.get(other, set()) - {source}
+        if len(ids) == 1:
+            track["counterpart"] = {"videoId": next(iter(ids)), "videoType": other}
+    else:
+        track.pop("videoType", None)
+    return track
+
+
+def read_album(client, key):
+    # Reuse the response already fetched by get_album; no per-track requests.
+    responses, original = [], getattr(client, "_send_request", None)
+    if original is None:
+        return client.get_album(key)
+
+    def capture(*args, **kwargs):
+        response = original(*args, **kwargs)
+        responses.append(response)
+        return response
+
+    client._send_request = capture
+    try:
+        album = client.get_album(key)
+    finally:
+        client._send_request = original
+    if responses:
+        secondary = next(renderer_nodes(responses[0], "secondaryContents"), {})
+        shelf = next(renderer_nodes(secondary, "musicShelfRenderer"), {})
+        rows = {}
+        for entry in shelf.get("contents", []):
+            row = entry.get("musicResponsiveListItemRenderer", {})
+            video = row_play_endpoint(row).get("watchEndpoint", {}).get("videoId")
+            if youtube_video_id(video):
+                rows[video] = row if video not in rows else None
+        for track in album.get("tracks", []):
+            row = rows.get(track.get("videoId"))
+            if row is not None:
+                track_with_playback_endpoints(track, row)
+    return album
+
+
 def playlist_page_items(contents):
     from ytmusicapi.parsers.playlists import parse_playlist_items
     result = []
     for row in contents:
         parsed = parse_playlist_items([row])
         if parsed:
-            result.extend(parsed)
+            result.extend(track_with_playback_endpoints(track, row["musicResponsiveListItemRenderer"]) for track in parsed)
         elif "musicResponsiveListItemRenderer" in row:
             # The upstream parser skips deleted/private rows. Keep any row the
             # server actually supplies at its original playlist position.
@@ -751,8 +835,87 @@ def fetch_playlist_page(client, request, key, region):
     return record
 
 
+def choose_audio_video_id(client, video, track, browse_id):
+    # Only accept a next-panel counterpart attached to the exact source ID;
+    # other panel rows may be unrelated recommendations.
+    try:
+        panel = _call_provider(client.get_watch_playlist, videoId=video, limit=1)
+        rows = panel.get("tracks") if isinstance(panel, dict) else None
+        for row in rows[:1] if isinstance(rows, list) else []:
+            if not isinstance(row, dict):
+                continue
+            pair = playback_pair(row)
+            if video in pair.values():
+                return pair["audioVideoId"]
+            if row.get("videoId") == video and row.get("videoType") == "MUSIC_VIDEO_TYPE_ATV":
+                return video
+    except ProviderError:
+        pass
+
+    seconds = song_candidate_duration_seconds(track)
+    title = track.get("title")
+    ids = playback_artist_ids(track.get("artistIds"))
+    names = track.get("artists")
+    if not seconds or not ids or not isinstance(title, str) or not title.strip() or not isinstance(names, list):
+        return video
+    query = " ".join([title] + [name for name in names[:3] if isinstance(name, str)])[:300]
+    try:
+        rows = _call_provider(client.search, query, filter="songs", limit=10)
+    except ProviderError:
+        return video
+    matches = {}
+    for row in rows[:10] if isinstance(rows, list) else []:
+        if not isinstance(row, dict):
+            continue
+        candidate, kind = row.get("videoId"), row.get("videoType")
+        duration = song_candidate_duration_seconds(row)
+        if (not youtube_video_id(candidate) or candidate == video or not duration or abs(seconds - duration) > 3
+                or row.get("isAvailable") is False or row.get("isLiveContent") is True
+                or kind not in (None, "MUSIC_VIDEO_TYPE_ATV")
+                or _video_title_key(row.get("title")) != _video_title_key(title)
+                or recording_version(row) != recording_version(track)
+                or {a["providerId"] for a in home_artist_refs(row.get("artists", []))} != ids):
+            continue
+        album = row.get("album")
+        same_release = isinstance(album, dict) and bool(browse_id) and album.get("id") == browse_id
+        rank = (not same_release, kind != "MUSIC_VIDEO_TYPE_ATV", abs(seconds - duration))
+        matches[candidate] = min(matches.get(candidate, rank), rank)
+    ranked = sorted(matches, key=matches.get)
+    if ranked and (len(ranked) == 1 or matches[ranked[0]] != matches[ranked[1]]):
+        return ranked[0]
+    return video
+
+
+def playback_artist_ids(raw_ids):
+    if not isinstance(raw_ids, list):
+        return set()
+    return {key for value in raw_ids if isinstance(value, str)
+            if re.fullmatch(r"UC[A-Za-z0-9_-]{22}", key := value.removeprefix("ytm:artist:"))}
+
+
+def resolve_audio_request(video, request, region, client=None):
+    track = request.get("audioTrack")
+    if not youtube_video_id(video) or not isinstance(track, dict):
+        return resolve(video)
+    if client is None:
+        try:
+            client = _ytmusic_client(region, bounded=True)
+        except Exception:
+            return resolve(video)
+    audio = choose_audio_video_id(client, video, track, request.get("browseId"))
+    if audio == video:
+        return resolve(video)
+    # Carry the originating row ID separately from the actual stream ID for
+    # the native next-track preparation fence. Preserve the old fallback if
+    # the alternative is unavailable at extraction time.
+    try:
+        return dict(resolve(audio), sourceVideoId=video)
+    except Exception:
+        return resolve(video)
+
+
 def resolve(video):
-    if not re.fullmatch(r"[A-Za-z0-9_-]{11}", video):
+    if not youtube_video_id(video):
         raise ValueError("Invalid YouTube video ID")
     with _youtube_dl("audio") as client, _measure("providerCallMs"):
         data = client.extract_info("https://music.youtube.com/watch?v=" + video, download=False)
@@ -2964,6 +3127,16 @@ def fetch_related_video(client, video, request):
     if not isinstance(video, str) or not re.fullmatch(r"[A-Za-z0-9_-]{11}", video):
         raise InvalidArgumentError("Invalid YouTube video ID")
     result = {"version": 1, "sourceVideoId": video, "status": "unavailable"}
+    paired_video = request.get("musicVideoId")
+    if youtube_video_id(paired_video):
+        response = _call_provider(client.get_song, paired_video)
+        details = response.get("videoDetails", {}) if isinstance(response, dict) else {}
+        if (details.get("videoId") == paired_video and details.get("musicVideoType") == "MUSIC_VIDEO_TYPE_OMV"
+                and details.get("isLiveContent") is not True
+                and response.get("playabilityStatus", {}).get("status") == "OK"):
+            result.update({"status": "ready", "videoId": paired_video, "title": details.get("title", ""),
+                           "relationship": "catalogue-counterpart", "sameMediaClock": False})
+            return result
     source = _call_provider(client.get_song, video)
     details = source.get("videoDetails", {}) if isinstance(source, dict) else {}
     title = details.get("title")
@@ -2986,11 +3159,7 @@ def fetch_related_video(client, video, request):
         return result
     if details.get("musicVideoType") != "MUSIC_VIDEO_TYPE_ATV":
         return result
-    raw_ids = request.get("artistIds")
-    if not isinstance(raw_ids, list):
-        return result
-    artist_ids = {x.removeprefix("ytm:artist:") for x in raw_ids if isinstance(x, str)}
-    artist_ids = {x for x in artist_ids if re.fullmatch(r"UC[A-Za-z0-9_-]{22}", x)}
+    artist_ids = playback_artist_ids(request.get("artistIds"))
     if not artist_ids or details.get("channelId") not in artist_ids:
         return result
     author = details.get("author")
@@ -4970,7 +5139,7 @@ def handle(request, client=None, mb_client=None, population_client=None, source_
         with _youtube_dl("audio"), _youtube_dl("video"):
             return {"ready": True, "audioReady": True, "videoReady": True}
     if operation == "resolve":
-        return resolve(value)
+        return resolve_audio_request(value, request, region, client)
     if operation == "resolveVideo":
         return resolve_video(value)
     if operation == "relatedVideo" and (not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9_-]{11}", value)):
@@ -5027,7 +5196,7 @@ def handle(request, client=None, mb_client=None, population_client=None, source_
     if operation == "album":
         if not re.fullmatch(r"[A-Za-z0-9_-]{1,160}", value):
             raise ValueError("Invalid album identity")
-        return normalize_album(client.get_album(value), value)
+        return normalize_album(read_album(client, value), value)
     if operation == "artist":
         cid = request.get("channelId") or value
         overview = request.get("overview", False)

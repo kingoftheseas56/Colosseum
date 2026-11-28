@@ -374,6 +374,12 @@ elif operation == "album":
             "origin": "youtube-music", "tracks": [{"id": "provider-recording", "videoId": "abcdefghijk", "title": "Track"}]}
 elif operation == "resolve":
     data = {"videoId": value, "url": "https://audio.googlevideo.com/test?secret=TRANSIENT_ONLY", "headers": {}}
+    if value == "musicVideo1" and "audioTrack" in request:
+        data["audioTrack"] = request["audioTrack"]
+elif operation == "relatedVideo" and value == "musicVideo1":
+    data = {"version": 1, "status": "ready", "sourceVideoId": value, "videoId": request.get("musicVideoId")}
+elif operation == "resolveVideo" and value == "musicVideo1":
+    data = {"videoId": value}
 else:
     data = {"artists": [], "albums": [], "request": request, "complete": False}
 print(json.dumps({"ok": True, "data": data}))

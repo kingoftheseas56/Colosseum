@@ -77,7 +77,7 @@ VinylCatalogueSource::VinylCatalogueSource(VinylLocalSource *local,VinylProvider
     });
     connect(local,&VinylLocalSource::importCompleted,this,&VinylCatalogueSource::importCompleted);
     connect(local,&VinylLocalSource::importProgress,this,&VinylCatalogueSource::importProgress);
-    connect(local,&VinylLocalSource::profileLeaving,this,[this]{cancelAll();m_albums.clear();m_videos.clear();m_remoteTracks.clear();emit profileLeaving();});
+    connect(local,&VinylLocalSource::profileLeaving,this,[this]{cancelAll();m_albums.clear();m_playbackTracks.clear();m_remoteTracks.clear();emit profileLeaving();});
     connect(local,&VinylLocalSource::profileEntered,this,&VinylCatalogueSource::profileEntered);
     connect(local,&VinylLocalSource::checkpointRequested,this,&VinylCatalogueSource::checkpointRequested);
     connect(local,&VinylLocalSource::shuttingDown,this,[this]{cancelAll();emit shuttingDown();});
@@ -121,7 +121,7 @@ QVariantMap VinylCatalogueSource::remember(QVariantMap album){
         ++trackNumber;
         const auto track=item.toMap();const auto video=track.value("videoId").toString();
         if(QRegularExpression("^[A-Za-z0-9_-]{11}$").match(video).hasMatch()){
-            const auto key=track.value("id").toString();m_videos.insert(key,video);
+            const auto key=track.value("id").toString();m_playbackTracks.insert(key,track);
             m_remoteTracks.insert(key,musicIntent(album,track,trackNumber));
         }
     }
@@ -147,7 +147,28 @@ int VinylCatalogueSource::request(const QString &lane,const QString &operation,c
     // Recommendation destinations use the same provider namespace as search.
     // A summary need not have been opened (and registered) before navigation.
     if(operation=="album"&&!local&&remoteValue.startsWith("ytm:album:"))remoteValue=remoteValue.mid(10);
-    if((operation=="resolve"||operation=="resolveFallback"||operation=="relatedVideo")&&!local){remoteValue=m_videos.value(value);}
+    auto remoteOptions=options;
+    if((resolving||operation=="relatedVideo")&&!local){
+        remoteOptions.remove("audioTrack");remoteOptions.remove("musicVideoId");
+        auto track=m_playbackTracks.value(value);
+        const auto browseId=options.value("browseId").toString();
+        if(!browseId.isEmpty())for(const auto &entry:m_albums.value(browseId).value("tracks").toList()){
+            const auto contextual=entry.toMap();
+            if(contextual.value("id")==value){track=contextual;break;}
+        }
+        remoteValue=track.value("videoId").toString();
+        static const QRegularExpression youtubeId(QStringLiteral("^[A-Za-z0-9_-]{11}$"));
+        if(operation=="relatedVideo"){
+            const auto video=track.value("musicVideoId").toString();
+            if(youtubeId.match(video).hasMatch())remoteOptions["musicVideoId"]=video;
+        }else if(lane!="download"&&!value.startsWith("ytm:video:")&&!track.isEmpty()){
+            const auto audio=track.value("audioVideoId").toString();
+            if(youtubeId.match(audio).hasMatch())remoteValue=audio;
+            else if(track.value("seconds").toDouble()>0||track.value("videoType")=="MUSIC_VIDEO_TYPE_OMV")
+                remoteOptions["audioTrack"]=QVariantMap{{"title",track.value("title")},{"artists",track.value("artists")},
+                    {"artistIds",track.value("artistIds")},{"seconds",track.value("seconds")}};
+        }
+    }
     if(resolving&&!local&&lane!="download"&&m_downloadedMusicResolver) {
         auto downloaded=m_downloadedMusicResolver(remoteValue);
         if(!downloaded.isEmpty()) {
@@ -180,14 +201,14 @@ int VinylCatalogueSource::request(const QString &lane,const QString &operation,c
         m_pending.insert(lane,{id,transport,false,operation,value,true,{}});
         // Resolve, but do not play, YouTube while the preferred torrent gets its
         // short head start. Playback URLs remain ephemeral and request-scoped.
-        const int fallback=m_provider->request("playFallback","resolve",remoteValue);
+        const int fallback=m_provider->requestPayload("playFallback","resolve",remoteValue,remoteOptions);
         auto &pending=m_pending[lane];pending.fallbackTransportId=fallback;
         if(fallback<0){pending.fallbackReady=true;pending.fallbackError="The fallback source is unavailable.";}
         return id;
     }
     auto localOptions=options;
     if(local&&resolving)localOptions.remove("source");
-    const int transport=local?m_local->request(lane,operation,value,localOptions):m_provider->requestPayload(lane,operation=="resolveFallback"?"resolve":remoteOperation,remoteValue,options);
+    const int transport=local?m_local->request(lane,operation,value,localOptions):m_provider->requestPayload(lane,operation=="resolveFallback"?"resolve":remoteOperation,remoteValue,remoteOptions);
     if(transport<0)return -1;
     m_pending.insert(lane,{id,transport,local,operation,value});m_pending[lane].options=options;return id;
 }

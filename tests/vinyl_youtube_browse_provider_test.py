@@ -2,7 +2,7 @@ import importlib.util
 import pathlib
 import socket
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('browse_provider', ROOT / 'scripts/vinyl/provider.py')
@@ -11,6 +11,8 @@ spec.loader.exec_module(provider)
 CHANNEL = 'UCbRSywya_rl8YS15Lo9ttsA'
 PARAM = 'ggMPOg1uXzVLbmZnaWI4STNs'
 VIDEO = 'KCMCPsUpD3w'
+ATV = 'audioTrack1'
+OMV = 'musicVideo1'
 
 
 def endpoint(key, page):
@@ -70,6 +72,72 @@ class BrowseProviderTests(unittest.TestCase):
         self.assertEqual(record['tracks'][0]['artistIds'], ['ytm:artist:' + CHANNEL])
         self.client.get_album.assert_not_called()
         self.client.get_artist.assert_not_called()
+
+    def test_album_row_keeps_the_audio_and_official_video_endpoints_separate(self):
+        title = 'Many Men'
+        row = song_row(OMV, 'MUSIC_VIDEO_TYPE_OMV')
+        renderer = row['musicResponsiveListItemRenderer']
+        # Album's thumbnail plays the OMV; the row's title points to its ATV.
+        renderer['flexColumns'][0] = song_row(ATV)['musicResponsiveListItemRenderer']['flexColumns'][0]
+        self.client._send_request.return_value = {'secondaryContents': {'musicShelfRenderer': {'contents': [row]}}}
+
+        def album(key):
+            self.client._send_request('browse', {'browseId': key})
+            # ytmusicapi gets the ID and type from different parts of the row.
+            return {'title': 'Get Rich or Die Tryin\'', 'tracks': [{
+                'videoId': OMV, 'videoType': 'MUSIC_VIDEO_TYPE_ATV', 'title': title,
+                'artists': [{'id': CHANNEL, 'name': '50 Cent'}], 'duration_seconds': 257}]}
+
+        self.client.get_album.side_effect = album
+        record = provider.handle({'operation': 'album', 'value': 'MPRE_album'}, client=self.client)
+        track = record['tracks'][0]
+        self.assertEqual((track['videoId'], track['videoType'], track['seconds']), (OMV, 'MUSIC_VIDEO_TYPE_OMV', 257))
+        self.client._send_request.assert_called_once()
+
+        with patch.object(provider, 'resolve', side_effect=lambda video: {'videoId': video}) as extract:
+            audio = provider.handle({'operation': 'resolve', 'value': track['audioVideoId']}, client=self.client)
+        self.assertEqual(audio['videoId'], ATV)
+        self.assertEqual(track['musicVideoId'], OMV)
+        extract.assert_called_once_with(ATV)
+        self.client.get_watch_playlist.assert_not_called()
+
+        self.client.get_song.return_value = {
+            'videoDetails': {'videoId': OMV, 'musicVideoType': 'MUSIC_VIDEO_TYPE_OMV', 'title': 'Many Men (Official Video)'},
+            'playabilityStatus': {'status': 'OK'}}
+        candidate = provider.handle({'operation': 'relatedVideo', 'value': track['videoId'],
+                                     'musicVideoId': track['musicVideoId'], 'title': title}, client=self.client)
+        self.assertEqual((candidate['status'], candidate['videoId']), ('ready', OMV))
+        self.assertFalse(candidate['sameMediaClock'])
+        with patch.object(provider, 'resolve_video', side_effect=lambda video: {'videoId': video}) as extract_video:
+            provider.handle({'operation': 'resolveVideo', 'value': candidate['videoId']}, client=self.client)
+        extract_video.assert_called_once_with(OMV)
+
+    def test_audio_fallback_prefers_matching_duration_to_official_clip(self):
+        artists = [{'id': CHANNEL, 'name': '50 Cent'}]
+        row = {'videoId': OMV, 'title': 'Many Men', 'artists': artists, 'duration_seconds': 257,
+               'videoType': 'MUSIC_VIDEO_TYPE_OMV'}
+        self.client.get_watch_playlist.return_value = {'tracks': [row]}
+        target = dict(row, videoId=ATV, videoType=None, duration_seconds=259)
+        self.client.search.return_value = [dict(row, duration_seconds=297),
+                                           dict(target, videoId=VIDEO, duration_seconds=261), target]
+        track = provider.song_record(row)['tracks'][0]
+        request = {'operation': 'resolve', 'value': OMV, 'audioTrack': track}
+        with patch.object(provider, 'resolve', side_effect=lambda video: {'videoId': video}) as extract:
+            self.assertEqual(provider.handle(request, client=self.client), {'videoId': ATV, 'sourceVideoId': OMV})
+            extract.assert_called_once_with(ATV)
+            self.client.search.return_value.pop()
+            self.assertEqual(provider.handle(request, client=self.client), {'videoId': OMV})
+        self.client.search.assert_called_with('Many Men 50 Cent', filter='songs', limit=10)
+
+    def test_audio_fallback_uses_only_a_counterpart_paired_to_the_requested_id(self):
+        raw = {'videoId': ATV, 'videoType': 'MUSIC_VIDEO_TYPE_ATV', 'title': 'Many Men',
+               'counterpart': {'videoId': OMV, 'videoType': 'MUSIC_VIDEO_TYPE_OMV'}}
+        track = provider.song_record(raw)['tracks'][0]
+        self.assertEqual((track['audioVideoId'], track['musicVideoId']), (ATV, OMV))
+        self.client.get_watch_playlist.return_value = {'tracks': [raw]}
+        self.assertEqual(provider.choose_audio_video_id(self.client, OMV, {}, ''), ATV)
+        self.assertEqual(provider.choose_audio_video_id(self.client, VIDEO, {}, ''), VIDEO)
+        self.client.search.assert_not_called()
 
     def test_categories_preserve_returned_parameters_and_exclude_nonmusic_duplicates(self):
         self.client.get_mood_categories.return_value = {'Genres': [{'title': 'Rock', 'params': PARAM},

@@ -70,6 +70,11 @@ QVariantMap selectedTrack(const QVariantMap &row) {
         if(value.toMap().value("id")==row.value("trackId"))return value.toMap();
     return row.value("track").toMap();
 }
+QString playbackBrowseId(const QVariantMap &row) {
+    const auto edition=row.value("edition").toMap();
+    if(edition.value("origin","local")=="local")return {};
+    return edition.value("browseId",edition.value("sourceAlbum").toMap().value("browseId")).toString();
+}
 bool resourceExpired(const QString &resource) {
     const QUrlQuery query{QUrl(resource)};
     const auto expires=query.queryItemValue("expire");
@@ -402,12 +407,9 @@ std::optional<PlaybackLoadInput> VinylBackendSession::inputFor(const QueueOccurr
         if(!contextual)method=m_source->metaObject()->indexOfMethod("request(QString,QString,QString)");
         if(method<0){fail("The audio source cannot resolve tracks.");return;}
         auto request=m_source->metaObject()->method(method);
-        const auto edition=activeRow().value("edition").toMap();
         QVariantMap options;
-        if(edition.value("origin","local").toString()!="local"){
-            const auto browseId=edition.value("browseId",edition.value("sourceAlbum").toMap().value("browseId")).toString();
-            if(!browseId.isEmpty())options.insert("browseId",browseId);
-        }
+        const auto browseId=playbackBrowseId(activeRow());
+        if(!browseId.isEmpty())options.insert("browseId",browseId);
         const QString lane="play",operation=m_forceFallback?"resolveFallback":"resolve";
         const QGenericArgument laneArg("QString",&lane),operationArg("QString",&operation),trackArg("QString",&track);
         const QGenericArgument extra=contextual?QGenericArgument("QVariantMap",&options):QGenericArgument();
@@ -588,9 +590,14 @@ void VinylBackendSession::discardPreparation(const QString &retainReadyOccurrenc
 bool VinylBackendSession::validPreparedResource(const QVariantMap &resource,const QVariantMap &row) const {
     const auto text=resource.value("url").toString();
     bool ok=false;const auto expires=QUrlQuery(QUrl(text)).queryItemValue("expire").toLongLong(&ok);
-    const auto expected=selectedTrack(row).value("videoId").toString();
+    const auto track=selectedTrack(row);
+    const auto source=track.value("videoId").toString(),audio=track.value("audioVideoId").toString();
+    const auto actual=resource.value("videoId").toString();
+    static const QRegularExpression youtubeId(QStringLiteral("^[A-Za-z0-9_-]{11}$"));
+    const bool matchesAudio=youtubeId.match(audio).hasMatch()?actual==audio:
+        actual==source||(resource.value("sourceVideoId")==source&&youtubeId.match(actual).hasMatch());
     if(row.value("track").toMap().value("available",true)==false||!videoResourceUrl(text)||!ok||expires<=QDateTime::currentSecsSinceEpoch()+120
-        ||expected.isEmpty()||resource.value("videoId")!=expected||resource.value("trackId")!=row.value("trackId")
+        ||source.isEmpty()||!matchesAudio||resource.value("trackId")!=row.value("trackId")
         ||resource.value("provider")!="youtube")return false;
     QVector<PlaybackRequestHeader> headers;
     const auto fields=resource.value("headers").toMap();
@@ -613,7 +620,7 @@ void VinylBackendSession::updatePreparation() {
     m_preparationRow=row;m_preparationSource=m_source;m_preparationProfile=m_profile;
     m_preparationGeneration=m_epoch;m_preparationStarted=monotonicMs();m_preparationElapsed=0;
     QVariantMap options{{"source","youtube"}};
-    const auto browseId=edition.value("browseId",edition.value("sourceAlbum").toMap().value("browseId")).toString();
+    const auto browseId=playbackBrowseId(row);
     if(!browseId.isEmpty())options["browseId"]=browseId;
     ++m_preparationStarts;m_preparationStatus="preparing";
     m_preparationRequest=requestSource("prepare-next","resolve",row.value("trackId").toString(),options);
@@ -656,8 +663,10 @@ void VinylBackendSession::discoverVideo() {
     const auto generation=m_epoch;const auto id=m_videoOccurrence;
     QTimer::singleShot(0,this,[this,generation,id,track] {
         if(m_shutdown||generation!=m_epoch||id!=m_videoOccurrence||id!=activeRow().value("queueId"))return;
-        m_videoMatchRequest=requestSource("video-match","relatedVideo",activeRow().value("trackId").toString(),
-            {{"title",track.value("title")},{"artists",track.value("artists")},{"artistIds",track.value("artistIds")}});
+        QVariantMap options{{"title",track.value("title")},{"artists",track.value("artists")},{"artistIds",track.value("artistIds")}};
+        const auto browseId=playbackBrowseId(activeRow());
+        if(!browseId.isEmpty())options["browseId"]=browseId;
+        m_videoMatchRequest=requestSource("video-match","relatedVideo",activeRow().value("trackId").toString(),options);
     });
 }
 void VinylBackendSession::videoCompleted(const QString &lane,int request,const QVariantMap &data,const QString &error) {
@@ -704,9 +713,14 @@ void VinylBackendSession::toggleVideo() {
 void VinylBackendSession::resolveVideoMode(bool video) {
     if(m_shutdown||!m_profileActive||activeIndex()<0)return;
     m_targetVideo=video;m_videoBusy=true;m_videoError.clear();
-    const auto value=activeRow().value("trackId").toString();
-    m_videoRequest=requestSource("video-stream",video?"resolveVideo":"resolveFallback",value,
-        video?QVariantMap{{"videoId",m_videoCandidate.value("videoId")}}:QVariantMap{});
+    const auto row=activeRow();
+    QVariantMap options;
+    if(video)options["videoId"]=m_videoCandidate.value("videoId");
+    else {
+        const auto browseId=playbackBrowseId(row);
+        if(!browseId.isEmpty())options["browseId"]=browseId;
+    }
+    m_videoRequest=requestSource("video-stream",video?"resolveVideo":"resolveFallback",row.value("trackId").toString(),options);
     if(m_videoRequest<0) {
         if(m_startingExactVideo){fail({});return;}
         m_videoBusy=false;m_videoError="This source cannot play the video.";
