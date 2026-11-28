@@ -215,6 +215,14 @@ Window {
     function holdVinylResumePresentation(world) {
         return hasPendingVinylResume() && (!world || !world.resumeRequiresArtistSelection)
     }
+    function hasPendingUniverseVinyl() {
+        return !!pendingUniverseVinyl && vinylProfileActive
+            && pendingUniverseVinyl.generation === vinylShellGeneration
+    }
+    function holdVinylOpeningPresentation(world) {
+        return holdVinylResumePresentation(world)
+            || (hasPendingUniverseVinyl() && (!world || !world.resumeRequiresArtistSelection))
+    }
     function applyVinylResume() {
         if (!vinylWorld || !pendingVinylResume) return
         var pending = pendingVinylResume
@@ -247,6 +255,10 @@ Window {
                 Qt.callLater(win.applyVinylResume)
                 Qt.callLater(win.applyUniverseVinyl)
             }
+        }
+        function onHostReadyChanged() {
+            if (win.vinylWorld && win.vinylWorld.hostReady)
+                Qt.callLater(win.applyUniverseVinyl)
         }
     }
     property var feriaReturnSnapshot: null
@@ -3047,23 +3059,29 @@ Window {
         }
         const target = UniverseAudio.vinylItem(item)
         if (target && vinylEnabled && vinylProfileActive) {
-            openWorld("Vinyl")
-            if (worldStack.current !== "Vinyl") return
-            closeUniverse()
+            if (guardNamedCollectionsNavigation(function() { win.openUniverseAudio(item) })) return
             pendingVinylResume = null
-            pendingUniverseVinyl = target
-            applyUniverseVinyl()
+            const request = { target: target, title: item.title, generation: vinylShellGeneration }
+            pendingUniverseVinyl = request
+            openWorld("Vinyl")
+            if (worldStack.current !== "Vinyl") {
+                if (pendingUniverseVinyl === request) pendingUniverseVinyl = null
+                return
+            }
+            closeUniverse()
+            Qt.callLater(win.applyUniverseVinyl)
         }
     }
     function applyUniverseVinyl() {
-        if (!pendingUniverseVinyl || !vinylWorld || worldStack.current !== "Vinyl") return
+        if (!hasPendingUniverseVinyl() || !vinylWorld || !vinylWorld.hostReady
+                || worldStack.current !== "Vinyl") return
         if (!vinylWorld.canEnterVinyl) {
-            vinylWorld.enforceTasteGate()
+            if (vinylWorld.resumeRequiresArtistSelection) vinylWorld.enforceTasteGate()
             return
         }
-        const target = pendingUniverseVinyl
-        pendingUniverseVinyl = null
+        const target = pendingUniverseVinyl.target
         vinylWorld.activateItem(target)
+        pendingUniverseVinyl = null
     }
     function openOnePieceArc(arc) {
         if (!arc) return
@@ -5438,7 +5456,7 @@ Window {
                 Text {
                     anchors.centerIn: parent
                     visible: worldLoader.mode === "Vinyl"
-                        ? (win.holdVinylResumePresentation(worldLoader.item)
+                        ? (win.holdVinylOpeningPresentation(worldLoader.item)
                             || (!worldLoader.continuousVinylLoading && worldLoader.status !== Loader.Ready))
                         : (Qt.platform.os === "android" && worldLoader.mode !== "Universes"
                             && worldLoader.status !== Loader.Ready)
@@ -5448,13 +5466,15 @@ Window {
                             if (title) return qsTr("Opening %1…").arg(title)
                             if (worldLoader.continuousVinylLoading) return qsTr("Opening your music…")
                         }
+                        if (worldLoader.mode === "Vinyl" && win.hasPendingUniverseVinyl())
+                            return qsTr("Opening %1…").arg(win.pendingUniverseVinyl.title)
                         return qsTr("Loading %1…").arg(worldLoader.mode)
                     }
                     color: "#9a99a5"; font.family: "Segoe UI"; font.pixelSize: 14
                 }
                 Loader {
                     active: worldLoader.continuousVinylLoading
-                    visible: active && !win.hasPendingVinylResume()
+                    visible: active && !win.hasPendingVinylResume() && !win.hasPendingUniverseVinyl()
                         && (worldLoader.status !== Loader.Ready || worldLoader.item.homeLoadingIndeterminate)
                     width: Math.max(0, Math.min(420, parent.width - 2 * loadingLayout.outerPageMargin))
                     x: (parent.width - width) / 2
@@ -5500,7 +5520,10 @@ Window {
                             return win.hasPendingVinylResume()
                         })
                         initialProperties.resumePresentationPending = Qt.binding(function() {
-                            return win.hasPendingVinylResume()
+                            return win.hasPendingVinylResume() || win.hasPendingUniverseVinyl()
+                        })
+                        initialProperties.universeMusicTitle = Qt.binding(function() {
+                            return win.hasPendingUniverseVinyl() ? win.pendingUniverseVinyl.title : ""
                         })
                         // Give the player bar the taskbar's footprint from construction, so it
                         // never lays out under the taskbar pill while the world is still loading.
@@ -5544,9 +5567,9 @@ Window {
                             win.registerVinylSession()
                         })
                         item.homeLanding = true
-                        if (win.hasPendingVinylResume()) win.applyVinylResume()
+                        if (win.hasPendingUniverseVinyl()) Qt.callLater(win.applyUniverseVinyl)
+                        else if (win.hasPendingVinylResume()) win.applyVinylResume()
                         else {item.showHome();win.applyVinylResume()}
-                        win.applyUniverseVinyl()
                         if (win.namedCollectionsOpening)
                             item.openNamedCollectionReference(win.namedCollectionsOpening)
                         return

@@ -5,6 +5,7 @@ import "../ScrollGlideRegistry.js" as ScrollGlides
 
 WorldPage {
     id: root
+    property string pendingMusicTitle: ""
     objectName: "vinylWorld"
     medium: "Vinyl"
     boardTopPadding: 0
@@ -445,6 +446,7 @@ WorldPage {
                     worldData: root.worldData
                     backdrop: root.backdrop
                     pageFlick: root.pageFlickable
+                    pendingMusicTitle: root.pendingMusicTitle
                 }
                 Repeater {
                     id: homeShelves

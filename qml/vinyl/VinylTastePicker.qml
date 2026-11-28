@@ -8,6 +8,7 @@ Item {
     required property var worldData
     required property Item backdrop
     required property Flickable pageFlick
+    property string pendingMusicTitle: ""
     readonly property string query: worldData.pickerQuery
     readonly property var selected: worldData.pickerDraft
     readonly property int minimumArtistCount: Math.max(5, Number(worldData.minimumArtistCount) || 1)
@@ -74,7 +75,10 @@ Item {
 
         Text {
             objectName: "vinylPickerQuestion"
-            text: qsTr("Pick a few artists you love")
+            text: root.gated && root.pendingMusicTitle.length
+                  ? qsTr("Pick %1 artists to open %2").arg(root.minimumArtists).arg(root.pendingMusicTitle)
+                  : qsTr("Pick a few artists you love")
+            textFormat: Text.PlainText
             width: Math.max(0, parent.width - actions.width - 24)
             elide: Text.ElideRight
             fontSizeMode: Text.Fit

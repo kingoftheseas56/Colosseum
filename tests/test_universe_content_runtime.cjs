@@ -101,4 +101,49 @@ assert.equal(audio.vinylItem(full).record.tracks[0].videoId, 'abcdefghijk');
 assert.equal(tv.title, 'Theme song (TV size)');
 assert.notEqual(full.key, tv.key);
 assert.equal(audio.slugFor('Weekly Shōnen Jump'), 'weekly-shonen-jump');
+
+const main = fs.readFileSync(path.join(__dirname, '../qml/Main.qml'), 'utf8');
+const queuedCalls = [];
+const activated = [];
+const shell = {
+  UniverseAudio: audio,
+  Qt: { callLater: fn => queuedCalls.push(fn) },
+  vinylEnabled: true,
+  vinylProfileActive: true,
+  vinylShellGeneration: 4,
+  pendingUniverseVinyl: null,
+  pendingVinylResume: null,
+  vinylWorld: null,
+  worldStack: { current: 'Universes' },
+  guardNamedCollectionsNavigation: () => false,
+  closeUniverse() {},
+  openAudiobookBridge() {}
+};
+shell.win = shell;
+vm.createContext(shell);
+for (const name of ['openUniverseAudio', 'hasPendingUniverseVinyl', 'applyUniverseVinyl']) {
+  const declaration = main.match(new RegExp('^    function ' + name + '\\([^\\n]*\\n[\\s\\S]*?^    }', 'm'));
+  assert.ok(declaration, 'missing Main route ' + name);
+  vm.runInContext(declaration[0], shell);
+}
+shell.openWorld = medium => {
+  assert.equal(shell.hasPendingUniverseVinyl(), true, 'cold loader sees the destination before Home initialization');
+  shell.worldStack.current = medium;
+};
+shell.openUniverseAudio(full);
+queuedCalls.shift()();
+assert.equal(activated.length, 0, 'pending route survives the asynchronous loader');
+shell.vinylWorld = {
+  hostReady: true, canEnterVinyl: false, resumeRequiresArtistSelection: true,
+  enforceTasteGate() {},
+  activateItem: item => activated.push(item)
+};
+shell.applyUniverseVinyl();
+assert.equal(shell.hasPendingUniverseVinyl(), true, 'onboarding preserves the selected song');
+shell.vinylWorld.canEnterVinyl = true;
+shell.applyUniverseVinyl();
+shell.applyUniverseVinyl();
+assert.equal(activated.length, 1, 'readiness only opens the exact destination once');
+assert.equal(activated[0].destination.providerId, 'abcdefghijk');
+assert.equal(shell.hasPendingUniverseVinyl(), false);
 console.log('PASS: in-process roster/story/art refresh, exact identity, offline retained values and extension cache invalidation');

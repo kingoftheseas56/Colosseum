@@ -17,6 +17,7 @@ Item {
     property bool homeLanding: false
     property bool deferInitialRestore: false
     property bool resumePresentationPending: false
+    property string universeMusicTitle: ""
     visible: !resumePresentationPending || resumeRequiresArtistSelection
     property Item backdrop
     property Item blackBrowseBackdrop
@@ -880,7 +881,7 @@ Item {
             if(world)world.resetRouteState("home");
             Qt.callLater(function(){
                 if(!root)return;
-                if(root.deferInitialRestore || root.page!=="home")return;
+                if(root.deferInitialRestore || root.universeMusicTitle.length || root.pendingAlbumRoute || root.page!=="home")return;
                 if(root.canEnterVinyl){if(root.homeLanding)root.showHome();else root.showLibrary();}
                 else root.enforceTasteGate();
             });

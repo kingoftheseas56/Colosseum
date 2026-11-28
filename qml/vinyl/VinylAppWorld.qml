@@ -29,6 +29,7 @@ VinylRuntime {
         wallpaperImage: runtime.wallpaperImage
         showPageBacking: !runtime.blackBrowseBackdrop
         hostedHomeLoading: runtime.hostedHomeLoading
+        pendingMusicTitle: runtime.universeMusicTitle
         runtimeReady: runtime.componentReady
         hostReady: runtime.hostReady
     }
