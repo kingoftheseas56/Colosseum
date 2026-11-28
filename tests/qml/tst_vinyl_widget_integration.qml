@@ -173,8 +173,14 @@ TestCase {
         compare(card.captionDetail, "Listen again");
         card.item = {id:"artist",kind:"artists",title:"Artist",subtitle:"12 songs",reason:"Like Mariya Takeuchi"};
         compare(card.presentationKind, "artists");
-        compare(card.captionDetail, "Artist");
+        compare(card.captionDetail, "");
         compare(card.secondaryText, "Like Mariya Takeuchi\n12 songs");
+        card.compactCaption = true;
+        const detail = findChild(card, card.objectName + "_captionDetail");
+        compare(detail.text, "Like Mariya Takeuchi");
+        verify(detail.visible);
+        compare(detail.style, Text.Raised);
+        card.compactCaption = false;
         card.item = {id:"resume",kind:"resume",title:"Track",artist:"Real artist",subtitle:"Real artist"};
         compare(card.presentationKind, "songs");
         compare(card.captionDetail, "Real artist");

@@ -86,6 +86,7 @@ SearchSurface {
             readonly property var entry: presentationHost ? presentationHost.entry : null
             item: entry && entry.data ? entry.data : ({id:"",title:"",kind:""})
             worldData: page.worldData
+            showArtistKindLabel: true
             pointerEnabled: false
             focusEnabled: false
             showFocusFrame: false

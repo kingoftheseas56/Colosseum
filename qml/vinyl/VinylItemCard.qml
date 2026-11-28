@@ -15,6 +15,7 @@ KeyboardAction {
     property int exposureRevision: 0
     property string feedbackError: ""
     property bool compactCaption: false
+    property bool showArtistKindLabel: false
     property bool wide: false
     property bool songLine: false
     property var artistRadioAction: null
@@ -72,7 +73,7 @@ KeyboardAction {
     readonly property string captionTitle: String(item.title || "")
     readonly property string captionDetail: item.unavailable ? qsTr("Unavailable")
         : resumeCaption ? reason
-        : presentationKind === "artists" ? (compactCaption && reason || qsTr("Artist"))
+        : presentationKind === "artists" ? (compactCaption && reason ? reason : showArtistKindLabel ? qsTr("Artist") : "")
         : presentationKind === "mixes" ? String(item.subtitle || qsTr("Made for you"))
         : presentationKind === "radio" ? (item.subtitle && item.subtitle !== "Radio" ? String(item.subtitle) : qsTr("Keeps going"))
         : presentationKind === "albums" ? Presentation.albumDetail(item, artistText)
@@ -240,10 +241,12 @@ KeyboardAction {
                 y: root.songLine ? 20 : root.wide ? 46 : root.compactCaption ? 24 : 24
                 width: Math.max(0, parent.width - (!root.wide && !root.songLine && hint.active ? hint.width + 6 : 0))
                 height: root.songLine ? 16 : root.wide ? 14 : root.compactCaption ? 18 : 24
-                text: root.feedbackError || (""
-                    + root.captionDetail)
+                text: root.feedbackError || root.captionDetail
+                visible: text.length > 0
                 textFormat: Text.PlainText
-                color: root.resumeCaption ? theme.gold : theme.inkDim
+                color: root.resumeCaption ? theme.gold : theme.ink
+                style: Text.Raised
+                styleColor: Qt.alpha(theme.vinylBackground, 0.55)
                 font.family: theme.ui
                 font.pixelSize: root.compactCaption ? 13 : 12
                 maximumLineCount: 1

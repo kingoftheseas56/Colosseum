@@ -51,7 +51,7 @@ TestCase {
         return [
             {tag:"song", kind:"songs", pieces:3, detail:"Fixture artist"},
             {tag:"album", kind:"albums", pieces:3, detail:"Fixture artist · 1977"},
-            {tag:"artist", kind:"artists", pieces:3, detail:"Artist"},
+            {tag:"artist", kind:"artists", pieces:2, detail:""},
             {tag:"station", kind:"radio", pieces:3, detail:"Keeps going"},
             {tag:"mix", kind:"mixes", pieces:6, detail:"Made for you"}
         ];

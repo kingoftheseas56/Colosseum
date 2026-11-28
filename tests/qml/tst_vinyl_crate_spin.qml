@@ -211,9 +211,9 @@ TestCase {
             if(view!=="songs") {
                 tryVerify(() => !findChild(spin, "vinylQuickPicksFrost"));
                 var card=findChild(spin,"vinylSpinTile_0"); verify(card!==null); compare(card.presentationKind,view);
-                var detail=view==="albums" ? "Fixture artist" : "Artist";
+                var detail=view==="albums" ? "Fixture artist" : "";
                 compare(card.captionDetail,detail);
-                verify(card.accessibleName.includes(detail));
+                compare(card.accessibleName, card.captionTitle + (detail ? ". " + detail : ""));
                 if (view === "artists") compare(card.accessibleDescription,"Close to your city pop");
                 card.exposureRail=page;
                 compare(card.captionDetail,detail);

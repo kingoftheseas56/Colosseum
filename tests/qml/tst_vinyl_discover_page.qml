@@ -93,7 +93,9 @@ TestCase {
         tryCompare(song, "implicitHeight", 251);
         compare(song.height, 251);
         compare(findChild(song, song.objectName + "_captionTitle").text, first.title);
-        compare(findChild(song, song.objectName + "_captionDetail").text, "Singer");
+        const songDetail = findChild(song, song.objectName + "_captionDetail");
+        compare(songDetail.text, "Singer");
+        compare(songDetail.style, Text.Raised);
         var wall = findChild(browser, "vinylDiscoverWall");
         compare(wall.cellHeight, song.height + wall.gapY);
         compare(findChild(song,"vinylArtworkImage").status,Image.Null);
@@ -116,7 +118,10 @@ TestCase {
         tryVerify(function(){return findChild(browser,"discoverCard_album_widget")!==null;});
         var jewel=findChild(browser,"discoverCard_album_widget");
         verify(jewel!==null && jewel instanceof Vinyl.VinylItemCard);
-        compare(jewel.captionDetail,"Band");
+        const albumDetail = findChild(jewel, jewel.objectName + "_captionDetail");
+        compare(albumDetail.text, "Band");
+        compare(albumDetail.style, Text.Raised);
+        compare(albumDetail.styleColor.toString(), Qt.rgba(0, 0, 0, 0.55).toString());
         compare(wall.cellHeight, jewel.width + 55 + wall.gapY);
         compare(findChild(jewel,"vinylArtworkImage").status, Image.Null);
         verify(findChild(jewel,"vinylArtworkPlaceholder").visible);
@@ -128,7 +133,12 @@ TestCase {
         tryVerify(function(){return findChild(browser,"discoverCard_artist_widget")!==null;});
         var record=findChild(browser,"discoverCard_artist_widget");
         verify(record!==null && record instanceof Vinyl.VinylItemCard);
-        compare(record.captionDetail,"Artist");
+        const artistDetail = findChild(record, record.objectName + "_captionDetail");
+        compare(record.captionDetail, "");
+        compare(artistDetail.text, "");
+        verify(!artistDetail.visible);
+        compare(record.height, 251);
+        compare(wall.cellHeight, record.height + wall.gapY);
         var fallback=findChild(record,"vinylArtworkFallback");
         verify(fallback.visible);
         compare(fallback.border.width,0);

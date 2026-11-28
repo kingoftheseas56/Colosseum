@@ -120,6 +120,9 @@ TestCase {
         verify(artistCaption !== null);
         verify(artistCaption.visible);
         compare(artistCaption.text, "Artist");
+        const artistDetail = findChild(top.item, top.item.objectName + "_captionDetail");
+        verify(artistDetail.visible);
+        compare(artistDetail.text, "Artist");
         var song=findChild(vinyl,"searchGroupedPresentation_song");
         verify(song !== null); tryCompare(song,"status",Loader.Ready);
         compare(song.item.presentationKind,"songs");
