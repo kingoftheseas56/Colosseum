@@ -51,4 +51,38 @@ content['universe-one-piece'] = { universe: { title: 'API revision', sections: [
 bridge.reload();
 extension.load('com.colosseum.universe.onepiece', value => payload = value);
 assert.equal(payload.title, 'API revision', 'process lifetime extension cache must invalidate');
+
+const audio = load('UniverseAudio.js', { ContentApi: bridge });
+assert.equal(audio.shelvesFor('Dune').length, 0);
+content['audio-dune'] = {
+  audiobooks: [
+    { id: 'first', title: 'Dune', workId: 'audio-work', recordingId: 'edition-a', narrators: ['Narrator A'] },
+    { id: 'second', title: 'Dune', workId: 'audio-work', recordingId: 'edition-b', narrators: ['Narrator B'] },
+    { id: 'unmatched', title: 'Dune', listenUrl: 'javascript:alert(1)' }
+  ],
+  soundtrackReleases: [{
+    id: 'score', title: 'Original Soundtrack', screenWorkTitle: 'Dune', youtubeMusicBrowseId: 'MPREb_x',
+    tracks: [{ title: 'Score track', youtubeVideoId: '123456789ab' }]
+  }],
+  themes: [{
+    id: 'theme', title: 'Theme song', role: 'opening', screenWorkTitle: 'Example',
+    versions: [{ edit: 'Full', youtubeVideoId: 'abcdefghijk' }, { edit: 'TV size', youtubeVideoId: '123456789ab' }]
+  }]
+};
+const [books, music] = audio.shelvesFor('Dune');
+assert.equal(books.title, 'Audiobooks');
+assert.equal(books.runs[0].works[0].recordingId, 'edition-a');
+assert.equal(books.runs[0].works[1].recordingId, 'edition-b');
+assert.equal(books.runs[0].works[2].resolved, false);
+assert.equal(books.runs[0].works[2].listenUrl, '');
+assert.equal(music.title, 'Music');
+assert.equal(music.runs.length, 2);
+const album = music.runs[0].works[0];
+const [full, tv] = music.runs[1].works;
+assert.equal(album.tracks[0].listenUrl, 'https://www.youtube.com/watch?v=123456789ab');
+assert.equal(audio.vinylItem(album).destination.providerId, 'MPREb_x');
+assert.equal(audio.vinylItem(full).record.tracks[0].videoId, 'abcdefghijk');
+assert.equal(tv.title, 'Theme song (TV size)');
+assert.notEqual(full.key, tv.key);
+assert.equal(audio.slugFor('Weekly Shōnen Jump'), 'weekly-shonen-jump');
 console.log('PASS: in-process roster/story/art refresh, exact identity, offline retained values and extension cache invalidation');

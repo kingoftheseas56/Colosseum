@@ -21,7 +21,27 @@ function readModule(file) {
     Object.prototype.toString.call(value) === '[object RegExp]'
       ? { source: value.source, flags: value.flags } : value));
 }
-function documents() {
+function projectAudio(data) {
+  function fields(row, keys) {
+    return Object.fromEntries(keys.split(' ').filter(key => row[key] != null).map(key => [key, row[key]]));
+  }
+  function versions(rows, keys) {
+    return Array.isArray(rows) ? rows.filter(row => row && typeof row === 'object').map(row => fields(row, keys)) : [];
+  }
+  return {
+    audiobooks: data.audiobooks.map(row => fields(row,
+      'id title bookTitle authors narrators workId recordingId language region publisher releaseDate durationMinutes abridgement dramatized coverUrl listenUrl')),
+    soundtrackReleases: data.soundtrackReleases.map(row => ({
+      ...fields(row, 'id title screenWorkTitle screenWorkId season artists composers releaseDate label format edition coverUrl listenUrl youtubeMusicBrowseId youtubePlaylistId'),
+      tracks: versions(row.tracks, 'title artists disc trackNumber durationSeconds coverUrl youtubeVideoId listenUrl')
+    })),
+    themes: data.themes.map(row => ({
+      ...fields(row, 'id title screenWorkTitle screenWorkId season role number usedInEpisodes uses artists coverUrl youtubeVideoId listenUrl'),
+      versions: versions(row.versions, 'edit artists coverUrl youtubeVideoId listenUrl')
+    }))
+  };
+}
+function documents(audioDirectory = path.join(root, 'assets/universe-audio')) {
   const roster = readModule('Universes.js');
   const out = { 'universes-roster': roster };
   for (const sea of ['EastBlue', 'Paradise', 'NewWorld', 'FinalSea']) {
@@ -56,17 +76,39 @@ function documents() {
   for (const stem of ['one-piece', 'dcau', 'star-wars']) {
     out['universe-' + stem] = JSON.parse(fs.readFileSync(path.join(root, 'assets/universes', stem + '.json'), 'utf8'));
   }
+  if (fs.existsSync(audioDirectory)) {
+    const { slugFor } = evaluateModule('UniverseAudio.js');
+    const slugs = new Set(roster.universes.concat(roster.archive).map(entry => slugFor(entry.name)));
+    for (const file of fs.readdirSync(audioDirectory).filter(name => name.endsWith('.json')).sort()) {
+      const slug = path.basename(file, '.json');
+      const data = JSON.parse(fs.readFileSync(path.join(audioDirectory, file), 'utf8'));
+      if (!slugs.has(slug) || data?.schemaVersion !== 1 || data.universeSlug !== slug)
+        throw new Error('Invalid Universe audio document: ' + file);
+      for (const key of ['audiobooks', 'soundtrackReleases', 'themes']) {
+        const rows = data[key];
+        if (!Array.isArray(rows) || rows.some(row => typeof row?.id !== 'string' || !row.id.trim()
+            || typeof row.title !== 'string' || !row.title.trim())
+            || new Set(rows.map(row => row.id)).size !== rows.length)
+          throw new Error('Invalid Universe audio catalogue entries: ' + file + ' ' + key);
+      }
+      out['audio-' + slug] = projectAudio(data);
+    }
+  }
   return JSON.parse(JSON.stringify(out));
 }
 function envelope(data) {
   const revision = crypto.createHash('sha256').update(JSON.stringify(data)).digest('hex');
   return { schemaVersion: 1, revision, data };
 }
-function exportTo(destination) {
+function exportTo(destination, audioDirectory) {
   fs.mkdirSync(destination, { recursive: true });
-  const all = documents();
+  const all = documents(audioDirectory);
   for (const [key, data] of Object.entries(all)) {
-    fs.writeFileSync(path.join(destination, key + '.json'), JSON.stringify(envelope(data), null, 2) + '\n');
+    const audio = key.startsWith('audio-');
+    const text = JSON.stringify(envelope(data), null, audio ? undefined : 2) + '\n';
+    if (audio && Buffer.byteLength(text) > 512 * 1024)
+      throw new Error('Universe audio document exceeds the Worker size limit: ' + key);
+    fs.writeFileSync(path.join(destination, key + '.json'), text);
   }
   return Object.keys(all);
 }

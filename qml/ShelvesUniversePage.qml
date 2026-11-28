@@ -12,6 +12,7 @@
 // Data: SagaApi.loadShelves, from the universe's curated `shelves` (or derived for anime).
 import QtQuick
 import "UniverseContentApi.js" as UniverseContent
+import "UniverseAudio.js" as UniverseAudio
 import QtQuick.Controls
 import "SagaApi.js" as Saga
 import "Universes.js" as UDB
@@ -52,6 +53,7 @@ Item {
     signal seriesRequested(string title, var malId)   // manga / Read → Tankoban, by its pinned MAL id when curated
     signal seriesEntryRequested(var entry)   // an EDITION manga (provider/seriesId, e.g. the colour edition) → Main's routeUniverseSeries with its whole profile
     signal bookRequested(var book)           // book tile / Read → the Biblio book page
+    signal audioRequested(var item)
     signal comicsArchiveRequested(var entry) // curated GetComics posts / GCD run → existing ComicSeries
     signal continueResumeRequested(var entry)   // Continue circle → resume in the owning world
     signal continueDetailRequested(var entry)   // Continue tile → its title page
@@ -90,7 +92,8 @@ Item {
         k = k.replace(/^-+|-+$/g, "")
         return k || ("shelf-" + index)
     }
-    readonly property var shelves: root.uni.shelves || []
+    readonly property var audioShelves: (root.universeContentGeneration, UniverseAudio.shelvesFor)(root.universeName)
+    readonly property var shelves: (root.uni.shelves || []).concat(root.audioShelves)
     readonly property var activeShelves: root.shelves.filter(function(s) { return root.shelfCount(s) > 0 })
     readonly property var rowShelves: root.activeShelves.filter(function(s) { return s.form !== "table" })
     readonly property var tableShelves: root.activeShelves.filter(function(s) { return s.form === "table" })
@@ -133,6 +136,10 @@ Item {
     function canOpen(item) { return !!item && item.resolved !== false }
     function openWork(item) {
         if (!root.canOpen(item)) return
+        if (item.medium === "audiobook" || item.medium === "music") {
+            root.audioRequested(item)
+            return
+        }
         // an edition manga carries its own routing identity (provider tankoban / a durable
         // seriesId) — it must not collapse onto the base series' "title + mal" route
         if (root.isComic(item)) root.comicsArchiveRequested(item)
@@ -1073,8 +1080,9 @@ Item {
                                                    lineHeight: 1.35; wrapMode: Text.WordWrap
                                                    maximumLineCount: 2; elide: Text.ElideRight }
                                             Text { visible: text.length > 0; topPadding: 3; width: parent.width
-                                                   text: work.modelData.year ? String(work.modelData.year) : ""
-                                                   color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 11 }
+                                                   text: work.modelData.subtitle || (work.modelData.year ? String(work.modelData.year) : "")
+                                                   color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 11
+                                                   wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
                                         }
                                     }
                                 }

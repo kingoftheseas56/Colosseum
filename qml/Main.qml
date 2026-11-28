@@ -18,6 +18,7 @@ import "TheatreApi.js" as TheatreApi
 import "ContinueVideoPresentation.js" as VideoPresentation
 import "UniverseExtApi.js" as UniverseApi
 import "UniverseContentApi.js" as UniverseContent
+import "UniverseAudio.js" as UniverseAudio
 import "Universes.js" as UniverseCanon
 import "ExtensionsCatalog.js" as ExtCatalog
 import "LocgApi.js" as Locg
@@ -130,6 +131,7 @@ Window {
         if (!vinylVideoFullscreen) vinylVideoReturnWindowed = null
     }
     property var pendingVinylResume: null
+    property var pendingUniverseVinyl: null
     property int vinylResumeSerial: 0
     property bool audioHandoffBusy: false
     property string audioOwner: ""
@@ -169,6 +171,7 @@ Window {
         win.vinylProfileActive = false
         win.vinylShellGeneration++
         win.pendingVinylResume = null
+        win.pendingUniverseVinyl = null
         win.pendingPlayerOpen = null
         win.audioOwner = ""
         if (win.vinylWorld) win.vinylWorld.session.suspendPlayback("profile-leaving")
@@ -199,6 +202,7 @@ Window {
     }
     function openVinylResume(entry, play) {
         if (!vinylEnabled || !vinylProfileActive) return
+        pendingUniverseVinyl = null
         pendingVinylResume = { entry: entry, play: play, generation: vinylShellGeneration, serial: ++vinylResumeSerial }
         win.traceVinylResume("pending", pendingVinylResume)
         openWorld("Vinyl")
@@ -239,7 +243,10 @@ Window {
         target: win.vinylWorld
         ignoreUnknownSignals: true
         function onCanEnterVinylChanged() {
-            if(win.vinylWorld && win.vinylWorld.canEnterVinyl)Qt.callLater(win.applyVinylResume)
+            if (win.vinylWorld && win.vinylWorld.canEnterVinyl) {
+                Qt.callLater(win.applyVinylResume)
+                Qt.callLater(win.applyUniverseVinyl)
+            }
         }
     }
     property var feriaReturnSnapshot: null
@@ -1699,7 +1706,10 @@ Window {
         // These worlds are not available in this release, including through indirect callers.
         var requestedWorld = String(medium || "").trim().toLowerCase()
         if ((requestedWorld === "feria" && win.feriaComingSoon !== false) || (requestedWorld === "vinyl" && !win.vinylEnabled)) return
-        if (medium !== "Vinyl") win.pendingVinylResume = null
+        if (medium !== "Vinyl") {
+            win.pendingVinylResume = null
+            win.pendingUniverseVinyl = null
+        }
         if (medium === "Feria") { win.openFeriaPage(); return }
         if (win.parkFeria) win.parkFeria(true)
         if (medium === "Biblio" && biblioTab === "audiobooks") {
@@ -1745,6 +1755,7 @@ Window {
 
         if (win.androidHost && !win.desktopPresentation) return
         win.pendingVinylResume = null
+        win.pendingUniverseVinyl = null
         win.cancelCatalogueRoute();
         win.parkFeria(true)
         worldStack.current = ""                           // hide all worlds; none destroyed
@@ -3027,6 +3038,34 @@ Window {
         universeLayer.active = false
         win.finishDockPickDetail(universeLayer, pick)
         if (returnToExtensions) win.openExtensionsPage()
+    }
+    function openUniverseAudio(item) {
+        if (!item) return
+        if (item.medium === "audiobook" && item.workId) {
+            openAudiobookBridge(item, "", null, false)
+            return
+        }
+        const target = UniverseAudio.vinylItem(item)
+        if (target && vinylEnabled && vinylProfileActive) {
+            openWorld("Vinyl")
+            if (worldStack.current !== "Vinyl") return
+            closeUniverse()
+            pendingVinylResume = null
+            pendingUniverseVinyl = target
+            applyUniverseVinyl()
+        } else if (item.listenUrl) {
+            Qt.openUrlExternally(item.listenUrl)
+        }
+    }
+    function applyUniverseVinyl() {
+        if (!pendingUniverseVinyl || !vinylWorld || worldStack.current !== "Vinyl") return
+        if (!vinylWorld.canEnterVinyl) {
+            vinylWorld.enforceTasteGate()
+            return
+        }
+        const target = pendingUniverseVinyl
+        pendingUniverseVinyl = null
+        vinylWorld.activateItem(target)
     }
     function openOnePieceArc(arc) {
         if (!arc) return
@@ -5509,6 +5548,7 @@ Window {
                         item.homeLanding = true
                         if (win.hasPendingVinylResume()) win.applyVinylResume()
                         else {item.showHome();win.applyVinylResume()}
+                        win.applyUniverseVinyl()
                         if (win.namedCollectionsOpening)
                             item.openNamedCollectionReference(win.namedCollectionsOpening)
                         return
@@ -6648,6 +6688,7 @@ Window {
                 if (accountHost.visible) accountHost.focusReturnItem = item
                 item.watchRequested.connect(win.openTheatreSeries)
                 if (item.bookRequested) item.bookRequested.connect(win.openBook)
+                if (item.audioRequested) item.audioRequested.connect(win.openUniverseAudio)
                 if (item.comicsArchiveRequested) item.comicsArchiveRequested.connect(win.openUniverseComic)
                 if (item.seriesRequested) item.seriesRequested.connect(win.openSeries)
                 // an edition manga (e.g. the One Piece colour edition) arrives as a whole

@@ -4,6 +4,7 @@
 // Spec: docs/superpowers/specs/2026-10-04-colosseum-saga-universe-template-design.md.
 import QtQuick
 import "UniverseContentApi.js" as UniverseContent
+import "UniverseAudio.js" as UniverseAudio
 import QtQuick.Controls
 import "SagaApi.js" as Saga
 import "ComicsApi.js" as ComicsApi
@@ -30,6 +31,7 @@ Item {
     signal searchClicked()
     signal watchRequested(var item)     // film/show tile → A4's TheatreSeries
     signal bookRequested(var book)      // novel tile / Read → the Biblio book detail
+    signal audioRequested(var item)
     signal seriesRequested(string title)   // manga tile / Read → Tankoban's series page (by its curated query)
     signal comicsArchiveRequested(var box)   // the comics door → the GC archive index
     signal continueResumeRequested(var entry)   // Continue circle → resume in the owning world
@@ -46,6 +48,9 @@ Item {
     readonly property string displayFace: sagaDisplay.name
     property bool reducedMotion: true
     readonly property var guide: (root.universeContentGeneration, UDB.configFor)(root.universeName || root.uni.name)
+    readonly property var audioShelves: (root.universeContentGeneration, UniverseAudio.shelvesFor)(root.universeName)
+    readonly property var audiobookShelf: root.audioShelves.find(shelf => shelf.kind === "audiobook")
+    readonly property var musicShelf: root.audioShelves.find(shelf => shelf.kind === "music")
     // an anime universe (curated manga list) is the same page with the read form in manga:
     // the hero kicker reads ANIME, the read row and blocks say MANGA, and the read form
     // opens Tankoban. One variation per TYPE, never per franchise — all data-driven.
@@ -83,6 +88,7 @@ Item {
     // ---- identity: loader pushes rebuild every item, so selection is held by key ----
     function keyOf(item) {
         if (!item) return ""
+        if (item.key && (item.medium === "audiobook" || item.medium === "music")) return item.key
         return item.medium !== undefined && item.canonIndex !== undefined
                 ? item.medium + ":" + item.canonIndex : "x:" + (item.id || item.title || "")
     }
@@ -99,7 +105,8 @@ Item {
     function canOpen(item) { return !!item && item.resolved !== false }
     function openWork(item) {
         if (!root.canOpen(item)) return
-        if (item.medium === "manga") root.seriesRequested(item.query || item.title)
+        if (item.medium === "audiobook" || item.medium === "music") root.audioRequested(item)
+        else if (item.medium === "manga") root.seriesRequested(item.query || item.title)
         else if (root.isBook(item)) root.bookRequested(item)
         else root.watchRequested(item)
     }
@@ -337,6 +344,8 @@ Item {
         const out = [{ title: "The saga", target: sagaSection }]
         if (beyondSection.visible) out.push({ title: "Beyond the saga", target: beyondSection })
         if (upcomingSection.visible) out.push({ title: "Upcoming", target: upcomingSection })
+        if (audiobooksSection.visible) out.push({ title: audiobooksSection.title, target: audiobooksSection })
+        if (musicSection.visible) out.push({ title: musicSection.title, target: musicSection })
         out.push({ title: "About", target: aboutAnchor })
         return out
     }
@@ -922,6 +931,22 @@ Item {
                 }
             }
 
+            Section {
+                id: audiobooksSection
+                objectName: "sagaAudiobooks"
+                title: qsTr("Audiobooks")
+                visible: !!root.audiobookShelf
+                AudioRuns { runs: root.audiobookShelf ? root.audiobookShelf.runs : [] }
+            }
+
+            Section {
+                id: musicSection
+                objectName: "sagaMusic"
+                title: qsTr("Music")
+                visible: !!root.musicShelf
+                AudioRuns { runs: root.musicShelf ? root.musicShelf.runs : [] }
+            }
+
             // ===== about: gallery, creators, information, more universes =====
             Item { id: aboutAnchor; width: 1; height: 1 }
             Section {
@@ -1364,8 +1389,36 @@ Item {
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: root.canOpen(tile.item) ? Qt.PointingHandCursor : Qt.ArrowCursor
-            onEntered: { root.select(tile.item); tile.hoveredIn() }
+            onEntered: {
+                if (tile.item && tile.item.medium !== "audiobook" && tile.item.medium !== "music")
+                    root.select(tile.item)
+                tile.hoveredIn()
+            }
             onClicked: root.openWork(tile.item)
+        }
+    }
+
+    component AudioRuns: Glass {
+        id: audioPanel
+        property var runs: []
+        backdrop: wall
+        track: page.contentY
+        radius: 18
+        width: parent.width
+        height: audioColumn.implicitHeight + 48
+        Column {
+            id: audioColumn
+            x: 24; y: 24
+            width: parent.width - 48
+            spacing: 24
+            Repeater {
+                model: audioPanel.runs
+                delegate: Shelf {
+                    required property var modelData
+                    label: modelData.label
+                    items: modelData.works
+                }
+            }
         }
     }
 
@@ -1413,10 +1466,12 @@ Item {
                                lineHeight: 1.1; wrapMode: Text.WordWrap
                                maximumLineCount: 2; elide: Text.ElideRight }
                         Text { topPadding: 3; width: parent.width
-                               text: entry.modelData.resolved === false ? "Details pending"
+                               text: (entry.modelData.medium === "audiobook" || entry.modelData.medium === "music")
+                                     ? entry.modelData.subtitle
+                                     : (entry.modelData.resolved === false ? "Details pending"
                                      : (entry.modelData.medium === "manga" ? ""
                                         : (root.isBook(entry.modelData) ? (entry.modelData.author || "")
-                                           : (entry.modelData.year ? String(entry.modelData.year) : "")))
+                                           : (entry.modelData.year ? String(entry.modelData.year) : ""))))
                                color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 11
                                wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
                     }
