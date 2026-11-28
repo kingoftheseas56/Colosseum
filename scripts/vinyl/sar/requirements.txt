@@ -1,0 +1,12 @@
+# Install with --no-deps: SAR only imports NumPy, pandas and SciPy.
+recommenders==1.2.1
+numpy==1.26.4  # SAR 1.2.1 uses np.NaN, removed in NumPy 2.
+pandas==2.2.3
+scipy==1.13.1
+# pandas runtime dependencies (including timezone data on Windows).
+python-dateutil==2.9.0.post0
+six==1.17.0
+pytz==2025.2
+tzdata==2025.2
+# Streaming parquet input.
+pyarrow==22.0.0

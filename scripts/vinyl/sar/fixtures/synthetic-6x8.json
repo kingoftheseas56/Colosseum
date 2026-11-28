@@ -1,0 +1,305 @@
+{
+  "level": "recording",
+  "k": 7,
+  "threshold": 1,
+  "top_n": 3,
+  "timedecay_formula": true,
+  "time_decay_coefficient": 10,
+  "time_now": 1700000000,
+  "affinity": {
+    "track-a": 2.5,
+    "track-b": 1.0
+  },
+  "items": [
+    {
+      "item": "track-a",
+      "support": 4
+    },
+    {
+      "item": "track-b",
+      "support": 2
+    },
+    {
+      "item": "track-c",
+      "support": 4
+    },
+    {
+      "item": "track-d",
+      "support": 3
+    },
+    {
+      "item": "track-e",
+      "support": 2
+    },
+    {
+      "item": "track-f",
+      "support": 1
+    },
+    {
+      "item": "track-g",
+      "support": 2
+    },
+    {
+      "item": "track-h",
+      "support": 1
+    }
+  ],
+  "neighbours": [
+    {
+      "item": "track-a",
+      "neighbour": "track-b",
+      "similarity": 0.2,
+      "support": 1
+    },
+    {
+      "item": "track-a",
+      "neighbour": "track-c",
+      "similarity": 0.3333333333333333,
+      "support": 2
+    },
+    {
+      "item": "track-a",
+      "neighbour": "track-d",
+      "similarity": 0.4,
+      "support": 2
+    },
+    {
+      "item": "track-a",
+      "neighbour": "track-e",
+      "similarity": 0.2,
+      "support": 1
+    },
+    {
+      "item": "track-a",
+      "neighbour": "track-g",
+      "similarity": 0.2,
+      "support": 1
+    },
+    {
+      "item": "track-a",
+      "neighbour": "track-h",
+      "similarity": 0.25,
+      "support": 1
+    },
+    {
+      "item": "track-b",
+      "neighbour": "track-a",
+      "similarity": 0.2,
+      "support": 1
+    },
+    {
+      "item": "track-b",
+      "neighbour": "track-c",
+      "similarity": 0.2,
+      "support": 1
+    },
+    {
+      "item": "track-b",
+      "neighbour": "track-d",
+      "similarity": 0.25,
+      "support": 1
+    },
+    {
+      "item": "track-b",
+      "neighbour": "track-f",
+      "similarity": 0.5,
+      "support": 1
+    },
+    {
+      "item": "track-c",
+      "neighbour": "track-a",
+      "similarity": 0.3333333333333333,
+      "support": 2
+    },
+    {
+      "item": "track-c",
+      "neighbour": "track-b",
+      "similarity": 0.2,
+      "support": 1
+    },
+    {
+      "item": "track-c",
+      "neighbour": "track-d",
+      "similarity": 0.4,
+      "support": 2
+    },
+    {
+      "item": "track-c",
+      "neighbour": "track-e",
+      "similarity": 0.5,
+      "support": 2
+    },
+    {
+      "item": "track-c",
+      "neighbour": "track-f",
+      "similarity": 0.25,
+      "support": 1
+    },
+    {
+      "item": "track-c",
+      "neighbour": "track-g",
+      "similarity": 0.2,
+      "support": 1
+    },
+    {
+      "item": "track-d",
+      "neighbour": "track-a",
+      "similarity": 0.4,
+      "support": 2
+    },
+    {
+      "item": "track-d",
+      "neighbour": "track-b",
+      "similarity": 0.25,
+      "support": 1
+    },
+    {
+      "item": "track-d",
+      "neighbour": "track-c",
+      "similarity": 0.4,
+      "support": 2
+    },
+    {
+      "item": "track-d",
+      "neighbour": "track-f",
+      "similarity": 0.3333333333333333,
+      "support": 1
+    },
+    {
+      "item": "track-d",
+      "neighbour": "track-g",
+      "similarity": 0.25,
+      "support": 1
+    },
+    {
+      "item": "track-d",
+      "neighbour": "track-h",
+      "similarity": 0.3333333333333333,
+      "support": 1
+    },
+    {
+      "item": "track-e",
+      "neighbour": "track-a",
+      "similarity": 0.2,
+      "support": 1
+    },
+    {
+      "item": "track-e",
+      "neighbour": "track-c",
+      "similarity": 0.5,
+      "support": 2
+    },
+    {
+      "item": "track-e",
+      "neighbour": "track-g",
+      "similarity": 0.3333333333333333,
+      "support": 1
+    },
+    {
+      "item": "track-f",
+      "neighbour": "track-b",
+      "similarity": 0.5,
+      "support": 1
+    },
+    {
+      "item": "track-f",
+      "neighbour": "track-c",
+      "similarity": 0.25,
+      "support": 1
+    },
+    {
+      "item": "track-f",
+      "neighbour": "track-d",
+      "similarity": 0.3333333333333333,
+      "support": 1
+    },
+    {
+      "item": "track-g",
+      "neighbour": "track-a",
+      "similarity": 0.2,
+      "support": 1
+    },
+    {
+      "item": "track-g",
+      "neighbour": "track-c",
+      "similarity": 0.2,
+      "support": 1
+    },
+    {
+      "item": "track-g",
+      "neighbour": "track-d",
+      "similarity": 0.25,
+      "support": 1
+    },
+    {
+      "item": "track-g",
+      "neighbour": "track-e",
+      "similarity": 0.3333333333333333,
+      "support": 1
+    },
+    {
+      "item": "track-g",
+      "neighbour": "track-h",
+      "similarity": 0.5,
+      "support": 1
+    },
+    {
+      "item": "track-h",
+      "neighbour": "track-a",
+      "similarity": 0.25,
+      "support": 1
+    },
+    {
+      "item": "track-h",
+      "neighbour": "track-d",
+      "similarity": 0.3333333333333333,
+      "support": 1
+    },
+    {
+      "item": "track-h",
+      "neighbour": "track-g",
+      "similarity": 0.5,
+      "support": 1
+    }
+  ],
+  "recommendations": [
+    {
+      "item": "track-d",
+      "score": 1.25,
+      "contributions": [
+        {
+          "seed": "track-a",
+          "contribution": 1.0
+        },
+        {
+          "seed": "track-b",
+          "contribution": 0.25
+        }
+      ]
+    },
+    {
+      "item": "track-c",
+      "score": 1.0333333333333332,
+      "contributions": [
+        {
+          "seed": "track-a",
+          "contribution": 0.8333333333333333
+        },
+        {
+          "seed": "track-b",
+          "contribution": 0.2
+        }
+      ]
+    },
+    {
+      "item": "track-h",
+      "score": 0.625,
+      "contributions": [
+        {
+          "seed": "track-a",
+          "contribution": 0.625
+        }
+      ]
+    }
+  ]
+}
