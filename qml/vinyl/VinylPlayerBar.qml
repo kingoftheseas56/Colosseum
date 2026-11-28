@@ -11,23 +11,30 @@ Item {
     readonly property var songData: songPageData || pageData
     property bool videoFullscreen: false
     property bool showSongPlay: false
-    property bool allowDismiss: false
     readonly property int playingTrackIndex: pageData.playingIndex === undefined ? -1 : pageData.playingIndex
     readonly property bool hasPlayingSong: pageData.playingIndex === undefined || pageData.playingIndex >= 0
     readonly property var displayedSong: pageData
     property string page: "album"
     property bool queueEnabled: true
     property bool trackNavigationEnabled: true
-    // Center the desktop transport unless the fixed-width tools (including
-    // close on browsing pages) need the space to its right.
-    readonly property real transportCenter: narrow ? width - 18 - transport.width / 2
-        : Math.min(width / 2, toolsLeft - transport.width / 2 - 5)
-    readonly property bool busy: pageData.sourceState === "finding" || pageData.sourceState === "retrying" || pageData.sourceState === "resolving"
+    readonly property bool slim: page !== "song"
     readonly property bool narrow: width < 700
+    readonly property bool slimTight: slim && width < 440
     readonly property real songHeight: narrow ? 164 : 104
-    readonly property bool compact: !narrow && page !== "song"
-    readonly property real identityTop: compact ? 8 : 13
-    readonly property real identitySize: compact ? 40 : 44
+    readonly property real identityLeft: slimTight ? 10 : 18
+    readonly property real identityTop: slim ? (height - identitySize) / 2 : 13
+    readonly property real identitySize: 44
+    readonly property real toolsStep: slimTight ? 34 : 45
+    readonly property real toolWidth: slimTight ? 32 : 40
+    readonly property bool showVideoTool: !slim || pageData.hasVideo === true || videoShown || videoBusy
+    readonly property real slimIdentityWidth: Math.max(0,
+        Math.min(260, toolsLeft - transport.width - nowPlaying.x - (slimTight ? 8 : 24)))
+    readonly property real transportCenter: slim
+        ? nowPlaying.x + slimIdentityWidth + (slimTight ? 4 : 12) + transport.width / 2
+        : narrow ? width - 18 - transport.width / 2
+        : Math.min(width / 2, toolsLeft - transport.width / 2 - 5)
+    readonly property bool busy: pageData.sourceState === "finding" || pageData.sourceState === "retrying"
+        || pageData.sourceState === "resolving" || (slim && pageData.sourceState === "buffering")
     readonly property bool torrentBusy: pageData.torrentBusy === true
     readonly property bool videoBusy: pageData.videoBusy === true
     readonly property bool videoShown: pageData.videoShown === true
@@ -37,9 +44,9 @@ Item {
         && !videoBusy && !pageData.sourceKind
     readonly property bool sourceReady: pageData.sourceState === "playing" && pageData.loaded !== false && !videoShown && !videoBusy
     readonly property bool sourceSelectionEnabled: hasPlayingSong && !localSong && !videoShown && !videoBusy && (sourceReady || torrentBusy)
-    readonly property bool showDismiss: allowDismiss && page !== "song" && hasPlayingSong
-    readonly property real toolsLeft: width - 281 - (showDismiss ? 32 : 0)
-    readonly property real toolsTop: narrow ? 74 : compact ? identityTop : 14
+    readonly property real minimiseLeft: width - identityLeft - toolWidth
+    readonly property real toolsLeft: slim ? minimiseLeft - toolsStep * (showVideoTool ? 2 : 1) : width - 281
+    readonly property real toolsTop: slim ? (height - 40) / 2 : narrow ? 74 : 14
     property bool scrubbing: false
     property real previewPosition: 0
     property string scrubTrackKey: ""
@@ -55,7 +62,7 @@ Item {
     }
     readonly property real displayedPosition: scrubbing ? clampSeek(previewPosition) : clampSeek(pageData.position)
     readonly property real seekFraction: pageData.duration > 0 ? displayedPosition / pageData.duration : 0
-    signal closeRequested()
+    signal minimiseRequested(bool viaPointer)
     signal songRequested
     signal videoRequested()
     signal videoFullscreenRequested()
@@ -63,7 +70,7 @@ Item {
     Theme {
         id: theme
     }
-    height: compact ? 76 : songHeight
+    height: slim ? 72 : songHeight
     Glass {
         anchors.fill: parent
         backdrop: root.backdrop
@@ -80,6 +87,7 @@ Item {
             "☷": "<path d=\"M3.400 5.400h9.200M3.400 10h9.200M3.400 14.600h5.600M13.600 12v5.200l3.800-2.600z\"/>",
             "torrent": "<path d=\"M4 3v7a6 6 0 0 0 12 0V3h-4v7a2 2 0 0 1-4 0V3z\"/><path d=\"M4 6h4M12 6h4\"/>",
             "youtube": "<rect x=\"2\" y=\"4\" width=\"16\" height=\"12\" rx=\"3\"/><path d=\"m8 7 5 3-5 3z\"/>",
+            "down": "<path d=\"m5 8 5 5 5-5\"/>",
             "local": "<circle cx=\"10\" cy=\"10\" r=\"7\"/><circle cx=\"10\" cy=\"10\" r=\"1.7\"/><path d=\"M5 10a5 5 0 0 1 5-5\"/>",
             "unknown": "<path d=\"M8 14V4l8-1v9M8 7l8-1\"/><ellipse cx=\"5.5\" cy=\"14\" rx=\"2.5\" ry=\"2\"/><ellipse cx=\"13.5\" cy=\"12\" rx=\"2.5\" ry=\"2\"/>"
         };
@@ -138,7 +146,7 @@ Item {
         property bool loading: false
         property bool selected: false
         focusOnPointer: false
-        width: 40
+        width: root.toolWidth
         height: 40
         opacity: enabled ? 1 : 0.34
         Rectangle {
@@ -166,7 +174,7 @@ Item {
     KeyboardAction {
         objectName: "vinylBarOpenSong"
         focusOnPointer: false
-        x: 18
+        x: root.identityLeft
         y: root.identityTop
         width: root.identitySize
         height: width
@@ -186,9 +194,10 @@ Item {
         readonly property string accessibleName: qsTr("Now playing: %1").arg(root.displayedSong.playingTrack.title)
         Accessible.role: Accessible.StaticText
         Accessible.name: accessibleName
-        x: 18 + root.identitySize + 12
+        x: root.identityLeft + root.identitySize + (root.slimTight ? 8 : 12)
         y: root.identityTop
-        width: Math.max(0, root.transportCenter - transport.width / 2 - 16 - x)
+        width: root.slim ? root.slimIdentityWidth
+            : Math.max(0, root.transportCenter - transport.width / 2 - 16 - x)
         height: root.identitySize
         Column {
             anchors.verticalCenter: parent.verticalCenter
@@ -207,7 +216,8 @@ Item {
             Text {
                 objectName: "vinylBarArtist"
                 width: parent.width
-                text: root.displayedSong.playingEdition.artist + (root.page === "song" ? "" : " · " + root.displayedSong.playingEdition.name)
+                text: root.displayedSong.playingEdition.artist + (root.slim
+                    ? " · " + elapsedLabel.text + " / " + totalTimeLabel.text : "")
                 color: theme.inkDimmer
                 font.family: theme.ui
                 font.pixelSize: 10
@@ -220,13 +230,13 @@ Item {
         objectName: "vinylBarTransport"
         x: root.transportCenter - width / 2
         y: root.identityTop + (root.identitySize - height) / 2
-        spacing: 12
+        spacing: root.slimTight ? 3 : 12
         KeyboardAction {
             objectName: "vinylBarPrev"
             focusOnPointer: false
             enabled: root.trackNavigationEnabled && (root.pageData.canPrevious === undefined || root.pageData.canPrevious)
             opacity: enabled ? 1 : 0.35
-            width: 32
+            width: root.slimTight ? 26 : 32
             height: 39
             accessibleName: "Previous track"
             onTriggered: root.pageData.next(-1)
@@ -237,14 +247,15 @@ Item {
             focusOnPointer: false
             focusRadius: 18
             focusPrimary: true
-            width: 39
-            height: 39
+            width: root.slimTight ? 36 : 39
+            height: width
+            y: (transport.height - height) / 2
             accessibleName: root.busy ? "Waiting for source" : "Play or pause"
             enabled: !root.busy && root.hasPlayingSong
             onTriggered: root.pageData.paused = !root.pageData.paused
             Rectangle {
                 anchors.fill: parent
-                radius: 19.5
+                radius: width / 2
                 color: theme.gold
             }
             VinylControlIcon {
@@ -267,7 +278,7 @@ Item {
             focusOnPointer: false
             enabled: root.trackNavigationEnabled && (root.pageData.canNext === undefined || root.pageData.canNext)
             opacity: enabled ? 1 : 0.35
-            width: 32
+            width: root.slimTight ? 26 : 32
             height: 39
             accessibleName: "Next track"
             onTriggered: root.pageData.next(1)
@@ -300,27 +311,27 @@ Item {
             event.accepted = true;
         }
         FocusRing { anchors.fill: parent; shown: seek.activeFocus; radius: 5 }
-        x: 18 + Math.max(26, elapsedLabel.implicitWidth) + 11
-        y: root.narrow ? 128 : root.compact ? 50 : 69
-        // A compact source notice shares this row; keep the duration to its left.
-        width: Math.max(0, (root.compact && sourceError.text.length ? sourceError.x - 12 : root.width - 18)
-            - x - Math.max(26, totalTimeLabel.implicitWidth) - 11)
-        height: 22
+        x: root.slim ? (root.narrow ? 18 : 21) : 18 + Math.max(26, elapsedLabel.implicitWidth) + 11
+        y: root.slim ? 0 : root.narrow ? 128 : 69
+        width: Math.max(0, root.slim ? root.width - 2 * x
+            : root.width - 18 - x - Math.max(26, totalTimeLabel.implicitWidth) - 11)
+        height: root.slim ? 14 : 22
         Rectangle {
-            anchors.verticalCenter: parent.verticalCenter
+            objectName: "vinylBarProgressTrack"
+            y: root.slim ? 0 : (parent.height - height) / 2
             width: parent.width
-            height: 3
-            radius: 1.5
+            height: root.slim && (seekPointer.containsMouse || root.scrubbing) ? 6 : 3
+            radius: height / 2
             color: theme.edge
+            Rectangle {
+                width: parent.width * root.seekFraction
+                height: parent.height
+                radius: parent.radius
+                color: theme.gold
+            }
         }
         Rectangle {
-            anchors.verticalCenter: parent.verticalCenter
-            width: parent.width * root.seekFraction
-            height: 3
-            radius: 1.5
-            color: theme.gold
-        }
-        Rectangle {
+            visible: !root.slim
             x: parent.width * root.seekFraction - width / 2
             anchors.verticalCenter: parent.verticalCenter
             width: 8; height: 8
@@ -329,8 +340,10 @@ Item {
             Accessible.ignored: true
         }
         MouseArea {
+            id: seekPointer
             objectName: "vinylBarSeekPointer"
             anchors.fill: parent
+            hoverEnabled: root.slim
             cursorShape: Qt.PointingHandCursor
             onEnabledChanged: if (!enabled) root.cancelScrub()
             onPressed: mouse => root.beginScrub(mouse.x)
@@ -341,6 +354,7 @@ Item {
         Text {
             id: elapsedLabel
             objectName: "vinylBarElapsed"
+            visible: !root.slim
             anchors.right: parent.left
             anchors.rightMargin: 11
             anchors.verticalCenter: parent.verticalCenter
@@ -352,6 +366,7 @@ Item {
         Text {
             id: totalTimeLabel
             objectName: "vinylBarDuration"
+            visible: !root.slim
             anchors.left: parent.right
             anchors.leftMargin: 11
             anchors.verticalCenter: parent.verticalCenter
@@ -363,6 +378,7 @@ Item {
     }
     Tool {
         objectName: "vinylBarVideo"
+        visible: root.showVideoTool
         x: root.toolsLeft
         y: root.toolsTop
         enabled: !root.torrentBusy && (root.videoBusy ? root.pageData.videoSwitchCancellable === true
@@ -383,120 +399,132 @@ Item {
     }
     Tool {
         objectName: "vinylBarQueue"
-        x: root.toolsLeft + 45
+        x: root.slim ? root.minimiseLeft - root.toolsStep : root.toolsLeft + 45
         y: root.toolsTop
         enabled: root.queueEnabled
         symbol: "queueOpen"
         accessibleName: qsTr("Open queue")
         onTriggered: root.pageData.queueRequested()
     }
-    Item {
-        id: sourcePill
-        objectName: "vinylBarSources"
+    Loader {
         x: root.toolsLeft + 95
         y: root.toolsTop + 3
-        width: 168
-        height: 34
+        active: !root.slim
+        sourceComponent: sourcePillComponent
+    }
+    component Source: KeyboardAction {
+        id: sourceControl
+        required property string kind
+        required property string label
+        required property url logo
+        readonly property bool selected: (root.sourceReady && root.pageData.sourceKind === kind)
+            || (kind === "youtube" && root.defaultYouTubeChoice)
+        readonly property bool pending: kind === "torrent" ? root.torrentBusy || (root.busy && root.pageData.sourceKind === "torrent")
+            : root.busy && !root.torrentBusy && root.pageData.sourceKind !== "torrent"
+        x: kind === "youtube" ? 0 : width
+        width: 84; height: 34
+        focusOnPointer: false
+        enabled: root.sourceSelectionEnabled && (kind === "torrent"
+            ? !root.torrentBusy && root.pageData.torrentAvailable === true && typeof root.pageData.findTorrent === "function"
+            : typeof root.pageData.selectYouTube === "function")
+        accessibleName: kind === "torrent" ? qsTr("Use Tankorent audio") : qsTr("Use YouTube audio")
+        accessibleDescription: root.localSong ? qsTr("Local audio is playing")
+            : root.videoShown || root.videoBusy ? qsTr("Audio source selection is unavailable during video")
+            : root.defaultYouTubeChoice && kind === "youtube" ? qsTr("YouTube is the default choice; current playback source is not confirmed")
+            : pending ? qsTr("Finding this source; selection changes only when audio is ready")
+            : selected ? qsTr("Current audio source") : qsTr("Audio source is not selected")
+        Accessible.checkable: true
+        Accessible.checked: selected
+        opacity: enabled || selected || pending ? 1 : 0.4
         Rectangle {
-            objectName: "vinylBarSourceCapsule"
+            objectName: sourceControl.objectName + "Selection"
             anchors.fill: parent
             radius: 17
-            color: "transparent"
-            border.color: theme.edge
+            color: theme.gold
+            border.width: 0
+            visible: sourceControl.selected
         }
-        component Source: KeyboardAction {
-            id: sourceControl
-            required property string kind
-            required property string label
-            required property url logo
-            readonly property bool selected: (root.sourceReady && root.pageData.sourceKind === kind)
-                || (kind === "youtube" && root.defaultYouTubeChoice)
-            readonly property bool pending: kind === "torrent" ? root.torrentBusy || (root.busy && root.pageData.sourceKind === "torrent")
-                : root.busy && !root.torrentBusy && root.pageData.sourceKind !== "torrent"
-            x: kind === "youtube" ? 0 : width
-            width: 84; height: 34
-            focusOnPointer: false
-            enabled: root.sourceSelectionEnabled && (kind === "torrent"
-                ? !root.torrentBusy && root.pageData.torrentAvailable === true && typeof root.pageData.findTorrent === "function"
-                : typeof root.pageData.selectYouTube === "function")
-            accessibleName: kind === "torrent" ? qsTr("Use Tankorent audio") : qsTr("Use YouTube audio")
-            accessibleDescription: root.localSong ? qsTr("Local audio is playing")
-                : root.videoShown || root.videoBusy ? qsTr("Audio source selection is unavailable during video")
-                : root.defaultYouTubeChoice && kind === "youtube" ? qsTr("YouTube is the default choice; current playback source is not confirmed")
-                : pending ? qsTr("Finding this source; selection changes only when audio is ready")
-                : selected ? qsTr("Current audio source") : qsTr("Audio source is not selected")
-            Accessible.checkable: true
-            Accessible.checked: selected
-            opacity: enabled || selected || pending ? 1 : 0.4
+        Rectangle {
+            x: sourceControl.kind === "youtube" ? parent.width / 2 : 0
+            width: parent.width / 2
+            height: parent.height
+            color: theme.gold
+            visible: sourceControl.selected
+        }
+        Image {
+            x: 8; anchors.verticalCenter: parent.verticalCenter
+            width: sourceControl.kind === "youtube" ? 18 : 16
+            height: 16
+            sourceSize: Qt.size(36, 32)
+            source: sourceControl.logo
+            visible: !sourceControl.pending
+            fillMode: Image.PreserveAspectFit
+        }
+        BusyIndicator {
+            x: 6; anchors.verticalCenter: parent.verticalCenter
+            width: 24; height: 24
+            running: sourceControl.pending
+            visible: running
+        }
+        Text {
+            objectName: sourceControl.objectName + "Label"
+            x: 29; anchors.verticalCenter: parent.verticalCenter
+            text: sourceControl.label
+            color: sourceControl.selected ? theme.biblioWashBottom : theme.inkDim
+            font.family: theme.ui
+            font.pixelSize: 10
+        }
+        onTriggered: {
+            if (kind === "youtube") root.pageData.selectYouTube()
+            else root.pageData.findTorrent()
+        }
+    }
+    Component {
+        id: sourcePillComponent
+        Item {
+            objectName: "vinylBarSources"
+            width: 168
+            height: 34
             Rectangle {
-                objectName: sourceControl.objectName + "Selection"
+                objectName: "vinylBarSourceCapsule"
                 anchors.fill: parent
                 radius: 17
-                color: theme.gold
-                border.width: 0
-                visible: sourceControl.selected
+                color: "transparent"
+                border.color: theme.edge
             }
-            Rectangle {
-                x: sourceControl.kind === "youtube" ? parent.width / 2 : 0
-                width: parent.width / 2
-                height: parent.height
-                color: theme.gold
-                visible: sourceControl.selected
+            Source {
+                objectName: "vinylBarYouTube"
+                kind: "youtube"; label: "YouTube"
+                logo: "../../assets/icons/providers/youtube.svg"
             }
-            Image {
-                x: 8; anchors.verticalCenter: parent.verticalCenter
-                width: sourceControl.kind === "youtube" ? 18 : 16
-                height: 16
-                sourceSize: Qt.size(36, 32)
-                source: sourceControl.logo
-                visible: !sourceControl.pending
-                fillMode: Image.PreserveAspectFit
+            Source {
+                objectName: "vinylBarTankorent"
+                kind: "torrent"; label: "Tankorent"
+                logo: "../../assets/addon-logos/tankorent.png"
             }
-            BusyIndicator {
-                x: 6; anchors.verticalCenter: parent.verticalCenter
-                width: 24; height: 24
-                running: sourceControl.pending
-                visible: running
-            }
-            Text {
-                objectName: sourceControl.objectName + "Label"
-                x: 29; anchors.verticalCenter: parent.verticalCenter
-                text: sourceControl.label
-                color: sourceControl.selected ? theme.biblioWashBottom : theme.inkDim
-                font.family: theme.ui
-                font.pixelSize: 10
-            }
-            onTriggered: {
-                if (kind === "youtube") root.pageData.selectYouTube()
-                else root.pageData.findTorrent()
-            }
-        }
-        Source {
-            objectName: "vinylBarYouTube"
-            kind: "youtube"; label: "YouTube"
-            logo: "../../assets/icons/providers/youtube.svg"
-        }
-        Source {
-            objectName: "vinylBarTankorent"
-            kind: "torrent"; label: "Tankorent"
-            logo: "../../assets/addon-logos/tankorent.png"
         }
     }
-    Tool {
-        objectName: "vinylBarClose"
-        visible: root.showDismiss
-        x: root.width - width - 8
+    Loader {
+        x: root.minimiseLeft
         y: root.toolsTop
-        width: 36
-        symbol: "cancel"
-        accessibleName: qsTr("Close player and stop playback")
-        onTriggered: root.closeRequested()
+        active: root.slim
+        sourceComponent: Component {
+            Tool {
+                objectName: "vinylBarMinimise"
+                glyph: "down"
+                accessibleName: qsTr("Minimise")
+                ToolTip.text: accessibleName
+                ToolTip.visible: hovered
+                ToolTip.delay: 500
+                onTriggered: root.minimiseRequested(activationFocusReason === Qt.MouseFocusReason)
+            }
+        }
     }
     Text {
-        id: sourceError
         objectName: "vinylBarSourceError"
         x: root.toolsLeft
-        y: root.compact ? seek.y + (seek.height - height) / 2 : root.toolsTop + 42
+        visible: !root.slim
+        y: root.toolsTop + 42
         width: 263; height: 12
         text: root.pageData.torrentError || root.pageData.videoError || root.pageData.skippedNotice || ""
         color: theme.inkDim

@@ -240,7 +240,7 @@ TestCase {
     function test_albumRetainsTransportAndQueue() {
         bar.page="album";
         waitForRendering(host.contentItem);
-        compare(bar.height,76);
+        compare(bar.height,72);
         var play=item("vinylBarPlay");
         compare(play.mapToItem(bar,play.width/2,0).x,bar.transportCenter);
         verify(item("vinylBarQueue").visible);
@@ -249,39 +249,30 @@ TestCase {
         mouseClick(item("vinylBarQueue"));
         compare(queueSpy.count,1);
     }
-    function test_barCompactsOnlyOnWideBrowsingPages_data() {
+    function test_barIsSlimOnEveryBrowsingWidth_data() {
         return [{tag:"desktop",width:1280},{tag:"actual",width:1028},{tag:"medium",width:800},
             {tag:"desktop-minimum",width:700},{tag:"below-desktop-minimum",width:699},
             {tag:"phone",width:360},{tag:"wide-phone",width:480}];
     }
-    function test_barCompactsOnlyOnWideBrowsingPages(data) {
-        bar.width=data.width;
-        var wide=data.width>=700;
-        var controls=[
-            {name:"vinylBarOpenSong", deltaY:5, deltaHeight:4, deltaWidth:4},
-            {name:"vinylBarNowPlaying", deltaX:4, deltaY:5, deltaHeight:4, deltaWidth:-4},
-            {name:"vinylBarPrev", deltaY:7}, {name:"vinylBarPlay", deltaY:7},
-            {name:"vinylBarNext", deltaY:7}, {name:"vinylBarSeek", deltaY:19},
-            {name:"vinylBarQueue", deltaY:6}, {name:"vinylBarSources", deltaY:6}
-        ];
-        host.page="album";
-        compare(bar.height,wide ? 76 : 164);
-        compare(item("vinylBarSeek").y,wide ? 50 : 128);
-        var bounds=controls.map(function(entry) {
-            var control=item(entry.name), point=control.mapToItem(bar,0,0);
-            return {x:point.x,y:point.y,width:control.width,height:control.height};
-        });
-        host.page="song";
-        compare(bar.height,wide ? 104 : 164);
-        compare(item("vinylBarSeek").y,wide ? 69 : 128);
-        for(var j=0;j<controls.length;j++) {
-            var entry=controls[j], songControl=item(entry.name);
-            var point=songControl.mapToItem(bar,0,0);
-            compare(point.x,bounds[j].x+(wide ? entry.deltaX || 0 : 0),entry.name);
-            compare(point.y,bounds[j].y+(wide ? entry.deltaY : 0),entry.name);
-            compare(songControl.width,bounds[j].width+(wide ? entry.deltaWidth || 0 : 0),entry.name);
-            compare(songControl.height,bounds[j].height+(wide ? entry.deltaHeight || 0 : 0),entry.name);
-        }
+    function test_barIsSlimOnEveryBrowsingWidth(data) {
+        bar.width = data.width;
+        host.page = "album";
+        verify(bar.height <= 80);
+        compare(item("vinylBarOpenSong").width, 44);
+        compare(item("vinylBarSeek").y, 0);
+        for (const name of ["vinylBarSources", "vinylBarYouTube", "vinylBarTankorent", "vinylBarClose"])
+            tryVerify(() => findChild(bar, name) === null, 1000, name + " must not exist on a browsing page");
+        verify(item("vinylBarMinimise").visible);
+        compare(item("vinylBarMinimise").accessibleName, "Minimise");
+
+        host.page = "song";
+        const wide = data.width >= 700;
+        compare(bar.height, wide ? 104 : 164);
+        compare(item("vinylBarSeek").y, wide ? 69 : 128);
+        verify(item("vinylBarSources").visible);
+        verify(item("vinylBarYouTube").visible);
+        verify(item("vinylBarTankorent").visible);
+        tryVerify(() => findChild(bar, "vinylBarMinimise") === null);
         compare(findChild(bar,"vinylSongSave"),null);
         verify(findChild(bar,"vinylBarVideo")!==null);
         compare(findChild(bar,"vinylBarLyrics"),null);
@@ -309,50 +300,65 @@ TestCase {
         compare(owner.playingTrack,track);
         compare(bar.currentSeekTrackKey,key);
     }
-    function test_dismissControlFitsBrowsingHud_data() {
-        return [{tag:"narrow",width:360},{tag:"wide",width:900}];
+    function test_slimProgressHoversAndSeeks() {
+        host.page = "album";
+        const owner = bar.pageData, seek = item("vinylBarSeek");
+        const pointer = item("vinylBarSeekPointer"), line = item("vinylBarProgressTrack");
+        const original = owner.position;
+        mouseMove(bar, 40, bar.height - 3);
+        compare(line.height, 3);
+        mouseMove(pointer, 40, 4);
+        tryCompare(line, "height", 6);
+        mousePress(pointer, pointer.width / 4, 4);
+        verify(bar.scrubbing);
+        mouseMove(pointer, pointer.width / 2, 4);
+        compare(owner.position, original, "Drag only previews the position");
+        compare(bar.displayedPosition, owner.duration / 2);
+        mouseRelease(pointer, pointer.width / 2, 4);
+        compare(owner.position, owner.duration / 2);
+        const quarterX = Math.round(pointer.width / 4);
+        const quarterPosition = quarterX / pointer.width * owner.duration;
+        mouseClick(pointer, quarterX, 4);
+        compare(owner.position, quarterPosition);
+        seek.forceActiveFocus();
+        keyClick(Qt.Key_Right);
+        compare(owner.position, quarterPosition + 5);
+        verify(item("vinylBarArtist").text.includes(" · ") && item("vinylBarArtist").text.includes(" / "));
     }
-    function test_dismissControlFitsBrowsingHud(data) {
-        bar.width=data.width;
-        bar.allowDismiss=true;
-        var close=item("vinylBarClose"), sources=item("vinylBarSources"), video=item("vinylBarVideo");
-        var transport=item("vinylBarTransport"), seek=item("vinylBarSeek");
-        compare(close.visible,false);
-        var originalSourcesX=sources.x;
-        host.page="album";
-        verify(close.visible);
-        compare(close.accessibleName,"Close player and stop playback");
-        verify(sources.x+sources.width<=close.x);
-        verify(close.x+close.width<=bar.width);
-        verify(video.x>=0);
-        verify(transport.x+transport.width<=video.x || transport.y+transport.height<=video.y);
-        verify(close.y+close.height<=seek.y);
-        host.page="song";
-        compare(close.visible,false);
-        compare(sources.x,originalSourcesX);
+    function test_slimVideoOnlyAppearsWhenAvailable() {
+        host.page = "album";
+        verify(item("vinylBarVideo").visible);
+        host.pageData.playingEdition = Object.assign({}, host.pageData.playingEdition,
+            {hasVideo: false, artist: "Fixture artist"});
+        verify(!host.pageData.hasVideo);
+        verify(!item("vinylBarVideo").visible);
+        host.page = "song";
+        verify(item("vinylBarVideo").visible);
+        verify(!item("vinylBarVideo").enabled);
     }
 
     function test_controlsDoNotOverlap_data() {
         var rows = [{tag:"phone",width:360,height:164,page:"song"},
             {tag:"wide-phone",width:480,height:164,page:"song"},
-            {tag:"wide-compact",width:1280,height:76,page:"home"},
-            {tag:"with-dock-and-notice",width:966,height:76,page:"home",notice:"No torrent found"}];
-        for (const width of [700, 760, 860, 1000]) {
-            rows.push({tag:"compact-" + width, width:width, height:76, page:"home", notice:"No torrent found"});
+            {tag:"wide-slim",width:1280,height:72,page:"home"},
+            {tag:"with-dock",width:966,height:72,page:"home"}];
+        for (const width of [306, 360, 700, 760, 860, 1000]) {
+            rows.push({tag:"slim-" + width, width:width, height:72, page:"home"});
+            if (width < 700) continue;
             rows.push({tag:"song-" + width, width:width, height:104, page:"song", notice:"No torrent found"});
         }
         return rows;
     }
     function test_controlsDoNotOverlap(data) {
         bar.width=data.width;
-        bar.allowDismiss=true;
         host.page=data.page;
         host.pageData.torrentError=data.notice || "";
         waitForRendering(host.contentItem);
         compare(bar.height,data.height);
         var names=["vinylBarOpenSong","vinylBarNowPlaying","vinylBarPrev","vinylBarPlay",
-            "vinylBarNext","vinylBarVideo","vinylBarQueue","vinylBarSources","vinylBarSeek","vinylBarElapsed","vinylBarDuration"];
-        if(data.page!=="song") names.push("vinylBarClose");
+            "vinylBarNext","vinylBarVideo","vinylBarQueue","vinylBarSeek"];
+        if (data.page === "song") names.push("vinylBarSources", "vinylBarElapsed", "vinylBarDuration");
+        else names.push("vinylBarMinimise");
         if(data.notice) names.push("vinylBarSourceError");
         var bounds=[];
         for (const name of names) {
@@ -378,6 +384,7 @@ TestCase {
             }
             verify(title.y + title.height <= artist.y);
             verify(!artist.truncated, "Artist fixture fits without elision");
+            if (data.page !== "song") return;
             const yt = item("vinylBarYouTube"), tankorent = item("vinylBarTankorent");
             compare(yt.x + yt.width, tankorent.x);
             compare(tankorent.x + tankorent.width, item("vinylBarSources").width);

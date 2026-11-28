@@ -5492,6 +5492,7 @@ Window {
                             accountFlyout.toggleAt(anchorRight, anchorBottom)
                         })
                         win.vinylWorld = item
+                        item.shellHudButton = taskbar["vinylHudButton"] || null
                         item.shellDockRight = Qt.binding(function() {
                             return taskbar.visible ? taskbar.leftEdge + taskbar.closedWidth : 0
                         })

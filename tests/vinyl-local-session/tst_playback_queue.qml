@@ -242,32 +242,27 @@ TestCase {
         }
     }
 
-    function test_dismissBrowsingHudClearsPendingPlaybackAndCanReopen() {
+    function test_minimiseBrowsingHudPreservesPendingPlaybackAndCanReopen() {
         world.worldData.preferencesStore = createTemporaryObject(hudPreferencesFactory,test);
         tryCompare(world,"canEnterVinyl",true);
         world.showHome();
-        var bar = findChild(world,"vinylPlayerBar"), close = findChild(bar,"vinylBarClose");
+        var bar = findChild(world, "vinylPlayerBar");
         verify(!bar.visible);
-        startStalled([queueRows[0]],0);
-        verify(!bar.visible);
+        startStalled([queueRows[0]], 0);
+        compare(world.hudOpen, true);
+        tryCompare(bar, "visible", true);
+        const minimise = findChild(bar, "vinylBarMinimise");
+        const cancellations = stalledSource.cancellations.length;
+        minimise.activate(Qt.MouseFocusReason);
+        compare(world.hudOpen, false);
+        tryCompare(bar, "visible", false);
+        verify(world.hudHasMedia);
+        compare(world.session.queue.length, 1);
+        compare(world.session.playingIndex, 0);
+        compare(world.session.sourceState, "finding");
+        compare(stalledSource.cancellations.length, cancellations);
         world.toggleHud();
-        tryCompare(close,"visible",true);
-        var request = stalledSource.requests.filter(call=>call.lane==="play").slice(-1)[0];
-        close.triggered();
-        compare(world.session.queue.length,0);
-        compare(world.session.playingIndex,-1);
-        compare(world.session.sourceState,"idle");
-        verify(!bar.visible);
-        verify(!world.hudOpen && !world.hudHasMedia);
-        verify(stalledSource.cancellations.indexOf("play")>=0);
-        stalledSource.completed("play",request.id,{},"Late resolve");
-        compare(world.session.sourceState,"idle");
-        compare(world.session.error,"");
-        verify(!bar.visible);
-        startStalled([queueRows[0]],0);
-        verify(!bar.visible);
-        world.toggleHud();
-        tryCompare(close,"visible",true);
+        tryCompare(bar, "visible", true);
     }
 
     function test_clearCancelsPendingNativeSourceResolution() {

@@ -545,10 +545,8 @@ TestCase {
         world.session.playAlbum(rawAlbum,0);
         tryVerify(function(){return world.session.playingIndex===0 && world.session.queue.length===2;});
         var playerBar=findChild(world,"vinylPlayerBar");
-        world.toggleHud();
-        verify(playerBar!==null && playerBar.visible);
-        verify(world.browseShell.contentEndPadding > playerBar.height,
-            "The last Home row must scroll clear of the open player bar.");
+        compare(world.hudOpen, true);
+        verify(playerBar !== null);
         var playingId=world.session.queue[world.session.playingIndex].trackId;
         var queueIds=world.session.queue.map(function(row){return row.trackId;});
         var generation=world.session.profileGeneration;
@@ -560,6 +558,9 @@ TestCase {
         compare(world.session.queue.map(function(row){return row.trackId;}),queueIds);
         compare(world.session.queue[world.session.playingIndex].trackId,playingId);
         compare(world.session.playingIndex,0);
+        tryCompare(playerBar, "visible", true);
+        verify(world.browseShell.contentEndPadding > playerBar.height,
+            "The last Home row must scroll clear of the open player bar.");
     }
 
     function test_profileClearDropsRecommendationListSnapshot() {

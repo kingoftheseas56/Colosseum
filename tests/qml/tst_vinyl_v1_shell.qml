@@ -260,8 +260,9 @@ TestCase {
         var lastRow = findChild(view, "vinylHomeRow_albums-for-you");
         verify(lastRow && lastRow.visible);
         verify(bar.visible && bar.hasPlayingSong);
-        compare(bar.height, 76);
-        compare(bar.y, 606);
+        compare(bar.height, 72);
+        compare(bar.y, 610);
+        verify(view.contentEndPadding >= bar.height + 14);
         compare(bounds(flick).bottom, height, "The player and desktop dock must not clip Home");
         compare(view.contentEndPadding, height - bar.y + 14);
         verify(flick.contentHeight > flick.height);
@@ -275,7 +276,7 @@ TestCase {
         for (const width of [860, 760, 700, 699, 860]) {
             footer.width = width + bar.x + 54;
             compare(bar.width, width);
-            compare(bar.y, width >= 700 ? 606 : 518);
+            compare(bar.y, 610);
             compare(bounds(flick).bottom, height);
             compare(view.contentEndPadding, height - bar.y + 14);
         }

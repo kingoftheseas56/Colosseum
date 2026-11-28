@@ -219,14 +219,15 @@ TestCase {
         world.showLibrary();
         world.session.playAlbum(record(0), 0);
         tryCompare(world.session, "playingIndex", 0);
-        world.toggleHud();
+        compare(world.hudOpen, true);
+        tryCompare(item("vinylPlayerBar"), "visible", true);
         world.shellDockRight = 310;
         world.shellDockBottomExtent = 62;
         host.requestActivate();
         tryCompare(host, "active", true);
 
         world.showArtist({name:"Local Artist", id:"artist-one"});
-        const artistBar = verifyDetailTitlePage("vinylArtistPage", "Vinyl", 76);
+        const artistBar = verifyDetailTitlePage("vinylArtistPage", "Vinyl", 72);
         const artistPage = item("vinylArtistPage");
         tryCompare(artistPage, "activeFocus", true);
         artistPage.contentY = 100;
@@ -247,7 +248,7 @@ TestCase {
         world.openAlbum("album-1");
         source.completed("browse", world.session.browseRequest, record(1), "");
         tryCompare(world, "page", "album");
-        const albumBar = verifyDetailTitlePage("vinylAlbumPage", "Artist", 76);
+        const albumBar = verifyDetailTitlePage("vinylAlbumPage", "Artist", 72);
         item("vinylAlbumPage").contentY = 100;
         tryCompare(albumBar, "solid", true);
         verify(item("vinylAlbumPage").contentEndPadding > item("vinylPlayerBar").height);

@@ -25,7 +25,7 @@ TestCase {
             property bool cached: false
             property int artistRetryCount: 0
             signal completed(string lane, int requestId, var data, string error)
-            function request(lane, operation, id) { return ++serial; }
+            function request(lane: string, operation: string, id: string): int { return ++serial; }
             function cancel(lane: string) {}
             function setAlbums(albums) {}
             function openArtist(ref) { artist = ref; artistBusy = true; }
@@ -282,11 +282,11 @@ TestCase {
 
         runtime.toggleHud();
         compare(runtime.hudOpen, true);
-        compare(bar.visible, true);
+        tryCompare(bar, "visible", true);
         verify(runtime.contentBottom < bar.y);
         verify(runtime.browseShell.contentEndPadding > runtime.shellDockBottomExtent + 14);
         runtime.toggleHud();
-        compare(bar.visible, false);
+        tryCompare(bar, "visible", false);
         compare(runtime.browseShell.contentEndPadding, runtime.shellDockBottomExtent + 14);
 
         runtime.showSong();
@@ -294,14 +294,62 @@ TestCase {
         compare(runtime.hudOpen, false);
         compare(bar.visible, true);
         runtime.goBack();
-        compare(bar.visible, false);
+        tryCompare(bar, "visible", false);
 
         runtime.toggleHud();
         runtime.lifecycleActive = false;
         runtime.lifecycleActive = true;
         compare(runtime.hudOpen, false);
-        compare(bar.visible, false);
+        tryCompare(bar, "visible", false);
         compare(runtime.session.playingIndex, 0, "Re-entry must not clear the queue");
+    }
+    function test_trackRowStartsSlimHudAndMinimisePreservesPlayback() {
+        const source = prepareDetailRuntime();
+        const record = detailRecord();
+        record.tracks.push({id: "second-track", title: "Second song", seconds: 24, available: true});
+        runtime.shellDockBottomExtent = 80;
+        runtime.openAlbum(record.id);
+        source.completed("browse", runtime.session.browseRequest, record, "");
+        tryCompare(runtime, "page", "album");
+        const album = runtime.detailView;
+        const bar = findChild(runtime, "vinylPlayerBar");
+        verify(!runtime.hudOpen);
+        const first = findChild(album, "vinylTrackRow_0");
+        verify(first);
+        album.contentY = first.mapToItem(album.contentItem, 0, 0).y - 300;
+        verify(waitForRendering(album));
+        mouseClick(first);
+        compare(runtime.hudOpen, true, "Playing a row outside the song page opens the HUD");
+        tryCompare(bar, "dockProgress", 0);
+        verify(bar.visible && bar.height <= 80);
+        compare(runtime.session.sourceState, "finding", runtime.session.error);
+        compare(findChild(bar, "vinylBarTitle").text, "Fixture song");
+        verify(findChild(bar, "vinylBarLoading").running);
+        verify(album.contentEndPadding >= bar.height + 14);
+        album.contentY = album.contentHeight - album.height;
+        tryCompare(album, "atYEnd", true);
+        const second = findChild(album, "vinylTrackRow_1");
+        verify(second);
+        verify(second.mapToItem(runtime, 0, second.height).y <= bar.y - 14);
+        album.contentY = second.mapToItem(album.contentItem, 0, 0).y - 300;
+        verify(second.mapToItem(runtime, 0, 0).y >= runtime.detailTitleBar.height);
+        verify(second.mapToItem(runtime, 0, second.height).y <= bar.y - 14);
+
+        const minimise = findChild(bar, "vinylBarMinimise");
+        verify(minimise && minimise.visible);
+        mouseClick(minimise);
+        compare(runtime.hudOpen, false);
+        tryCompare(bar, "visible", false);
+        compare(runtime.session.playingIndex, 0);
+        compare(runtime.session.sourceState, "finding");
+        runtime.session.playQueue(0); // Restarts resolution for the same occurrence.
+        compare(runtime.hudOpen, false);
+
+        mouseClick(second);
+        compare(runtime.hudOpen, true, "A new play opens the bar again");
+        tryCompare(bar, "dockProgress", 0);
+        compare(findChild(bar, "vinylBarTitle").text, "Second song");
+        compare(runtime.page, "album");
     }
     function test_houseDoesNotInterceptPlayerControls() {
         createRuntime("VinylAppWorld.qml");
@@ -313,6 +361,8 @@ TestCase {
         // Isolate pointer delivery from queue/taste setup. No canonical playback
         // state is changed; the real control must remain above the full shell.
         bar.visible = true;
+        bar.enabled = true;
+        bar.dockProgress = 0;
         button.enabled = true;
         songSpy.target = bar;
         songSpy.clear();

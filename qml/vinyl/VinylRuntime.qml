@@ -66,6 +66,7 @@ Item {
     signal namedCollectionBackRequested()
     property real shellDockRight: 0
     property real shellDockBottomExtent: 0
+    property Item shellHudButton: null
     property bool searchOpen: false
     property bool artistSearchOpen: false
     property string homeListeningError: ""
@@ -78,6 +79,7 @@ Item {
     readonly property var searchPage: searchLayer.item
     readonly property real footerLeft: Math.max(theme.margin, shellDockRight > 0 ? shellDockRight + 12 : 0)
     property bool hudOpen: false
+    property string lastHudPlaybackOccurrence: ""
     readonly property bool hudHasMedia: canEnterVinyl && session.playingIndex >= 0
     onHudHasMediaChanged: if (!hudHasMedia) hudOpen = false
     function toggleHud() {
@@ -887,6 +889,11 @@ Item {
             root.pendingAlbumRoute=null;root.searchSnapshot=null;root.searchOriginCatalogue=null;root.searchOpen=false;root.artistSearchOpen=false;root.page="album";Qt.callLater(root.parkFocus);
         }
         onPlaybackRequested: {
+            const occurrence = session.activeQueueRow ? session.activeQueueRow.queueId : "";
+            if (occurrence && occurrence !== root.lastHudPlaybackOccurrence) {
+                root.lastHudPlaybackOccurrence = occurrence;
+                if (root.hudHasMedia && root.lifecycleActive && root.page !== "song") root.hudOpen = true;
+            }
             if(root.canEnterVinyl && root.visible && root.lifecycleActive && !root.searchOpen
                     && !root.artistSearchOpen && session.activeQueueRow && session.activeQueueRow.startWithVideo === true)
                 root.pendingVideoOpen={context:root.videoOpenContextKey, startsPlayback:true};
@@ -895,6 +902,7 @@ Item {
         onArtistRequested: name => root.showRecordArtist(name,session.shownEdition.sourceAlbum || {})
         onQueueRequested: if(root.canEnterVinyl)queuePanel.open()
         onProfileGenerationChanged: {
+            root.lastHudPlaybackOccurrence = "";
             root.cancelNamedCollectionOpen();root.namedCollectionReturn=null;root.importStatus="";
             root.feedbackRequest=null;root.feedbackError="";
             root.pendingMixPlay=null;
@@ -930,7 +938,7 @@ Item {
                 root.homeListeningError=session.browseError || "Radio could not start.";
                 recommendations.stopHomeRadio();session.setRadioContext({});return;
             }
-            if(!append)root.showSong();
+            if (!append && root.page === "song") root.showSong();
         }
         function onListeningChanged() {
             var pending=root.pendingMixPlay,view=session.plainData(recommendations.homeMixView);
@@ -1212,6 +1220,7 @@ Item {
             text: session.persistenceError || session.personalError || personalData.error || artistData.persistenceError
                 || worldData.persistenceError || root.discoverStatus || session.error || session.browseError
                 || root.homeListeningError || root.homeRadioStatus
+                || (bar.slim && root.hudOpen ? session.torrentError || session.videoError || session.skippedNotice : "")
                 || (root.page === "artist" ? artistData.catalogueStatus : catalogueNotice || session.downloadNotice || (root.importing ? "" : root.importStatus))
             color:session.error || session.browseError || catalogueNotice ? theme.gold : theme.inkDim
             font.family:theme.ui;font.pixelSize:12;wrapMode:Text.WordWrap
@@ -1236,19 +1245,44 @@ Item {
     VinylQueuePanel {id:queuePanel;pageData:session;actionData:root.page==="song" ? song.pageData : session;backdrop:root.chromeBackdrop;onSongRequested:root.showSong()}
     VinylPlayerBar {
         id:bar;x:root.footerLeft;y:root.height-height-root.playerBottomMargin;width:root.width-x-theme.margin
-        visible: root.canEnterVinyl && (root.page === "song" || (root.hudOpen && root.hudHasMedia))
-            && opacity > 0.01
-        opacity:root.videoFullscreen && root.videoDisplayed && !root.videoHudVisible ? 0 : 1
-        enabled:visible
-        Behavior on opacity { NumberAnimation { duration: 140 } }
+        readonly property int transitionDuration: 140
+        property real dockProgress: root.hudOpen ? 0 : 1
+        property point dockTarget: Qt.point(0, 0)
+        // Snapshot the current icon center once per transition instead of tying
+        // the scroll inset or hit geometry to every animation frame.
+        Connections {
+            target: root
+            function onHudOpenChanged() {
+                const button = root.shellHudButton;
+                bar.dockTarget = button && button.visible
+                    ? root.mapFromItem(button, button.width / 2, button.height / 2)
+                    : Qt.point(Math.max(0, root.footerLeft - 12), root.height - root.playerBottomMargin);
+            }
+        }
+        Behavior on dockProgress {
+            enabled: bar.slim && root.hudHasMedia && root.lifecycleActive
+            NumberAnimation { duration: bar.transitionDuration; easing.type: Easing.OutCubic }
+        }
+        transform: Scale {
+            origin.x: bar.dockTarget.x - bar.x
+            origin.y: bar.dockTarget.y - bar.y
+            xScale: bar.slim ? 1 - bar.dockProgress * (1 - Math.min(1, 46 / Math.max(1, bar.width))) : 1
+            yScale: xScale
+        }
+        visible: root.canEnterVinyl && (!slim || root.hudHasMedia) && opacity > 0.01
+        opacity: slim ? 1 - dockProgress : root.videoFullscreen && root.videoDisplayed && !root.videoHudVisible ? 0 : 1
+        enabled: visible && (!slim || root.hudOpen)
+        Behavior on opacity {
+            enabled: !bar.slim
+            NumberAnimation { duration: bar.transitionDuration }
+        }
         pageData:session;backdrop:root.chromeBackdrop;page:root.page==="song" ? "song" : "album";queueEnabled:true;trackNavigationEnabled:true
         videoFullscreen: root.videoFullscreen
-        allowDismiss: true
-        onCloseRequested: {
-            root.cancelPendingVideoOpen(false)
-            root.cancelDiscoverItem()
-            queuePanel.close()
-            session.clearQueue()
+        onMinimiseRequested: viaPointer => {
+            root.hudOpen = false;
+            const button = root.shellHudButton;
+            if (!viaPointer && button && button.visible && button.enabled) button.forceActiveFocus(Qt.TabFocusReason);
+            else root.parkFocus();
         }
         onVideoRequested: {root.requestHudVideo();}
         onVideoFullscreenRequested: root.toggleVideoFullscreen()

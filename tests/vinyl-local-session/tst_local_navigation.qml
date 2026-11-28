@@ -213,6 +213,9 @@ TestCase {
             pickerScene: world, vinylHudAvailable: true
         });
         verify(dock !== null);
+        world.shellHudButton = dock.vinylHudButton;
+        dock.vinylHudClicked.connect(world.toggleHud);
+        dock.vinylHasMedia = Qt.binding(() => world.hudHasMedia);
         world.shellDockRight = Qt.binding(function() { return dock.visible ? dock.leftEdge + dock.closedWidth : 0; });
         world.shellDockBottomExtent = Qt.binding(function() { return dock.visible ? dock.bottomGap + dock.closedSize : 0; });
         wait(0);
@@ -223,7 +226,20 @@ TestCase {
         var record=album("footer");record.tracks=[{id:"footer-track",title:"Footer",seconds:1}];
         selectPaused(record,1);
         world.toggleHud();
+        tryCompare(playerBar, "dockProgress", 0);
         verify(playerBar.visible);
+        const dockButton = findChild(dock, "taskbarVinylHudAction");
+        compare(dockButton, world.shellHudButton);
+        const minimise = findChild(playerBar, "vinylBarMinimise");
+        minimise.forceActiveFocus();
+        keyClick(Qt.Key_Return);
+        compare(world.hudOpen, false);
+        tryCompare(playerBar, "visible", false);
+        compare(dockButton.activeFocus, true);
+        compare(playerBar.dockTarget, world.mapFromItem(dockButton, dockButton.width / 2, dockButton.height / 2));
+        keyClick(Qt.Key_Return);
+        compare(world.hudOpen, true);
+        tryCompare(playerBar, "dockProgress", 0);
         var capsule = findChild(dock, "taskbarDock");
         tryCompare(capsule, "width", 310);
         verify(playerBar.x > capsule.x + capsule.width, "Player cover and title clear the widened dock");

@@ -68,6 +68,7 @@ Item {
     signal vinylHudClicked()
     property bool vinylHudAvailable: false // Vinyl is the front surface
     property bool vinylHudOpen: false
+    readonly property Item vinylHudButton: vinylHudInput
     property bool vinylPlaying: false
     property bool vinylHasMedia: false
     signal extensionsClicked()

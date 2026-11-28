@@ -159,13 +159,17 @@ TestCase {
         var count=chartCalls().length;wait(0);compare(chartCalls().length,count);
         browser.activateIndex(0);
         var pending=taps().slice(-1)[0];
-        live.toggleHud();
-        var close=findChild(live,"vinylBarClose");verify(close && close.visible);
-        close.triggered();
-        verify(cancelled.includes("catalogue-item"));
-        compare(live.session.queue.length,0);
-        respond(pending,match(song));
-        compare(live.session.queue.length,0);compare(live.page,"discover");
+        const minimise = findChild(live, "vinylBarMinimise");
+        verify(minimise);
+        tryCompare(minimise, "visible", true);
+        const cancellations = cancelled.length;
+        minimise.activate(Qt.MouseFocusReason);
+        compare(live.hudOpen, false);
+        compare(cancelled.length, cancellations);
+        compare(JSON.stringify(live.session.queue), queueBefore);
+        respond(pending, match(song));
+        compare(live.session.queue.length, 1);
+        compare(live.page, "song");
         live.destroy();wait(0);
     }
     function test_cancel_tap_on_leave_and_retry_transport_error() {
