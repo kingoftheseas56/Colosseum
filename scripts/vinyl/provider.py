@@ -2029,7 +2029,7 @@ def fetch_artist_artwork(mbid, get_json=None):
 
 
 # Home operations are deliberately separate from full artist-page enumeration.
-HOME_OPERATIONS = {"artistCandidates", "songCandidates", "recommendationIdentity", "recommendationDiscography", "chartCandidates", "similarArtists", "recordingMatch", "populationCandidates"}
+HOME_OPERATIONS = {"artistCandidates", "songCandidates", "recommendationIdentity", "recommendationDiscography", "chartCandidates", "similarArtists", "artistTopTracks", "recordingMatch", "populationCandidates"}
 LB_ARTIST_EVIDENCE_QUALIFIED = True  # Public artist-radio route qualified 2026-10-22; failures remain optional.
 
 
@@ -2934,7 +2934,7 @@ def population_candidates(request, population_client=None):
 
 def handle_home(request, client=None, mb_client=None, population_client=None, source_pool_transport=None):
     operation = request.get("operation")
-    if operation in {"chartCandidates", "similarArtists"}:
+    if operation in {"chartCandidates", "similarArtists", "artistTopTracks"}:
         return source_pool_metadata(request, source_pool_transport)
     source = "musicbrainz" if operation in {"recommendationIdentity", "recommendationDiscography"} else "listenbrainz" if operation == "populationCandidates" else "youtube-music"
     envelope_request = request
@@ -4986,6 +4986,38 @@ def _pool_lastfm_rows(request, transport, chart=False):
     return items, {"method":method, **({"artistName":request["artistName"]} if not chart else {})}, True
 
 
+def _pool_artist_top_tracks(request, transport):
+    seed = home_seed(request)
+    if set(seed) != {"kind", "provider", "providerId", "name"}:
+        raise InvalidArgumentError("Top tracks require a provider-bound artist name.")
+    name = _pool_text(seed.get("name"), 300)
+    method = "artist.getTopTracks"
+    data, *_ = _discover_http("lastfm", method, {"artist":name, "autocorrect":0, "limit":50, "page":1},
+                              transport=transport, timeout=4)
+    envelope = data.get("toptracks") if isinstance(data, dict) else None
+    if not isinstance(envelope, dict):
+        raise ProviderUnavailableError("Last.fm returned an invalid artist track list.")
+    rows = _discover_rows(envelope.get("track"), 50)
+    attrs = envelope.get("@attr", {})
+    if not isinstance(attrs, dict) or ("artist" in attrs and fold(_pool_text(attrs["artist"])) != fold(name)):
+        raise ProviderUnavailableError("Last.fm returned tracks for another artist.")
+    if "total" in attrs:
+        total = str(attrs["total"])
+        if not re.fullmatch(r"[0-9]{1,12}", total) or len(rows) != min(int(total), 50):
+            raise ProviderUnavailableError("Last.fm returned an incomplete artist track list.")
+    items = []
+    for row in rows:
+        artist = row.get("artist")
+        count = str(row.get("playcount", ""))
+        if not isinstance(artist, dict) or not re.fullmatch(r"[0-9]{1,16}", count):
+            raise ProviderUnavailableError("Last.fm returned invalid artist track evidence.")
+        items.append((int(count), {"title":_pool_text(row.get("name")), "artist":_pool_text(artist.get("name"))}))
+    if items and not any(fold(item["artist"]) == fold(name) for _, item in items):
+        raise ProviderUnavailableError("Last.fm returned no tracks credited to the requested artist.")
+    items.sort(key=lambda entry: -entry[0])
+    return [item for _, item in items], {"method":method}, True
+
+
 def _pool_labs_rows(request, transport):
     global _LABS_ALGORITHM_CACHE
     algorithm = _labs_algorithm(transport)
@@ -5028,9 +5060,12 @@ def source_pool_metadata(request, transport=None):
     operation, value, source = request.get("operation"), request.get("value"), request.get("source")
     origin = "apple-music" if type(value) is str and value.startswith("apple:") else ("listenbrainz" if source == "listenbrainz" else "lastfm")
     seed = request.get("seed")
+    top_tracks = operation == "artistTopTracks"
     safe_seed = seed if type(seed) is dict and set(seed) == {"identity", "kind", "mbid"} and all(type(v) is str and len(v) < 128 for v in seed.values()) else {}
+    if top_tracks and type(seed) is dict and len(json.dumps(seed, ensure_ascii=True).encode()) <= 4096:
+        safe_seed = seed
     result = home_envelope({"seed":safe_seed}, origin)
-    result["provenance"]["generator"] = "chart-feed" if operation == "chartCandidates" else "artist-similarity"
+    result["provenance"]["generator"] = "artist-top-tracks" if top_tracks else "chart-feed" if operation == "chartCandidates" else "artist-similarity"
     try:
         if len(json.dumps(request, ensure_ascii=True).encode("utf-8")) > 239 * 1024:
             raise InvalidArgumentError("Source-pool request is oversized.")
@@ -5056,6 +5091,11 @@ def source_pool_metadata(request, transport=None):
             else:
                 raise InvalidArgumentError("Unsupported global chart feed.")
             limit = 50
+        elif top_tracks:
+            if not safe_seed:
+                raise InvalidArgumentError("Top tracks require a bounded artist seed.")
+            items, provenance, complete = _pool_artist_top_tracks(request, transport)
+            limit = 50
         else:
             if (type(value) is not str or not MBID_RE.fullmatch(value) or uuid.UUID(value).int == 0
                     or type(seed) is not dict or seed != {"identity":"canonical", "kind":"artist", "mbid":value}
@@ -5071,7 +5111,8 @@ def source_pool_metadata(request, transport=None):
             limit = 60
         result["provenance"].update(provenance)
         for item in items[:limit]:
-            _catalogue_input(item)
+            if not top_tracks:
+                _catalogue_input(item)
             result["items"].append(item)
             if not _pool_wire_fits(result):
                 result["items"].pop()
@@ -5221,7 +5262,7 @@ def _answer(raw):
         if len(raw) > 1024 * 1024:
             raise InvalidArgumentError("Catalogue request is too large")
         request = json.loads(raw)
-        if isinstance(request, dict) and request.get("operation") in ("chartCandidates", "similarArtists") and len(raw) > 239 * 1024:
+        if isinstance(request, dict) and request.get("operation") in ("chartCandidates", "similarArtists", "artistTopTracks") and len(raw) > 239 * 1024:
             raise InvalidArgumentError("Source-pool request is oversized.")
         return {"ok": True, "data": handle(request)}
     except ImportError:

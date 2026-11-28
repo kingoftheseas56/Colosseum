@@ -357,6 +357,21 @@ TestCase {
         gateData.tastePickerOpen=false;tryCompare(shelf,"homePageVisible",true);
         gateData.v1HomeRows=original;
     }
+    function test_becauseYouPlayedUsesExistingAlbumCaptionForReason() {
+        const original = gateData.v1HomeRows;
+        const title = "Because you played 50 Cent";
+        const reason = "Listeners of 50 Cent also play Lloyd Banks";
+        const album = Object.assign({}, cards("albums", 1)[0], {anchorReason: title, reason: reason});
+        try {
+            gateData.v1HomeRows = original.concat([{key:"v1:because-you-played", homeKey:"because-you-played",
+                title:title, items:[album]}]);
+            const card = findChild(view, "vinylCard_v1:because-you-played_0");
+            verify(card !== null);
+            compare(card.captionDetail, reason);
+        } finally {
+            gateData.v1HomeRows = original;
+        }
+    }
     function test_05_wheelGlidesThroughHome() {
         var flick=view.pageFlickable;
         var tabsTop=view.flowTabs.mapToItem(flick.contentItem,0,0).y;

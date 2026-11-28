@@ -44,8 +44,12 @@ QVariantMap convert(const QVariantMap &item,bool includeArtists) {
     auto p=ProviderId::parse(provider);auto i=ProviderItemId::parse(id);
     if(!p.ok() || !i.ok() || p.value->value()!=provider)return failure("Missing or malformed provider identity.");
     if(provider=="youtube-music") {
-        const QString pattern=destinationKind=="artist"?"^UC[A-Za-z0-9_-]{22}$":destinationKind=="song"?"^[A-Za-z0-9_-]{11}$":"^[A-Za-z0-9_-]{1,256}$";
-        if(!QRegularExpression(pattern).match(id).hasMatch())return failure("Malformed YouTube Music entity ID.");
+        // Cache validation and Home ranking reuse these for every item and credit.
+        static thread_local const QRegularExpression artistId("^UC[A-Za-z0-9_-]{22}$");
+        static thread_local const QRegularExpression songId("^[A-Za-z0-9_-]{11}$");
+        static thread_local const QRegularExpression albumId("^[A-Za-z0-9_-]{1,256}$");
+        const auto &pattern=destinationKind=="artist"?artistId:destinationKind=="song"?songId:albumId;
+        if(!pattern.match(id).hasMatch())return failure("Malformed YouTube Music entity ID.");
     }
     RecommendationEntityRef ref=RecommendationEntityRef::fromProvider(entityKind,ProviderItemRef(*p.value,*i.value));
     const auto mapping=item.value("mapping").toMap();QString status=text(mapping,"status");

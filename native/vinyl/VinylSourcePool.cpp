@@ -55,12 +55,13 @@ bool nonnegativeInteger(const QVariant &value, int *out) {
 }
 
 bool VinylSourcePool::metadataOperation(const QString &operation) {
-    return QStringList{"chartCandidates","similarArtists","recommendationDiscography"}.contains(operation);
+    return QStringList{"chartCandidates","similarArtists","recommendationDiscography","artistTopTracks"}.contains(operation);
 }
 
 QString VinylSourcePool::metadataSource(const QString &operation, const QString &value, const QVariantMap &options) {
     if (operation == "recommendationDiscography") return "musicbrainz";
     if (operation == "chartCandidates") return value.startsWith("apple:") ? "apple-music" : "lastfm";
+    if (operation == "artistTopTracks") return "lastfm";
     return options.value("source").toString();
 }
 
@@ -77,6 +78,11 @@ bool VinylSourcePool::validMetadataRequest(const QString &operation, const QStri
     if (operation == "chartCandidates") {
         return seed.isEmpty() && (QStringList{"lastfm:tracks","lastfm:artists"}.contains(value)
             || QRegularExpression("^apple:(us|gb|jp|kr|in|br|ng|de|fr|mx):(albums|songs)$").match(value).hasMatch());
+    }
+    if (operation == "artistTopTracks") {
+        return seed.size() == 4 && seed.value("kind") == "artist" && seed.value("provider") == "youtube-music"
+            && seed.value("providerId") == value && QRegularExpression("^UC[A-Za-z0-9_-]{22}$").match(value).hasMatch()
+            && boundedText(seed.value("name"),300);
     }
     const auto ref = vinyl::RecommendationEntityRef::fromJson(QJsonObject::fromVariantMap(seed));
     if (!ref.ok() || !ref.value->isCanonical() || ref.value->kind() != vinyl::CanonicalEntityKind::Artist
@@ -166,6 +172,19 @@ bool VinylSourcePool::normalizeMetadataEnvelope(const QString &operation, const 
             }
         }
         *out = data; return true;
+    }
+    if (operation == "artistTopTracks") {
+        if (data.contains("artist") || input.size() > 50 || status == "partial"
+            || (status == "ready") != !input.isEmpty()) return false;
+        if (status != "unavailable" && (provenance.value("generator") != "artist-top-tracks"
+            || provenance.value("method") != "artist.getTopTracks")) return false;
+        for (const auto &value : input) {
+            if (value.metaType().id() != QMetaType::QVariantMap) return false;
+            const auto item = value.toMap();
+            if (item.size() != 2 || !boundedText(item.value("title"),600) || !boundedText(item.value("artist"),600)) return false;
+        }
+        *out = data;
+        return true;
     }
     if (data.contains("artist") || input.size() > (operation == "chartCandidates" ? 50 : 60)
         || ((status == "ready" || status == "partial") == input.isEmpty())) return false;
@@ -367,17 +386,79 @@ QVariantList VinylSourcePool::newReleaseNeighbors(const QVariantList &seeds, con
 }
 
 QVariantList VinylSourcePool::homeRows(const QVariantMap &buckets, bool history) {
-    const QStringList keys{"mixes-radio","new-from-your-artists","albums-for-you","because-you-played","deep-cuts","rediscover","artists-like-yours"};
+    const QStringList keys{"mixes-radio","new-from-your-artists","albums-for-you","because-you-played","deep-cuts","rediscover","artists-like-yours","quick-picks"};
     const QStringList titles{"Mixes & radio","New from your artists","Albums for you",
-        QString::fromUtf8("Because you played…"),
-        "Deep cuts from your artists","Rediscover","Artists like the ones you love"};
+        QString::fromUtf8("Because you played…"),"Deep cuts from your artists","Rediscover","Artists like the ones you love","Quick picks"};
+    const QStringList claimOrder{"because-you-played","deep-cuts","new-from-your-artists","albums-for-you","artists-like-yours","quick-picks","rediscover"};
+    QSet<QString> claimed;
+    QMap<QString,QVariantList> picked;
+    auto claimKeys=[](const QVariantMap &card) {
+        QSet<QString> ids;
+        auto insert=[&](const QString &prefix, QString id) {
+            if(id.startsWith("ytm:album:"))id=id.mid(10);
+            if(!id.isEmpty())ids.insert(prefix+id);
+        };
+        insert("key:",card.value("key").toString());
+        insert("id:",card.value("id").toString());
+        const auto kind=card.value("kind").toString();
+        const auto record=card.value("record").toMap();
+        const auto ownedAlbum=card.value("row").toMap().value("edition").toMap().value("sourceAlbum").toMap();
+        const auto ref=card.value("albumRef").toMap(), entity=card.value("ref").toMap();
+        if(kind=="album"||kind=="albums") {
+            insert("album:",card.value("providerId",card.value("id")).toString());
+            insert("album:",card.value("id").toString());
+        } else if(kind=="songs"||kind=="saved-song"||kind=="song") {
+            const auto track=record.value("tracks").toList().value(card.value("trackIndex").toInt()).toMap();
+            const auto ownedTrack=card.value("row").toMap().value("track").toMap();
+            insert("song:",track.value("videoId",ownedTrack.value("videoId",card.value("providerId"))).toString());
+            if(record.value("type")!="Song")
+                insert("album:",record.value("providerIds").toMap().value("youtube-music",record.value("browseId",record.value("id"))).toString());
+            insert("album:",ref.value("providerId",ref.value("itemId")).toString());
+            insert("album:",ownedAlbum.value("providerIds").toMap().value("youtube-music",ownedAlbum.value("id")).toString());
+        }
+        if(entity.value("identity")=="canonical"&&entity.value("kind")=="release_group")insert("group:",entity.value("mbid").toString().toLower());
+        if(ref.value("identity")=="canonical"&&ref.value("kind")=="release_group")insert("group:",ref.value("mbid").toString().toLower());
+        // Discography date evidence can identify a repeat without remapping a playback destination.
+        for(const auto &group:{card.value("releaseGroupMbid"),record.value("releaseGroupMbid"),ref.value("releaseGroupMbid"),
+            ownedAlbum.value("releaseGroupMbid"),card.value("dateEvidence").toMap().value("releaseGroupMbid")})
+            insert("group:",group.toString().toLower());
+        return ids;
+    };
+    for(const auto &key:claimOrder) {
+        if(key=="rediscover"&&!history)continue;
+        QVariantList items;QSet<QString> rowClaims,artists;
+        for(const auto &value:buckets.value(key).toList()) {
+            const auto card=value.toMap();const auto ids=claimKeys(card);
+            if(claimed.intersects(ids)||rowClaims.intersects(ids))continue;
+            if(key=="because-you-played") {
+                const auto artist=card.value("similarArtistKey").toString();
+                if(!artist.isEmpty()&&artists.contains(artist))continue;
+                artists.insert(artist);
+            }
+            rowClaims.unite(ids);items.append(value);
+            if(items.size()==12)break;
+        }
+        const int minimum=key=="because-you-played"?4:(key=="deep-cuts"||key=="quick-picks"?1:8);
+        if(items.size()>=minimum){claimed.unite(rowClaims);picked[key]=items;}
+    }
+    QVariantList stations;
+    QSet<QString> stationKeys;
+    // A radio station and its seed artist are distinct destinations. But a
+    // picked-artist station can also arrive via the related-artist list.
+    for(const auto &value:buckets.value("mixes-radio").toList()) {
+        auto card=value.toMap();
+        if(card.value("kind")=="radio"||card.value("key").toString().isEmpty())card["key"]=card.value("id");
+        const auto key=card.value("key").toString();
+        if(key.isEmpty()||stationKeys.contains(key))continue;
+        stationKeys.insert(key);
+        stations.append(card);
+    }
+    if(stations.size()>=8)picked["mixes-radio"]=stations;
     QVariantList result;
-    for (int index = 0; index < keys.size(); ++index) {
-        if (keys[index] == "rediscover" && !history) continue;
-        const auto items = buckets.value(keys[index]).toList();
-        // Only this shelf can be useful with as few as one qualified artist (three albums max).
-        if (items.size() < (keys[index] == "because-you-played" ? 1 : 8)) continue;
-        result.append(QVariantMap{{"key",keys[index]},{"id",keys[index]},{"title",titles[index]},
+    for(int index=0;index<keys.size();++index) {
+        const auto items=picked.value(keys[index]);if(items.isEmpty())continue;
+        const auto title=keys[index]=="because-you-played"?items.first().toMap().value("anchorReason",titles[index]).toString():titles[index];
+        result.append(QVariantMap{{"key",keys[index]},{"id",keys[index]},{"title",title},
             {"items",items},{"itemCount",items.size()},{"status","ready"}});
     }
     return result;

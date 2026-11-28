@@ -117,6 +117,33 @@ class SourcePoolProviderTest(unittest.TestCase):
                 self.assertNotIn("country",query)
                 self.assertEqual(t.calls[0][1],4)
                 self.assertEqual(len(t.calls),1)
+    def test_artist_top_tracks_is_bound_limited_and_sorted_by_play_count(self):
+        channel = "UC" + "0" * 22
+        request = dict(operation="artistTopTracks", value=channel,
+                       seed=dict(kind="artist", provider="youtube-music", providerId=channel, name="50 Cent"))
+        rows = [{"name":f"Track {i}", "artist":{"name":"50 Cent"}, "playcount":str(i)} for i in range(50)]
+        rows[-1]["name"] = "In Da Club"
+        transport = Transport({"toptracks":{"track":rows,"@attr":{"artist":"50 Cent","total":"90"}}})
+        result = p.handle(request, source_pool_transport=transport)
+        self.assertEqual((result["status"], result["complete"], len(result["items"])), ("ready", True, 50))
+        self.assertEqual(result["seed"], request["seed"])
+        self.assertEqual(result["items"][0], {"title":"In Da Club", "artist":"50 Cent"})
+        self.assertEqual(result["items"][-1]["title"], "Track 0")
+        self.assertNotIn(os.environ["COLOSSEUM_VINYL_LASTFM_API_KEY"], json.dumps(result))
+        query = urllib.parse.parse_qs(urllib.parse.urlparse(transport.calls[0][0]).query)
+        self.assertEqual([query[key] for key in ("method", "artist", "limit", "page", "autocorrect")],
+                         [["artist.getTopTracks"], ["50 Cent"], ["50"], ["1"], ["0"]])
+        self.assertEqual(len(transport.calls), 1)
+
+        for reply in ({"error":6}, {"toptracks":{"track":rows[:1],"@attr":{"artist":"50 Cent","total":"90"}}},
+                      {"toptracks":{"track":rows,"@attr":{"artist":"Other artist"}}}):
+            failed = p.handle(request, source_pool_transport=Transport(reply))
+            self.assertEqual((failed["status"], failed["complete"], failed["items"]), ("unavailable", False, []))
+        unused = Transport()
+        invalid = p.handle(dict(request, value="UC" + "1" * 22), source_pool_transport=unused)
+        self.assertEqual(invalid["status"], "unavailable")
+        self.assertFalse(unused.calls)
+
     def test_missing_lastfm_key_is_unavailable_without_transport(self):
         os.environ.pop("COLOSSEUM_VINYL_LASTFM_API_KEY")
         for request in ({"operation":"chartCandidates","value":"lastfm:tracks","seed":{}},

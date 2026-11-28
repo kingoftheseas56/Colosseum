@@ -236,28 +236,63 @@ private slots:
         QCOMPARE(selected.last().toMap().value("providerId"),artist(19).value("providerId"));
         QVERIFY(VinylSourcePool::newReleaseNeighbors({seed},bySeed,8).isEmpty());
     }
-    void rowsStayFullExceptForThePlayedShelfAndRediscoverRequiresHistory()
+    void homeRowsClaimSharedReleaseAndSongIdsInPriorityOrder()
     {
-        const QStringList keys{"mixes-radio","new-from-your-artists","albums-for-you","because-you-played","deep-cuts","rediscover","artists-like-yours"};
-        QVariantList eight;
-        for(int index=0;index<8;++index)eight.append(item("apple-music",QString::number(100+index),"Fixture Album"));
-        QVariantMap buckets;
-        for(const auto &key:keys)if(key!="because-you-played")buckets[key]=eight;
-        const auto firstVisit=VinylSourcePool::homeRows(buckets,false);
-        QStringList actual;
-        for(const auto &value:firstVisit){const auto row=value.toMap();actual.append(row.value("key").toString());QCOMPARE(row.value("items").toList().size(),8);}
-        auto withoutHistory=keys;withoutHistory.removeOne("rediscover");withoutHistory.removeOne("because-you-played");
-        QCOMPARE(actual,withoutHistory);
-        buckets["because-you-played"]=eight.mid(0,1);
-        const auto returning=VinylSourcePool::homeRows(buckets,true);
-        QCOMPARE(returning.size(),7);
-        QCOMPARE(returning[3].toMap().value("key").toString(),QString("because-you-played"));
-        QCOMPARE(returning[3].toMap().value("title").toString(),QString("Because you played…"));
-        QCOMPARE(returning[3].toMap().value("items").toList().size(),1);
-        buckets["deep-cuts"]=eight.mid(0,7);
-        const auto thin=VinylSourcePool::homeRows(buckets,true);
-        QCOMPARE(thin.size(),6);
-        for(const auto &value:thin)QVERIFY(value.toMap().value("key")!="deep-cuts");
+        auto albums=[](const QString &prefix) {
+            QVariantList result;
+            for(int i=0;i<8;++i)result.append(QVariantMap{{"kind","albums"},{"id",prefix+QString::number(i)}});
+            return result;
+        };
+        const QString group="11111111-1111-4111-8111-111111111111";
+        const QVariantMap song{{"kind","songs"},{"id","deep-song"},{"providerId","deep-video"},
+            {"albumRef",QVariantMap{{"providerId","deep-album"}}},{"releaseGroupMbid",group}};
+        auto newAlbums=albums("new-");
+        newAlbums.prepend(QVariantMap{{"kind","albums"},{"id","deep-album"}});
+        newAlbums.prepend(QVariantMap{{"kind","albums"},{"id","other-edition"},{"releaseGroupMbid",group}});
+        auto forYou=albums("for-you-");
+        const auto played=albums("played-").mid(0,4);
+        forYou.prepend(played.first());forYou.prepend(newAlbums.last());
+        auto alternateSong=song;alternateSong.remove("albumRef");alternateSong.remove("releaseGroupMbid");alternateSong["id"]="other-song-id";
+        const QVariantMap freshSong{{"kind","songs"},{"id","quick-song"}};
+        QVariantMap buckets{{"because-you-played",played},{"deep-cuts",QVariantList{song}},
+            {"new-from-your-artists",newAlbums},{"albums-for-you",forYou},{"rediscover",albums("rediscover-")},
+            {"quick-picks",QVariantList{alternateSong,freshSong}}};
+        auto row=[&](const QString &id,bool history) {
+            for(const auto &value:VinylSourcePool::homeRows(buckets,history))if(value.toMap().value("id")==id)return value.toMap().value("items").toList();
+            return QVariantList();
+        };
+        QCOMPARE(row("because-you-played",true),played);
+        QCOMPARE(row("new-from-your-artists",true),albums("new-"));
+        QCOMPARE(row("albums-for-you",true),albums("for-you-"));
+        QCOMPARE(row("quick-picks",true),QVariantList{freshSong});
+        QVERIFY(row("rediscover",false).isEmpty());QCOMPARE(row("rediscover",true).size(),8);
+        buckets["because-you-played"]=played.mid(0,3);
+        QVERIFY(row("because-you-played",true).isEmpty());
+        QVERIFY(row("albums-for-you",true).contains(played.first())); // Hidden shelves never claim items.
+    }
+    void homeMixesAndRadioKeepOneCardPerStation()
+    {
+        const QString duplicateId="home-radio:shared-artist";
+        QVariantList stations{
+            QVariantMap{{"id","home-mix:personal"},{"kind","mixes"}},
+            QVariantMap{{"id",duplicateId},{"kind","radio"},{"title","Picked artist radio"}},
+            QVariantMap{{"id",duplicateId},{"kind","radio"},{"key","seed-artist-key"},{"title","Related artist radio"}},
+        };
+        for(int index=0;index<6;++index)
+            stations.append(QVariantMap{{"id",QString("home-radio:%1").arg(index)},{"kind","radio"}});
+        const auto rows=VinylSourcePool::homeRows({{"mixes-radio",stations}},false);
+        QCOMPARE(rows.size(),1);
+        const auto items=rows.first().toMap().value("items").toList();
+        QCOMPARE(items.size(),8);
+        const auto picked=items.at(1).toMap();
+        QCOMPARE(picked.value("key").toString(),duplicateId);
+        QCOMPARE(picked.value("title").toString(),QString("Picked artist radio"));
+        QSet<QString> keys;
+        for(const auto &item:items) {
+            const auto key=item.toMap().value("key").toString();
+            QVERIFY(!key.isEmpty()&&!keys.contains(key));
+            keys.insert(key);
+        }
     }
     void providerReceivesRecordedMetadataAndItsCacheRoundTrip()
     {

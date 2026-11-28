@@ -1,6 +1,7 @@
 #include <QtTest>
 #include <algorithm>
 #include <QCoreApplication>
+#include <QCryptographicHash>
 #include <QDate>
 #include <QDateTime>
 #include <QEventLoop>
@@ -17,6 +18,7 @@
 
 #include "vinyl/VinylRecommendationService.h"
 #include "vinyl/VinylProvider.h"
+#include "vinyl/VinylRecommendationIdentity.h"
 #include "account/ActivityStore.h"
 #include "account/HistoryStore.h"
 #include <QTemporaryDir>
@@ -155,6 +157,8 @@ public:
     int maxConcurrent = 0;
     bool runtimeFixtures = false;
     bool manualDiscography = false;
+    bool manualSimilarity = false;
+    bool manualListening = false;
     QList<QString> cancelledLanes;
     QList<Request> requests;
     QSet<QString> freshCachedArtistIds;
@@ -177,9 +181,9 @@ public:
         // Recommendation service tests exercise Home ranking, not the separate
         // listening provider lanes. Keep those requests from affecting the
         // bounded Home concurrency fixtures.
-        if (lane.startsWith(QStringLiteral("home-listening-")) && !runtimeFixtures)
+        if (lane.startsWith(QStringLiteral("home-listening-")) && !runtimeFixtures && !manualListening)
             return -1;
-        if (!runtimeFixtures && (operation=="chartCandidates" || operation=="similarArtists"
+        if (!runtimeFixtures && (operation=="chartCandidates" || (operation=="similarArtists" && !manualSimilarity)
                                  || (operation=="recommendationDiscography" && !manualDiscography)))
             return -1; // Existing ranker fixtures deliberately provide no optional metadata.
         Request call{lane, operation, value, options, ++m_nextId};
@@ -388,6 +392,43 @@ QVariantMap sectionById(const QVariantList &sections, const QString &id)
 QVariantList sectionItems(const VinylRecommendationService &service, const QString &id)
 {
     return sectionById(service.homeSections(), id).value(QStringLiteral("items")).toList();
+}
+
+QVariantMap homeRow(const VinylRecommendationService &service, const QString &id)
+{
+    return sectionById(service.homeSourcePool().value("rows").toList(), id);
+}
+
+void recordFixturePlay(ActivityStore &activity, int artist, qint64 at, int activeMs)
+{
+    const auto id=artistSeed(artist).value("providerId");
+    QVariantMap fact{{"sessionId","played-"+QString::number(artist)},{"world","vinyl"},{"kind","music"},
+        {"titleKey","album"},{"itemKey","track"},{"title","Track"},{"utcOffsetMinutes",0},{"syncable",false}};
+    auto start=fact;start["atMs"]=at;start["action"]="start";start["origin"]="manual";
+    start["positionMs"]=0;start["durationMs"]=120000;
+    start["entityRef"]=QVariantMap{{"identity","provider"},{"kind","recording"},{"providerId","youtube-music"},{"itemId","Abc123def45"}};
+    start["artistRefs"]=QVariantList{QVariantMap{{"identity","provider"},{"kind","artist"},{"providerId","youtube-music"},{"itemId",id}}};
+    QVERIFY(activity.recordMusicAction(start));
+    fact["startAtMs"]=at+1000;fact["endAtMs"]=at+1000+activeMs;fact["activeMs"]=activeMs;fact["rateMilli"]=1000;
+    QVERIFY(activity.recordPlaybackDelta(fact));
+}
+
+QString fixtureArtistMbid(int artist)
+{
+    return QString("b0000000-0000-4000-8000-%1").arg(artist,12,10,QLatin1Char('0'));
+}
+
+QVariantMap similarityCard(int artist, int rank, bool lastfm)
+{
+    const auto name=artistSeed(artist).value("name");
+    const auto mbid=fixtureArtistMbid(artist);
+    const QString source=lastfm?"lastfm":"listenbrainz";
+    const QString sourceId=lastfm?"mbid:"+mbid:mbid;
+    const QString hash=QString::fromLatin1(QCryptographicHash::hash(sourceId.toUtf8(),QCryptographicHash::Sha256).toHex().left(24));
+    return {{"catalogueCard",true},{"source",source},{"kind","artists"},{"id",source+":artists:"+hash},
+        {"title",name},{"artist",name},{"sourceIds",QVariantMap{{"id",sourceId}}},
+        {"hints",QVariantMap{{"mbidEvidence",QVariantMap{{"artist",mbid}}}}},
+        {"rank",rank},{"similarity",lastfm?1.0/rank:1000.0/rank}};
 }
 
 QString providerItemId(const QVariantMap &card)
@@ -1102,86 +1143,182 @@ private slots:
         QCOMPARE(sectionItems(fixture.service,"from-your-artists").first().toMap().value("score").toLongLong(),card.value("score").toLongLong()+1000);
         QVERIFY(!fixture.preferences.feedback.isEmpty());
     }
-    void becauseYouPlayedUsesQualifiedHistoryWithoutRepeatingAlbumsForYou() {
+    void becauseYouPlayedAndArtistsLikeYoursUseSimilarityWithoutKnownArtists()
+    {
         ActivityStore activity;
-        HomeFixture fixture({artistSeed(1),artistSeed(2),artistSeed(3),artistSeed(4)});
-        fixture.service.setActivityStore(&activity);
-        for(int pass=0;pass<32;++pass) {
+        HomeFixture fixture({artistSeed(1),artistSeed(2),artistSeed(3),artistSeed(4)},kFixedNowMs,false);
+        auto &service=fixture.service;
+        auto &source=fixture.source;
+        source.manualSimilarity=true;
+        service.setActivityStore(&activity);
+        recordFixturePlay(activity,20,kFixedNowMs-100000,12000); // Played but not picked.
+        recordFixturePlay(activity,1,kFixedNowMs-70000,12000);   // Anchor.
+        recordFixturePlay(activity,3,kFixedNowMs-40000,9000);   // Too short to anchor.
+        runHomeVisit(service);
+        for(int pass=0;pass<80;++pass) {
             QCoreApplication::processEvents(QEventLoop::AllEvents,20);
-            const auto pending=fixture.source.pendingRequests("artistCandidates");
-            if(pending.isEmpty()) {
-                QCoreApplication::processEvents(QEventLoop::AllEvents,20);
-                if(fixture.source.pendingRequests("artistCandidates").isEmpty())break;
-                continue;
-            }
+            const auto pending=source.pendingRequests();
+            if(pending.isEmpty())break;
             for(const auto &call:pending) {
+                auto reply=source.defaultReply(call);
                 const auto seed=call.options.value("seed").toMap();
-                QVariantList albums;
-                const int count=call.value==artistSeed(4).value("providerId").toString()?3:7;
-                for(int i=0;i<count;++i) {
-                    const auto id=QString("MPRE_%1_%2").arg(call.value.right(2)).arg(i);
-                    albums.append(albumCandidate(seed,id,"Album "+id));
-                }
-                auto payload=fixture.source.defaultReply(call);payload["items"]=albums;
-                fixture.source.complete(call,payload);
+                const int index=call.value.right(2).toInt();
+                if(call.operation=="artistCandidates") {
+                    QVariantList items;
+                    for(int n=0;n<(index<5?6:2);++n) {
+                        const auto id=QString("MPRE_%1_%2").arg(index).arg(n);
+                        items.append(albumCandidate(seed,id,"Album "+id));
+                    }
+                    if(index==1)for(int other:{2,20,21,22,23,24}) {
+                        auto item=artistSeed(other);
+                        item["title"]=item.value("name");item["relation"]="related-artist";
+                        item["seedArtistRef"]=seed;item["artistRefs"]=QVariantList{artistSeed(other)};
+                        items.append(item);
+                    }
+                    reply["items"]=items;
+                } else if(call.operation=="recommendationIdentity"&&index<5) {
+                    const auto mbid=fixtureArtistMbid(index);
+                    reply["items"]=QVariantList();reply["provenance"]=QVariantMap{{"source","musicbrainz"}};
+                    reply["complete"]=true;reply["status"]="verified";reply["mbid"]=mbid;
+                    reply["artist"]=QVariantMap{{"id",mbid},{"name",seed.value("name")}};
+                    reply["mapping"]=QVariantMap{{"status","verified"},{"kind","artist"},{"provider","youtube-music"},
+                        {"providerId",call.value},{"mbid",mbid},{"method","external-id"},{"fetchedAtMs",kFixedNowMs}};
+                } else if(call.operation=="similarArtists") {
+                    const bool lastfm=call.options.value("source")=="lastfm";
+                    QVariantList items;
+                    const QList<int> artists=index==1?(lastfm?QList<int>{20,2,22,23,24,25,26,27,28,29,21}
+                                                           :QList<int>{20,21})
+                                                       :index==2?QList<int>{22}:QList<int>{};
+                    int rank=0;for(int other:artists)items.append(similarityCard(other,++rank,lastfm));
+                    reply["items"]=items;reply["complete"]=true;reply["status"]=items.isEmpty()?"empty":"ready";
+                    auto provenance=QVariantMap{{"source",call.options.value("source")},{"generator","artist-similarity"}};
+                    if(lastfm){provenance["method"]="artist.getSimilar";provenance["artistName"]=call.options.value("artistName");}
+                    else provenance["algorithm"]="fixture";
+                    reply["provenance"]=provenance;
+                } else {source.complete(call,{},"Optional fixture unavailable");continue;}
+                source.complete(call,reply);
             }
         }
-        QCoreApplication::processEvents(QEventLoop::AllEvents,20);
-        const auto rowItems=[&](const QString &key) {
-            return sectionById(fixture.service.homeSourcePool().value("rows").toList(),key).value("items").toList();
-        };
-        QCOMPARE(rowItems("albums-for-you").size(),12);
-        QVERIFY(rowItems("because-you-played").isEmpty());
-
-        auto listen=[&](int artist,qint64 at,int activeMs) {
-            const auto id=artistSeed(artist).value("providerId");
-            QVariantMap fact{{"sessionId","played-"+QString::number(artist)},{"world","vinyl"},{"kind","music"},
-                {"titleKey","album"},{"itemKey","track"},{"title","Track"},{"utcOffsetMinutes",0},{"syncable",false}};
-            auto start=fact;start["atMs"]=at;start["action"]="start";start["origin"]="manual";
-            start["positionMs"]=0;start["durationMs"]=120000;
-            start["entityRef"]=QVariantMap{{"identity","provider"},{"kind","recording"},{"providerId","youtube-music"},{"itemId","Abc123def45"}};
-            start["artistRefs"]=QVariantList{QVariantMap{{"identity","provider"},{"kind","artist"},{"providerId","youtube-music"},{"itemId",id}}};
-            QVERIFY(activity.recordMusicAction(start));
-            fact["startAtMs"]=at+1000;fact["endAtMs"]=at+1000+activeMs;fact["activeMs"]=activeMs;fact["rateMilli"]=1000;
-            QVERIFY(activity.recordPlaybackDelta(fact));
-            expireHomeInputs(fixture.service);
-        };
-        listen(3,kFixedNowMs-120000,5000);
-        QVERIFY(rowItems("because-you-played").isEmpty());
-        listen(4,kFixedNowMs-90000,12000);
-        QVERIFY(rowItems("because-you-played").isEmpty()); // All three artist 4 albums are in Albums for you.
-        listen(1,kFixedNowMs-60000,12000);
-        auto played=rowItems("because-you-played");
-        QCOMPARE(played.size(),3);
-        const auto forYou=rowItems("albums-for-you");
-        QCOMPARE(forYou,sectionItems(fixture.service,"from-your-artists"));
-        QSet<QString> albumIds;
-        for(const auto &item:forYou)albumIds.insert(providerItemId(item.toMap()));
-        for(const auto &item:played) {
-            const auto card=item.toMap();
+        QVERIFY(source.pendingRequests().isEmpty());
+        QTRY_VERIFY(!homeRow(service,"because-you-played").isEmpty());
+        const auto row=homeRow(service,"because-you-played");
+        QCOMPARE(row.value("title").toString(),QString("Because you played Fixture Artist 1"));
+        const auto played=row.value("items").toList();
+        QSet<QString> neighbors;
+        for(const auto &entry:played) {
+            const auto card=entry.toMap();
             QCOMPARE(card.value("kind").toString(),QString("albums"));
-            QCOMPARE(card.value("artistRefs").toList().first().toMap().value("providerId"),artistSeed(1).value("providerId"));
-            const auto id=providerItemId(card);
-            QVERIFY(!albumIds.contains(id));albumIds.insert(id);
+            const auto credit=card.value("artistRefs").toList().first().toMap();
+            const auto name=credit.value("name").toString();
+            QVERIFY(name!=artistSeed(20).value("name").toString()); // Negative control: known-artist gate.
+            QVERIFY(name!=artistSeed(2).value("name").toString());
+            QVERIFY(!neighbors.contains(name));neighbors.insert(name);
+            QCOMPARE(card.value("reason").toString(),QString("Listeners of Fixture Artist 1 also play %1").arg(name));
+        }
+        QCOMPARE(played.size(),4);
+        const auto discoveries=homeRow(service,"artists-like-yours").value("items").toList();
+        QVERIFY(!discoveries.isEmpty());
+        QStringList names;
+        for(const auto &value:discoveries) {
+            const auto card=value.toMap();names.append(card.value("title").toString());
+            const auto reasons=card.value("reasons").toList();
+            QVERIFY(std::any_of(reasons.cbegin(),reasons.cend(),[](const QVariant &entry){
+                return entry.toMap().value("kind")=="calibrated_generator_score";
+            }));
+        }
+        QVERIFY(!names.contains("Fixture Artist 20"));QVERIFY(!names.contains("Fixture Artist 2"));
+        QVERIFY(names.contains("Fixture Artist 21")&&names.contains("Fixture Artist 23"));
+        QVERIFY(names.indexOf("Fixture Artist 21")<names.indexOf("Fixture Artist 23")); // Two sources vs. one.
+        QVERIFY(names.indexOf("Fixture Artist 22")<names.indexOf("Fixture Artist 21")); // Support across two seeds.
+        const auto rows=service.homeSourcePool().value("rows").toList();
+        QVERIFY(!homeRow(service,"albums-for-you").isEmpty());
+        QSet<QString> keys;
+        for(const auto &value:rows)for(const auto &entry:value.toMap().value("items").toList()) {
+            const auto rowKey=value.toMap().value("key").toString();
+            const auto card=entry.toMap();const auto key=card.value("key").toString();
+            QVERIFY2(!key.isEmpty(),qPrintable(rowKey+": missing key for "+card.value("id").toString()));
+            QVERIFY2(!keys.contains(key),qPrintable(rowKey+": repeated key "+key));
+            keys.insert(key);
         }
         const auto ref=played.first().toMap().value("ref").toMap();
-        const auto token=fixture.service.homeSnapshot().value("exposureSnapshotId").toString();
-        QVERIFY(!fixture.service.recordVisibleItems("from-your-artists",token,{ref},0));
-        QVERIFY(fixture.service.recordVisibleItems("because-you-played",token,{ref},0));
+        const auto token=service.homeSnapshot().value("exposureSnapshotId").toString();
+        QVERIFY(service.recordVisibleItems("because-you-played",token,{ref},0));
         QVERIFY(fixture.preferences.exposure.contains("because-you-played"));
-        QVERIFY(fixture.service.setFeedback(ref,"hide",0));
-        QCOMPARE(rowItems("because-you-played").size(),3);
-        for(const auto &item:rowItems("because-you-played"))QVERIFY(item.toMap().value("ref").toMap()!=ref);
-
-        listen(2,kFixedNowMs-30000,12000);
-        played=rowItems("because-you-played");
-        QCOMPARE(played.size(),6);
-        for(int i=0;i<played.size();++i)
-            QCOMPARE(played[i].toMap().value("artistRefs").toList().first().toMap().value("providerId"),
-                artistSeed(i<3?2:1).value("providerId"));
-        QVERIFY(activity.clearAll());expireHomeInputs(fixture.service);
-        QVERIFY(rowItems("because-you-played").isEmpty());
-        QCOMPARE(rowItems("albums-for-you").size(),12);
+        // Three surviving artists (even with spare albums) cannot fill the row.
+        const auto credit=played.first().toMap().value("artistRefs").toList().first().toMap();
+        const auto blocked=VinylRecommendationIdentity::fromCatalogue(credit).value("ref").toMap();
+        QVERIFY(service.setFeedback(blocked,"exclude-artist",0));
+        QVERIFY(homeRow(service,"because-you-played").isEmpty());
+        QVERIFY(activity.clearAll());expireHomeInputs(service);
+        QVERIFY(homeRow(service,"because-you-played").isEmpty());
+    }
+    void deepCutsRequireAgeAndArtistHitEvidence_data()
+    {
+        QTest::addColumn<bool>("lastfmAvailable");
+        QTest::newRow("top-tracks-ready")<<true;
+        QTest::newRow("top-tracks-failure")<<false;
+    }
+    void deepCutsRequireAgeAndArtistHitEvidence()
+    {
+        QFETCH(bool,lastfmAvailable);
+        auto seed=artistSeed(1);seed["name"]="50 Cent";
+        HomeFixture fixture({seed},kFixedNowMs,false);
+        auto &service=fixture.service;
+        auto &source=fixture.source;
+        source.manualListening=true;
+        runHomeVisit(service);
+        for(int pass=0;pass<40;++pass) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents,20);
+            const auto pending=source.pendingRequests();if(pending.isEmpty())break;
+            for(const auto &call:pending) {
+                auto reply=source.defaultReply(call);
+                if(call.operation=="artistCandidates") {
+                    const auto bound=call.options.value("seed").toMap();
+                    reply["items"]=QVariantList{albumCandidate(bound,"MPRE_hit","Hit album"),
+                        albumCandidate(bound,"MPRE_deep","Deep album"),albumCandidate(bound,"MPRE_recent","Recent album")};
+                } else if(call.operation=="album") {
+                    const QStringList ids{"ytm:artist:"+seed.value("providerId").toString()}, names{"50 Cent"};
+                    const auto track=[&](const QString &id,const QString &title) {
+                        return QVariantMap{{"id","ytm:track:"+id},{"videoId",id},{"title",title},{"seconds",170},
+                            {"artistIds",ids},{"artists",names},{"available",true}};
+                    };
+                    const QVariantList tracks=call.value=="MPRE_hit"?QVariantList{track("HitUpload01","In Da Club (2004 Remastered) [Explicit] - Radio Edit")}
+                        :call.value=="MPRE_deep"?QVariantList{track("DeepTrack01","Deep track one"),track("DeepTrack02","Deep track two")}
+                        :QVariantList{track("RecentTrk01","Recent non-hit")};
+                    reply={{"id",call.value},{"browseId",call.value},{"title",call.value},{"origin","youtube-music"},
+                        {"year",call.value=="MPRE_recent"?2023:2004},{"type","Album"},{"tracks",tracks},
+                        {"artistIds",ids},{"artists",names},{"cover","https://fixture.invalid/original.jpg"}};
+                } else if(call.operation=="artistTopTracks") {
+                    QCOMPARE(service.homeStatus(),QString("ready"));
+                    QVERIFY(homeRow(service,"deep-cuts").isEmpty());
+                    if(!lastfmAvailable){source.complete(call,{},"Optional fixture unavailable");continue;}
+                    reply["status"]="ready";reply["complete"]=true;
+                    reply["provenance"]=QVariantMap{{"source","lastfm"},{"generator","artist-top-tracks"},{"method","artist.getTopTracks"}};
+                    // Last.fm supplies title/artist, not a matching YouTube video ID.
+                    reply["items"]=QVariantList{QVariantMap{{"title","in da club!"},{"artist","50 Cent"}},
+                        QVariantMap{{"title","Deep track one"},{"artist","Another artist"}},
+                        QVariantMap{{"title","Deep track two"},{"artist","Another artist"}}};
+                } else {source.complete(call,{},"Optional fixture unavailable");continue;}
+                source.complete(call,reply);
+            }
+        }
+        QTRY_COMPARE(source.callsFor("artistTopTracks").size(),1);
+        QTRY_COMPARE(service.homeSourcePool().value("pendingCount").toInt(),0);
+        QTRY_VERIFY(!homeRow(service,"quick-picks").isEmpty());
+        const auto deep=homeRow(service,"deep-cuts").value("items").toList();
+        if(!lastfmAvailable){QVERIFY(deep.isEmpty());return;}
+        for(const auto &value:deep) {
+            const auto card=value.toMap();
+            QVERIFY(!card.value("title").toString().startsWith("In Da Club")); // Negative control: title gate.
+            QVERIFY(card.value("title")!="Recent non-hit");
+        }
+        QCOMPARE(deep.size(),1);
+        const auto card=deep.first().toMap();
+        QVERIFY(card.value("title").toString().startsWith("Deep track"));
+        QCOMPARE(card.value("record").toMap().value("id").toString(),QString("MPRE_deep"));
+        QCOMPARE(card.value("cover").toString(),QString("https://fixture.invalid/original.jpg"));
+        for(const auto &value:homeRow(service,"quick-picks").value("items").toList())
+            QVERIFY(value.toMap().value("record").toMap().value("id")!="MPRE_deep");
     }
     void retainedManualSessionsDriveOnlySpecifiedSeedDecayBoundaries() {
         HomeFixture fixture({artistSeed(1)});pumpSuccessfulReplies(fixture.source);ActivityStore activity;
@@ -1363,7 +1500,7 @@ private slots:
         fixture.source.runtimeFixtures=true;
         runHomeVisit(fixture.service);
         QTRY_VERIFY_WITH_TIMEOUT(!fixture.source.callsFor("chartCandidates").isEmpty(),5000);
-        QTRY_VERIFY_WITH_TIMEOUT(fixture.service.property("homeSourcePool").toMap().value("rows").toList().size()==5
+        QTRY_VERIFY_WITH_TIMEOUT(!homeRow(fixture.service,"artists-like-yours").isEmpty()
             && fixture.service.property("homeSourcePool").toMap().value("pendingCount",-1).toInt()==0
             && fixture.source.pendingRequests().isEmpty(),90000);
         const auto pool=fixture.service.property("homeSourcePool").toMap();
@@ -1419,10 +1556,12 @@ private slots:
         }
         QVERIFY(fixture.source.callsFor("recommendationDiscography").size()>5);
         const auto rows=pool.value("rows").toList();
+        for(const QString &key:{"mixes-radio","new-from-your-artists","albums-for-you","artists-like-yours","quick-picks"})
+            QVERIFY2(!sectionById(rows,key).isEmpty(),qPrintable(key));
         for (const auto &entry:rows) {
             const auto row=entry.toMap();
-            QVERIFY(row.value("items").toList().size()>=8);
-            QVERIFY(row.value("key")!="rediscover" && row.value("key")!="because-you-played");
+            if(row.value("key")!="quick-picks")QVERIFY(row.value("items").toList().size()>=8);
+            QVERIFY(row.value("key")!="rediscover" && row.value("key")!="because-you-played" && row.value("key")!="deep-cuts"); // Fixture album years are unknown.
             if (row.value("key")=="new-from-your-artists")
                 for (const auto &item:row.value("items").toList())
                     QCOMPARE(item.toMap().value("dateSource").toString(),QString("musicbrainz"));

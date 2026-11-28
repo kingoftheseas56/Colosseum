@@ -22,6 +22,7 @@ function artist(item) {
         || String(item.row && item.row.artist || "");
 }
 function albumDetail(item, artistText) {
+    if (item.anchorReason && item.reason) return String(item.reason);
     var record = item.record || item.album || {};
     var hints = item.hints || {};
     var year = String(item.year || record.year || hints.year || "");
