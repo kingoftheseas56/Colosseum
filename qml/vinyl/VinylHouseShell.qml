@@ -401,7 +401,7 @@ WorldPage {
                         backdrop: root.backdrop; pageFlick: root.pageFlickable
                         // Seven across at 1280 (Hemanth, 2026-11-28: "everything under mixes is too big").
                         cardSize: row.kind === "artists" ? 124
-                            : Math.floor((homeContent.width - 6 * 22) / 7)
+                            : Math.max(0, Math.floor((homeContent.width - 6 * 22) / 7))
                         squareSpacing: 22
                         home: true
                     }

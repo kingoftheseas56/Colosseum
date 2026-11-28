@@ -125,7 +125,7 @@ TestCase {
     }
     function test_spinSongsTwelveCompactRowsAndPaging() {
         makeSpin(); compare(spin.view,"songs"); compare(spin.pageSize,12); compare(spin.pageCount,2);
-        for(var i=0;i<12;++i) {var row=findChild(spin,"vinylSpinSong_"+i); verify(row!==null); compare(row.height,54);}
+        for(var i=0;i<12;++i) {var row=findChild(spin,"vinylSpinSong_"+i); verify(row!==null); compare(row.height,70);}
         var first=findChild(spin,"vinylSpinSong_0"), fourth=findChild(spin,"vinylSpinSong_3");
         var origin=first.mapToItem(spin,0,0), next=fourth.mapToItem(spin,0,0); compare(origin.x,next.x); verify(next.y>origin.y);
         compare(findChild(spin,"vinylSpinSong_12"),null);

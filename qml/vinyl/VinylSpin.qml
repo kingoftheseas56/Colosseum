@@ -97,7 +97,7 @@ Item {
                     KeyboardAction {
                         id:song
                         objectName:"vinylSpinSong_"+entry.itemIndex
-                        implicitHeight:54; showFocusFrame:false
+                        implicitHeight:70; showFocusFrame:false // Hemanth 2026-11-28: "the songs in the spin are small"
                         enabled:entry.modelData.available!==false && entry.modelData.unavailable!==true
                         accessibleName:entry.modelData.title
                         onTriggered:root.activateRequested(entry.modelData)
@@ -112,11 +112,11 @@ Item {
                                 border.color: theme.gold
                             }
                         }
-                        RoundedPosterImage { x:5; y:5; width:44; height:44; radius:7; sources:[root.artwork(entry.modelData.cover)] }
+                        RoundedPosterImage { x:5; y:5; width:60; height:60; radius:8; sources:[root.artwork(entry.modelData.cover)] }
                         Column {
-                            x:60; y:(parent.height-height)/2; width:Math.max(0,parent.width-x-94); spacing:4
-                            Text { width:parent.width; text:entry.modelData.title; textFormat:Text.PlainText; color:theme.ink; font.family:theme.ui; font.pixelSize:14; font.weight:Font.Bold; elide:Text.ElideRight }
-                            Text { width:parent.width; text:Presentation.artist(entry.modelData)+(entry.modelData.albumTitle ? " · "+entry.modelData.albumTitle : ""); textFormat:Text.PlainText; color:theme.inkDimmer; font.family:theme.ui; font.pixelSize:12; elide:Text.ElideRight }
+                            x:78; y:(parent.height-height)/2; width:Math.max(0,parent.width-x-94); spacing:5
+                            Text { width:parent.width; text:entry.modelData.title; textFormat:Text.PlainText; color:theme.ink; font.family:theme.ui; font.pixelSize:16; font.weight:Font.Bold; elide:Text.ElideRight }
+                            Text { width:parent.width; text:Presentation.artist(entry.modelData)+(entry.modelData.albumTitle ? " · "+entry.modelData.albumTitle : ""); textFormat:Text.PlainText; color:theme.inkDimmer; font.family:theme.ui; font.pixelSize:13; elide:Text.ElideRight }
                         }
                         Row {
                             anchors.right:parent.right; anchors.verticalCenter:parent.verticalCenter; spacing:1
