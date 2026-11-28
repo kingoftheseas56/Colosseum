@@ -4,6 +4,7 @@
 #include "ImdbCatalog.h"
 #include "MalCatalog.h"
 #include "VaultIndex.h"
+#include "VaultGroupTrace.h"
 #include "VaultKit.h"
 #include "VaultLocation.h"
 #include "MediaTitleNormalization.h"
@@ -397,10 +398,16 @@ void VaultIdentifier::retryPending()
         bool eligible = !rows.isEmpty();
         for (const auto& row : rows)
             if (!row.identityId.isEmpty() || row.identitySuppressed || row.away || !row.errorState.isEmpty()) eligible = false;
-        if (!eligible) continue;
-        const auto match = matchGroup(group);
-        if (match.adopted) applyGroup(group, match);
-        else if (match.candidateCount > 1) recordAmbiguous(group, match.candidateCount);
+        constexpr auto origin = "catalogue-retry";
+        if (!eligible) {
+            VaultGroupTrace trace("skip", origin, group);
+            trace.rows(rows);
+            trace.reason("retry-ineligible");
+            continue;
+        }
+        const auto match = matchGroup(group, origin);
+        if (match.adopted) applyGroup(group, match, origin);
+        else if (match.candidateCount > 1) recordAmbiguous(group, match.candidateCount, origin);
     }
 }
 
@@ -445,26 +452,49 @@ void VaultIdentifier::retryNextBookCatalog(quint64 generation)
     for (const auto& row : rows)
         if ((!row.identityId.isEmpty() && !automaticPrivateEpub(row)) || row.identitySuppressed || row.away || !row.errorState.isEmpty())
             eligible = false;
+    constexpr auto origin = "book-catalogue-retry";
     if (eligible) {
-        const auto match = matchGroup(group);
-        if (match.adopted) applyGroup(group, match);
-        else if (match.candidateCount > 1) recordAmbiguous(group, match.candidateCount);
+        const auto match = matchGroup(group, origin);
+        if (match.adopted) applyGroup(group, match, origin);
+        else if (match.candidateCount > 1) recordAmbiguous(group, match.candidateCount, origin);
+    } else {
+        VaultGroupTrace trace("skip", origin, group);
+        trace.rows(rows);
+        trace.reason("book-evidence-changed-or-ineligible");
     }
     // One group per turn, with a hard bounded pending set; no network or refresh.
     QTimer::singleShot(16, this, [this, generation] { retryNextBookCatalog(generation); });
 }
 
-VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) const
+VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey, const char* origin) const
 {
     Match match;
+    VaultGroupTrace trace("match", origin, groupKey);
+    const auto finish = [&](const char* reason, const Match& result) {
+        if (trace.active()) {
+            trace.reason(reason);
+            trace.set("candidateCount", result.candidateCount);
+            trace.set("adopted", result.adopted);
+            if (result.adopted) {
+                trace.set("provider", result.source);
+                trace.set("identityId", result.sourceId);
+                trace.set("matchedTitle", result.title);
+                trace.set("matchedYear", result.year);
+            }
+            if (!result.bookLookupReason.isEmpty())
+                trace.set("bookLookupReason", result.bookLookupReason);
+        }
+        return result;
+    };
     m_pendingGroups.remove(groupKey);
     m_pendingBookGroups.remove(groupKey);
     if (!m_index || groupKey.isEmpty())
-        return match;
+        return finish("no-index-or-group", match);
 
     const QList<VaultIndex::FileRow> rows = m_index->rowsForGroup(groupKey);
+    trace.rows(rows);
     if (rows.isEmpty())
-        return match;
+        return finish("no-rows", match);
     const VaultIndex::FileRow& row = rows.constFirst();
     QStringList siblingPaths;
     for (const auto& member : rows) siblingPaths.append(member.path);
@@ -476,7 +506,7 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
         if (candidate.groupKey != groupKey || candidate.kind != row.kind
             || candidate.groupTitle.trimmed() != groupTitle || candidate.away
             || !candidate.errorState.isEmpty())
-            return match;
+            return finish("group-inconsistent-away-or-error", match);
         if (candidate.kind == QLatin1String("video")
             && !VaultKit::videoEpisodeContext(candidate.path, siblingPaths).number.matched) {
             if (candidate.parsedYear > 0) videoYears.insert(candidate.parsedYear);
@@ -484,12 +514,12 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
             if (year > 0) videoYears.insert(year);
         }
     }
-    if (videoYears.size() > 1) return match;
+    if (videoYears.size() > 1) return finish("conflicting-release-years", match);
     // identitySuppressed records the user's last Un-identify choice so a future
     // rescan stays filename-honest. It must not block this explicit Identify
     // gesture: a deliberate re-identification is allowed to clear that marker.
     if (row.away || !row.errorState.isEmpty())
-        return match;
+        return finish("away-or-error", match);
 
     if (row.kind == QLatin1String("book")) {
         const QString embeddedTitle = row.embeddedTitle.trimmed();
@@ -497,7 +527,8 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
         // EPUB or proven online identities may converge, never a user's choice.
         for (const auto& member : rows)
             if (member.identityState == QLatin1String("manual")
-                || (!member.identityId.isEmpty() && !automaticPrivateEpub(member) && !automaticOnlineBook(member))) return match;
+                || (!member.identityId.isEmpty() && !automaticPrivateEpub(member) && !automaticOnlineBook(member)))
+                return finish("protected-book-identity", match);
         const bool epub = row.metadataSource == QLatin1String("EPUB");
         auto sharedLookup = [&]() -> Match {
             if (rows.size() != 1) return match;
@@ -539,6 +570,7 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
                 match.bookLookupReason = QStringLiteral("no-complete-title-author-evidence");
                 return match;
             }
+            trace.set("query", facts.title);
             const QString fingerprint = bookFingerprint(rows);
             const quint64 generation = m_bookLookupGeneration;
             const quint64 catalogRevision = m_bookCatalogRevision;
@@ -685,14 +717,15 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
         };
         match = sharedLookup();
         if (match.adopted || automaticOnlineBook(row) || !epub || match.bookLookupReason == QLatin1String("conflicting-file-facts")
-            || match.candidateCount > 1) return match;
+            || match.candidateCount > 1)
+            return finish(match.adopted ? "book-candidate-selected" : "no-book-adoption", match);
         // No shared work yet: preserve the embedded title and private physical identity.
-        if (embeddedTitle.isEmpty()) return match;
+        if (embeddedTitle.isEmpty()) return finish("no-embedded-title", match);
         for (const auto& candidate : rows) {
             if (candidate.metadataSource != QLatin1String("EPUB") || candidate.away
                 || !candidate.errorState.isEmpty()
                 || candidate.embeddedTitle.simplified().compare(embeddedTitle.simplified(), Qt::CaseInsensitive) != 0)
-                return match;
+                return finish("inconsistent-embedded-titles", match);
         }
         match.adopted = true;
         match.source = QStringLiteral("EPUB");
@@ -700,7 +733,7 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
         match.title = embeddedTitle;
         match.synopsis = row.synopsis;
         match.world = QStringLiteral("Biblio");
-        return match;
+        return finish("private-epub-fallback", match);
     }
 
     const QString title = row.groupTitle.trimmed();
@@ -709,7 +742,11 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
     // remade title matches the catalogue's year filter instead of reading ambiguous.
     LookupTitle lookup = lookupTitle(title);
     if (row.kind == QLatin1String("video")) {
-        if (!junkClipReason(row).isEmpty()) return match;
+        const QString junkReason = junkClipReason(row);
+        if (!junkReason.isEmpty()) {
+            trace.set("junkReason", junkReason);
+            return finish("junk-clip", match);
+        }
         const auto context = VaultKit::videoEpisodeContext(row.path, siblingPaths);
         const bool episode = context.number.matched;
         if (!episode) {
@@ -721,9 +758,9 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
             // Conflicting qualified release facts are uncertainty, not a reason
             // to retry different queries until one happens to hit.
             if (fileLookup.year > 0 && folderLookup.year > 0
-                && fileLookup.year != folderLookup.year) return match;
+                && fileLookup.year != folderLookup.year) return finish("conflicting-folder-year", match);
             if (fileLookup.year > 0 && row.parsedYear > 0
-                && fileLookup.year != row.parsedYear) return match;
+                && fileLookup.year != row.parsedYear) return finish("conflicting-census-year", match);
             if (fileLookup.year > 0) lookup = fileLookup;
             else {
                 applyLookupYear(lookup, row);
@@ -744,44 +781,73 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
         }
     } else applyLookupYear(lookup, row);
     const QString normalizedTitle = lookup.normalized;
+    trace.set("query", normalizedTitle);
+    trace.set("queryYear", lookup.year);
     if (title.isEmpty() || normalizedTitle.isEmpty())
-        return match;
+        return finish("empty-query", match);
 
     if (row.kind == QLatin1String("comic")) {
         QVariantList comics;
-        if (m_comics && m_comics->available())
-            for (const QVariant& value : m_comics->exactMatches(title)) {
+        QVariantList rawComics;
+        const bool comicsAvailable = m_comics && m_comics->available();
+        if (comicsAvailable) {
+            rawComics = m_comics->exactMatches(title);
+            for (const QVariant& value : std::as_const(rawComics)) {
                 const QVariantMap hit = value.toMap();
                 if (VaultKit::normalizedTitle(hit.value(QStringLiteral("title")).toString())
                     == normalizedTitle)
                     comics.append(value);
             }
-
-        if (m_comics && m_comics->remoteWaiting()) { m_pendingGroups.insert(groupKey); return match; }
+        }
+        const bool comicsPending = m_comics && m_comics->remoteWaiting();
+        trace.provider("gcd", comicsAvailable, comicsAvailable, comicsPending,
+                       comics, "gcdId", rawComics.size());
+        if (trace.active() && comicsAvailable && !m_comics->ready())
+            trace.set("gcdQueryKey", m_comics->remoteQueryKey(QStringLiteral("exactMatches"), {title}));
+        if (comicsPending) {
+            m_pendingGroups.insert(groupKey);
+            return finish("waiting-for-gcd", match);
+        }
 
         QVariantList mal;
         // ComicsCatalog owns the western-comics lane. Only fall back to MAL when
         // it has no exact western candidate, so a title present in both corpora
         // never becomes an artificial cross-source ambiguity.
-        if (comics.isEmpty() && m_mal && m_mal->available())
+        const bool searchMal = comics.isEmpty() && m_mal && m_mal->available();
+        if (searchMal)
             mal = m_mal->matchByTitle(normalizedTitle, lookup.year, {});
 
-        if (m_mal && m_mal->remoteWaiting()) { m_pendingGroups.insert(groupKey); return match; }
+        const bool malPending = m_mal && m_mal->remoteWaiting();
+        if (trace.active())
+            trace.provider("mal", m_mal && m_mal->available(), searchMal, malPending,
+                           mal, "mal_id", mal.size());
+        if (trace.active() && searchMal && !m_mal->ready())
+            trace.set("malQueryKey", m_mal->remoteQueryKey(QStringLiteral("matchByTitle"),
+                {MediaTitleNormalization::normalizedTitle(normalizedTitle), lookup.year, QString()}));
+        if (malPending) {
+            m_pendingGroups.insert(groupKey);
+            return finish("waiting-for-mal", match);
+        }
 
         // One exact candidate across the allowed offline catalogues is the
         // certainty threshold. An ambiguity stays filename-honest.
         const int candidateCount = comics.size() + mal.size();
         match.candidateCount = candidateCount;
         if (candidateCount != 1)
-            return match;
+            return finish(candidateCount > 1 ? "ambiguous" : "no-exact-candidate", match);
 
         if (comics.size() == 1) {
             const QVariantMap hit = comics.constFirst().toMap();
             const int gcdId = hit.value(QStringLiteral("gcdId")).toInt();
             if (gcdId <= 0)
-                return Match();
+                return finish("invalid-gcd-id", Match());
             const QVariantMap series = m_comics->series(gcdId);
-            if (m_comics->remoteWaiting()) { m_pendingGroups.insert(groupKey); return Match(); }
+            if (trace.active() && !m_comics->ready())
+                trace.set("gcdSeriesQueryKey", m_comics->remoteQueryKey(QStringLiteral("series"), {gcdId}));
+            if (m_comics->remoteWaiting()) {
+                m_pendingGroups.insert(groupKey);
+                return finish("waiting-for-gcd-series", Match());
+            }
             match.adopted = true;
             match.source = QStringLiteral("COMICS");
             match.sourceId = QStringLiteral("comics:") + QString::number(gcdId);
@@ -794,13 +860,13 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
             match.year = firstNonEmpty(QString::number(series.value(QStringLiteral("year")).toInt()),
                                        QString::number(hit.value(QStringLiteral("year")).toInt()))
                              .toInt();
-            return match;
+            return finish("unique-gcd-candidate", match);
         }
 
         const QVariantMap hit = mal.constFirst().toMap();
         const int malId = hit.value(QStringLiteral("mal_id")).toInt();
         if (malId <= 0)
-            return Match();
+            return finish("invalid-mal-id", Match());
         match.adopted = true;
         match.source = QStringLiteral("MAL");
         match.sourceId = QStringLiteral("mal:") + QString::number(malId);
@@ -810,13 +876,13 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
         match.coverUrl = hit.value(QStringLiteral("coverUrl")).toString();
         match.world = QStringLiteral("Tankoban");
         match.year = hit.value(QStringLiteral("year")).toInt();
-        return match;
+        return finish("unique-mal-candidate", match);
     }
 
     if (row.kind == QLatin1String("video")) {
         if (!m_imdb || !m_imdb->available()) {
             if (m_imdb) m_pendingGroups.insert(groupKey);
-            return match;
+            return finish(m_imdb ? "waiting-for-imdb-availability" : "no-imdb-provider", match);
         }
         bool episodesOnly = true;
         int lastAbsoluteEpisode = 0;
@@ -832,7 +898,11 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
             if (!episodesOnly || type == QLatin1String("series") || type == QLatin1String("mini"))
                 hits.append(value);
         }
-        if (m_imdb->remoteWaiting()) { m_pendingGroups.insert(groupKey); return match; }
+        if (m_imdb->remoteWaiting()) {
+            trace.provider("imdb", true, true, true, hits, "tt", hits.size());
+            m_pendingGroups.insert(groupKey);
+            return finish("waiting-for-imdb", match);
+        }
         if (episodesOnly && lastAbsoluteEpisode > 0 && hits.size() > 1) {
             QVariantList fits;
             bool countsKnown = true;
@@ -868,16 +938,20 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
             } else if (!anyEpisode) {
                 retry = folderTitleHits(rows, row);
             }
-            if (m_imdb->remoteWaiting()) { m_pendingGroups.insert(groupKey); return match; }
+            if (m_imdb->remoteWaiting()) {
+                m_pendingGroups.insert(groupKey);
+                return finish("waiting-for-imdb-fallback", match);
+            }
             if (retry.size() == 1)
                 hits = retry;
         }
+        trace.provider("imdb", true, true, false, hits, "tt", hits.size());
         if (hits.size() != 1)
-            return match;
+            return finish(hits.size() > 1 ? "ambiguous" : "no-exact-candidate", match);
         const QVariantMap hit = hits.constFirst().toMap();
         const QString tt = hit.value(QStringLiteral("tt")).toString();
         if (tt.isEmpty())
-            return match;
+            return finish("invalid-imdb-id", match);
         match.adopted = true;
         match.source = QStringLiteral("IMDB");
         match.sourceId = QStringLiteral("imdb:") + tt;
@@ -893,10 +967,10 @@ VaultIdentifier::Match VaultIdentifier::matchGroup(const QString& groupKey) cons
         // deliberately not carried (the ruling excluded them — a popularity count ages).
         match.rating = hit.value(QStringLiteral("rating")).toDouble();
         match.genres = videoGenres(hit.value(QStringLiteral("genres")));
-        return match;
+        return finish("unique-imdb-candidate", match);
     }
 
-    return match;
+    return finish("unsupported-kind", match);
 }
 
 bool VaultIdentifier::automaticOnlineBook(const VaultIndex::FileRow& row) const
@@ -954,14 +1028,23 @@ const QList<VaultIndex::FileRow>& VaultIdentifier::bookRowsAtRevision() const
     return m_bookRows;
 }
 
-bool VaultIdentifier::shouldAutoIdentify(const QList<VaultIndex::FileRow>& rows)
+bool VaultIdentifier::shouldAutoIdentify(const QList<VaultIndex::FileRow>& rows, const char* origin)
 {
-    if (rows.isEmpty()) return false;
+    const auto skip = [&](const char* reason) {
+        VaultGroupTrace trace("skip", origin, rows.isEmpty() ? QString() : rows.constFirst().groupKey);
+        trace.rows(rows);
+        trace.reason(reason);
+        return false;
+    };
+    if (rows.isEmpty()) return skip("no-rows");
     bool migration = false;
     for (const auto& row : rows) {
-        if (row.identityState == QLatin1String("manual") || row.identitySuppressed || row.away || !row.errorState.isEmpty()) return false;
+        if (row.identityState == QLatin1String("manual")) return skip("manual-identity");
+        if (row.identitySuppressed) return skip("identity-suppressed");
+        if (row.away) return skip("away");
+        if (!row.errorState.isEmpty()) return skip("row-error");
         if (!row.identityId.isEmpty()) {
-            if (!automaticPrivateEpub(row) && !automaticOnlineBook(row)) return false;
+            if (!automaticPrivateEpub(row) && !automaticOnlineBook(row)) return skip("already-identified");
             migration = true;
         }
     }
@@ -971,7 +1054,7 @@ bool VaultIdentifier::shouldAutoIdentify(const QList<VaultIndex::FileRow>& rows)
     if (m_bookRowsFingerprint.isEmpty())
         m_bookRowsFingerprint = bookFingerprint(bookRows);
     const QString key = rows.first().groupKey;
-    if (m_epubAttempts.value(key) == m_bookRowsFingerprint) return false;
+    if (m_epubAttempts.value(key) == m_bookRowsFingerprint) return skip("book-evidence-already-checked");
     m_epubAttempts.insert(key, m_bookRowsFingerprint);
     return true;
 }
@@ -1009,25 +1092,34 @@ int VaultIdentifier::autoIdentifyExisting()
     return adopted;
 }
 
-bool VaultIdentifier::applyGroup(const QString& groupKey, const Match& match)
+bool VaultIdentifier::applyGroup(const QString& groupKey, const Match& match, const char* origin)
 {
+    VaultGroupTrace trace("save", origin, groupKey);
+    trace.set("identityId", match.sourceId);
+    const auto failed = [&](const char* reason) {
+        trace.reason(reason);
+        trace.set("saved", false);
+        return false;
+    };
     if (!m_index || groupKey.isEmpty() || !match.adopted || match.source.isEmpty()
         || match.sourceId.isEmpty() || match.title.isEmpty())
-        return false;
+        return failed("incomplete-identity");
     QList<VaultIndex::FileRow> rows = m_index->rowsForGroup(groupKey);
+    trace.rows(rows);
     if (rows.isEmpty() || !safeGroupAction(rows))
-        return false;
+        return failed("unsafe-or-missing-group");
     if (!match.bookEvidenceFingerprint.isEmpty()
         && ((!match.bookLibraryMatch && (!m_bookLookupOwner || match.bookLookupGeneration != m_bookLookupGeneration
             || match.bookCatalogRevision != m_bookCatalogRevision))
             || bookFingerprint(rows) != match.bookEvidenceFingerprint))
-        return false;
+        return failed("stale-book-evidence");
     if (match.bookLibraryMatch) {
-        const auto current = matchGroup(groupKey);
-        if (!current.adopted || !current.bookLibraryMatch || current.sourceId != match.sourceId) return false;
+        const auto current = matchGroup(groupKey, "book-revalidate");
+        if (!current.adopted || !current.bookLibraryMatch || current.sourceId != match.sourceId)
+            return failed("changed-library-match");
     }
     if (!match.bookWork.canonicalId.isEmpty() && m_bookRetain
-        && !m_bookRetain(match.bookWork)) return false;
+        && !m_bookRetain(match.bookWork)) return failed("book-retain-failed");
     for (VaultIndex::FileRow& row : rows) {
         row.identityId = match.sourceId;
         row.identityTitle = match.title;
@@ -1045,6 +1137,8 @@ bool VaultIdentifier::applyGroup(const QString& groupKey, const Match& match)
         row.identityCandidateCount = 0;
     }
     const bool saved = m_index->upsertMany(rows);
+    trace.set("saved", saved);
+    trace.reason(saved ? "identity-persisted" : "index-write-failed");
     if (saved && match.source == QLatin1String("EPUB") && m_pendingBookGroups.contains(groupKey))
         m_pendingBookGroups.insert(groupKey, bookFingerprint(rows));
     return saved;
@@ -1214,13 +1308,20 @@ QHash<QString, QString> VaultIdentifier::physicalExtrasParents(const QList<Vault
     return out;
 }
 
-bool VaultIdentifier::recordAmbiguous(const QString& groupKey, int candidateCount)
+bool VaultIdentifier::recordAmbiguous(const QString& groupKey, int candidateCount, const char* origin)
 {
-    if (!m_index || groupKey.isEmpty() || candidateCount <= 1)
+    VaultGroupTrace trace("save-ambiguity", origin, groupKey);
+    trace.set("candidateCount", candidateCount);
+    if (!m_index || groupKey.isEmpty() || candidateCount <= 1) {
+        trace.reason("invalid-ambiguity");
         return false;
+    }
     QList<VaultIndex::FileRow> rows = m_index->rowsForGroup(groupKey);
-    if (rows.isEmpty())
+    trace.rows(rows);
+    if (rows.isEmpty()) {
+        trace.reason("missing-group");
         return false;
+    }
     bool dirty = false;
     for (VaultIndex::FileRow& row : rows) {
         // Never overwrite a group that has already resolved either way (adopted, or a user's
@@ -1235,5 +1336,8 @@ bool VaultIdentifier::recordAmbiguous(const QString& groupKey, int candidateCoun
             dirty = true;
         }
     }
-    return dirty && m_index->upsertMany(rows);
+    const bool saved = dirty && m_index->upsertMany(rows);
+    trace.set("saved", saved);
+    trace.reason(!dirty ? "already-recorded-or-settled" : saved ? "ambiguity-persisted" : "index-write-failed");
+    return saved;
 }

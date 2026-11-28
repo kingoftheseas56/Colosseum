@@ -8,6 +8,7 @@
 #include "VaultDownloadsRoot.h"
 #include "ComicCoverId.h"
 #include "VaultIdentifier.h"
+#include "VaultGroupTrace.h"
 #include "VaultKit.h"
 #include "VaultBrowseAway.h"
 #include "VaultBrowseDetail.h"
@@ -218,6 +219,10 @@ VaultLibrary::VaultLibrary(VaultIndex* index, VaultScanner* scanner, VaultConfig
                 });
         connect(m_scanner, &VaultScanner::publicationFinished, this,
                 [this](bool published, bool cancelled, bool scannedUserRoot) {
+                    VaultGroupTrace trace("publication", "scanner");
+                    trace.set("published", published);
+                    trace.set("cancelled", cancelled);
+                    trace.set("scannedUserRoot", scannedUserRoot);
                     const bool first = m_firstFolderIndexing;
                     const bool completionSaved = !first || !published || !scannedUserRoot
                         || m_config->markFolderImportComplete();
@@ -320,6 +325,7 @@ void VaultLibrary::runAutoIdentifySlice()
         return;
     }
     if (!m_autoIdentifyKeysReady) {
+        VaultGroupTrace trace("pass", "auto-scan");
         const QStringList kinds = {QStringLiteral("comic"), QStringLiteral("book"),
                                    QStringLiteral("video")};
         for (const QString& kind : kinds) {
@@ -329,6 +335,7 @@ void VaultLibrary::runAutoIdentifySlice()
                     m_autoIdentifyKeys.append(key);
             }
         }
+        trace.set("groups", m_autoIdentifyKeys.size());
         m_autoIdentifyKeysReady = true;
     }
     if (m_autoIdentifyCursor >= m_autoIdentifyKeys.size()) {
@@ -346,14 +353,22 @@ void VaultLibrary::runAutoIdentifySlice()
 
     const QString groupKey = m_autoIdentifyKeys.at(m_autoIdentifyCursor++);
     const QList<VaultIndex::FileRow> rows = m_index->rowsForGroup(groupKey);
-    if (m_identifier->shouldAutoIdentify(rows)) {
-        const VaultIdentifier::Match match = m_identifier->matchGroup(groupKey);
+    constexpr auto origin = "auto-scan";
+    if (m_identifier->shouldAutoIdentify(rows, origin)) {
+        const VaultIdentifier::Match match = m_identifier->matchGroup(groupKey, origin);
         if (match.adopted && !(match.source == QLatin1String("EPUB") && rows.first().identityId == match.sourceId))
-            m_identifier->applyGroup(groupKey, match);
+            m_identifier->applyGroup(groupKey, match, origin);
         else if (match.candidateCount > 1)
             // Ambiguous, not absent: record it durably so a tile can wear "Vault isn't sure"
             // instead of looking merely unscanned (browse-face execution plan, Slice 2).
-            m_identifier->recordAmbiguous(groupKey, match.candidateCount);
+            m_identifier->recordAmbiguous(groupKey, match.candidateCount, origin);
+        else if (match.adopted) {
+            VaultGroupTrace trace("skip-save", origin, groupKey);
+            trace.reason("same-epub-identity");
+        }
+    } else if (rows.isEmpty()) {
+        VaultGroupTrace trace("skip", origin, groupKey);
+        trace.reason("group-disappeared");
     }
     // Give QML incubation and rendering a frame between groups even when a
     // long queue of unmatched titles is ready to inspect.
@@ -1594,11 +1609,12 @@ bool VaultLibrary::identifyGroup(const QString& groupKey)
 {
     if (!m_identifier)
         return false;
-    const VaultIdentifier::Match match = m_identifier->matchGroup(groupKey);
+    constexpr auto origin = "explicit-identify";
+    const VaultIdentifier::Match match = m_identifier->matchGroup(groupKey, origin);
     if (match.adopted)
-        return m_identifier->applyGroup(groupKey, match);
+        return m_identifier->applyGroup(groupKey, match, origin);
     if (match.candidateCount > 1)
-        m_identifier->recordAmbiguous(groupKey, match.candidateCount);
+        m_identifier->recordAmbiguous(groupKey, match.candidateCount, origin);
     return false;
 }
 

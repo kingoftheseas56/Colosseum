@@ -71,7 +71,7 @@ public:
         std::function<bool(const BiblioIdentityCandidate&)> retain = {});
     void retryBookCatalog();
 
-    Match matchGroup(const QString& groupKey) const;
+    Match matchGroup(const QString& groupKey, const char* origin = "direct") const;
     // Apply the same certainty gate to every existing group. The caller owns scheduling;
     // this method is a synchronous, testable pass over the current index snapshot.
     int autoIdentifyExisting();
@@ -83,10 +83,10 @@ public:
     void backfillVideoGenres();
     static QString videoGenres(const QVariant& genres);
     static bool automaticPrivateEpub(const VaultIndex::FileRow& row);
-    bool shouldAutoIdentify(const QList<VaultIndex::FileRow>& rows);
+    bool shouldAutoIdentify(const QList<VaultIndex::FileRow>& rows, const char* origin = "auto");
     // Empty means not junk; otherwise the size-and-shape reason for reversible filing.
     static QString junkClipReason(const VaultIndex::FileRow& row);
-    bool applyGroup(const QString& groupKey, const Match& match);
+    bool applyGroup(const QString& groupKey, const Match& match, const char* origin = "direct");
     // Explicit manual selection: bypasses the auto-certainty matcher but retains the
     // same decorate-only write, preserving every file id and progress field.
     bool identifyGroupWith(const QString& groupKey, const Match& match);
@@ -97,7 +97,7 @@ public:
     // declined by the exactly-one certainty gate — this does not change that gate). Never
     // overwrites an already-adopted or user-suppressed group. Owner-thread, decorate-only write
     // — same shape as applyGroup/unidentifyGroup; no independent off-thread SQLite writes.
-    bool recordAmbiguous(const QString& groupKey, int candidateCount);
+    bool recordAmbiguous(const QString& groupKey, int candidateCount, const char* origin = "direct");
 
     // Files inside an Extras/Bonus/Featurettes/Behind-the-Scenes folder whose nearest ancestor
     // folder holds exactly one identified title are that title's extras: returns {fileId ->
