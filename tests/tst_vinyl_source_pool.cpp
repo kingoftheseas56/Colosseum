@@ -236,23 +236,24 @@ private slots:
         QCOMPARE(selected.last().toMap().value("providerId"),artist(19).value("providerId"));
         QVERIFY(VinylSourcePool::newReleaseNeighbors({seed},bySeed,8).isEmpty());
     }
-    void rowsStayFullAndRediscoverRequiresActualHistory()
+    void rowsStayFullExceptForThePlayedShelfAndRediscoverRequiresHistory()
     {
         const QStringList keys{"mixes-radio","new-from-your-artists","albums-for-you","because-you-played","deep-cuts","rediscover","artists-like-yours"};
         QVariantList eight;
         for(int index=0;index<8;++index)eight.append(item("apple-music",QString::number(100+index),"Fixture Album"));
         QVariantMap buckets;
-        for(const auto &key:keys)buckets[key]=eight;
+        for(const auto &key:keys)if(key!="because-you-played")buckets[key]=eight;
         const auto firstVisit=VinylSourcePool::homeRows(buckets,false);
-        QCOMPARE(firstVisit.size(),6);
         QStringList actual;
         for(const auto &value:firstVisit){const auto row=value.toMap();actual.append(row.value("key").toString());QCOMPARE(row.value("items").toList().size(),8);}
-        auto withoutRediscover=keys;withoutRediscover.removeOne("rediscover");
-        QCOMPARE(actual,withoutRediscover);
-        QCOMPARE(firstVisit[3].toMap().value("title").toString(),QString("Because you picked…"));
+        auto withoutHistory=keys;withoutHistory.removeOne("rediscover");withoutHistory.removeOne("because-you-played");
+        QCOMPARE(actual,withoutHistory);
+        buckets["because-you-played"]=eight.mid(0,1);
         const auto returning=VinylSourcePool::homeRows(buckets,true);
         QCOMPARE(returning.size(),7);
+        QCOMPARE(returning[3].toMap().value("key").toString(),QString("because-you-played"));
         QCOMPARE(returning[3].toMap().value("title").toString(),QString("Because you played…"));
+        QCOMPARE(returning[3].toMap().value("items").toList().size(),1);
         buckets["deep-cuts"]=eight.mid(0,7);
         const auto thin=VinylSourcePool::homeRows(buckets,true);
         QCOMPARE(thin.size(),6);

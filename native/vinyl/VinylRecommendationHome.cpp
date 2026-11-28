@@ -323,7 +323,7 @@ struct VinylRecommendationService::HomeComposition {
     QStringList selectionKeys,excludedArtistProviderIds;
     QVariantMap collections,history,snapshot,charts,chartWeeks;
     QMap<QString,QVariantMap> chartFeeds;
-    QVariantList catalogueCrateCards;
+    QVariantList catalogueCrateCards, playedAlbums;
     QMap<QString,int> crateCounts;
     QMap<QString,qint64> crateLast;
     QMap<QString,QVariantMap> evidence,identities,discography,similarity,neighbors,parents,songEvidence,previousSongEvidence;
@@ -471,8 +471,15 @@ bool VinylRecommendationService::recordVisibleItems(const QString &shelf,const Q
     if(!activity || !activity->retentionEnabled() || !activity->healthy())return false;
     const auto profile=ProfileScopeId::parse(m_scope);if(!profile.ok())return false;
     QVariantList items;
-    for(const auto &section:m_home->sections)if(section.toMap().value("id")==shelf)items=section.toMap().value("items").toList();
-    if(shelf=="quick-picks")items=m_home->quickPicks;
+    if(shelf=="because-you-played") {
+        for(const auto &entry:m_home->pool.value("rows").toList()) {
+            const auto row=entry.toMap();
+            if(row.value("key")==shelf)items=row.value("items").toList();
+        }
+    }else {
+        for(const auto &section:m_home->sections)if(section.toMap().value("id")==shelf)items=section.toMap().value("items").toList();
+        if(shelf=="quick-picks")items=m_home->quickPicks;
+    }
     if(items.isEmpty())return false;
     const auto now=m_home->clock();RecommendationExposureLog log(*profile.value);QVariantList retained;
     const auto prior=m_preferences?m_preferences->property("vinylRecommendationExposureSnapshot").toString():QString();
@@ -1323,12 +1330,50 @@ VinylRecommendationService::HomeComposition VinylRecommendationService::composeH
     for(const auto &node:quickNodes)appendSuppressed(node.card);
     const bool loading=work.loading;QVariantList sections;QSet<QString> prior,distinctSeeds;
     for(const auto &seed:work.seeds)if(const auto ref=seedIdentity(seed.toMap()))distinctSeeds.insert(ref->stableKey());
-    const QStringList sectionIds{"from-your-artists","related-discoveries","new-from-your-artists","quick-picks","deep-cuts"};
-    const QStringList titles{"From your artists","Related discoveries","New from your artists","Quick picks","Deep cuts from your artists"};
+    const QStringList sectionIds{"from-your-artists","related-discoveries","new-from-your-artists","quick-picks","deep-cuts","because-you-played"};
+    const QStringList titles{"From your artists","Related discoveries","New from your artists","Quick picks","Deep cuts from your artists",""};
+    QMap<QString,qint64> lastPlayed;
+    for(const auto &aggregate:derived.value->aggregates()) {
+        const auto kind=aggregate.entity().kind();
+        if(aggregate.playCount()>0 && (kind==CanonicalEntityKind::Artist || kind==CanonicalEntityKind::Release
+            || kind==CanonicalEntityKind::ReleaseGroup))
+            lastPlayed.insert(aggregate.entity().stableKey(),aggregate.lastPlayedAtMs().value_or(0));
+    }
+    auto albumKeys=[](const QVariantMap &card) {
+        QSet<QString> keys{card.value("key").toString(),"id:"+card.value("id").toString()};
+        if(const auto group=ReleaseGroupMbid::parse(card.value("releaseGroupMbid").toString());group.ok())
+            keys.insert(RecommendationEntityRef::fromCanonical(CanonicalEntityRef::from(*group.value)).stableKey());
+        return keys;
+    };
     QVariantList crateAlbums,crateSongs;
     for(int sectionIndex=0;sectionIndex<sectionIds.size();++sectionIndex){const auto section=sectionIds[sectionIndex];QVector<RecommendationCandidate> pool;RankerFeatureContext features;
+        const bool historyShelf=section=="because-you-played";
+        if(historyShelf && lastPlayed.isEmpty())continue;
+        QSet<QString> usedAlbums;
+        QMap<QString,qint64> recency;
+        if(historyShelf)for(const auto &entry:sections) {
+            const auto row=entry.toMap();
+            if(row.value("id")!="from-your-artists")continue;
+            for(const auto &item:row.value("items").toList()) {
+                const auto card=item.toMap();
+                if(card.value("kind")=="albums")usedAlbums.unite(albumKeys(card));
+            }
+        }
         const auto &sectionNodes=(section=="quick-picks"||section=="deep-cuts")?quickNodes:nodes;
-        for(auto it=sectionNodes.cbegin();it!=sectionNodes.cend();++it)if(it->sections.contains(section)){
+        for(auto it=sectionNodes.cbegin();it!=sectionNodes.cend();++it) {
+            if(historyShelf) {
+                if(it->card.value("kind")!="albums")continue;
+                const auto keys=albumKeys(it->card);
+                if(usedAlbums.intersects(keys))continue;
+                qint64 at=0;
+                for(const auto &key:keys)at=qMax(at,lastPlayed.value(key));
+                for(auto credit=it->artistContexts.cbegin();credit!=it->artistContexts.cend();++credit) {
+                    at=qMax(at,lastPlayed.value(credit.key()));
+                    if(const auto ref=seedIdentity(credit.value()))at=qMax(at,lastPlayed.value(ref->stableKey()));
+                }
+                if(at<=0)continue;
+                recency.insert(it.key(),at);
+            }else if(!it->sections.contains(section))continue;
             bool suppressed=false;
             // Every credited artist is checked, including collaborators. The
             // primary artist used for diversity is not the full suppression set.
@@ -1349,15 +1394,36 @@ VinylRecommendationService::HomeComposition VinylRecommendationService::composeH
             for(auto &entry:features.seedAffinities)entry.multiplier/=std::max(1,int(support.value(entry.entity.stableKey()).size()));
         }
         if(section=="deep-cuts"){config.maxPerArtist=4;config.maxRecordingsPerReleaseGroup=3;}
+        if(historyShelf)config.maxPerArtist=0; // Apply the cap after ordering by play recency.
         const auto ranked=rankDeterministically(RecommendationCandidateSet::normalize(pool),taste,
             *derived.value,priorVisitExposure,features,config);
         if(!ranked.ok())continue;QVariantList preferred,repeated;
         for(const auto &entry:ranked.value->ranked()){auto card=sectionNodes.value(entry.entity().stableKey()).card;QVariantList reasons;
             for(const auto &e:entry.explanation()){QVariantMap reason{{"kind",rankEvidenceKindName(e.kind)},{"sourceId",e.sourceId},{"scoreDelta",e.scoreDelta}};if(e.relatedEntity)reason["seed"]=e.relatedEntity->toJson().toVariantMap();reasons.append(reason);}
             card["score"]=entry.score();card["reasons"]=reasons;card["evidence"]=reasons;card["configVersion"]=config.version;
-            if(prior.contains(entry.entity().stableKey()))repeated.append(card);else preferred.append(card);
+            if(!historyShelf && prior.contains(entry.entity().stableKey()))repeated.append(card);else preferred.append(card);
         }
-        preferred.append(repeated);if(section=="from-your-artists")crateAlbums=preferred;else if(section=="quick-picks")crateSongs=preferred;
+        preferred.append(repeated);
+        if(historyShelf) {
+            std::stable_sort(preferred.begin(),preferred.end(),[&](const QVariant &a,const QVariant &b){
+                return recency.value(a.toMap().value("key").toString())>recency.value(b.toMap().value("key").toString());
+            });
+            QMap<QString,int> artistCounts;
+            for(const auto &entry:preferred) {
+                auto card=entry.toMap();
+                const auto keys=albumKeys(card);
+                if(usedAlbums.intersects(keys))continue;
+                const auto credits=sectionNodes.value(card.value("key").toString()).artistContexts.keys();
+                if(std::any_of(credits.cbegin(),credits.cend(),[&](const auto &key){return artistCounts.value(key)>=3;}))continue;
+                usedAlbums.unite(keys);
+                for(const auto &key:credits)++artistCounts[key];
+                card["reason"]=tr("From your listening history");
+                work.playedAlbums.append(card);
+                if(work.playedAlbums.size()==12)break;
+            }
+            continue; // This Home-only shelf is not a legacy section or carousel input.
+        }
+        if(section=="from-your-artists")crateAlbums=preferred;else if(section=="quick-picks")crateSongs=preferred;
         if(preferred.size()>12)preferred=preferred.mid(0,12);if(preferred.isEmpty())continue;
         if(section=="quick-picks"){work.quickPicks=preferred;continue;}
         prior.clear();for(const auto &card:preferred)prior.insert(card.toMap().value("key").toString());
@@ -1544,9 +1610,9 @@ void VinylRecommendationService::publishHome(HomeComposition work){
         m_home->selectionKey+QString::number(m_home->selectionSerial)+digest(feedback)+QString::number(m_keepHistory),
         m_home->excludedArtistProviderIds);
     queueSongCandidates();
-    QVariantMap buckets;
+    QVariantMap buckets{{"because-you-played",work.playedAlbums}};
     for(const auto &entry:sections){const auto section=entry.toMap();const auto id=section.value("id").toString();auto items=section.value("items").toList();
-        if(id=="from-your-artists"){buckets["albums-for-you"]=items;buckets["because-you-played"]=items;}
+        if(id=="from-your-artists")buckets["albums-for-you"]=items;
         else if(id=="new-from-your-artists"){
             items.removeIf([](const QVariant &value){return value.toMap().value("dateSource")!="musicbrainz";});
             std::stable_sort(items.begin(),items.end(),[](const QVariant &a,const QVariant &b){return a.toMap().value("releaseDate").toString()>b.toMap().value("releaseDate").toString();});

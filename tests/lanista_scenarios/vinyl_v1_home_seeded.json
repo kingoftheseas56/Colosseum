@@ -1,6 +1,6 @@
 {
   "name": "vinyl-v1-home-seeded",
-  "comment": "Run only through a disposable tagged Lanista session --drive with the validated Windows fixture build/helper, source-root qml/Main.qml, COLOSSEUM_VINYL_TEST_FIXTURES=1, VINYL_TEST_V1_POOL=1 and validated COLOSSEUM_VINYL_FIXTURE_VIEWPORT=1280x700. Root supplies C-only Python, unique tag and pipe. Capture dimensions are export-only. The runner gracefully WM_CLOSEs its owned child after final ping. Prepared only; no runtime qualification is claimed. Reopen the same tag after vinyl_v1_home_cold.json used the visible picker to save five artists; no --seed or helper taste shortcut. This boot proves the saved 5/5 state bypasses the gate and the six populated Home rows survive restart. Keep the accepted 300px Hero; capture actual Crate/Spin/viewport geometry, where the second Crate row and Spin may be below the fold. Spin switches are real pointer clicks after scrolling the outer page to expose their controls. The final scroll reaches the actual docked tabs, then opens Library.",
+  "comment": "Run only through a disposable tagged Lanista session --drive with the validated Windows fixture build/helper, source-root qml/Main.qml, COLOSSEUM_VINYL_TEST_FIXTURES=1, VINYL_TEST_V1_POOL=1 and validated COLOSSEUM_VINYL_FIXTURE_VIEWPORT=1280x700. Root supplies C-only Python, unique tag and pipe. Capture dimensions are export-only. The runner gracefully WM_CLOSEs its owned child after final ping. Prepared only; no runtime qualification is claimed. Reopen the same tag after vinyl_v1_home_cold.json used the visible picker to save five artists; no --seed or helper taste shortcut. This boot proves the saved 5/5 state bypasses the gate and the five taste-driven Home rows survive restart without playback history. Keep the accepted 300px Hero; capture actual Crate/Spin/viewport geometry, where the second Crate row and Spin may be below the fold. Spin switches are real pointer clicks after scrolling the outer page to expose their controls. The final scroll reaches the actual docked tabs, then opens Library.",
   "steps": [
     {
       "cmd": "ping",
@@ -319,11 +319,11 @@
     },
     {
       "cmd": "ui-wait-for",
-      "label": "All six supported personalized Home rows reach the actual owner model",
+      "label": "All five taste-driven Home rows reach the actual owner model",
       "payload": {
         "object": "vinylHome",
         "prop": "rowKeys",
-        "value": "mixes-radio,new-from-your-artists,albums-for-you,because-you-played,deep-cuts,artists-like-yours",
+        "value": "mixes-radio,new-from-your-artists,albums-for-you,deep-cuts,artists-like-yours",
         "timeout_ms": 60000
       },
       "expect": [
@@ -336,7 +336,7 @@
     },
     {
       "cmd": "qml-get",
-      "label": "Home exports the six owner-provided row keys",
+      "label": "Home exports the five owner-provided row keys",
       "payload": {
         "object": "vinylHome",
         "props": [
@@ -352,7 +352,7 @@
         {
           "path": "props.rowKeys",
           "op": "==",
-          "value": "mixes-radio,new-from-your-artists,albums-for-you,because-you-played,deep-cuts,artists-like-yours"
+          "value": "mixes-radio,new-from-your-artists,albums-for-you,deep-cuts,artists-like-yours"
         }
       ]
     },
@@ -442,12 +442,12 @@
     },
     {
       "cmd": "qml-get",
-      "label": "Verify because-you-played uses its owner row snapshot",
+      "label": "Verify Because you played is empty and hidden without qualified playback",
       "payload": {
         "object": "vinylHomeRow_because-you-played",
         "props": [
           "itemCount",
-          "rowSnapshot"
+          "visible"
         ]
       },
       "expect": [
@@ -458,13 +458,13 @@
         },
         {
           "path": "props.itemCount",
-          "op": ">=",
-          "value": 8
+          "op": "==",
+          "value": 0
         },
         {
-          "path": "props.rowSnapshot",
-          "op": "contains",
-          "value": "\"homeKey\":\"because-you-played\""
+          "path": "props.visible",
+          "op": "==",
+          "value": false
         }
       ]
     },
@@ -974,7 +974,7 @@
         {
           "path": "props.rowKeys",
           "op": "==",
-          "value": "mixes-radio,new-from-your-artists,albums-for-you,because-you-played,deep-cuts,artists-like-yours"
+          "value": "mixes-radio,new-from-your-artists,albums-for-you,deep-cuts,artists-like-yours"
         },
         {
           "path": "grabPath",

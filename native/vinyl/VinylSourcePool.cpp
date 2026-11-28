@@ -369,12 +369,14 @@ QVariantList VinylSourcePool::newReleaseNeighbors(const QVariantList &seeds, con
 QVariantList VinylSourcePool::homeRows(const QVariantMap &buckets, bool history) {
     const QStringList keys{"mixes-radio","new-from-your-artists","albums-for-you","because-you-played","deep-cuts","rediscover","artists-like-yours"};
     const QStringList titles{"Mixes & radio","New from your artists","Albums for you",
-        history ? QString::fromUtf8("Because you played…") : QString::fromUtf8("Because you picked…"),
+        QString::fromUtf8("Because you played…"),
         "Deep cuts from your artists","Rediscover","Artists like the ones you love"};
     QVariantList result;
     for (int index = 0; index < keys.size(); ++index) {
         if (keys[index] == "rediscover" && !history) continue;
-        const auto items = buckets.value(keys[index]).toList(); if (items.size() < 8) continue;
+        const auto items = buckets.value(keys[index]).toList();
+        // Only this shelf can be useful with as few as one qualified artist (three albums max).
+        if (items.size() < (keys[index] == "because-you-played" ? 1 : 8)) continue;
         result.append(QVariantMap{{"key",keys[index]},{"id",keys[index]},{"title",titles[index]},
             {"items",items},{"itemCount",items.size()},{"status","ready"}});
     }

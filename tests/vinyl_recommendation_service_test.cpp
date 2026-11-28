@@ -1102,6 +1102,87 @@ private slots:
         QCOMPARE(sectionItems(fixture.service,"from-your-artists").first().toMap().value("score").toLongLong(),card.value("score").toLongLong()+1000);
         QVERIFY(!fixture.preferences.feedback.isEmpty());
     }
+    void becauseYouPlayedUsesQualifiedHistoryWithoutRepeatingAlbumsForYou() {
+        ActivityStore activity;
+        HomeFixture fixture({artistSeed(1),artistSeed(2),artistSeed(3),artistSeed(4)});
+        fixture.service.setActivityStore(&activity);
+        for(int pass=0;pass<32;++pass) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents,20);
+            const auto pending=fixture.source.pendingRequests("artistCandidates");
+            if(pending.isEmpty()) {
+                QCoreApplication::processEvents(QEventLoop::AllEvents,20);
+                if(fixture.source.pendingRequests("artistCandidates").isEmpty())break;
+                continue;
+            }
+            for(const auto &call:pending) {
+                const auto seed=call.options.value("seed").toMap();
+                QVariantList albums;
+                const int count=call.value==artistSeed(4).value("providerId").toString()?3:7;
+                for(int i=0;i<count;++i) {
+                    const auto id=QString("MPRE_%1_%2").arg(call.value.right(2)).arg(i);
+                    albums.append(albumCandidate(seed,id,"Album "+id));
+                }
+                auto payload=fixture.source.defaultReply(call);payload["items"]=albums;
+                fixture.source.complete(call,payload);
+            }
+        }
+        QCoreApplication::processEvents(QEventLoop::AllEvents,20);
+        const auto rowItems=[&](const QString &key) {
+            return sectionById(fixture.service.homeSourcePool().value("rows").toList(),key).value("items").toList();
+        };
+        QCOMPARE(rowItems("albums-for-you").size(),12);
+        QVERIFY(rowItems("because-you-played").isEmpty());
+
+        auto listen=[&](int artist,qint64 at,int activeMs) {
+            const auto id=artistSeed(artist).value("providerId");
+            QVariantMap fact{{"sessionId","played-"+QString::number(artist)},{"world","vinyl"},{"kind","music"},
+                {"titleKey","album"},{"itemKey","track"},{"title","Track"},{"utcOffsetMinutes",0},{"syncable",false}};
+            auto start=fact;start["atMs"]=at;start["action"]="start";start["origin"]="manual";
+            start["positionMs"]=0;start["durationMs"]=120000;
+            start["entityRef"]=QVariantMap{{"identity","provider"},{"kind","recording"},{"providerId","youtube-music"},{"itemId","Abc123def45"}};
+            start["artistRefs"]=QVariantList{QVariantMap{{"identity","provider"},{"kind","artist"},{"providerId","youtube-music"},{"itemId",id}}};
+            QVERIFY(activity.recordMusicAction(start));
+            fact["startAtMs"]=at+1000;fact["endAtMs"]=at+1000+activeMs;fact["activeMs"]=activeMs;fact["rateMilli"]=1000;
+            QVERIFY(activity.recordPlaybackDelta(fact));
+            expireHomeInputs(fixture.service);
+        };
+        listen(3,kFixedNowMs-120000,5000);
+        QVERIFY(rowItems("because-you-played").isEmpty());
+        listen(4,kFixedNowMs-90000,12000);
+        QVERIFY(rowItems("because-you-played").isEmpty()); // All three artist 4 albums are in Albums for you.
+        listen(1,kFixedNowMs-60000,12000);
+        auto played=rowItems("because-you-played");
+        QCOMPARE(played.size(),3);
+        const auto forYou=rowItems("albums-for-you");
+        QCOMPARE(forYou,sectionItems(fixture.service,"from-your-artists"));
+        QSet<QString> albumIds;
+        for(const auto &item:forYou)albumIds.insert(providerItemId(item.toMap()));
+        for(const auto &item:played) {
+            const auto card=item.toMap();
+            QCOMPARE(card.value("kind").toString(),QString("albums"));
+            QCOMPARE(card.value("artistRefs").toList().first().toMap().value("providerId"),artistSeed(1).value("providerId"));
+            const auto id=providerItemId(card);
+            QVERIFY(!albumIds.contains(id));albumIds.insert(id);
+        }
+        const auto ref=played.first().toMap().value("ref").toMap();
+        const auto token=fixture.service.homeSnapshot().value("exposureSnapshotId").toString();
+        QVERIFY(!fixture.service.recordVisibleItems("from-your-artists",token,{ref},0));
+        QVERIFY(fixture.service.recordVisibleItems("because-you-played",token,{ref},0));
+        QVERIFY(fixture.preferences.exposure.contains("because-you-played"));
+        QVERIFY(fixture.service.setFeedback(ref,"hide",0));
+        QCOMPARE(rowItems("because-you-played").size(),3);
+        for(const auto &item:rowItems("because-you-played"))QVERIFY(item.toMap().value("ref").toMap()!=ref);
+
+        listen(2,kFixedNowMs-30000,12000);
+        played=rowItems("because-you-played");
+        QCOMPARE(played.size(),6);
+        for(int i=0;i<played.size();++i)
+            QCOMPARE(played[i].toMap().value("artistRefs").toList().first().toMap().value("providerId"),
+                artistSeed(i<3?2:1).value("providerId"));
+        QVERIFY(activity.clearAll());expireHomeInputs(fixture.service);
+        QVERIFY(rowItems("because-you-played").isEmpty());
+        QCOMPARE(rowItems("albums-for-you").size(),12);
+    }
     void retainedManualSessionsDriveOnlySpecifiedSeedDecayBoundaries() {
         HomeFixture fixture({artistSeed(1)});pumpSuccessfulReplies(fixture.source);ActivityStore activity;
         const auto release=sectionItems(fixture.service,"from-your-artists").first().toMap().value("ref");
@@ -1282,7 +1363,7 @@ private slots:
         fixture.source.runtimeFixtures=true;
         runHomeVisit(fixture.service);
         QTRY_VERIFY_WITH_TIMEOUT(!fixture.source.callsFor("chartCandidates").isEmpty(),5000);
-        QTRY_VERIFY_WITH_TIMEOUT(fixture.service.property("homeSourcePool").toMap().value("rows").toList().size()==6
+        QTRY_VERIFY_WITH_TIMEOUT(fixture.service.property("homeSourcePool").toMap().value("rows").toList().size()==5
             && fixture.service.property("homeSourcePool").toMap().value("pendingCount",-1).toInt()==0
             && fixture.source.pendingRequests().isEmpty(),90000);
         const auto pool=fixture.service.property("homeSourcePool").toMap();
@@ -1341,7 +1422,7 @@ private slots:
         for (const auto &entry:rows) {
             const auto row=entry.toMap();
             QVERIFY(row.value("items").toList().size()>=8);
-            QVERIFY(row.value("key")!="rediscover");
+            QVERIFY(row.value("key")!="rediscover" && row.value("key")!="because-you-played");
             if (row.value("key")=="new-from-your-artists")
                 for (const auto &item:row.value("items").toList())
                     QCOMPARE(item.toMap().value("dateSource").toString(),QString("musicbrainz"));

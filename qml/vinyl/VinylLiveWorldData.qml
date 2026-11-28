@@ -136,7 +136,7 @@ Item {
     readonly property var v1HomeRows: models.home
     readonly property var homeRowsProjection: {
         var generation=recommendationProfileGeneration();
-        var aliases={"albums-for-you":"from-your-artists","because-you-played":"from-your-artists",
+        var aliases={"albums-for-you":"from-your-artists",
             "artists-like-yours":"related-discoveries","rediscover":"rediscover-library"};
         var reasons={"new-from-your-artists":qsTr("A recent release near your artists"),"deep-cuts":qsTr("Beyond their top songs"),
             "artists-like-yours":qsTr("Related to your artists"),"rediscover":qsTr("From your listening history")};
