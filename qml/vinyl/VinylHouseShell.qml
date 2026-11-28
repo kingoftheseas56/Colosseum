@@ -399,8 +399,10 @@ WorldPage {
                         homePageVisible: root.contentVisible && homeContent.visible
                             && root.currentTab==="home" && !root.listKey && !picker.visible
                         backdrop: root.backdrop; pageFlick: root.pageFlickable
-                        cardSize: row.kind === "artists" ? 150 : 180
-                        squareSpacing: row.kind === "artists" ? 18 : 44
+                        // Seven across at 1280 (Hemanth, 2026-11-28: "everything under mixes is too big").
+                        cardSize: row.kind === "artists" ? 124
+                            : Math.floor((homeContent.width - 6 * 22) / 7)
+                        squareSpacing: 22
                         home: true
                     }
                 }
