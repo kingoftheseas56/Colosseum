@@ -9,6 +9,8 @@ Flickable {
     required property var session
     required property Item backdrop
     property string savedPlaylistId: ""
+    property real titleBarHeight: 0
+    readonly property real bodyTop: titleBarHeight > 0 ? titleBarHeight + 24 : 72
     readonly property var songs: mixView.songs || []
     readonly property bool ready: mixView.status==="ready" && songs.length>0
     readonly property real inset: Math.max(54, (width-1280)/2)
@@ -29,14 +31,15 @@ Flickable {
     ScrollGlide { flick: root }
     ScrollBar.vertical: HouseScrollBar {}
     BackAction {
-        objectName: "vinylHomeMixBack"
+        objectName: root.titleBarHeight > 0 ? "" : "vinylHomeMixBack"
+        visible: root.titleBarHeight === 0
         x: root.inset; y: 0; height: 44
         focusOnPointer: false; label: "Back"
         onTriggered: root.backRequested()
     }
     Column {
         id: info
-        x: root.inset; y: 72; width: root.leftWidth; spacing: 22
+        x: root.inset; y: root.bodyTop; width: root.leftWidth; spacing: 22
         RoundedPosterImage {
             width: parent.width; height: width; radius: 16
             sources: root.songs.length && root.songs[0].album.cover ? [root.songs[0].album.cover] : []
@@ -77,9 +80,15 @@ Flickable {
                 onTriggered: root.saveRequested()
             }
         }
+        BusyIndicator {
+            objectName: "vinylHomeMixLoadingIndicator"
+            width: 24; height: 24
+            running: root.mixView.status === "loading" && visible
+            visible: root.mixView.status === "loading"
+        }
         Text {
-            width: parent.width; visible: root.mixView.status==="loading" || !!root.failure || !!root.savedPlaylistId
-            text: root.savedPlaylistId ? "Saved to Library" : root.mixView.status==="loading" ? "Loading music…" : root.failure
+            width: parent.width; visible: !!root.failure || !!root.savedPlaylistId
+            text: root.savedPlaylistId ? "Saved to Library" : root.failure
             color: theme.inkDim; font.family: theme.ui; font.pixelSize: 15; wrapMode: Text.WordWrap
         }
         VinylWorldButton {
@@ -104,7 +113,7 @@ Flickable {
     }
     Column {
         id: tracks
-        x: root.inset+root.leftWidth+64; y: 72
+        x: root.inset+root.leftWidth+64; y: root.bodyTop
         width: Math.max(0,root.width-root.inset-x)
         Repeater {
             model: root.songs

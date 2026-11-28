@@ -13,8 +13,8 @@ Item {
         && (catalogueService.artistCatalogueBusy === undefined ? catalogueService.artistBusy === true
                                                                : catalogueService.artistCatalogueBusy === true)
     readonly property string catalogueError: online && catalogueService ? catalogueService.artistError || "" : ""
-    readonly property string catalogueStatus: loading ? qsTr("Loading artist catalogue…")
-        : catalogueError || (online && catalogueService && catalogueService.cached ? qsTr("Showing cached artist catalogue.") : "")
+    readonly property string catalogueStatus: catalogueError
+        || (!loading && online && catalogueService && catalogueService.cached ? qsTr("Showing cached artist catalogue.") : "")
     property string name: ""
     property string artistId: ""
     property string openingCover: ""

@@ -24,7 +24,7 @@ Flickable {
     property real sectionReturnY: 0
 
     property Item dialogReturnItem: null
-    property bool systemMenuOpen: false
+    property bool standalone: true
     property TitlePageBar sharedTitleBar: null
     readonly property real titleBarHeight: sharedTitleBar ? sharedTitleBar.height : artistTitleBar.height
     readonly property alias portraitBackdrop: internalArtistSkin
@@ -45,6 +45,9 @@ Flickable {
     Theme { id: theme }
     ScrollGlide { flick: root }
     // Scrolling is keyboard/wheel driven; the artist destination has no visible bars.
+    onContentYChanged: if (sysPopup.visible) sysPopup.close()
+    onVisibleChanged: if (!visible && sysPopup.visible) sysPopup.close()
+    onSelectedCategoryChanged: if (sysPopup.visible) sysPopup.close()
 
     function switchTab(tabKey, focusTabButton) {
         var valid = ["albums", "singles", "videos", "live"];
@@ -174,17 +177,11 @@ Flickable {
                 event.accepted = true;
                 return;
             }
-            if (root.systemMenuOpen) {
-                root.systemMenuOpen = false;
-                moreButton.forceActiveFocus(Qt.PopupFocusReason);
-                event.accepted = true;
-                return;
-            }
             root.backRequested();
             event.accepted = true;
             return;
         }
-        if (event.key === Qt.Key_Slash) {
+        if (event.key === Qt.Key_Slash && root.standalone) {
             root.openSearchDialog(searchButton);
             event.accepted = true;
             return;
@@ -212,7 +209,7 @@ Flickable {
             root.sectionReturnY = 0;
             root.contentY = 0;
             releasePicker.closePopup(false);
-            root.systemMenuOpen = false;
+            sysPopup.close();
             mediaDialog.close();
             savedPlaylistsDialog.close();
             playlistDialog.close();
@@ -242,17 +239,6 @@ Flickable {
         artistLayerBFocalX: hero.layerBFocalX
         artistLayerBFocalY: hero.layerBFocalY
         reducedMotion: root.artistData.reducedMotion
-    }
-
-    // Outside click catcher for the page-specific system menu
-    MouseArea {
-        anchors.fill: parent
-        z: 28
-        visible: root.systemMenuOpen
-        onClicked: {
-            if (root.systemMenuOpen)
-                root.systemMenuOpen = false;
-        }
     }
 
     // Main scrollable artist room flow (Hero -> Sticky Tab Bar spacer -> Tab Panels -> Overview shelves)
@@ -386,6 +372,7 @@ Flickable {
                             height: 39
                             label: "All releases"
                             clearable: false
+                            modalPopup: false
                             wrapNavigation: true
                             openOnDown: true
                             options: {
@@ -406,11 +393,16 @@ Flickable {
                     }
                 }
 
+                BusyIndicator {
+                    objectName: "vinylArtistLoadingIndicator"
+                    width: 24; height: 24
+                    running: root.artistData.loading && visible
+                    visible: root.artistData.loading && root.artistData.discographyCards.length === 0
+                }
                 Text {
                     objectName: "vinylArtistEmptyReleases"
-                    visible: root.artistData.liveMode && root.artistData.discographyCards.length === 0
+                    visible: root.artistData.liveMode && !root.artistData.loading && root.artistData.discographyCards.length === 0
                     text: !root.artistData.online ? qsTr("No local releases match this artist and filter.")
-                        : root.artistData.loading ? qsTr("Loading artist catalogue…")
                         : root.artistData.catalogueError && root.artistData.allDiscographyCards.length === 0
                             ? qsTr("The artist's releases could not be loaded.")
                             : qsTr("No catalogue releases match this artist and filter.")
@@ -793,7 +785,8 @@ Flickable {
             id: artistTabs
             objectName: "vinylArtistSharedTabs"
             anchors.left: parent.left; anchors.leftMargin: root.gutter
-            anchors.right: searchButton.left; anchors.rightMargin: 20
+            anchors.right: root.standalone ? searchButton.left : parent.right
+            anchors.rightMargin: root.standalone ? 20 : root.gutter
             height: parent.height
             backdrop: root.backdrop
             track: root.contentY
@@ -808,11 +801,12 @@ Flickable {
             onTabRequested: tab => root.switchTab(tab, false)
         }
 
-        // Right: Artist-scoped Search pill (.search-btn parity)
+        // Standalone Artist Room has no global search. The hosted room uses its title bar.
         KeyboardAction {
             focusOnPointer: false
             id: searchButton
             objectName: "vinylArtistSearchButton"
+            visible: root.standalone
             anchors.right: parent.right
             anchors.rightMargin: root.gutter
             anchors.verticalCenter: parent.verticalCenter
@@ -915,13 +909,51 @@ Flickable {
             }
         }
 
-        // On the hosted page, keep the artist actions alongside the shared app menu.
+        // Hosted title pages expose their page actions directly, without a second menu.
         Row {
             parent: root.sharedTitleBar ? root.sharedTitleBar.pageActionsHost : artistTitleBar
-            anchors.right: parent.right
-            anchors.rightMargin: root.sharedTitleBar ? 0 : root.gutter
+            visible: !root.standalone
+            anchors.right: root.sharedTitleBar ? undefined : parent.right
+            anchors.rightMargin: root.gutter
             anchors.verticalCenter: parent.verticalCenter
             spacing: 10
+            VinylWorldButton {
+                id: createPlaylist
+                objectName: "vinylArtistCreatePlaylistAction"
+                visible: root.artistData.songs.length > 0
+                enabled: root.artistData.playlistEnabled !== false
+                label: qsTr("Create playlist")
+                symbol: "playlistAdd"
+                backdrop: root.backdrop
+                onTriggered: {
+                    root.dialogReturnItem = createPlaylist.activeFocus ? createPlaylist : null;
+                    playlistName.text = "";
+                    createDialog.open();
+                }
+            }
+            VinylWorldButton {
+                id: showPlaylists
+                objectName: "vinylArtistShowPlaylists"
+                visible: !!root.artistData.liveMode && root.artistData.playlists.length > 0
+                label: qsTr("Your playlists")
+                symbol: "queue"
+                backdrop: root.backdrop
+                onTriggered: { root.dialogReturnItem = showPlaylists; savedPlaylistsDialog.open(); }
+            }
+            VinylWorldButton {
+                objectName: "vinylArtistScrollToTop"
+                label: qsTr("Top of page")
+                symbol: "arrowUp"
+                backdrop: root.backdrop
+                onTriggered: { root.cancelFlick(); root.contentY = 0; }
+            }
+        }
+
+        Row {
+            visible: root.standalone
+            anchors.right: parent.right
+            anchors.rightMargin: root.gutter
+            anchors.verticalCenter: parent.verticalCenter
 
             KeyboardAction {
                 focusOnPointer: false
@@ -932,20 +964,16 @@ Flickable {
                 focusRadius: 20
                 spaceActivates: true
                 accessibleName: "Page options"
-                onTriggered: {
-                    if (root.sharedTitleBar && root.sharedTitleBar.menuOpen)
-                        root.sharedTitleBar.closeMenu(false);
-                    root.systemMenuOpen = !root.systemMenuOpen;
-                }
+                onTriggered: sysPopup.visible ? sysPopup.close() : sysPopup.open()
 
                 Rectangle {
                     anchors.fill: parent
                     radius: 20
-                    color: (moreButton.interactionActive || root.systemMenuOpen)
+                    color: (moreButton.interactionActive || sysPopup.visible)
                         ? Qt.rgba(1, 1, 1, 0.12)
                         : Qt.rgba(0.063, 0.067, 0.09, 0.56)
                     border.width: 1
-                    border.color: root.systemMenuOpen ? theme.gold : theme.edge
+                    border.color: sysPopup.visible ? theme.gold : theme.edge
                 }
 
                 Text {
@@ -959,27 +987,28 @@ Flickable {
             }
         }
 
-        // Artist options popover (separate from the shared system menu).
-        Rectangle {
+        // Standalone preview options, not part of the hosted title bar.
+        Popup {
             id: sysPopup
-            parent: root.sharedTitleBar || artistTitleBar
+            parent: moreButton
             objectName: "vinylArtistSystemMenu"
-            visible: root.systemMenuOpen && !(root.sharedTitleBar && root.sharedTitleBar.menuOpen)
-            anchors.right: parent.right
-            anchors.rightMargin: root.gutter
-            y: parent.height + 6
+            x: moreButton.width - width
+            y: moreButton.height + (artistTitleBar.height - moreButton.height) / 2 + 6
             width: 210
             height: sysColumn.implicitHeight + 12
-            radius: 13
-            color: Qt.rgba(0.039, 0.047, 0.071, 0.98)
-            border.width: 1
-            border.color: theme.edge
-            z: 45
+            padding: 6
+            modal: false
+            focus: true
+            closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
+            background: Rectangle {
+                radius: 13
+                color: Qt.rgba(0.039, 0.047, 0.071, 0.98)
+                border.width: 1
+                border.color: theme.edge
+            }
 
-            Column {
+            contentItem: Column {
                 id: sysColumn
-                anchors.fill: parent
-                anchors.margins: 6
                 spacing: 2
 
                 KeyboardAction {
@@ -995,7 +1024,7 @@ Flickable {
                     spaceActivates: true
                     accessibleName: "Create playlist"
                     onTriggered: {
-                        root.systemMenuOpen = false;
+                        sysPopup.close();
                         root.dialogReturnItem = moreButton.activeFocus ? moreButton : null;
                         playlistName.text = "";
                         createDialog.open();
@@ -1019,7 +1048,7 @@ Flickable {
                     enabled: root.artistData.playlists.length > 0
                     width: parent.width; height: visible ? 36 : 0
                     accessibleName: "Your playlists"
-                    onTriggered: { root.systemMenuOpen=false; root.dialogReturnItem=moreButton; savedPlaylistsDialog.open(); }
+                    onTriggered: { sysPopup.close(); root.dialogReturnItem=moreButton; savedPlaylistsDialog.open(); }
                     Text { x:12; anchors.verticalCenter:parent.verticalCenter; text:"Your playlists"; color:theme.ink; font.family:theme.ui; font.pixelSize:13 }
                 }
 
@@ -1033,7 +1062,7 @@ Flickable {
                     spaceActivates: true
                     accessibleName: "Top of page"
                     onTriggered: {
-                        root.systemMenuOpen = false;
+                        sysPopup.close();
                         root.contentY = 0;
                     }
                     Rectangle {

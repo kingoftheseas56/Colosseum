@@ -110,7 +110,9 @@ TestCase {
     function test_artistSearchPopup(data){
         host.width=data.width;world.width=data.width;seed(3);world.showArtist("Local Artist");
         host.requestActivate();tryCompare(host,"active",true);
-        var page=item("vinylArtistPage"),origin=item("vinylArtistSearchButton");
+        var page=item("vinylArtistPage"),origin=findChild(world.detailTitleBar,"titleBarSearch");
+        verify(!item("vinylArtistSearchButton").visible);
+        // Exercise the standalone popup directly; the hosted room only exposes global search.
         origin.forceActiveFocus(Qt.TabFocusReason);
         page.openSearchDialog(origin);
         var popup=item("vinylArtistSearchDialog"),input=item("vinylArtistSearchInput"),results=item("vinylArtistSearchResultsList");
@@ -231,9 +233,8 @@ TestCase {
         tryCompare(artistBar, "solid", true);
         verify(artistPage.contentEndPadding > item("vinylPlayerBar").height);
         verify(item("vinylPlayerBar").x > world.shellDockRight);
-        mouseClick(item("vinylArtistMoreButton"));
-        verify(item("vinylArtistTopOfPageAction").visible);
-        mouseClick(item("vinylArtistTopOfPageAction"));
+        verify(item("vinylArtistScrollToTop").visible);
+        mouseClick(item("vinylArtistScrollToTop"));
         tryCompare(artistBar, "solid", false);
         artistPage.contentY = 100;
         mouseClick(item("vinylBarOpenSong"));
@@ -264,11 +265,8 @@ TestCase {
         mouseClick(albumBar.backItem);
         compare(world.page, "artist");
         tryCompare(artistBar, "solid", true);
-        mouseClick(findChild(artistBar, "titleBarSystemMenu"));
-        tryCompare(artistBar, "menuOpen", true);
-        keyClick(Qt.Key_Escape);
-        tryCompare(artistBar, "menuOpen", false);
-        compare(world.page, "artist");
+        verify(!findChild(artistBar, "titleBarSystemMenu").visible);
+        verify(findChild(artistBar, "titleBarWindowMinimize").visible);
         mouseClick(findChild(artistBar, "titleBarSearch"));
         tryCompare(world, "searchOpen", true);
         world.closeSearch();
@@ -289,7 +287,10 @@ TestCase {
         compare(world.page,"library");
         source.importProgress(source.lastImportId,2,4,"track.flac");
         tryCompare(world.session,"importProcessed",2);
-        tryVerify(function(){return item("vinylStatus").text.indexOf("2 of 4 files")>=0;});
+        const progress = item("vinylImportProgress");
+        verify(progress.visible);
+        compare(progress.value, 0.5); // 2 of 4 files
+        compare(item("vinylStatus").text, "");
         var firstId=source.lastImportId;
         source.importCompleted(firstId,{importedTracks:7,albums:[record(0),record(1)],errors:[]});
         tryCompare(world,"importing",false);

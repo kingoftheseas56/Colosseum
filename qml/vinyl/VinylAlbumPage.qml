@@ -9,6 +9,7 @@ Flickable {
     objectName: "vinylAlbumPage"
     required property var pageData
     required property Item backdrop
+    property bool opening: false
     property bool artistNavigationEnabled: true
     property bool shuffleEnabled: true
     property bool saveEnabled: true
@@ -97,7 +98,9 @@ Flickable {
     property real contentEndPadding: 0
     contentHeight: sections.y + sections.height + Math.max(height * 0.85, contentEndPadding)
     boundsBehavior: Flickable.StopAtBounds
+    interactive: !opening
     Keys.onPressed: event => {
+        if (opening) return;
         var target = contentY;
         if (event.key === Qt.Key_PageDown) target += height * 0.8;
         else if (event.key === Qt.Key_PageUp) target -= height * 0.8;
@@ -124,8 +127,16 @@ Flickable {
             root.contentY = 0;
         }
     }
+    BusyIndicator {
+        objectName: "vinylAlbumLoadingIndicator"
+        x: (root.width - width) / 2
+        y: root.contentY + (root.height - height) / 2
+        running: root.opening && visible
+        visible: root.opening
+    }
     Item {
         id: hero
+        visible: !root.opening
         x: root.inset
         width: root.usable
         height: Math.max(root.height, root.titleBarHeight + Math.max(trackList.height + 30, albumInfoColumn.height + 48))
@@ -372,14 +383,21 @@ Flickable {
                         anchors.centerIn: parent
                         symbol: "arrowDown"
                         color: theme.inkDim
+                        visible: !root.playlistPageLoading
+                    }
+                    BusyIndicator {
+                        anchors.centerIn: parent
+                        width: 24; height: 24
+                        running: root.playlistPageLoading && visible
+                        visible: root.playlistPageLoading
                     }
                 }
                 Text {
                     id: playlistMoreStatus
                     width: Math.max(0, parent.width - playlistMoreAction.width - parent.spacing)
                     anchors.verticalCenter: playlistMoreAction.verticalCenter
-                    visible: root.playlistPageLoading || root.playlistPageError.length > 0
-                    text: root.playlistPageLoading ? "Loading tracks…" : root.playlistPageError
+                    visible: root.playlistPageError.length > 0
+                    text: root.playlistPageError
                     color: root.playlistPageError.length > 0 && !root.playlistPageLoading
                         ? theme.gold : theme.inkDimmer
                     font.family: theme.ui
@@ -391,6 +409,7 @@ Flickable {
     }
     VinylAlbumSections {
         id: sections
+        visible: !root.opening
         x: root.inset + sidebar.contentLeft
         y: hero.height + 50
         width: root.usable - sidebar.contentLeft

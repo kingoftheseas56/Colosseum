@@ -782,6 +782,10 @@ Item {
         if (!source) {browseError="Local audio is unavailable.";return;}
         refreshSource();browseError=""; browsing=true; browseOperation="album";browseValue=browseId;
         browseRequest=source.request("browse","album",browseId);
+        if (browseRequest < 0) {
+            browsing = false;
+            browseError = qsTr("This album could not be requested. Select it again to retry.");
+        }
     }
     function updateShownSaved() {
         var selected=library.find(entry=>entry.id===shownAlbumId);

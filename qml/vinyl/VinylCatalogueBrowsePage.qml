@@ -66,6 +66,7 @@ Item {
         Text {text:qsTr("YouTube Music");color:theme.gold;font.family:theme.ui;font.pixelSize:14}
         Text {width:parent.width;text:root.kind==="artists" ? qsTr("Artist charts") : qsTr("Browse collections");color:theme.ink;font.family:theme.ui;font.pixelSize:20;wrapMode:Text.WordWrap}
         DiscoverPicker {
+            modalPopup: false
             id:categoryPicker;objectName:"vinylCatalogueCategory";width:parent.width
             visible:root.kind!=="artists";label:root.defaultTitle();clearable:false;openOnDown:true
             options:[{key:"",text:root.defaultTitle()}].concat(root.browseData.categories.map(function(c){return {key:c.params,text:c.title,sub:c.group || ""};}))
@@ -74,6 +75,7 @@ Item {
         }
         Text {width:parent.width;visible:root.kind!=="artists";text:qsTr("Curated collections from YouTube.");color:theme.inkDim;font.family:theme.ui;font.pixelSize:12;wrapMode:Text.WordWrap}
         DiscoverPicker {
+            modalPopup: false
             id:market;objectName:"vinylCatalogueMarket";visible:root.kind==="artists";width:parent.width
             label:qsTr("Market");clearable:false;openOnDown:true
             options:root.browseData.markets.map(function(m){return {key:m.code,text:root.marketTitle(m)};}).filter(function(m){return !!m.text;})

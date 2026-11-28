@@ -15,6 +15,7 @@ Item {
     property var options: []                  // [{key,text,sub} | {header:"…"}]
     property string currentKey: ""
     property bool open: false
+    property bool modalPopup: true            // opt out when the outside action must also receive the tap
     property bool wrapNavigation: false        // opt-in cyclic option navigation
     property bool openOnDown: false            // opt-in combobox-style trigger
     property bool clearable: true             // an active filter shows an ✕ that resets it
@@ -219,13 +220,14 @@ Item {
     Popup {
         id: pop
         objectName: picker.automationName.length ? picker.automationName + "Popup" : ""
-        parent: Overlay.overlay
+        readonly property Item windowOverlay: Overlay.overlay
+        parent: picker.modalPopup ? windowOverlay : picker
         popupType: Popup.Item
         padding: 6
-        modal: true
+        modal: picker.modalPopup
         dim: false
         margins: 8
-        width: Math.min(Math.max(picker.width, 280), parent ? parent.width - 16 : 280)
+        width: Math.min(Math.max(picker.width, 280), windowOverlay ? windowOverlay.width - 16 : 280)
         // Delegate heights are fixed. ListView.contentHeight is estimated while
         // delegates are being created, which can move a bottom-anchored popup
         // across its trigger after opening or refreshing the options.
@@ -238,23 +240,26 @@ Item {
         property real anchorRoomHeight: 380
         height: Math.min(desiredHeight, anchorRoomHeight)
         onDesiredHeightChanged: if (picker.open) positionAtPill()
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        closePolicy: Popup.CloseOnEscape | (picker.modalPopup ? Popup.CloseOnPressOutside : Popup.CloseOnPressOutsideParent)
         function positionAtPill() {
-            if (!parent) return
-            var point = pill.mapToItem(parent, 0, 0)
-            x = Math.max(8, Math.min(point.x, parent.width - width - 8))
+            if (!parent || !windowOverlay) return
+            var point = pill.mapToItem(windowOverlay, 0, 0)
+            var left = Math.max(8, Math.min(point.x, windowOverlay.width - width - 8))
             var below = point.y + pill.height + 6
-            var roomBelow = Math.max(0, parent.height - 8 - below)
+            var roomBelow = Math.max(0, windowOverlay.height - 8 - below)
             var roomAbove = Math.max(0, point.y - 6 - 8)
             var placeBelow = desiredHeight <= roomBelow
                 || (desiredHeight > roomAbove && roomBelow >= roomAbove)
             anchorRoomHeight = placeBelow ? roomBelow : roomAbove
             var fittedHeight = Math.min(desiredHeight, anchorRoomHeight)
-            y = placeBelow ? below : Math.max(8, point.y - fittedHeight - 6)
+            var top = placeBelow ? below : Math.max(8, point.y - fittedHeight - 6)
+            var local = windowOverlay.mapToItem(parent, left, top)
+            x = local.x
+            y = local.y
         }
         onClosed: {
             // An external host setting open=false must not steal its newly assigned focus.
-            if (picker.open) picker.closePopup(true)
+            if (picker.open) picker.closePopup(picker.modalPopup)
         }
         background: Rectangle {
             radius: 13

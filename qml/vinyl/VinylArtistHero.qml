@@ -452,6 +452,7 @@ Item {
                 font.weight: Font.Medium
             }
             Text {
+                visible: !root.artistData.loading
                 text: "·"
                 color: theme.inkDimmer
                 font.family: theme.ui
@@ -461,9 +462,9 @@ Item {
             Text {
                 text: (!root.artistData.liveMode && root.artistData.record.name === "Eminem")
                     ? "12 studio albums"
-                    : (root.artistData.loading ? qsTr("Loading catalogue…")
-                        : (root.artistData.allDiscographyCards.length === 1 ? qsTr("1 release")
-                            : qsTr("%1 releases").arg(root.artistData.allDiscographyCards.length)))
+                    : (root.artistData.allDiscographyCards.length === 1 ? qsTr("1 release")
+                        : qsTr("%1 releases").arg(root.artistData.allDiscographyCards.length))
+                visible: !root.artistData.loading
                 textFormat: Text.PlainText
                 color: Qt.rgba(0.969, 0.969, 0.961, 0.90)
                 font.family: theme.ui

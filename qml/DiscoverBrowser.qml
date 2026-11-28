@@ -166,6 +166,7 @@ Item {
     property var pinValue: null
 
     property bool keyboardMode: false        // true once arrows are used -> shows the focus ring
+    property alias modalFilterPopup: filterPicker.modalPopup
     property bool catalogMenuOpen: false     // the Fraunces catalogue name opens the category picker
     property Item catalogFocusReturn: null   // invoker restored when the picker closes
 

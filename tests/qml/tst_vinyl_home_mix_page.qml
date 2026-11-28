@@ -188,7 +188,8 @@ TestCase {
         var retry = item("vinylHomeMixRetry")
         host.mixView.status = "loading"
         host.mixView.error = ""
-        verify(containsText(host.page, "Loading music…"))
+        verify(item("vinylHomeMixLoadingIndicator").visible)
+        verify(!containsText(host.page, "Loading music…"))
         verify(!item("vinylHomeMixPlay").enabled,"a partially loaded mix cannot start playback")
         verify(!retry.visible, "retry stays hidden while the mix is loading")
 

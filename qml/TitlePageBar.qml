@@ -184,7 +184,6 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             sourceComponent: HouseWindowControls {
                 objectPrefix: "titleBarWindow"
-                quitIcon: Qt.resolvedUrl("../assets/icons/reader2/close.svg")
                 onMinimizeRequested: bar.minimizeRequested()
                 onFullscreenRequested: bar.fullscreenRequested()
                 onQuitRequested: bar.quitRequested()

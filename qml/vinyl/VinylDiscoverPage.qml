@@ -35,6 +35,7 @@ Item {
         id: browser
         anchors.fill: parent
         automationPrefix: "vinyl"
+        modalFilterPopup: false
         adapter: music
         active: root.active && root.profileReady
         pageFlick: root.pageFlick
