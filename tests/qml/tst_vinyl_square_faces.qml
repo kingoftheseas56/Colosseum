@@ -1,6 +1,7 @@
 import QtQuick
 import QtTest
 import "../../qml/vinyl" as Vinyl
+import "../../qml" as House
 
 TestCase {
     id: test
@@ -11,6 +12,7 @@ TestCase {
 
     readonly property url cover: Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg")
     QtObject { id: playback; property var playingTrack: null }
+    House.Theme { id: theme }
     QtObject {
         id: world
         property QtObject session: playback
@@ -51,7 +53,7 @@ TestCase {
         return [
             {tag:"song", kind:"songs", pieces:3, detail:"Fixture artist"},
             {tag:"album", kind:"albums", pieces:3, detail:"Fixture artist · 1977"},
-            {tag:"artist", kind:"artists", pieces:2, detail:""},
+            {tag:"artist", kind:"artists", pieces:3, detail:""},
             {tag:"station", kind:"radio", pieces:3, detail:"Keeps going"},
             {tag:"mix", kind:"mixes", pieces:6, detail:"Made for you"}
         ];
@@ -84,6 +86,13 @@ TestCase {
         compare(artwork.asynchronous, true);
         compare(artwork.sourceSize.width, Math.ceil(artwork.width * card.Screen.devicePixelRatio));
         verify(!findChild(art, "vinylArtworkFallback").visible);
+        const edge = findChild(art, "vinylPortraitEdge");
+        compare(edge.visible, data.kind === "artists");
+        if (edge.visible) {
+            compare(edge.border.width, 1);
+            compare(edge.border.color, theme.edge);
+            compare(edge.radius, 98);
+        }
         compare(findChild(card, "testCard_artRing"), null);
         tryCompare(card, "hovered", false);
         tryVerify(() => painted(card) === data.pieces);

@@ -34,8 +34,10 @@ class Transport:
     def __init__(self, *responses):
         self.responses = list(responses)
         self.calls = []
+        self.languages = []
     def open(self, request, timeout):
         self.calls.append((request.full_url, timeout))
+        self.languages.append(request.get_header("Accept-language"))
         if not self.responses: raise AssertionError("Unexpected transport call")
         response = self.responses.pop(0)
         if isinstance(response, Exception): raise response
@@ -103,6 +105,35 @@ class SourcePoolProviderTest(unittest.TestCase):
                     self.assertEqual(item["hints"]["releaseDate"],"2026-03")
                     self.assertEqual(len(t.calls),1)
                     self.assertEqual(t.calls[0],("https://rss.marketingtools.apple.com/api/v2/"+cc+"/music/most-played/50/"+kind+".json",4))
+    def test_compilation_releases_do_not_head_apple_chart_inputs(self):
+        for kind in ("albums", "songs"):
+            with self.subTest(kind=kind):
+                transport = Transport({"feed": {"country": "fr", "results": [
+                    dict(apple_row(kind), name="Grand Theft Auto VI", artistName="Multi-interprètes"),
+                    dict(apple_row(kind, 2), artistName="Various Artists"),
+                    dict(apple_row(kind, 3), artistName="Various Artists Quartet"),
+                ]}})
+                result = self.chart("apple:fr:" + kind, transport)
+                self.assertEqual(result["status"], "ready")
+                self.assertEqual([(row["artist"], row["rank"]) for row in result["items"]],
+                                 [("Various Artists Quartet", 3)])
+                self.assertEqual(transport.languages, ["en-US,en;q=0.9"])
+
+    def test_pseudo_artists_are_removed_from_lastfm_chart_inputs(self):
+        transport = Transport({"artists": {"artist": [dict(lastfm_row(True), name=name) for name in (
+            "Various Artists", "Multi‑Interprètes", "Grand Theft Auto VI", "Artist Ensemble")]}})
+        result = self.chart("lastfm:artists", transport)
+        self.assertEqual([(row["title"], row["rank"]) for row in result["items"]], [("Artist Ensemble", 4)])
+        self.assertEqual(transport.languages, ["en-US,en;q=0.9"])
+
+    def test_itunes_art_search_explicitly_requests_english(self):
+        transport = Transport({"results": []})
+        with mock.patch.object(p, "_ITUNES_NEXT_REQUEST", 0):
+            p._discover_http("itunes", "search", {"term": "Fixture"}, transport=transport)
+        query = urllib.parse.parse_qs(urllib.parse.urlparse(transport.calls[0][0]).query)
+        self.assertEqual(query, {"term": ["Fixture"], "country": ["US"], "lang": ["en_us"]})
+        self.assertEqual(transport.languages, ["en-US,en;q=0.9"])
+
     def test_lastfm_both_charts_use_existing_key_reader(self):
         for leaf,kind,method in (("tracks","songs","chart.getTopTracks"),("artists","artists","chart.getTopArtists")):
             with self.subTest(leaf=leaf):

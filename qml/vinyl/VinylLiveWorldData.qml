@@ -71,12 +71,31 @@ Item {
         }
         if(changed)models[model]=result;
     }
+    // Older native chart snapshots can still contain rows ingested before the
+    // provider's chart eligibility filter. Do not promote them while offline.
+    function chartCreditKey(name) {
+        return String(name || "").normalize("NFKD").toLowerCase().replace(/[\u0300-\u036f\s\-‐‑–—]+/g, "");
+    }
+    readonly property var nonPerformerCredits: new Set([
+        "Various Artists", "Various", "Multi-interprètes", "Artistes divers", "Artistes variés",
+        "Varios artistas", "Vários artistas", "Artisti vari", "Verschiedene Interpreten", "Diverse artiesten",
+        "Разные исполнители", "群星", "合輯藝人", "ヴァリアス・アーティスト", "여러 아티스트",
+        "Grand Theft Auto VI", "Grand Theft Auto 6"
+    ].map(chartCreditKey))
+    function eligibleHeroRows(items, artists) {
+        return (items || []).filter(function(item) {
+            if (artists && nonPerformerCredits.has(chartCreditKey(item.title))) return false;
+            var credits = item.catalogueItem?.hints?.artists || [item.artist];
+            return !credits.some(name => nonPerformerCredits.has(chartCreditKey(name)));
+        });
+    }
     readonly property var heroSlides: models.hero
     readonly property var heroProjection: {
         var charts=homeSourcePool.charts || {},result=[];
-        var groups=[{kind:"topAlbum",items:charts.albums || [],kicker:qsTr("#1 album in the world this week")},
-            {kind:"topSong",items:charts.songs || [],kicker:qsTr("#1 song in the world this week")},
-            {kind:"topArtist",items:charts.artists || [],kicker:qsTr("#1 artist in the world this week")}];
+        var chartArtists=eligibleHeroRows(charts.artists, true);
+        var groups=[{kind:"topAlbum",items:eligibleHeroRows(charts.albums, false),kicker:qsTr("#1 album in the world this week")},
+            {kind:"topSong",items:eligibleHeroRows(charts.songs, false),kicker:qsTr("#1 song in the world this week")},
+            {kind:"topArtist",items:chartArtists,kicker:qsTr("#1 artist in the world this week")}];
         groups.forEach(function(group){
             if(group.items.length<5)return;
             var items=group.items.slice(0,5).map(function(item,index){return Object.assign({},item,{rank:index+1});});
@@ -93,7 +112,7 @@ Item {
         append(personal[0]);append((homeSourcePool.songs || [])[0]);append((homeSourcePool.artists || [])[0]);
         personal.forEach(append);
         var fallback=picks.length<5;
-        if(fallback && savedArtistCount>0)picks=(charts.artists || []).slice(4,9).map(function(item){return Object.assign({},item,{reason:qsTr("From this week’s charts")});});
+        if(fallback && savedArtistCount>0)picks=chartArtists.slice(4,9).map(function(item){return Object.assign({},item,{reason:qsTr("From this week’s charts")});});
         if(picks.length>=5)result.push({kind:"forYou",item:picks[0],sideItems:picks.slice(1,5),
             kicker:fallback ? qsTr("For you · from this week’s charts") : qsTr("For you · picked today")});
         return result;

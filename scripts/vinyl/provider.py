@@ -119,7 +119,7 @@ def _ytmusic_client(region, *, bounded=False, user_agent=None, reuse=True):
     key = (region, bounded, user_agent)
     if reuse and _SERVER_MODE and _SERVER_MUSIC_CLIENT is not None and _SERVER_MUSIC_KEY == key:
         return _SERVER_MUSIC_CLIENT
-    options = ytmusic_location_options(region)
+    options = {"language": "en", "location": "US", **ytmusic_location_options(region)}
     if bounded:
         import functools
         import requests
@@ -3346,7 +3346,7 @@ def _discover_http(source, method, params, language="", *, transport=None, timeo
             dict(params, action=method, format="json", formatversion=2))
         headers = {"User-Agent": _CHART_USER_AGENT}
     elif source == "itunes":
-        url = "https://itunes.apple.com/search?" + urllib.parse.urlencode(params)
+        url = "https://itunes.apple.com/search?" + urllib.parse.urlencode(dict(params, lang="en_us", country="US"))
         headers = {"User-Agent": _ITUNES_USER_AGENT, "Accept": "application/json"}
         with _ITUNES_LOCK:
             time.sleep(max(0, _ITUNES_NEXT_REQUEST - time.monotonic()))
@@ -3358,6 +3358,8 @@ def _discover_http(source, method, params, language="", *, transport=None, timeo
         url = "https://www.jiosaavn.com/api.php?" + urllib.parse.urlencode(
             dict(params, _format="json", _marker=0, api_version=4, ctx="web6dot0", __call=method))
         headers = {"User-Agent": "Mozilla/5.0", "Cookie": "L=" + language}
+    if source != "jiosaavn":
+        headers["Accept-Language"] = "en-US,en;q=0.9"
     label = {"lastfm": "Last.fm", "kworb": "Kworb", "wikipedia": "Wikipedia",
              "itunes": "iTunes", "deezer": "Deezer"}.get(source, "JioSaavn")
     try:
@@ -3473,6 +3475,32 @@ def _lastfm_image(row):
     return ""
 
 
+def _compilation_key(value):
+    # Match whole credits, not substrings of actual artist names.
+    return re.sub(r"[\s\-‐‑–—]+", "", "".join(c for c in unicodedata.normalize("NFKD", value.casefold())
+                                                   if not unicodedata.combining(c)))
+
+
+_COMPILATION_CREDITS = frozenset(map(_compilation_key, (
+    "Various Artists", "Various", "Multi-interprètes", "Artistes divers", "Artistes variés",
+    "Varios artistas", "Vários artistas", "Artisti vari", "Verschiedene Interpreten", "Diverse artiesten",
+    "Разные исполнители", "群星", "合輯藝人", "ヴァリアス・アーティスト", "여러 아티스트",
+)))
+# Known game labels also turn up in artist fields instead of performer credits.
+_NON_PERFORMER_CREDITS = _COMPILATION_CREDITS | {"grandtheftautovi", "grandtheftauto6"}
+
+
+def _chart_eligible(kind, title, credits):
+    # Some artist projections contain only the provider's display title.
+    if kind == "artists" and _compilation_key(title) in _NON_PERFORMER_CREDITS:
+        return False
+    return not any(_compilation_key(credit) in _NON_PERFORMER_CREDITS for credit in credits)
+
+
+def _chart_item_eligible(item):
+    return _chart_eligible(item["kind"], item["title"], item["hints"]["artists"])
+
+
 def _discover_card(source, kind, key, title, credits, image, year="", **hints):
     label = ", ".join(credits)
     return {"id": f"{source}:{kind}:" + hashlib.sha256(key.encode()).hexdigest()[:24], "kind": kind, "title": title,
@@ -3540,7 +3568,7 @@ def _lastfm_page(kind, list_key, cursor, page_size, refresh, *, deep=False):
 
     data, stamp, stale = _discover_cached(
         ["lastfm-projection", method, params], _LASTFM_TTL, refresh, load, valid, honor_headers=True)
-    items = data["items"]
+    items = [item for item in data["items"] if _chart_item_eligible(item)]
     complete = data["count"] < page_size or page == max_page
     return items, {} if complete else {"page": page + 1, "binding": binding}, stamp, stale, None
 
@@ -3856,7 +3884,7 @@ def _kworb_items(raw, kind):
             title, credits = label, [label]
         if not 0 < len(title) <= 600 or not credits or not all(0 < len(name) <= 600 for name in credits):
             return []
-        if len(items) < 100:
+        if len(items) < 100 and _chart_eligible(kind, title, credits):
             items.append(_chart_card("kworb", kind, title, credits, rank))
     return items
 
@@ -3878,7 +3906,8 @@ def _kworb_streamed_items(raw):
             return []
         if not all(re.fullmatch(r"\d+(?:,\d{3})*", row[i][1]) for i in (1, 2)):
             return []
-        items.append(_chart_card("kworb", "songs", title, [artist], rank))
+        if _chart_eligible("songs", title, [artist]):
+            items.append(_chart_card("kworb", "songs", title, [artist], rank))
     return items
 
 
@@ -3923,7 +3952,7 @@ def _youtube_week(kind, scope, client):
     def load_charts():
         return _call_provider(youtube().get_charts, country), "", "0", None, None
 
-    charts, stamp, stale = _discover_cached(["chart-week", "youtube-music", country], _CHART_TTL, False,
+    charts, stamp, stale = _discover_cached(["chart-week", "youtube-music-en", country], _CHART_TTL, False,
                                              load_charts, lambda value: isinstance(value, dict) and "countries" in value)
     if kind == "songs":
         # get_charts returns playlist references, not individual tracks. Prefer
@@ -3940,7 +3969,7 @@ def _youtube_week(kind, scope, client):
             return _discover_rows(playlist.get("tracks") if isinstance(playlist, dict) else None), "", "0", None, None
 
         rows, playlist_stamp, playlist_stale = _discover_cached(
-            ["chart-week", "youtube-music", "playlist", playlist_id], _CHART_TTL, False, load_playlist,
+            ["chart-week", "youtube-music-en", "playlist", playlist_id], _CHART_TTL, False, load_playlist,
             lambda value: isinstance(value, list))
         stamp, stale = min(stamp, playlist_stamp), stale or playlist_stale
     else:
@@ -3952,14 +3981,13 @@ def _youtube_week(kind, scope, client):
         key = row.get("videoId" if kind == "songs" else "browseId")
         title = _discover_text(row.get("title"))
         raw_credits = row.get("artists", [])
-        if kind == "artists":
-            credits = [title]
-        elif isinstance(raw_credits, list) and all(isinstance(credit, dict) for credit in raw_credits):
-            credits = [_discover_text(credit.get("name")) for credit in raw_credits]
-        else:
+        if not isinstance(raw_credits, list) or not all(isinstance(credit, dict) for credit in raw_credits):
             continue
+        names = [_discover_text(credit.get("name")) for credit in raw_credits]
+        credits = [title] if kind == "artists" else names
         valid_id = source_key(key) and (kind != "songs" or len(key) == 11)
-        if not title or not credits or not all(credits) or not valid_id or row.get("isAvailable") is False:
+        if (not title or not credits or not all(credits) or not valid_id or row.get("isAvailable") is False
+                or not _chart_eligible(kind, title, names)):
             continue
         rank = _discover_number(row.get("rank")) or position
         thumbs = row.get("thumbnails")
@@ -3990,6 +4018,8 @@ def fetch_chart_week(request, client=None):
     warning = ""
     try:
         kworb, kworb_stamp, kworb_stale = _kworb_week(kind, kworb_scope)
+        # Old on-disk projections predate the eligibility filter.
+        kworb = [item for item in kworb if _chart_item_eligible(item)]
     except ProviderError:
         kworb, warning = [], "Kworb is unavailable."
     else:
@@ -4071,8 +4101,9 @@ def _vinyl_cached_genres(key):
 
 
 def _kworb_art_key(kind, params):
-    # Re-probe old hits and misses with the new artwork chain.
-    return _discover_hash(["kworb-art-v3", _vinyl_genre_cache_key(kind, params)])
+    # Re-probe old artist misses with the article-aware artwork chain.
+    return _discover_hash(["kworb-art-v4" if kind == "artists" else "kworb-art-v3",
+                           _vinyl_genre_cache_key(kind, params)])
 
 
 def _art_bucket(key):
@@ -4139,13 +4170,33 @@ def _kworb_itunes_art(kind, params):
     return "", ""
 
 
-def _kworb_deezer_art(name):
+def _portrait_queries(name):
+    yield name
+    alternate = re.sub(r"^the\s+", "", name, flags=re.I).strip()
+    if alternate and alternate != name:
+        yield alternate
+
+
+def _portrait_matches(rows, name, name_for):
+    """Exact first; allow only an unambiguous leading-article spelling variant."""
     artist = _catalogue_text_key(name)
-    if not artist:
+    exact, variants = [], []
+    for row in rows:
+        key = _catalogue_text_key(name_for(row))
+        if key and key == artist:
+            exact.append(row)
+        elif key and key.removeprefix("the ") == artist.removeprefix("the "):
+            variants.append(row)
+    return exact or (variants if len(variants) == 1 else [])
+
+
+def _kworb_deezer_art(name):
+    if not _catalogue_text_key(name):
         return "", ""
-    data, *_ = _discover_http("deezer", "search/artist", {"q": name, "limit": 5}, timeout=4)
-    for row in _discover_rows(data.get("data") if isinstance(data, dict) else None, 5):
-        if _catalogue_text_key(_discover_text(row.get("name"))) == artist:
+    for query in _portrait_queries(name):
+        data, *_ = _discover_http("deezer", "search/artist", {"q": query, "limit": 5}, timeout=4)
+        rows = _discover_rows(data.get("data") if isinstance(data, dict) else None, 5)
+        for row in _portrait_matches(rows, name, lambda row: _discover_text(row.get("name"))):
             for field in ("picture_xl", "picture_big"):
                 if image := _discover_cover(row.get(field), _WEEK_ART_HOSTS["deezer"]):
                     return image, ""
@@ -4153,24 +4204,28 @@ def _kworb_deezer_art(name):
 
 
 def _kworb_youtube_art(kind, params, youtube, album_hint):
+    client = _call_provider(youtube)
+    if kind == "artists":
+        for query in _portrait_queries(params["artist"]):
+            rows = _discover_rows(_call_provider(client.search, query[:600], filter=kind, limit=6))
+            channels = [row for row in rows if re.fullmatch(r"UC[A-Za-z0-9_-]{22}", str(row.get("browseId") or ""))]
+            for row in _portrait_matches(channels, params["artist"], lambda row: row.get("artist") or row.get("title")):
+                if isinstance(row.get("thumbnails"), list):
+                    if image := cover({"thumbnails": _catalogue_safe_thumbnails(row)}):
+                        return image, ""
+        return "", ""
     artist = _catalogue_text_key(params["artist"])
     leaf = "track" if kind == "songs" else "album"
     title = params.get(leaf, "")
     query = " ".join(filter(None, (params["artist"], title)))[:600]
-    client = _call_provider(youtube)
     rows = _call_provider(client.search, query, filter=kind, limit=6)
     found_album = ""
     for row in _discover_rows(rows):
-        if kind == "artists":
-            if (_catalogue_text_key(row.get("artist") or row.get("title")) != artist
-                    or not re.fullmatch(r"UC[A-Za-z0-9_-]{22}", str(row.get("browseId") or ""))):
-                continue
-        else:
-            credits = row.get("artists")
-            if (not isinstance(credits, list) or not any(isinstance(a, dict)
-                    and _catalogue_text_key(a.get("name")) == artist for a in credits)
-                    or _catalogue_text_key(row.get("title"), kind == "albums") != _catalogue_text_key(title, kind == "albums")):
-                continue
+        credits = row.get("artists")
+        if (not isinstance(credits, list) or not any(isinstance(a, dict)
+                and _catalogue_text_key(a.get("name")) == artist for a in credits)
+                or _catalogue_text_key(row.get("title"), kind == "albums") != _catalogue_text_key(title, kind == "albums")):
+            continue
         album = row.get("album")
         album = _discover_text(album.get("name")) if kind == "songs" and isinstance(album, dict) else ""
         if album_hint and album and _catalogue_text_key(album_hint, True) != _catalogue_text_key(album, True):
@@ -4331,7 +4386,7 @@ def _youtube_new(kind, client, refresh):
         releases = _discover_rows(raw.get("new_releases") if isinstance(raw, dict) else None)
         return releases, "", "0", None, None
 
-    releases, stamp, stale = _discover_cached(["vinyl-new", "releases"], ttl, refresh, load_releases,
+    releases, stamp, stale = _discover_cached(["vinyl-new-en", "releases"], ttl, refresh, load_releases,
                                                lambda value: isinstance(value, list))
     cards = {}
     albums_read = 0
@@ -4341,6 +4396,8 @@ def _youtube_new(kind, client, refresh):
             continue
         credits = _discover_rows(row.get("artists") or [], 100)
         names = [name for artist in credits if (name := _discover_text(artist.get("name")))]
+        if not _chart_eligible(kind, title, names):
+            continue
         image = cover({"thumbnails": _catalogue_safe_thumbnails(row)})
         if kind == "albums":
             card = _discover_card("youtube-music", kind, key, title, names, image)
@@ -4348,7 +4405,8 @@ def _youtube_new(kind, client, refresh):
         elif kind == "artists":
             for artist in credits:
                 name, channel = _discover_text(artist.get("name")), artist.get("id")
-                if name and isinstance(channel, str) and re.fullmatch(r"UC[A-Za-z0-9_-]{22}", channel):
+                if (name and _chart_eligible("artists", name, [name]) and isinstance(channel, str)
+                        and re.fullmatch(r"UC[A-Za-z0-9_-]{22}", channel)):
                     card = _discover_card("youtube-music", kind, channel, name, [name], "")
                     card["subtitle"] = ""
                     cards.setdefault(card["id"], card)
@@ -4367,6 +4425,8 @@ def _youtube_new(kind, client, refresh):
                     continue
                 track_names = [name for artist in _discover_rows(track.get("artists") or [], 100)
                                if (name := _discover_text(artist.get("name")))]
+                if not _chart_eligible(kind, name, track_names):
+                    continue
                 card = _discover_card("youtube-music", kind, track_id, name, track_names or names, image, album=title,
                                       duration=_discover_number(track.get("duration_seconds")))
                 cards.setdefault(card["id"], card)
@@ -4378,7 +4438,7 @@ def _youtube_new_tracks(key, youtube, ttl, refresh):
         album = _call_provider(youtube().get_album, key)
         return _discover_rows(album.get("tracks") if isinstance(album, dict) else None), "", "0", None, None
 
-    return _discover_cached(["vinyl-new", "tracks", key], ttl, refresh, load, lambda value: isinstance(value, list))
+    return _discover_cached(["vinyl-new-en", "tracks", key], ttl, refresh, load, lambda value: isinstance(value, list))
 
 
 def fetch_most_streamed(request):
@@ -4820,7 +4880,7 @@ def _pool_http(url, transport=None, *, text=False, timeout=4):
     maximum = 256 * 1024 if text else _DISCOVER_RESPONSE_LIMIT
     try:
         request = urllib.request.Request(url, headers={"User-Agent":MB_USER_AGENT,
-            "Accept":"text/html" if text else "application/json"})
+            "Accept":"text/html" if text else "application/json", "Accept-Language":"en-US,en;q=0.9"})
         with opener.open(request, timeout=timeout) as response:
             status = getattr(response, "status", 200)
             if type(status) is not int or not 200 <= status < 300:
@@ -4939,8 +4999,11 @@ def _pool_apple_rows(request, transport, cc, kind):
         date = row.get("releaseDate", "")
         if type(date) is not str or len(date) > 32:
             raise ProviderUnavailableError("Apple returned an invalid release date.")
-        item = _discover_card("apple-music", kind, key, _pool_text(row.get("name")),
-            [_pool_text(row.get("artistName"))], _discover_cover(row.get("artworkUrl100"), ("mzstatic.com",)), releaseDate=date)
+        title, artist = _pool_text(row.get("name")), _pool_text(row.get("artistName"))
+        if not _chart_eligible(kind, title, [artist]):
+            continue
+        item = _discover_card("apple-music", kind, key, title, [artist],
+            _discover_cover(row.get("artworkUrl100"), ("mzstatic.com",)), releaseDate=date)
         if artist_id:
             item["sourceIds"]["artistId"] = artist_id
         url = _discover_cover(row.get("url"), ("music.apple.com",))
@@ -4968,6 +5031,8 @@ def _pool_lastfm_rows(request, transport, chart=False):
     items = []
     for rank, row in enumerate(rows, 1):
         item = _pool_lastfm_card(row, kind)
+        if not _chart_item_eligible(item):
+            continue
         item["rank"] = rank
         if chart:
             item["chartKind"] = kind

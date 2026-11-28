@@ -10,6 +10,8 @@ Item {
     property var artworkSources: []
     property string title: ""
     property bool circular: false
+    property bool artworkPreviouslyReady: false
+    signal artworkReady(url source, size decodeSize)
     property string displayFont: theme.display
     property color surfaceColor: circular ? theme.vaultSurface : "transparent"
     property real cornerRadius: 10
@@ -44,7 +46,7 @@ Item {
         id: covers
         anchors.fill: parent
         // The software backend cannot run ShaderEffects; keep artwork visible there.
-        layer.enabled: !art.softwareRendering && art.visible && (art.collage || first.status === Image.Ready)
+        layer.enabled: !art.softwareRendering && art.visible && (art.collage || first.visible)
         layer.effect: MultiEffect {
             maskEnabled: true
             maskSource: cropMask
@@ -56,6 +58,17 @@ Item {
             width: art.collage ? art.width / 2 : art.width
             height: art.collage ? art.height / 2 : art.height
             source: art.collage ? art.artworkSources[0] : art.artworkSource
+            // Keep the same portrait through a resize, never the outgoing
+            // artist's pixels while a recycled delegate loads a different URL.
+            property string decodedSource: ""
+            readonly property bool samePortrait: art.circular && !art.collage && decodedSource.length > 0
+                && decodedSource === source.toString()
+            retainWhileLoading: samePortrait
+            visible: status === Image.Ready || (status === Image.Loading && samePortrait)
+            onStatusChanged: if (status === Image.Ready && art.circular && !art.collage) {
+                decodedSource = source.toString();
+                art.artworkReady(source, sourceSize);
+            }
         }
         Repeater {
             model: art.collage ? Math.min(3, art.artworkSources.length - 1) : 0
@@ -81,10 +94,19 @@ Item {
     Text {
         objectName: art.circular ? "vinylArtistInitials" : "vinylArtworkPlaceholder"
         anchors.centerIn: parent
-        visible: !art.collage && !first.visible
+        visible: !art.collage && !first.visible && !first.samePortrait && !art.artworkPreviouslyReady
         text: art.circular && art.initials ? art.initials : "♪"
         color: theme.inkDimmer
         font.family: art.displayFont
         font.pixelSize: Math.round(Math.min(art.width, art.height) * 0.23)
+    }
+    Rectangle {
+        objectName: "vinylPortraitEdge"
+        anchors.fill: parent
+        visible: art.circular
+        radius: art.artRadius
+        color: "transparent"
+        border.width: 1
+        border.color: theme.edge
     }
 }

@@ -26,9 +26,49 @@ Item {
         profileGeneration: root.session ? root.session.profileGeneration || 0 : 0
         onResetRequested: {
             if(!root.componentReady)return;
+            portraits.clear();
             browser.cancelPageRequest();browser.fetchGen++;
             browser.items=[];browser.typeStates=({});browser.noticeText="";
             Qt.callLater(browser.reloadCurrent);
+        }
+    }
+    // Like Theatre's poster wall, keep the decode in Qt's pixmap cache. A
+    // recycled card drops its reference, so pin the 64 most recent decodes at
+    // the same URL/size. These invisible Images share the existing pixmaps.
+    Item {
+        id: portraits
+        visible: false
+        property var goodSources: new Map()
+        property var pins: new Map()
+        function lastGood(id) { return goodSources.get(id) || ""; }
+        function remember(id, source, size) {
+            goodSources.set(id, String(source));
+            var key = String(source) + "\n" + size.width + "x" + size.height;
+            var pin = pins.get(key);
+            if (pin) {
+                pins.delete(key);
+            } else {
+                pin = pinFactory.createObject(portraits, {source: source, sourceSize: size});
+            }
+            pins.set(key, pin);
+            if (pins.size > 64) {
+                var oldest = pins.keys().next().value;
+                pins.get(oldest).destroy();
+                pins.delete(oldest);
+            }
+        }
+        function clear() {
+            goodSources = new Map();
+            pins.forEach(pin => pin.destroy());
+            pins.clear();
+        }
+        Component {
+            id: pinFactory
+            Image {
+                cache: true
+                asynchronous: true
+                fillMode: Image.PreserveAspectCrop
+            }
         }
     }
     DiscoverBrowser {
@@ -55,6 +95,7 @@ Item {
                 item: (parent.modelItem && parent.modelItem.raw) || ({})
                 focusEnabled: false
                 keyboardFocused: parent.keyboardFocused
+                portraitCache: portraits
                 // Grow into the cell gaps, not past the clipped grid's top/left edge.
                 transformOrigin: Item.TopLeft
                 worldData: QtObject {

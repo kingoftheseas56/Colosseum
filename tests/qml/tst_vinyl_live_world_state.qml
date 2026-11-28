@@ -154,6 +154,19 @@ TestCase {
         verify(viewData!==null);
     }
     function cleanup() { viewData.destroy();wait(0); }
+    function test_cached_compilation_never_heads_hero() {
+        const real = Array.from({length: 5}, (_, i) => ({id:"real-"+i, title:"Music "+i, artist:"Artist"}));
+        fakeRecommendationService.homeSourcePool = {charts: {
+            albums: [{id:"game", title:"Grand Theft Auto VI", artist:"Multi-interprètes"},
+                     {id:"various", title:"Compilation", artist:"Various Artists"}].concat(real),
+            artists: [{id:"game-artist", title:"Grand Theft Auto VI"}].concat(real)
+        }};
+        const albumHero = viewData.heroSlides.find(slide => slide.kind === "topAlbum");
+        const artistHero = viewData.heroSlides.find(slide => slide.kind === "topArtist");
+        verify(albumHero); compare(albumHero.item.id, "real-0"); compare(albumHero.item.rank, 1);
+        verify(artistHero); compare(artistHero.item.id, "real-0");
+        compare(albumHero.sideItems.map(item => item.id), ["real-1", "real-2", "real-3", "real-4"]);
+    }
     function test_homeDoesNotUseActiveLibraryFilter() {
         viewData.query="missing";
         compare(viewData.row("library",false).items.length,0);

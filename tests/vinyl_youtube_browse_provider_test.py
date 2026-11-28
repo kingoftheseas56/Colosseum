@@ -56,6 +56,14 @@ class BrowseProviderTests(unittest.TestCase):
     def browse(self, kind='songs', **options):
         return provider.handle(dict(operation='browseCatalogue', value=kind, **options), client=self.client)
 
+    def test_youtube_client_requests_english_without_overriding_an_explicit_market(self):
+        constructor = Mock()
+        with patch.dict('sys.modules', {'ytmusicapi': Mock(YTMusic=constructor)}):
+            for region, location in (('', 'US'), ('ZZ', 'US'), ('FR', 'FR')):
+                with self.subTest(region=region):
+                    self.assertIs(provider._ytmusic_client(region, reuse=False), constructor.return_value)
+                    constructor.assert_called_with(language='en', location=location)
+
     def test_defaults_are_finite_and_register_playable_source_records_without_hydration(self):
         raw = {'videoId': VIDEO, 'title': 'Source song', 'artists': [{'id': CHANNEL, 'name': 'Source artist'}],
                'videoType': 'MUSIC_VIDEO_TYPE_ATV', 'duration_seconds': 190}

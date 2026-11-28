@@ -101,6 +101,40 @@ class MusicDiscoverTest(unittest.TestCase):
         with self.assertRaises(p.InvalidArgumentError):
             browse("lastfm", "albums", "chart")
 
+    def test_popular_artists_exclude_compilation_credits_but_continue_paging(self):
+        self.http.return_value = response({"artists": {"artist": [
+            {"name": "Multi-interprètes"}, {"name": "Grand Theft Auto VI"}]}})
+        page = browse("vinyl", "artists", "popular", pageSize=2)
+        self.assertEqual(page["items"], [])
+        self.assertEqual(page["nextCursor"]["page"], 2)
+
+    def test_weekly_charts_filter_junk_in_already_cached_kworb_rows(self):
+        for kind, path in (("albums", "/aww/"), ("songs", "/spotify/country/global_weekly.html"),
+                           ("artists", "/itunes/")):
+            with self.subTest(kind=kind):
+                rows = [p._chart_card("kworb", kind, "Grand Theft Auto VI", ["Various Artists"], 1),
+                        p._chart_card("kworb", kind, "Real music", ["Artist Ensemble"], 2)]
+                p._discover_write(["chart-week", "kworb", path],
+                                  dict(time=p.time.time(), ttl=p._CHART_TTL, staleAllowed=True, value=rows))
+                result = p.fetch_chart_week(dict(value=kind))
+                self.assertEqual([(row["title"], row["rank"]) for row in result["items"]], [("Real music", 2)])
+        self.http.assert_not_called()
+
+    def test_youtube_new_skips_compilations_before_loading_tracks_or_minting_artist_cards(self):
+        youtube = Mock()
+        youtube.get_explore.return_value = {"new_releases": [
+            {"title": "Grand Theft Auto VI", "browseId": "MPRE_junk",
+             "artists": [{"name": "Multi-interprètes", "id": CHANNEL}]},
+            {"title": "Real release", "browseId": "MPRE_real",
+             "artists": [{"name": "Actual Artist", "id": CHANNEL}]},
+        ]}
+        youtube.get_album.return_value = {"tracks": [{"title": "Real song", "videoId": VIDEO}]}
+        for kind, title in (("artists", "Actual Artist"), ("albums", "Real release"), ("songs", "Real song")):
+            result = p.handle(dict(operation="browseCatalogue", catalogueSource="vinyl", value=kind, list="new"),
+                              client=youtube)
+            self.assertEqual([row["title"] for row in result["items"]], [title])
+        youtube.get_album.assert_called_once_with("MPRE_real")
+
     def test_lastfm_fresh_and_original_stale_copy(self):
         feed = fixture("lastfm-track")
         feed["unneeded"] = "upstream-only field"
@@ -484,6 +518,23 @@ class WeeklyArtworkTest(unittest.TestCase):
         art = p._kworb_art("artists", {"artist": "Bad Bunny"}, self.make_youtube)
         self.assertEqual(art, {"source": "youtube-music", "cover": image, "album": ""})
         self.assertEqual([call[0] for call in calls.mock_calls], ["http", "search"])
+
+    def test_leading_the_portrait_retries_after_old_negative_cache(self):
+        name = "The Lizard Wizard"
+        card = p._chart_card("kworb", "artists", name, [name], 1)
+        params = p._vinyl_genre_lookup("artists", name, [name])
+        old_key = p._discover_hash(["kworb-art-v3", p._vinyl_genre_cache_key("artists", params)])
+        p._discover_write(old_key, dict(time=p.time.time(), ttl=p._LASTFM_TTL, staleAllowed=False,
+                                       value=dict(cover="", album="", source="")), bucket=p._art_bucket(old_key))
+        portrait = "https://cdn-images.dzcdn.net/lizard/1000x1000.jpg"
+        wrong = {"name": "King Gizzard & the Lizard Wizard", "picture_xl": portrait.replace("lizard/", "wrong/")}
+        self.http.side_effect = [response({"data": [wrong]}),
+                                 response({"data": [wrong, {"name": "Lizard Wizard", "picture_xl": portrait}]})]
+        self.assertEqual(self.art(card)["settled"], [])
+        self.drain()
+        self.assertEqual(self.art(card)["covers"], {card["id"]: portrait})
+        self.assertEqual([call.args[2]["q"] for call in self.http.call_args_list], [name, "Lizard Wizard"])
+        self.make_youtube.assert_not_called()
 
     def test_timeout_in_genre_does_not_suppress_art_without_a_lastfm_key(self):
         entered, release = threading.Event(), threading.Event()

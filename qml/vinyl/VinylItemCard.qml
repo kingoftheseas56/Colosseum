@@ -16,6 +16,9 @@ KeyboardAction {
     property string feedbackError: ""
     property bool compactCaption: false
     property bool showArtistKindLabel: false
+    property var portraitCache: null
+    readonly property url rememberedPortrait: portraitCache && presentationKind === "artists" && item.id
+        ? portraitCache.lastGood(item.id) : ""
     property bool wide: false
     property bool songLine: false
     property var artistRadioAction: null
@@ -170,9 +173,15 @@ KeyboardAction {
             VinylTileArt {
                 objectName: root.objectName + "_cover"
                 title: root.captionTitle
-                artworkSource: root.artworkSource
+                artworkSource: root.rememberedPortrait.toString() ? root.rememberedPortrait : root.artworkSource
                 artworkSources: root.mixArtworkSources
                 circular: root.presentationKind === "artists" || root.item.round === true
+                artworkPreviouslyReady: root.rememberedPortrait.toString().length > 0
+                onArtworkReady: (source, decodeSize) => {
+                    if (root.portraitCache && root.presentationKind === "artists" && root.item.id
+                            && String(source) === String(artworkSource))
+                        root.portraitCache.remember(root.item.id, source, decodeSize);
+                }
                 cornerRadius: root.songLine ? 6 : 10
                 surfaceColor: root.songLine ? theme.vaultSurfaceHi : circular ? theme.vaultSurface : "transparent"
             }

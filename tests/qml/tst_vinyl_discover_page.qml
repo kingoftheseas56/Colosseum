@@ -40,10 +40,15 @@ TestCase {
         id: factory
         Vinyl.VinylDiscoverPage {width:1200;worldData:world;backdrop:wallpaper;pageFlick:flick;active:false}
     }
+    Component {
+        id: cacheProbe
+        Image { visible: false; cache: true; fillMode: Image.PreserveAspectCrop }
+    }
     property var page
     property var browser
     function init() {
         source.calls=[];source.cancelled=[];world.activated=null;
+        flick.contentY=0;
         page=createTemporaryObject(factory,test);verify(page!==null);
         browser=findChild(page,"vinylDiscoverBrowser");verify(browser!==null);
         page.active=true;
@@ -147,6 +152,8 @@ TestCase {
         compare(fallback.radius,fallback.width/2);
         var initials=findChild(record,"vinylArtistInitials");
         verify(initials.visible);compare(initials.text,"BN");
+        var edge=findChild(record,"vinylPortraitEdge");
+        verify(edge.visible);compare(edge.radius,fallback.radius);compare(edge.border.width,1);
 
         const artistTitle = findChild(record, record.objectName + "_captionTitle");
         record.showArtistKindLabel = true;
@@ -163,6 +170,65 @@ TestCase {
             }
         }
         verify(artistDetail.width < artistTitle.width, "the hint reserves room without shifting the detail");
+    }
+    function test_artist_scroll_back_keeps_last_good_portrait() {
+        page.parent=flick.contentItem;
+        browser.selectType("artists");
+        var cover=String(Qt.resolvedUrl("../../assets/wallpaper/cold-ripple.jpg"));
+        var wall=findChild(browser,"vinylDiscoverWall");
+        var rowIndex=wall.columnCount+1; // Not the current item, which the grid keeps alive.
+        var items=[];
+        for(var i=0;i<50;i++) {
+            var item=entry("artist-"+i,"kworb",i===rowIndex ? cover : "");
+            item.kind="artists";item.title="Artist "+i;item.artist=item.title;
+            items.push(item);
+        }
+        reply(last(),items);
+        tryVerify(() => wall.itemAtIndex(rowIndex) !== null);
+        var first=wall.itemAtIndex(rowIndex);
+        var image=findChild(first,"vinylArtworkImage");
+        tryCompare(image,"status",Image.Ready);
+        var decodeSize=image.sourceSize;
+        verify(!findChild(first,"vinylArtistInitials").visible);
+        var count=source.calls.length;
+
+        // Force pooling and reuse, and prove a blank artist never inherits the old pixels.
+        flick.contentY=wall.cellHeight*6;
+        tryVerify(() => wall.itemAtIndex(rowIndex) === null);
+        flick.contentY+=wall.cellHeight;
+        tryVerify(function() {
+            for (var j=rowIndex+1;j<items.length;++j) {
+                if(wall.itemAtIndex(j)===first) return true;
+            }
+            return false;
+        },2000,"The originally loaded delegate must be reused for another artist");
+        compare(image.status,Image.Null);
+        verify(findChild(first,"vinylArtistInitials").visible);
+
+        // Exceed Qt's unreferenced pixmap cache with distinct local URLs.
+        // An asynchronous request for a still-pinned pixmap is Ready immediately.
+        var pressure=createTemporaryObject(cacheProbe,test,{sourceSize:decodeSize});
+        var pressureCover=String(Qt.resolvedUrl("../../qml/vinyl/assets/record-ring.svg"));
+        for(var k=0;k<48;k++) {
+            pressure.source=pressureCover+"#"+k;
+            compare(pressure.status,Image.Ready);
+        }
+        var probe=createTemporaryObject(cacheProbe,test,{source:cover,sourceSize:decodeSize,asynchronous:true});
+        compare(probe.status,Image.Ready,"The offscreen artist's decode must survive cache pressure");
+        probe.source="";
+
+        // Simulate a catalogue refresh with no art for this ID. The remembered
+        // source can still draw from the pinned decode; it must not re-resolve.
+        browser.items=browser.items.map((row,j) => j===rowIndex
+            ? Object.assign({},row,{cover:"",raw:Object.assign({},row.raw,{cover:""})}) : row);
+        flick.contentY=0;
+        tryVerify(() => wall.itemAtIndex(rowIndex) !== null);
+        var returning=wall.itemAtIndex(rowIndex);
+        var restored=findChild(returning,"vinylArtworkImage");
+        compare(restored.status,Image.Ready);
+        compare(String(restored.source),cover);
+        verify(!findChild(returning,"vinylArtistInitials").visible);
+        compare(source.calls.length,count);
     }
     function test_list_and_genre_picker_without_language() {
         var byline=findChild(browser,"vinylDiscoverHeadingProvider");
