@@ -15,6 +15,7 @@ WorldPage {
     readonly property bool gated: !!worldData && worldData.tasteGateLocked === true
     property bool contentVisible: true
     property bool showPageBacking: true
+    property Image wallpaperImage: null
     property bool hostedHomeLoading: false
     // The finishing beat (needle drop + fade) still counts as loading for the host's loader.
     readonly property bool homeLoadingIndeterminate: homeLoading.visible && (homeLoading.indeterminate || homeLoading.finishing)
@@ -225,6 +226,10 @@ WorldPage {
         visible: root.contentVisible
         width: parent.width
         readonly property bool compactIntro: root.shortDesktop && !hero.narrow
+        VinylWallpaperFrost {
+            id: homeFrost
+            wallpaper: root.wallpaperImage
+        }
         // Use explicit gaps so only the spaces around the Home tab bar get tighter.
         onPositioningComplete: root.updateHomeLayout()
         VinylHomeLoadingIndicator {
@@ -313,6 +318,7 @@ WorldPage {
             currentTab: root.currentTab
             onTabRequested: tab => root.setTab(tab)
         }
+        // Short windows: frosted Crate frames add 12 px; VinylCrate/VinylItemCard trim 4+4+4 inside the row.
         Item { width: 1; height: surface.compactIntro ? 12 : 30; visible: crate.visible }
         VinylCrate {
             id: crate
@@ -321,6 +327,7 @@ WorldPage {
             width: parent.width; height: implicitHeight
             compact: true
             items: root.worldData.crateItems || []
+            frost: homeFrost
             worldData: root.worldData; backdrop: root.backdrop; pageFlick: root.pageFlickable
             onActivateRequested: item => root.worldData.playHomeItem(item)
             onOpenRequested: item => root.worldData.openHomeItem(item)
@@ -336,6 +343,7 @@ WorldPage {
             songs: root.worldData.spinSongs || []
             albums: root.worldData.spinAlbums || []
             artists: root.worldData.spinArtists || []
+            frost: homeFrost
             worldData: root.worldData; backdrop: root.backdrop; pageFlick: root.pageFlickable
             onActivateRequested: item => root.worldData.playHomeItem(item)
             onOpenRequested: item => root.worldData.openHomeItem(item)

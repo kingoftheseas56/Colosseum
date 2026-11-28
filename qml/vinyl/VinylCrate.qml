@@ -9,11 +9,15 @@ Item {
     property var worldData: null
     property Item backdrop: null
     property Flickable pageFlick: null
-    property real tileSize: width >= 760 ? Math.min(120, Math.floor((width - 126) / 8)) : 120
+    property VinylWallpaperFrost frost: null
+    readonly property real tilePadding: 6
+    property real tileSize: width >= 760
+        ? Math.min(120, Math.floor((width - 7 * tiles.columnSpacing) / 8) - 2 * tilePadding) : 120
+    readonly property real tileExtent: tileSize + 2 * tilePadding
     property bool compact: false
     property int page: 0
     readonly property int count: items ? items.length : 0
-    readonly property int columns: Math.max(1, Math.min(8, Math.floor((width + tiles.columnSpacing) / (tileSize + tiles.columnSpacing))))
+    readonly property int columns: Math.max(1, Math.min(8, Math.floor((width + tiles.columnSpacing) / (tileExtent + tiles.columnSpacing))))
     readonly property int pageSize: columns // one row (Hemanth, 2026-11-28)
     readonly property int pageCount: Math.ceil(count / pageSize)
     readonly property var pageItems: items ? items.slice(page * pageSize, (page + 1) * pageSize) : []
@@ -55,7 +59,7 @@ Item {
     }
     Item {
         id: header
-        width: parent.width; height: root.compact ? 30 : 38
+        width: parent.width; height: root.compact ? 26 : 38
         Text { anchors.verticalCenter: parent.verticalCenter; text:qsTr("The Crate"); textFormat:Text.PlainText; color:theme.ink; font.family:theme.display; font.pixelSize:24 }
         Row {
             id: arrows
@@ -66,9 +70,10 @@ Item {
     }
     Grid {
         id: tiles
-        y: header.height+12
+        y: header.height+(root.compact ? 8 : 12)
         columns: root.columns
-        columnSpacing: 18
+        // Use the old inter-card space for the new frame without shrinking the art.
+        columnSpacing: 6
         rowSpacing: 12
         Repeater {
             model: Math.max(0,Math.min(root.pageSize,(root.items || []).length-root.page*root.pageSize))
@@ -82,8 +87,15 @@ Item {
                 readonly property var resumeTrack: modelData.resumeTrack
                 readonly property bool available: modelData.available!==false && modelData.unavailable!==true
                 objectName: "vinylCrateTile_"+itemIndex
-                width: root.tileSize; height: card.implicitHeight
+                width: root.tileExtent; height: card.implicitHeight + 2 * root.tilePadding
                 HoverHandler { id: tileHover }
+                VinylFrostedSurface {
+                    objectName: tile.objectName + "_frost"
+                    anchors.fill: parent
+                    frost: root.frost
+                    radius: 13
+                    hovered: tileHover.hovered
+                }
                 QtObject {
                     id: actions
                     property var session: root.worldData && root.worldData.session ? root.worldData.session : null
@@ -96,7 +108,8 @@ Item {
                 VinylItemCard {
                     id: card
                     objectName: tile.objectName+"_card"
-                    width: parent.width; height: implicitHeight
+                    x: root.tilePadding; y: root.tilePadding
+                    width: root.tileSize; height: implicitHeight
                     worldData: actions; item: root.presentation(tile.modelData)
                     artistRadioAction: function() { root.radioRequested(tile.modelData); }
                     albumPlayAction: function() { root.activateRequested(tile.modelData); }
@@ -107,7 +120,7 @@ Item {
                 VinylFeedbackBadge {
                     id: pin
                     objectName: "vinylCrateTilePin_"+tile.itemIndex
-                    x:parent.width-width-7; y:7; z:2
+                    x: card.x + card.width - width - 7; y: card.y + 7; z:2
                     symbol: tile.pinned ? "saved" : "playlistAdd" // no tick marks (Hemanth 2026-11-28)
                     enabled: tile.available || tile.pinned
                     pointerEnabled: revealed || tile.pinned

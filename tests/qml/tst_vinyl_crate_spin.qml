@@ -14,6 +14,44 @@ TestCase {
     Flickable { id:page; anchors.fill:parent; contentWidth:width; contentHeight:2000; clip:true }
     Component { id:crateFactory; Vinyl.VinylCrate {} }
     Component { id:spinFactory; Vinyl.VinylSpin {} }
+    Component {
+        id: frostFixture
+        Item {
+            property alias paper: wallpaperImage
+            property alias flick: scroll
+            property alias surface: patch
+            property alias readback: pixels
+            width: 384; height: 320
+            Canvas {
+                id: pixels
+                x: 400; width: 100; height: 72
+                contextType: "2d"
+            }
+            Image {
+                id: wallpaperImage
+                anchors.fill: parent
+                fillMode: Image.PreserveAspectCrop
+                source: "data:image/svg+xml," + encodeURIComponent(
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256">'
+                    + '<path fill="red" d="M0 0H256V128H0Z"/>'
+                    + '<path fill="blue" d="M0 128H256V256H0Z"/></svg>')
+            }
+            // Cover the fixture wallpaper visually so a missing sampled patch cannot pass.
+            Rectangle { anchors.fill: parent; color: "black" }
+            Vinyl.VinylWallpaperFrost { id: sharedBlur; wallpaper: wallpaperImage }
+            Flickable {
+                id: scroll
+                anchors.fill: parent
+                contentHeight: height + 200
+                Vinyl.VinylFrostedSurface {
+                    id: patch
+                    // Starts below the colour boundary; scrolling moves it above.
+                    x: 32; y: 220; width: 100; height: 72
+                    frost: sharedBlur
+                }
+            }
+        }
+    }
     SignalSpy { id:activated; target:test.crate || test.spin; signalName:"activateRequested" }
     SignalSpy { id:opened; target:test.crate || test.spin; signalName:"openRequested" }
     SignalSpy { id:radio; target:test.crate || test.spin; signalName:"radioRequested" }
@@ -55,7 +93,7 @@ TestCase {
             var tile=findChild(crate,"vinylCrateTile_"+i); verify(tile!==null); kinds.push(tile.kind);
             var face=findChild(tile,"vinylCrateTile_"+i+"_card_cover");
             verify(face !== null);
-            compare(face.width,tile.width); compare(face.height,face.width);
+            compare(face.width,tile.width - 12); compare(face.height,face.width);
             compare(face.width,120);
             compare(face.artRadius,tile.kind==="artists" ? 60 : 10);
             var card=findChild(tile,"vinylCrateTile_"+i+"_card");
@@ -69,6 +107,23 @@ TestCase {
         compare(first.y,eighth.y);
         compare(findChild(crate,"vinylCrateTile_8"),null,"The Crate is a single row");
         compare(findChild(crate,"vinylCrateCaption"),null,"Hemanth removed the caption");
+        var surface = findChild(first, first.objectName + "_frost");
+        var film = checkFilm(surface, 13);
+        var card = findChild(first, first.objectName + "_card");
+        compare(card.x, 6); compare(card.y, 6); compare(first.height - card.height, 12);
+        compare(surface.wallpaperTexture, null, "No wallpaper uses the fallback");
+        mouseMove(first, 30, 30);
+        tryCompare(film.border, "color", Qt.rgba(1, 1, 1, 0.44));
+    }
+    function checkFilm(surface, radius) {
+        verify(surface && surface.visible);
+        var film = findChild(surface, surface.objectName + "_film");
+        verify(film);
+        compare(film.radius, radius);
+        compare(film.color, Qt.rgba(1, 1, 1, 0.10));
+        compare(film.border.width, 1);
+        compare(film.border.color, Qt.rgba(1, 1, 1, 0.18));
+        return film;
     }
     function test_crateResumeUsesExactOwnerTrackAndGoldCaption() {
         makeCrate(mixed(16));
@@ -128,6 +183,12 @@ TestCase {
         for(var i=0;i<12;++i) {var row=findChild(spin,"vinylSpinSong_"+i); verify(row!==null); compare(row.height,70);}
         var first=findChild(spin,"vinylSpinSong_0"), fourth=findChild(spin,"vinylSpinSong_3");
         var origin=first.mapToItem(spin,0,0), next=fourth.mapToItem(spin,0,0); compare(origin.x,next.x); verify(next.y>origin.y);
+        var panel = findChild(spin, "vinylQuickPicksFrost");
+        checkFilm(panel, 15);
+        var panelInset = first.mapToItem(panel, 0, 0);
+        compare(panelInset.x, 12); compare(panelInset.y, 10);
+        compare(panel.height, 4 * 70 + 3 * 8 + 2 * 10);
+        compare(first.children.find(child => child.width === 60).height, 60);
         compare(findChild(spin,"vinylSpinSong_12"),null);
         mouseMove(first,65,24);
         tryVerify(() => findChild(first,first.objectName+"_lineHighlight") !== null);
@@ -148,6 +209,7 @@ TestCase {
             click(findChild(spin,"vinylSpinSwitch_"+view)); tryCompare(spin,"view",view);
             compare(findChild(spin,"vinylSpinSwitch").view,view); compare(page.contentY,before);
             if(view!=="songs") {
+                tryVerify(() => !findChild(spin, "vinylQuickPicksFrost"));
                 var card=findChild(spin,"vinylSpinTile_0"); verify(card!==null); compare(card.presentationKind,view);
                 var detail=view==="albums" ? "Fixture artist" : "Artist";
                 compare(card.captionDetail,detail);
@@ -198,5 +260,67 @@ TestCase {
         }
         visit(crate); visit(spin);
         spin.songs=[]; tryCompare(spin,"pageCount",0); compare(spin.pageItems.length,0);
+        tryVerify(() => !findChild(spin, "vinylQuickPicksFrost"));
+    }
+    function test_wallpaperPatchFollowsScrollOrFallsBackOnSoftware() {
+        var fixture = createTemporaryObject(frostFixture, test);
+        verify(fixture);
+        var patch = fixture.surface;
+        tryCompare(fixture.paper, "status", Image.Ready);
+        // grabImage() reads the window swapchain, which isn't available on the
+        // Windows offscreen RHI runner. Grab the item to its own image instead.
+        function pixel(x, y) {
+            var image = null;
+            verify(patch.grabToImage(result => image = result));
+            tryVerify(() => image !== null);
+            var canvas = fixture.readback;
+            canvas.loadImage(image.url);
+            tryVerify(() => canvas.isImageLoaded(image.url));
+            var ctx = canvas.getContext("2d");
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(image.url, 0, 0, canvas.width, canvas.height);
+            var rgba = ctx.getImageData(x, y, 1, 1).data;
+            canvas.unloadImage(image.url);
+            return Qt.rgba(rgba[0] / 255, rgba[1] / 255, rgba[2] / 255, rgba[3] / 255);
+        }
+        function center() { return pixel(50, 36); }
+        if (patch.GraphicsInfo.api === GraphicsInfo.Software) {
+            compare(patch.wallpaperTexture, null);
+        } else {
+            console.info("Checking the rendered wallpaper patch on graphics API", patch.GraphicsInfo.api);
+            verify(patch.wallpaperTexture);
+            compare(patch.wallpaperOrigin, Qt.point(32, 220));
+            tryVerify(() => { var c = center(); return c.b > 0.8 && c.r < 0.2; }, 5000,
+                      "Below the boundary the patch must sample blue");
+            var texture = patch.wallpaperTexture;
+            var captures = 0;
+            texture.scheduledUpdateCompleted.connect(() => ++captures);
+            fixture.flick.contentY = 96;
+            tryCompare(patch, "wallpaperOrigin", Qt.point(32, 124));
+            tryVerify(() => { var c = center(); return c.r > 0.2 && c.b > 0.2; }, 5000,
+                      "At the boundary both colours must mix in the shared blur");
+            fixture.flick.contentY = 200;
+            tryCompare(patch, "wallpaperOrigin", Qt.point(32, 20));
+            tryVerify(() => { var c = center(); return c.r > 0.8 && c.b < 0.2; }, 5000,
+                      "Above the boundary the same patch must sample red");
+            compare(patch.wallpaperTexture, texture);
+            compare(captures, 0, "Scrolling never regenerates the shared texture");
+            var corner = pixel(0, 0);
+            verify(corner.r < 0.1 && corner.b < 0.1, "The wallpaper must not fill the rounded corner");
+
+            fixture.flick.contentY = 96;
+            fixture.height = 448;
+            tryVerify(() => { var c = center(); return c.r > 0.8 && c.b < 0.2; }, 5000,
+                      "Resizing resamples the wallpaper crop");
+            compare(captures, 1);
+            fixture.paper.source = String(fixture.paper.source).replace("red", "lime");
+            tryVerify(() => { var c = center(); return c.g > 0.8 && c.r < 0.2; }, 5000,
+                      "Changing the source replaces the cached blur");
+            compare(captures, 2);
+        }
+        fixture.paper.source = "";
+        tryCompare(patch, "wallpaperTexture", null);
+        tryVerify(() => { var c = center(); return Math.abs(c.r - 0.10) < 0.02 && c.r === c.g && c.g === c.b; },
+                  5000, "Unloaded wallpaper leaves the .10 film over black");
     }
 }

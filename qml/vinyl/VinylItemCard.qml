@@ -82,7 +82,7 @@ KeyboardAction {
     readonly property var mixArtworkSources: presentationKind === "mixes" && worldData
         ? (item.artworkCovers || []).slice(0, wide ? 3 : 4).map(cover => worldData.artwork(cover)) : []
     implicitWidth: wide ? 270 : 196
-    implicitHeight: songLine ? 56 : wide ? 124 : width + (compactCaption ? 54 : 55)
+    implicitHeight: songLine ? 56 : wide ? 124 : width + (compactCaption ? 50 : 55)
     accessibleName: captionTitle + (captionDetail ? ". " + captionDetail : "")
     accessibleDescription: secondaryText === captionDetail ? "" : secondaryText
     onTriggered: if(worldData) worldData.activate(item)
@@ -200,7 +200,7 @@ KeyboardAction {
             id: copy
             objectName: root.objectName + "_caption"
             x: root.songLine ? art.x + art.width + 12 : root.wide ? art.width + 16 : 2
-            y: root.songLine ? 9 : root.wide ? 6 : art.height + (root.compactCaption ? 10 : 7) // Crate: room under the tile (Hemanth 2026-11-28)
+            y: root.songLine ? 9 : root.wide ? 6 : art.height + (root.compactCaption ? 6 : 7) // Crate: room under the tile (Hemanth 2026-11-28)
             width: Math.max(0, tile.width - x - (root.songLine ? 10 + root.lineActionsWidth : root.wide ? 0 : 2))
             height: root.songLine ? 38 : root.wide ? tile.height - y - 12 : root.compactCaption ? 42 : 48
 

@@ -12,6 +12,10 @@ Item {
     property var worldData: null
     property Item backdrop: null
     property Flickable pageFlick: null
+    property VinylWallpaperFrost frost: null
+    readonly property bool hasSongPanel: view === "songs" && pageItems.length > 0
+    readonly property real songInsetX: 12
+    readonly property real songInsetY: 10
     property real tileSize:130
     property int page:0
     readonly property var items: view==="albums" ? albums : view==="artists" ? artists : songs
@@ -20,7 +24,8 @@ Item {
     readonly property int pageCount: Math.ceil((items ? items.length : 0)/pageSize)
     readonly property var pageItems: items ? items.slice(page*pageSize,(page+1)*pageSize) : []
     readonly property int currentPage:page
-    implicitHeight:header.height+(grid.height>0 ? 20+grid.height : 0)
+    implicitHeight: header.height + (grid.height > 0
+        ? 20 + grid.height + (hasSongPanel ? 2 * songInsetY : 0) : 0)
     signal activateRequested(var item)
     signal openRequested(var item)
     signal radioRequested(var item)
@@ -76,9 +81,21 @@ Item {
             PageArrow { objectName:"vinylSpinNext"; glyph:"\u203a"; accessibleName:qsTr("Next"); enabled:root.page+1<root.pageCount; onTriggered:root.page++ }
         }
     }
+    Loader {
+        y: header.height + 20
+        width: root.width
+        height: grid.height + 2 * root.songInsetY
+        active: root.hasSongPanel
+        sourceComponent: VinylFrostedSurface {
+            objectName: "vinylQuickPicksFrost"
+            frost: root.frost
+            radius: 15
+        }
+    }
     Grid {
         id:grid
-        y:header.height+20
+        x: root.hasSongPanel ? root.songInsetX : 0
+        y: header.height + 20 + (root.hasSongPanel ? root.songInsetY : 0)
         columns:root.columns
         columnSpacing:root.view==="songs" ? 20 : 18
         rowSpacing:8
@@ -89,7 +106,8 @@ Item {
                 readonly property var modelData: root.items[itemIndex]
                 required property int index
                 readonly property int itemIndex:root.page*root.pageSize+index
-                width:root.view==="songs" ? Math.max(0,(root.width-40)/3) : root.tileSize
+                width: root.view === "songs"
+                    ? Math.max(0, (root.width - 2 * root.songInsetX - 2 * grid.columnSpacing) / 3) : root.tileSize
                 height:item ? item.implicitHeight : 0
                 sourceComponent:root.view==="songs" ? songRow : widget
                 Component {

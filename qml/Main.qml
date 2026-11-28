@@ -4667,6 +4667,7 @@ Window {
         visible: worldStack.current === "Vinyl" && wall.visible
             && (!win.vinylWorld || !win.vinylWorld.fullWindowDetail || win.vinylWorld.searchOpen)
         Image {
+            id: vinylWallImage
             objectName: "vinylBrowseWallImage"
             anchors.fill: parent
             source: win.wallpaperSource || win.defaultWallpaperSource
@@ -5452,6 +5453,7 @@ Window {
                     else {
                         initialProperties.backdrop = wall
                         initialProperties.blackBrowseBackdrop = vinylWall
+                        initialProperties.wallpaperImage = vinylWallImage
                         initialProperties.hostedHomeLoading = worldLoader.continuousVinylLoading
                         initialProperties.homeLanding = true
                         initialProperties.hostReady = Qt.binding(function() {

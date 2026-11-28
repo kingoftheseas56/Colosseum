@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects as Effects
 import QtTest
 import "../../qml/vinyl" as Vinyl
 
@@ -191,6 +192,28 @@ TestCase {
             verify(fits(tile),"Second page tile "+i+" including captions must fit");
             compare(bounds(tile).y,tiles[0].y);
         }
+    }
+    function test_homeSharesOneWallpaperBlur() {
+        var crate = findChild(view, "vinylCrate"), spin = findChild(view, "vinylSpin");
+        var cache = findChild(view, "vinylWallpaperFrost");
+        verify(cache);
+        var effects = [], captures = [], surfaces = [];
+        var switches = findChild(spin, "vinylSpinSwitch");
+        function visit(node, countEffects) {
+            // Count the Home glass branches, excluding the switcher's existing chrome.
+            if (countEffects && node instanceof Effects.MultiEffect) effects.push(node);
+            if (countEffects && node instanceof ShaderEffectSource) captures.push(node);
+            if (node instanceof Vinyl.VinylFrostedSurface) surfaces.push(node);
+            for (var child of (node.children || []))
+                visit(child, child !== switches && (countEffects || [crate, spin, cache].includes(child)));
+        }
+        visit(crate.parent, false);
+        compare(effects.length, 1, "Only one wallpaper MultiEffect across the Crate, Spin and cache");
+        compare(captures.length, 2, "Only the shared wallpaper input and frozen output captures");
+        compare(effects[0].parent, cache);
+        for (var capture of captures) compare(capture.parent, cache);
+        compare(surfaces.length, 9, "Eight Crate tiles and one Quick picks panel, no other Home glass");
+        for (var surface of surfaces) compare(surface.frost, cache);
     }
     function test_homeScrollsUnderFloatingFooterAndEndsClearOfPlayer() {
         var footer = createTemporaryObject(floatingFooterFactory, test, {shell:view});

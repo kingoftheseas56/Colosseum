@@ -11,6 +11,7 @@ VinylRuntime {
     browseShell: houseShell
     readonly property bool ready: houseShell.ready
     readonly property string activeTab: houseShell.activeTab
+    property Image wallpaperImage: null
     property bool hostedHomeLoading: false
     readonly property bool homeLoadingFinishing: houseShell.homeLoadingFinishing
     readonly property bool homeLoadingIndeterminate: page === "home" && !searchOpen
@@ -25,6 +26,7 @@ VinylRuntime {
         anchors.fill: parent
         worldData: runtime.worldData
         backdrop: runtime.chromeBackdrop
+        wallpaperImage: runtime.wallpaperImage
         showPageBacking: !runtime.blackBrowseBackdrop
         hostedHomeLoading: runtime.hostedHomeLoading
         runtimeReady: runtime.componentReady
