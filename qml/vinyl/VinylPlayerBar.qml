@@ -12,8 +12,11 @@ Item {
     property bool videoFullscreen: false
     property bool showSongPlay: false
     readonly property int playingTrackIndex: pageData.playingIndex === undefined ? -1 : pageData.playingIndex
-    readonly property bool hasPlayingSong: pageData.playingIndex === undefined || pageData.playingIndex >= 0
+    property var pendingSong: null
+    readonly property bool hasPlayingSong: !pendingSong && (pageData.playingIndex === undefined || pageData.playingIndex >= 0)
     readonly property var displayedSong: pageData
+    readonly property string displayedTitle: pendingSong ? pendingSong.title : displayedSong.playingTrack.title
+    readonly property string displayedArtist: pendingSong ? String(pendingSong.artist || "") : displayedSong.playingEdition.artist
     property string page: "album"
     property bool queueEnabled: true
     property bool trackNavigationEnabled: true
@@ -33,10 +36,10 @@ Item {
         ? nowPlaying.x + slimIdentityWidth + (slimTight ? 4 : 12) + transport.width / 2
         : narrow ? width - 18 - transport.width / 2
         : Math.min(width / 2, toolsLeft - transport.width / 2 - 5)
-    readonly property bool busy: pageData.sourceState === "finding" || pageData.sourceState === "retrying"
+    readonly property bool busy: !!pendingSong || pageData.sourceState === "finding" || pageData.sourceState === "retrying"
         || pageData.sourceState === "resolving" || (slim && pageData.sourceState === "buffering")
     readonly property bool torrentBusy: pageData.torrentBusy === true
-    readonly property bool videoBusy: pageData.videoBusy === true
+    readonly property bool videoBusy: !pendingSong && pageData.videoBusy === true
     readonly property bool videoShown: pageData.videoShown === true
     readonly property bool localSong: pageData.sourceKind === "local"
         || pageData.playingEdition.origin === "local" || !!pageData.playingTrack.localPath
@@ -61,7 +64,7 @@ Item {
         return [String(occurrence), String(editionKey || ""), String(trackKey || "")].join("\u001f")
     }
     readonly property real displayedPosition: scrubbing ? clampSeek(previewPosition) : clampSeek(pageData.position)
-    readonly property real seekFraction: pageData.duration > 0 ? displayedPosition / pageData.duration : 0
+    readonly property real seekFraction: !pendingSong && pageData.duration > 0 ? displayedPosition / pageData.duration : 0
     signal minimiseRequested(bool viaPointer)
     signal songRequested
     signal videoRequested()
@@ -185,13 +188,14 @@ Item {
         RoundedPosterImage {
             anchors.fill: parent
             radius: 7
-            sources: [root.displayedSong.artwork(root.displayedSong.playingEdition.cover)]
+            sources: [root.displayedSong.artwork(root.pendingSong ? root.pendingSong.cover : root.displayedSong.playingEdition.cover)]
         }
     }
     Item {
         id: nowPlaying
         objectName: "vinylBarNowPlaying"
-        readonly property string accessibleName: qsTr("Now playing: %1").arg(root.displayedSong.playingTrack.title)
+        readonly property string accessibleName: root.pendingSong ? qsTr("Waiting to play: %1").arg(root.displayedTitle)
+            : qsTr("Now playing: %1").arg(root.displayedTitle)
         Accessible.role: Accessible.StaticText
         Accessible.name: accessibleName
         x: root.identityLeft + root.identitySize + (root.slimTight ? 8 : 12)
@@ -206,7 +210,7 @@ Item {
             Text {
                 objectName: "vinylBarTitle"
                 width: parent.width
-                text: root.displayedSong.playingTrack.title
+                text: root.displayedTitle
                 color: theme.ink
                 font.family: theme.ui
                 font.pixelSize: 12
@@ -216,7 +220,7 @@ Item {
             Text {
                 objectName: "vinylBarArtist"
                 width: parent.width
-                text: root.displayedSong.playingEdition.artist + (root.slim
+                text: root.displayedArtist + (root.slim && !root.pendingSong
                     ? " · " + elapsedLabel.text + " / " + totalTimeLabel.text : "")
                 color: theme.inkDimmer
                 font.family: theme.ui
@@ -234,7 +238,7 @@ Item {
         KeyboardAction {
             objectName: "vinylBarPrev"
             focusOnPointer: false
-            enabled: root.trackNavigationEnabled && (root.pageData.canPrevious === undefined || root.pageData.canPrevious)
+            enabled: !root.pendingSong && root.trackNavigationEnabled && (root.pageData.canPrevious === undefined || root.pageData.canPrevious)
             opacity: enabled ? 1 : 0.35
             width: root.slimTight ? 26 : 32
             height: 39
@@ -276,7 +280,7 @@ Item {
         KeyboardAction {
             objectName: "vinylBarNext"
             focusOnPointer: false
-            enabled: root.trackNavigationEnabled && (root.pageData.canNext === undefined || root.pageData.canNext)
+            enabled: !root.pendingSong && root.trackNavigationEnabled && (root.pageData.canNext === undefined || root.pageData.canNext)
             opacity: enabled ? 1 : 0.35
             width: root.slimTight ? 26 : 32
             height: 39
@@ -381,7 +385,7 @@ Item {
         visible: root.showVideoTool
         x: root.toolsLeft
         y: root.toolsTop
-        enabled: !root.torrentBusy && (root.videoBusy ? root.pageData.videoSwitchCancellable === true
+        enabled: !root.pendingSong && !root.torrentBusy && (root.videoBusy ? root.pageData.videoSwitchCancellable === true
             : root.pageData.hasVideo === true || root.videoShown)
         selected: root.videoShown
         loading: root.videoBusy && root.pageData.videoSwitchCancellable !== true
@@ -401,7 +405,7 @@ Item {
         objectName: "vinylBarQueue"
         x: root.slim ? root.minimiseLeft - root.toolsStep : root.toolsLeft + 45
         y: root.toolsTop
-        enabled: root.queueEnabled
+        enabled: !root.pendingSong && root.queueEnabled
         symbol: "queueOpen"
         accessibleName: qsTr("Open queue")
         onTriggered: root.pageData.queueRequested()

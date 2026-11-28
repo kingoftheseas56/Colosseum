@@ -30,6 +30,11 @@ Item {
     readonly property bool firstArtReady: !firstScreenRevealed && firstListsReady
         && firstRows.every(shelf => shelf.previewArtSettled && shelf.cardArtworkSettled)
     readonly property real contentLeft: rowIndex.contentLeft
+    readonly property real streamedTop: {
+        // mapToItem alone does not notify bindings when the Flickable scrolls.
+        pageFlick.contentY;
+        return viewportRowTop();
+    }
     implicitHeight: shelfColumn.implicitHeight
     signal rowRequested(var target)
     signal listRequested(var row)
@@ -43,24 +48,31 @@ Item {
         forceLayout();
         var height = pageFlick.height;
         var origin = viewportRowTop();
-        var rows = [];
+        var visibleRows = [];
+        var requests = [];
         var below = null;
+        // Warm just the first screen and its next row while still on Home. Once
+        // Explore opens, keep 2.5 viewports queued beyond the bottom edge.
+        var lookAhead = 2.5 * height;
         for (var i = 0; i < shelves.count; ++i) {
             var shelf = shelves.itemAt(i);
             if (!shelf) continue;
             var top = origin + shelf.y;
-            if (initial) {
-                if (top < height && top + shelf.height > 0) rows.push(shelf);
+            var bottom = top + shelf.height;
+            var visible = top < height && bottom > 0;
+            if (initial && visible) visibleRows.push(shelf);
+            if (warming) {
+                if (visible) requests.push(shelf);
                 else if (top >= height && !below) below = shelf;
-            } else if (top < 2 * height && top + shelf.height > -height) rows.push(shelf);
+            } else if (top < height + lookAhead && bottom > -lookAhead) requests.push(shelf);
         }
         if (initial && (!entered || !firstScreenRevealed)) {
-            if (rows.length !== firstRows.length || rows.some((row, i) => row !== firstRows[i]))
+            if (visibleRows.length !== firstRows.length || visibleRows.some((row, i) => row !== firstRows[i]))
                 firstScreenRevealed = false;
-            firstRows = rows;
+            firstRows = visibleRows;
         }
-        for (var row of rows) row.load(false);
-        if (initial && below) below.load(false);
+        for (var row of requests) row.load(false);
+        if (below) below.load(false);
         return true;
     }
     function syncLoading() {
@@ -163,7 +175,8 @@ Item {
         return "";
     }
     function nextArtBatch(kind) {
-        // Re-rank each new batch by distance from the viewport. Keep row order for ties.
+        // Walk every loaded preview, including those left behind by scrolling.
+        // Re-rank each new batch by viewport distance, keeping row order for ties.
         var ranked = [];
         var origin = viewportRowTop();
         for (var i = 0; i < shelves.count; ++i) {
@@ -228,7 +241,9 @@ Item {
                     album: typeof album === "string" ? album : ""};
             }
             artResults = next;
-            if (walk.kind === "lastfm") {
+            // Only unfinished editorial polls need the retry delay. As soon as
+            // a batch settles, continue walking the loaded shelves off-screen.
+            if (walk.batch.every(item => next[item.id])) {
                 walk.schedule(true);
                 return;
             }
@@ -350,7 +365,10 @@ Item {
                 reservedCardHeight: cardSize + 55
                 cardsRevealed: !firstScreen || page.firstScreenRevealed
                 trackCardArtwork: firstScreen && !page.firstScreenRevealed
-                showCardPlaceholder: page.active && (!!pending || !!reply) && (loading || !cardsRevealed) && !failed
+                // Fetch well ahead, but only animate skeletons near the viewport.
+                showCardPlaceholder: page.active && (loading || !cardsRevealed) && !failed
+                    && page.streamedTop + y < 1.5 * page.pageFlick.height
+                    && page.streamedTop + y + height > -0.5 * page.pageFlick.height
                 openRowHandler: function(row) { page.listRequested(row); }
                 retryRowHandler: function() { shelf.load(true); }
                 property var pending: null
@@ -369,9 +387,8 @@ Item {
                 row: ({key: "explore-" + modelData.key, title: modelData.title, items: items,
                     personal: false, status: failed ? "error" : loading || !cardsRevealed ? "loading" : "ready",
                     canRetry: failed && !loading})
-                statusNote: !hasCards ? "" : loading || !cardsRevealed ? qsTr("Loading this shelf…")
-                    : failed ? qsTr("Some charts could not load.")
-                    : staleDate ? qsTr("As of %1 (cached)").arg(staleDate) : ""
+                statusNote: hasCards && !loading && cardsRevealed && staleDate
+                    ? qsTr("As of %1 (cached)").arg(staleDate) : ""
 
                 function load(retry) {
                     if (!page.working || pending || (reply && !(retry && failed))) return;

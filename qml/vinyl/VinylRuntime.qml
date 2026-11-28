@@ -73,7 +73,9 @@ Item {
     readonly property real footerLeft: Math.max(theme.margin, shellDockRight > 0 ? shellDockRight + 12 : 0)
     property bool hudOpen: false
     property string lastHudPlaybackOccurrence: ""
-    readonly property bool hudHasMedia: canEnterVinyl && session.playingIndex >= 0
+    readonly property var hudPendingSong: pendingDiscoverItem && pendingDiscoverItem.fromExplore
+        && pendingDiscoverItem.action === "play" && pendingDiscoverItem.item.kind === "songs" ? pendingDiscoverItem.item : null
+    readonly property bool hudHasMedia: canEnterVinyl && (session.playingIndex >= 0 || !!hudPendingSong)
     onHudHasMediaChanged: if (!hudHasMedia) hudOpen = false
     function toggleHud() {
         if (hudHasMedia) hudOpen = !hudOpen
@@ -541,7 +543,15 @@ Item {
     }
 
     function resolveDiscoverItem(item,action,fromHome) {
-        if(!(fromHome ? homeActivationAllowed : discoverActivationAllowed) || pendingDiscoverItem) return;
+        if(!(fromHome ? homeActivationAllowed : discoverActivationAllowed)) return;
+        var fromExplore = fromHome && exploreActivationAllowed;
+        var explorePlay = fromExplore && action === "play" && item.kind === "songs";
+        if(pendingDiscoverItem) {
+            if(!explorePlay) return;
+            // Play the latest selection, not a slower match for the previous click.
+            if(pendingDiscoverItem.item.id === item.id) return;
+            cancelDiscoverItem();
+        }
         var source=session.source;
         session.browseError="";
         var id=source ? source.request("catalogue-item","resolveCatalogueItem",item.id,{item:item}) : -1;
@@ -550,26 +560,39 @@ Item {
             return;
         }
         pendingDiscoverItem={id:id,item:item,source:source,generation:session.profileGeneration,
-            action:action || "open",fromHome:fromHome===true,fromExplore:exploreActivationAllowed};
+            action:action || "open",fromHome:fromHome===true,fromExplore:fromExplore};
+        if(explorePlay) hudOpen = true;
         discoverStatus="";
     }
 
     function acceptDiscoverItem(id,data,error) {
         var pending=pendingDiscoverItem;
         if(!pending || pending.id!==id) return;
+        var item=pending.item;
+        var current=(pending.fromExplore ? exploreActivationAllowed : pending.fromHome ? homeActivationAllowed : discoverActivationAllowed)
+            && session.source===pending.source && session.profileGeneration===pending.generation;
+        var valid=!error && data && data.version===1 && data.id===item.id && data.kind===item.kind
+            && typeof data.matched==="boolean";
+        // Keep the pending song in the bar until album playback owns its busy state.
+        // Only an explicit Now Playing action should navigate there from Explore.
+        if(current && valid && data.matched && hudPendingSong && data.record && data.record.tracks && data.record.tracks.length) {
+            session.playAlbum(data.record,0);
+            if(pendingDiscoverItem === pending) pendingDiscoverItem=null;
+            return;
+        }
         pendingDiscoverItem=null;
         discoverStatus="";
-        if(!(pending.fromExplore ? exploreActivationAllowed : pending.fromHome ? homeActivationAllowed : discoverActivationAllowed)
-            || session.source!==pending.source
-            || session.profileGeneration!==pending.generation) return;
-        var item=pending.item;
-        if(error || !data || data.version!==1 || data.id!==item.id || data.kind!==item.kind
-            || typeof data.matched!=="boolean") {
+        if(!current) return;
+        if(!valid) {
             discoverStatus=qsTr("Couldn't look up “%1”. Select it again to retry.").arg(item.title);
             return;
         }
         if(!data.matched) {
             discoverStatus=qsTr("Couldn't find “%1” on YouTube Music.").arg(item.title);
+            return;
+        }
+        if(pending.fromExplore && pending.action === "play" && item.kind === "songs") {
+            discoverStatus=qsTr("Couldn't play “%1”. Select it again to retry.").arg(item.title);
             return;
         }
         if(pending.fromHome && pending.action!=="open") {
@@ -611,7 +634,9 @@ Item {
     function activateItem(item) {
         if(!root.canEnterVinyl) {root.resetUnavailableSession();return;}
         if(item.catalogueCard===true || (item.requiresResolution && item.catalogueItem)) {
-            root.resolveDiscoverItem(item.catalogueItem || item,"open",page!=="discover");
+            var catalogueItem = item.catalogueItem || item;
+            var action = exploreActivationAllowed && catalogueItem.kind === "songs" ? "play" : "open";
+            root.resolveDiscoverItem(catalogueItem,action,page!=="discover");
             return;
         }
         if(item.kind==="mixes") {
@@ -1183,7 +1208,7 @@ Item {
         y: root.contentBottom - height
         width: 24; height: 24
         running: visible
-        visible: !!root.pendingDiscoverItem || (!!root.pendingAlbumRoute && !!root.pendingAlbumRoute.homeAction
+        visible: (!!root.pendingDiscoverItem && !root.hudPendingSong) || (!!root.pendingAlbumRoute && !!root.pendingAlbumRoute.homeAction
             && session.browsing && session.browseOperation === "album")
     }
     Row {
@@ -1255,6 +1280,7 @@ Item {
             NumberAnimation { duration: bar.transitionDuration }
         }
         pageData:session;backdrop:root.chromeBackdrop;page:root.page==="song" ? "song" : "album";queueEnabled:true;trackNavigationEnabled:true
+        pendingSong: root.hudPendingSong
         videoFullscreen: root.videoFullscreen
         onMinimiseRequested: viaPointer => {
             root.hudOpen = false;

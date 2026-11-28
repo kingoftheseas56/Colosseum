@@ -41,7 +41,8 @@ Item {
     readonly property string rowStatus: String(root.row && root.row.status || "")
     readonly property bool showRowStatus: statusNote.length > 0 || (!root.hasCards && root.row
         && (root.row.recommendation === true || root.row.personal === false)
-        && ["loading", "stale", "error"].indexOf(rowStatus) >= 0)
+        && ["loading", "stale", "error"].indexOf(rowStatus) >= 0
+        && !(reservedCardHeight > 0 && rowStatus === "loading"))
     readonly property bool hasCards: !!(root.row && root.row.items && root.row.items.length > 0)
     readonly property bool showRowRetry: showRowStatus && rowStatus !== "loading"
         && root.row.canRetry === true
@@ -49,7 +50,7 @@ Item {
             || typeof root.worldData.retryHomeRecommendations === "function")))
     readonly property string rowStatusText: {
         if(statusNote) return statusNote;
-        if(rowStatus === "loading") return "Loading this shelf…";
+        if(rowStatus === "loading") return reservedCardHeight > 0 ? "" : "Loading this shelf…";
         if(rowStatus === "stale") return root.row.loading === true
             ? "Loading this shelf…" : "Could not refresh this shelf.";
         if(rowStatus === "error") return "Could not load this shelf.";
@@ -161,9 +162,12 @@ Item {
             Repeater {
                 model: placeholder.visible ? Math.min(root.previewCount,
                     Math.ceil(rail.width / (root.cardSize + root.squareSpacing))) : 0
-                delegate: VinylArtwork {
-                    width: root.cardSize; height: width
-                    backgroundColor: theme.vaultSurface
+                delegate: CataloguePosterCard {
+                    objectName: "vinylShelfSkeleton_" + root.row.key
+                    width: root.cardSize
+                    height: root.reservedCardHeight
+                    skeleton: true
+                    squareArtwork: true
                 }
             }
         }
@@ -203,6 +207,7 @@ Item {
                     objectName: "vinylCard_" + (root.cold ? "cold-" : "") + root.row.key + "_" + index
                     worldData: root.worldData
                     item: root.row.items[index]
+                    showPressFeedback: String(root.row.key || "").startsWith("explore-")
                     artistRadioAction: root.home && typeof root.worldData.radioHomeItem === "function"
                         ? function(item) { root.worldData.radioHomeItem(item); } : null
                     albumPlayAction: root.home && typeof root.worldData.playHomeItem === "function"

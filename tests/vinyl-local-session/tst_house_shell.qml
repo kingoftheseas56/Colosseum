@@ -25,9 +25,14 @@ TestCase {
             property string artistError: ""
             property bool cached: false
             property int artistRetryCount: 0
+            property var calls: ({})
+            property var canceled: []
             signal completed(string lane, int requestId, var data, string error)
-            function request(lane: string, operation: string, id: string): int { return ++serial; }
-            function cancel(lane: string) {}
+            function request(lane: string, operation: string, id: string): int {
+                calls[lane] = {operation: operation, value: id, id: ++serial};
+                return serial;
+            }
+            function cancel(lane: string) { canceled.push(lane); }
             function setAlbums(albums) {}
             function openArtist(ref) { artist = ref; artistCatalogueBusy = true; artistBusy = true; }
             function leaveArtist() { artist = {}; artistCatalogueBusy = false; artistBusy = false; }
@@ -482,6 +487,65 @@ TestCase {
         tryCompare(bar, "dockProgress", 0);
         compare(findChild(bar, "vinylBarTitle").text, "Second song");
         compare(runtime.page, "album");
+    }
+    function test_exploreSongStartsSlimHudAndKeepsLatestSelection() {
+        const source = prepareDetailRuntime();
+        runtime.worldView.setTab("explore");
+        const page = findChild(runtime, "vinylExplorePage");
+        verify(page);
+        tryVerify(() => source.calls["explore-tag-chill"]);
+        const songs = ["Sweater Weather", "Amber"].map((title, i) => ({id: "explore-song-" + i,
+            title: title, artist: "Fixture artist", source: "lastfm", kind: "songs", catalogueCard: true,
+            cover: String(Qt.resolvedUrl("../../qml/vinyl/assets/record-ring.svg"))}));
+        for (const row of page.firstRows) {
+            if (row.tag === "chill") source.completed(row.lane, source.calls[row.lane].id,
+                {version: 1, kind: "songs", source: "lastfm", list: "chill", items: songs}, "");
+            else source.completed(row.lane, source.calls[row.lane].id, {}, "Fixture unavailable");
+        }
+        const first = findChild(page, "vinylCard_explore-chill_0");
+        const second = findChild(page, "vinylCard_explore-chill_1");
+        const bar = findChild(runtime, "vinylPlayerBar");
+        const title = findChild(bar, "vinylBarTitle");
+        const spinner = findChild(bar, "vinylBarLoading");
+        const status = findChild(runtime, "vinylStatus");
+        tryCompare(first, "visible", true);
+        const route = runtime.page;
+        verify(route !== "song" && !runtime.hudOpen);
+        verify(waitForRendering(first));
+        mouseClick(first);
+        compare(runtime.hudOpen, true, "Explore must open the HUD before the catalogue request replies");
+        compare(runtime.page, route);
+        tryCompare(bar, "dockProgress", 0);
+        verify(bar.visible && bar.slim && spinner.running);
+        compare(title.text, songs[0].title);
+        verify(!findChild(runtime, "vinylLookupIndicator").visible);
+        compare(status.text, "");
+        const stale = source.calls["catalogue-item"];
+        mouseClick(second);
+        const current = source.calls["catalogue-item"];
+        verify(current.id > stale.id && source.canceled.includes("catalogue-item"));
+        compare(current.operation, "resolveCatalogueItem");
+        compare(current.value, songs[1].id);
+        compare(title.text, songs[1].title);
+        function matched(song) {
+            const record = detailRecord();
+            record.tracks[0].title = song.title;
+            return {version: 1, id: song.id, kind: "songs", matched: true, record: record};
+        }
+        source.completed("catalogue-item", stale.id, matched(songs[0]), "");
+        compare(runtime.session.playingIndex, -1);
+        wait(350);
+        verify(bar.visible && spinner.running);
+        compare(status.text, "");
+        source.completed("catalogue-item", current.id, matched(songs[1]), "");
+        compare(runtime.session.playingIndex, 0);
+        compare(runtime.session.sourceState, "finding", runtime.session.error);
+        compare(runtime.hudOpen, true);
+        compare(runtime.page, route, "A successful Explore lookup must stay on Explore");
+        compare(runtime.worldView.currentTab, "explore");
+        compare(bar.pendingSong, null);
+        compare(title.text, songs[1].title);
+        verify(bar.slim && spinner.running);
     }
     function test_houseDoesNotInterceptPlayerControls() {
         createRuntime("VinylAppWorld.qml");

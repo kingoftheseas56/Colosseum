@@ -135,10 +135,13 @@ TestCase {
             return y < view.pageFlickable.height && y + row.height > 0;
         });
     }
-    function firstRequests() {
-        var visible = visibleFixtures();
-        var below = fixtures.indexOf(visible[visible.length - 1]) + 1;
-        return visible.concat(fixtures.slice(below, below + 1));
+    function withinPrefetchHorizon() {
+        var height = view.pageFlickable.height;
+        return fixtures.filter(fixture => {
+            var row = shelf(fixture[0]);
+            var y = row.mapToItem(view.pageFlickable, 0, 0).y;
+            return y < height + 2.5 * height && y + row.height > -2.5 * height;
+        });
     }
     function scrollTo(key) {
         view.pageFlickable.contentY = Math.max(0, Math.min(view.parkY(shelf(key)),
@@ -197,17 +200,20 @@ TestCase {
         var sidebar = findChild(view, "vinylExploreRowIndexSidebar");
         compare(page.rowCount, 12);
         compare(sidebar.rows.map(row => [row.key, row.title]), fixtures.map(fixture => fixture.slice(0, 2)));
-        var initial = firstRequests();
-        verify(initial.length > 1 && initial.length < fixtures.length);
-        compare(transport.requests, initial.map(lane));
+        var initial = withinPrefetchHorizon();
+        verify(initial.length > visibleFixtures().length + 1 && initial.length < fixtures.length);
+        compare(transport.requests, initial.map(lane), "Open must queue the full look-ahead, not just the next shelf");
         var extent = view.pageFlickable.contentHeight;
         var deferred = fixtures[initial.length];
         var deferredHeight = shelf(deferred[0]).height;
         verify(deferredHeight > 132);
         verify(!card(deferred[0], 0));
         verify(!transport.calls[lane(deferred)]);
-        view.pageFlickable.contentY += 250;
-        tryVerify(() => !!transport.calls[lane(deferred)]);
+        view.pageFlickable.contentY += deferredHeight;
+        var extended = withinPrefetchHorizon();
+        verify(extended.includes(deferred));
+        verify(!visibleFixtures().includes(deferred), "The newly requested row still must be off-screen");
+        tryCompare(transport, "requests", extended.map(lane));
         verify(!transport.calls[lane(fixtures[fixtures.length - 1])]);
         finishCovered(deferred);
         tryVerify(() => card(deferred[0], 0) && card(deferred[0], 0).visible);
@@ -277,8 +283,10 @@ TestCase {
         open();
         var page = findChild(view, "vinylExplorePage");
         var status = findChild(page, "vinylShelfStatus_explore-chill");
-        verify(status.visible);
-        compare(status.text, "Loading this shelf…");
+        verify(!status.visible);
+        compare(status.text, "");
+        var skeleton = findChild(page, "vinylShelfSkeleton_explore-chill");
+        verify(skeleton && skeleton.visible && skeleton.skeleton && skeleton.squareArtwork);
         var fixture = fixtures[0];
         var data = transport.pageReply(fixture, 50);
         data.stale = true;
@@ -294,14 +302,18 @@ TestCase {
         var first = card("chill", 0);
         verify(waitForRendering(first));
         compare(first.presentationKind, "songs");
-        mouseClick(first);
+        var tile = findChild(first, first.objectName + "_tile");
+        mousePress(first);
+        verify(first.pressed && tile.opacity < 1);
+        mouseRelease(first);
+        compare(tile.opacity, 1);
         compare(fixtureWorld.selected.id, "chill-0");
         var seeAll = findChild(page, "vinylShelfSeeAll_explore-chill");
         mouseClick(seeAll);
         verify(fixtureWorld.opened);
         compare(fixtureWorld.opened.key, "explore-chill");
         compare(fixtureWorld.opened.items.length, 50);
-        compare(transport.requests, firstRequests().map(lane));
+        compare(transport.requests, withinPrefetchHorizon().map(lane));
     }
     function test_invalidMoodReply_data() {
         return [{tag: "wrong list", field: "list", value: "happy"},
@@ -368,6 +380,29 @@ TestCase {
         wait(1400);
         compare(transport.serial, serial);
     }
+    function test_artContinuesThroughOffscreenLoadedRowsWithoutScrolling() {
+        open();
+        var y = view.pageFlickable.contentY;
+        var offscreen = withinPrefetchHorizon().filter(f => f[2] && !visibleFixtures().includes(f));
+        verify(offscreen.length >= 2);
+        var near = offscreen[0], far = offscreen[offscreen.length - 1];
+        transport.finish(fixtures[0]);
+        var first = waitForArt(lastfmArtLane, "lastfm", ["chill-0"]);
+        // Arrive in reverse distance order while the visible batch is still running.
+        transport.finish(far, transport.pageReply(far, 8));
+        transport.finish(near, transport.pageReply(near, 8));
+        compare(transport.calls[lastfmArtLane].id, first);
+        finishArt(lastfmArtLane, first, {});
+        var ids = f => Array.from({length: 8}, (_, i) => f[0] + "-" + i);
+        var second = waitForArt(lastfmArtLane, "lastfm", ids(near).concat(ids(far).slice(0, 4)), first);
+        finishArt(lastfmArtLane, second, {});
+        var third = waitForArt(lastfmArtLane, "lastfm", ids(far).slice(4), second);
+        var covers = {};
+        covers[far[0] + "-7"] = String(fixtureCover);
+        finishArt(lastfmArtLane, third, {covers: covers});
+        compare(card(far[0], 7).item.cover, String(fixtureCover));
+        compare(view.pageFlickable.contentY, y);
+    }
     function test_stalledEditorialDoesNotBlockVisibleDecadeArtwork() {
         open();
         scrollTo("2010s");
@@ -413,7 +448,7 @@ TestCase {
         open();
         var fixture = fixtures[1];
         var page = findChild(view, "vinylExplorePage");
-        firstRequests().forEach(entry => {
+        withinPrefetchHorizon().forEach(entry => {
             if (entry === fixture) transport.finish(entry, null, "Fixture failure");
             else finishCovered(entry);
         });
@@ -470,15 +505,17 @@ TestCase {
         compare(findChild(first, "vinylArtworkImage").status, Image.Ready);
         view.setTab("explore");
         tryVerify(() => first.visible);
-        compare(lists, firstRequests().map(lane));
-        compare(transport.requests, lists.concat(lastfmArtLane));
+        var extra = withinPrefetchHorizon().slice(lists.length);
+        tryCompare(transport, "requests", lists.concat(lastfmArtLane, extra.map(lane)));
+        extra.forEach(f => finishCovered(f));
+        var all = transport.requests.slice();
         view.setTab("home");
         wait(750);
-        compare(transport.requests, lists.concat(lastfmArtLane));
+        compare(transport.requests, all);
         view.setTab("explore");
         tryVerify(() => first.visible);
         compare(card("chill", 0), first);
-        compare(transport.requests, lists.concat(lastfmArtLane));
+        compare(transport.requests, all);
     }
     function test_profileChangeAndShutdownCancelWarmUp() {
         var page = beginWarmUp();
@@ -507,20 +544,21 @@ TestCase {
     function test_rowIndexJumps() {
         open();
         var sidebar = findChild(view, "vinylExploreRowIndexSidebar");
-        var action = findChild(sidebar, "vinylExploreRowIndexRow_year_end_100_2025Action");
-        var row = shelf("year-end-100-2025");
+        var target = fixtures[withinPrefetchHorizon().length];
+        var action = findChild(sidebar, "vinylExploreRowIndexRow_" + target[0].replace(/-/g, "_") + "Action");
+        var row = shelf(target[0]);
         verify(action !== null && row !== null);
-        verify(!transport.calls[lane(fixtures[5])]);
-        verify(!card(fixtures[5][0], 0));
+        verify(!transport.calls[lane(target)]);
+        verify(!card(target[0], 0));
         compare(view.pageFlickable.contentY, 0);
         verify(waitForRendering(action));
         var y = view.parkY(row);
         verify(y > 0);
         mouseClick(action);
-        tryVerify(() => !!transport.calls[lane(fixtures[5])]);
+        tryVerify(() => !!transport.calls[lane(target)]);
         tryVerify(() => Math.abs(view.pageFlickable.contentY - y) < 2);
-        finishCovered(fixtures[5]);
-        tryVerify(() => card(fixtures[5][0], 0) && card(fixtures[5][0], 0).visible);
-        compare(sidebar.automationCurrentRow, "Biggest songs of 2025");
+        finishCovered(target);
+        tryVerify(() => card(target[0], 0) && card(target[0], 0).visible);
+        compare(sidebar.automationCurrentRow, target[1]);
     }
 }

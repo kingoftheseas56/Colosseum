@@ -104,6 +104,7 @@ Item {
                 objectName: "vinylListCard_"+index
                 worldData: root.worldData
                 item: modelData
+                showPressFeedback: root.listKey.startsWith("explore-")
                 artistRadioAction: root.homeArtistActions && typeof root.worldData.radioHomeItem === "function"
                     ? function(item) { root.worldData.radioHomeItem(item); } : null
                 albumPlayAction: root.homeArtistActions && typeof root.worldData.playHomeItem === "function"

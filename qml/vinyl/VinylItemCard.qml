@@ -21,6 +21,7 @@ KeyboardAction {
         ? portraitCache.lastGood(item.id) : ""
     property bool wide: false
     property bool songLine: false
+    property bool showPressFeedback: false
     property var artistRadioAction: null
     property var albumPlayAction: null
     property bool keyboardFocused: activeFocus
@@ -146,6 +147,7 @@ KeyboardAction {
         id: tile
         objectName: root.objectName + "_tile"
         anchors.fill: parent
+        opacity: root.showPressFeedback && root.pressed ? 0.72 : 1
 
         Loader {
             active: root.songLine && root.engaged
